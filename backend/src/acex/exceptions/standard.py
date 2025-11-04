@@ -1,0 +1,3 @@
+
+
+class MethodNotImplemented(Exception): ...

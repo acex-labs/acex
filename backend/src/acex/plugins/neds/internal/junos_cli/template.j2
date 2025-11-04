@@ -1,0 +1,96 @@
+{%- if configuration.system.config['domain-name'] %}
+set system domain-name {{ configuration.system.config['domain-name'].config.value.value }}
+{%- endif -%}
+{%- if configuration.system.config.hostname %}
+set system host-name {{ configuration.system.config.hostname.config.value.value }}
+{%- endif -%}
+{# {%- if configuration.system.users %}
+{%- for user in configuration.system.users.config %}
+set system login user {{ user.name }} class {{ user.privilege | default("super-user") }}
+set system login user {{ user.name }} authentication encrypted-password "{{ user.secret }}"
+{%- endfor %}
+{%- endif %} #}
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.type == "softwareLoopback" %}
+set interfaces lo0 unit {{ intf.config.index.value }} family inet address {{ intf.config.ipv4.value }}
+{%-    if intf.config.description %}
+set interfaces lo0 unit {{ intf.config.index.value }}description "{{ intf.config.description.value }}"
+{%-    endif %}
+{%-  endif %}
+{%- endfor %}
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.type == "ethernetCsmacd" %}
+{%-    if intf.config.description %}
+set interfaces {{ intf.config.name }} description "{{ intf.config.description.value }}"
+{%-    endif %}
+{%-    if intf.config.ipv4 %}
+set interfaces {{ intf.config.name }} unit 0 family inet address {{ intf.config.ipv4.value }}
+{%-     endif %}
+{%-    if not intf.config.enabled.value %}
+set interfaces {{ intf.config.name }} disable
+{%-     endif %}
+{%-  endif %}
+{%- endfor %}
+{%- if configuration.routing %}
+{%- if configuration.routing.static_routes %}
+{%- for route in configuration.routing.static_routes %}
+set routing-options static route {{ route.network }}/{{ route.mask }} next-hop {{ route.next_hop }}
+{%- endfor %}
+{%- endif %}
+{%- if configuration.routing.ospf %}
+set protocols ospf area 0.0.0.0
+{%- if configuration.routing.ospf.router_id %}
+set routing-options router-id {{ configuration.routing.ospf.router_id }}
+{%- endif %}
+{%- if configuration.routing.ospf.networks %}
+{%- for network in configuration.routing.ospf.networks %}
+set protocols ospf area {{ network.area }} interface {{ network.interface | default("all") }}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+{%- endif %}
+{%- if configuration.vlans %}
+{%- for vlan in configuration.vlans %}
+set vlans {{ vlan.name }} vlan-id {{ vlan.id }}
+{%- endfor %}
+{%- endif %}
+{%- if configuration.spanning_tree %}
+set protocols stp
+{%- endif %}
+{%- if configuration.snmp %}
+{%- if configuration.snmp.community %}
+{%- if configuration.snmp.access == 'RW' %}
+set snmp community {{ configuration.snmp.community }} authorization read-write
+{%- else %}
+set snmp community {{ configuration.snmp.community }} authorization read-only
+{%- endif %}
+{%- endif %}
+{%- if configuration.snmp.location %}
+set snmp location "{{ configuration.snmp.location }}"
+{%- endif %}
+{%- if configuration.snmp.contact %}
+set snmp contact "{{ configuration.snmp.contact }}"
+{%- endif %}
+{%- endif %}
+{%- if configuration.ntp %}
+{%- for server in configuration.ntp.servers %}
+set system ntp server {{ server }}
+{%- endfor %}
+{%- endif %}
+{%- if configuration.logging %}
+{%- if configuration.logging.host %}
+set system syslog host {{ configuration.logging.host }} any any
+{%- endif %}
+set system syslog file messages any notice
+set system syslog file messages authorization info
+{%- endif %}
+set system services ssh
+{%- if configuration.ssh %}
+{%- if configuration.ssh.timeout %}
+set system services ssh idle-timeout {{ configuration.ssh.timeout }}
+{%- endif %}
+{%- if configuration.ssh.authentication_retries %}
+set system services ssh connection-limit {{ configuration.ssh.authentication_retries }}
+{%- endif %}
+{%- endif %}
+set system services netconf ssh

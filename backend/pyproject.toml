@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "acex"
+version = "0.2.0"
+description = "ACE-X Backend - Core automation engine and API"
+authors = ["Johan Lahti <johan.lahti@acebit.se>"]
+readme = "README.md"
+license = "Apache-2.0"
+homepage = "https://github.com/acex-labs/acex"
+repository = "https://github.com/acex-labs/acex"
+keywords = ["automation", "control", "api"]
+packages = [
+    { include = "acex", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+uvicorn = "^0.38.0"
+fastapi = "^0.121.0"
+sqlmodel = "^0.0.27"
+requests = "^2.32.5"
+psycopg2 = "^2.9.11"
+jinja2 = "^3.1.6"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
