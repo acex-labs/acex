@@ -1,6 +1,6 @@
 # ACE-X - Automation & Control Ecosystem
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 
 ACE-X is an extendable automation and control ecosystem designed for building robust, distributed automation workflows.
@@ -100,7 +100,25 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 
 ## 📄 License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** - see the [LICENSE](LICENSE) file for details.
+
+### What does AGPL mean?
+
+- ✅ **Free to use** - Use ACE-X for any purpose
+- ✅ **Open source** - Full source code available
+- ✅ **Modify freely** - Change and adapt as needed
+- ⚠️ **Share modifications** - If you modify and run ACE-X as a network service, you must share your modifications
+- ⚠️ **Same license** - Derivative works must also be AGPL-licensed
+
+### Dual Licensing
+
+**Commercial licenses** are available for organizations that wish to use ACE-X without the obligations of the AGPL.
+
+For commercial licensing inquiries, contact: **license@acex.dev**
+
+**Why AGPL?**
+
+The AGPL license ensures that improvements to ACE-X benefit the entire community, even when the software is used to provide network services. If you run a modified version of ACE-X as a service, users of that service can request the source code.
 
 ## 👤 Author
 
