@@ -86,6 +86,7 @@ jobs:
       contents: read
     if: github.ref == 'refs/heads/main'
     strategy:
+      fail-fast: false  # Fortsätt med andra paket även om ett failar
       matrix:
         package: [backend, cli, mcp]
         include:
