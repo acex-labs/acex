@@ -81,6 +81,9 @@ jobs:
     name: Build & Publish ${{ matrix.package }}
     needs: check-versions
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Krävs för Trusted Publisher (OIDC)
+      contents: read
     if: |
       github.ref == 'refs/heads/main' && (
         (matrix.package == 'backend' && needs.check-versions.outputs.backend-should-publish == 'true') ||
@@ -127,11 +130,8 @@ jobs:
       working-directory: ./${{ matrix.package }}
       run: poetry build
     
-    - name: Publish to PyPI
-      working-directory: ./${{ matrix.package }}
-      env:
-        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
-      run: |
-        poetry publish --no-interaction
-        VERSION=$(poetry version -s)
-        echo "✅ Successfully published ${{ matrix.pypi-name }} version $VERSION to PyPI"
+    - name: Publish to PyPI using Trusted Publisher
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: ${{ matrix.package }}/dist/
+        verbose: true
