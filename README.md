@@ -11,6 +11,7 @@ ACE-X is an extendable automation and control ecosystem designed for building ro
 - **Distributed Execution** - Scale with worker nodes
 - **CLI Tools** - Powerful command-line interface
 - **Plugin System** - Extend functionality with plugins
+- **External datasources with state** - Read external data, stateful
 
 ## 📦 Packages
 
@@ -47,27 +48,133 @@ pip install acex-worker  # This includes acex as a dependency
 
 ## 🎯 Quick Example
 
+### Engine Setup
+
 ```python
-from acex.core import AutomationEngine
+from acex import AutomationEngine
 
 # Initialize the engine
 engine = AutomationEngine()
 
-# Your automation code here
+# Database (Postgres)
+db = Connection(
+    dbname="ace",
+    user="postgres",
+    password="",
+    host="localhost",
+    backend="postgresql"
+)
+
+# External datasources
+netbox = Netbox(
+    url="https://netbox.domain.tld/",
+    token=os.getenv("NETBOX_TOKEN")
+)
+
+ae.add_integration("ipam", netbox)
+app = ae.create_app()
+
+# Run the application with uvicorn
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=80,
+    )
+    
 ```
+
+### Configuration as code
+
+#### Static parameters
+
+```python
+from acex.config_map import ConfigMap, FilterAttribute
+from acex.configuration.components.interfaces import Loopback
+
+class LoopbackIf(ConfigMap):
+    def compile(self, context):
+
+        lo0 = Loopback(
+            index=0,
+            name="Lo0",
+            description = "MPLS Loopback",
+            ipv4 = f"192.0.2.2/24"
+        )
+        context.configuration.add(lo0)
+
+lo = LoopbackIf()
+lo.filters = FilterAttribute("role").eq("core")
+```
+
+
+#### Variable parameters
+
+```python
+from acex.config_map import ConfigMap, FilterAttribute
+from acex.configuration.components.interfaces import Loopback
+
+class LoopbackIf(ConfigMap):
+    def compile(self, context):
+
+        lo0 = Loopback(
+            index=0,
+            name="Lo0",
+            description = "MPLS Loopback",
+            ipv4 = f"192.0.2.{context.logical_node.id}/24"
+        )
+        context.configuration.add(lo0)
+
+lo = LoopbackIf()
+lo.filters = FilterAttribute("role").eq("core")
+```
+
+#### External datasources
+
+```python
+from acex.config_map import ConfigMap, FilterAttribute
+from acex.configuration.components.interfaces import Loopback
+
+
+class LoopbackIf(ConfigMap):
+    def compile(self, context):
+
+        lo0 = Loopback(
+            index=0,
+            name="Lo0",
+            description = "MPLS Loopback",
+            ipv4 = context.integrations.ipam.data.ip_addresses({"query_key": "match_value"})
+        )
+        context.configuration.add(lo0)
+lo = LoopbackIf()
+lo.filters = FilterAttribute("role").eq("core")
+```
+
+### Mapping config to nodes
+```python
+...
+
+# Instanciate the ConfigMap, makes it discoverable
+lo = LoopbackIf()
+
+# Apply filters
+
+## Apply to all nodes with role == core:
+lo.filters = FilterAttribute("role").eq("core")
+
+## Apply to all nodes with site == hq:
+lo.filters = FilterAttribute("site").eq("hq")
+
+## Apply to all core nodes at site hq:
+lo.filters = FilterAttribute("site").eq("hq") && FilterAttribute("role").eq("core")
+```
+
 
 Using the CLI:
 
-```bash
-# Run an automation
-acex run my_automation.py
-
-# Check status
-acex status
-
-# List automations
-acex list
-```
+# Coming...
 
 ## 🏗️ Development
 
