@@ -119,5 +119,9 @@ def get_node_instance_config(id: int) -> dict:
     response.raise_for_status()
     return response.json()
 
-if __name__ == "__main__":
+def run():
+    """Entry point for CLI command 'acex-mcp'"""
     mcp.run(transport="http", host="0.0.0.0", port=8000)
+
+if __name__ == "__main__":
+    run()
