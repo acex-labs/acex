@@ -5,12 +5,98 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
-    name: Build ${{ matrix.package }}
+  check-versions:
+    name: Check version ${{ matrix.package }}
     runs-on: ubuntu-latest
+    outputs:
+      backend-should-publish: ${{ steps.check-backend.outputs.should-publish }}
+      cli-should-publish: ${{ steps.check-cli.outputs.should-publish }}
+      mcp-should-publish: ${{ steps.check-mcp.outputs.should-publish }}
     strategy:
       matrix:
         package: [backend, cli, mcp]
+        include:
+          - package: backend
+            pypi-name: acex
+          - package: cli
+            pypi-name: acex-cli
+          - package: mcp
+            pypi-name: acex-mcp-server
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+    
+    - name: Get package version
+      id: get-version
+      working-directory: ./${{ matrix.package }}
+      run: |
+        VERSION=$(poetry version -s)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Package version: $VERSION"
+    
+    - name: Check if version exists on PyPI
+      id: check-pypi
+      run: |
+        PACKAGE_NAME="${{ matrix.pypi-name }}"
+        VERSION="${{ steps.get-version.outputs.version }}"
+        
+        # Kolla om versionen redan finns på PyPI
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/${PACKAGE_NAME}/${VERSION}/json")
+        
+        if [ "$HTTP_CODE" = "200" ]; then
+          echo "should-publish=false" >> $GITHUB_OUTPUT
+          echo "⏭️  Version $VERSION already exists on PyPI - skipping"
+        else
+          echo "should-publish=true" >> $GITHUB_OUTPUT
+          echo "✅ Version $VERSION is new - will build and publish"
+        fi
+    
+    - name: Set matrix output
+      id: check-backend
+      if: matrix.package == 'backend'
+      run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
+    
+    - name: Set matrix output
+      id: check-cli
+      if: matrix.package == 'cli'
+      run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
+    
+    - name: Set matrix output
+      id: check-mcp
+      if: matrix.package == 'mcp'
+      run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
+
+  build-and-publish:
+    name: Build & Publish ${{ matrix.package }}
+    needs: check-versions
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' && (
+        (matrix.package == 'backend' && needs.check-versions.outputs.backend-should-publish == 'true') ||
+        (matrix.package == 'cli' && needs.check-versions.outputs.cli-should-publish == 'true') ||
+        (matrix.package == 'mcp' && needs.check-versions.outputs.mcp-should-publish == 'true')
+      )
+    strategy:
+      matrix:
+        package: [backend, cli, mcp]
+        include:
+          - package: backend
+            pypi-name: acex
+          - package: cli
+            pypi-name: acex-cli
+          - package: mcp
+            pypi-name: acex-mcp-server
     
     steps:
     - name: Checkout code
@@ -41,9 +127,11 @@ jobs:
       working-directory: ./${{ matrix.package }}
       run: poetry build
     
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.package }}-dist
-        path: ${{ matrix.package }}/dist/
-        retention-days: 7
+    - name: Publish to PyPI
+      working-directory: ./${{ matrix.package }}
+      env:
+        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        poetry publish --no-interaction
+        VERSION=$(poetry version -s)
+        echo "✅ Successfully published ${{ matrix.pypi-name }} version $VERSION to PyPI"
