@@ -30,6 +30,13 @@ ae = AutomationEngine(
 ae.add_integration("ipam", netbox)
 ae.add_configmap_dir("config_maps")
 
+# AI OPS
+ae.ai_ops(
+    enabled=True,
+    base_url=os.getenv("ACEX_AI_API_BASEURL"),
+    api_key=os.getenv("ACEX_AI_API_KEY")
+)
+
 # Create the api app!
 app = ae.create_app()
 

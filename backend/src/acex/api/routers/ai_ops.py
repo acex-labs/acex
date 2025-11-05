@@ -7,17 +7,16 @@ from acex.constants import BASE_URL
 
 def create_router(automation_engine):
 
-    # TODO: Fixa toggle så att ai ops bara finns om klient och api nyckel finns
-    if "AI OPS" == False:
+    if not hasattr(automation_engine, "ai_ops_manager"):
         return None
 
     router = APIRouter(prefix=f"{BASE_URL}/ai_ops")
     tags = ["AI Operations"]
 
-    dcm = automation_engine.device_config_manager
+    aiom = automation_engine.ai_ops_manager
     router.add_api_route(
-        "/device_configs/{node_instance_id}",
-        dcm.list_config_hashes,
+        "/ai/ask/",
+        aiom.ask,
         methods=["GET"],
         tags=tags
     )

@@ -1,5 +1,5 @@
 """AI OPS Functionality."""
 
-from acex.automation_engine.ai_ops import AIOpsManager
+from acex.ai_ops.ai_ops import AIOpsManager
 
 __all__ = ["AIOpsManager"]
