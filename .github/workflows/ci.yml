@@ -129,11 +129,6 @@ jobs:
         virtualenvs-create: true
         virtualenvs-in-project: true
     
-    - name: Install dependencies - Backend
-      if: steps.should-publish.outputs.should-publish == 'true' && matrix.package != 'backend'
-      working-directory: ./backend
-      run: poetry install --no-interaction
-    
     - name: Install dependencies - ${{ matrix.package }}
       if: steps.should-publish.outputs.should-publish == 'true'
       working-directory: ./${{ matrix.package }}
