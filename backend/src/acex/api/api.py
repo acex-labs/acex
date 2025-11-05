@@ -40,7 +40,8 @@ class Api:
                 module = importlib.import_module(module_name)
                 if hasattr(module, "create_router"):
                     router = getattr(module, "create_router")(automation_engine)
-                    routers.append(router)
+                    if router is not None:
+                        routers.append(router)
             except Exception as e:
                 print(f"Failed to import {module_name}: {e}")
                 raise e

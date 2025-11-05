@@ -55,6 +55,13 @@ poetry install
 echo -e "${GREEN}✓ Worker installed${NC}"
 echo ""
 
+# Install MCP Server
+echo -e "${YELLOW}MCP Server:${NC}"
+cd "$PROJECT_ROOT/mcp"
+poetry install
+echo -e "${GREEN}✓ MCP Server installed${NC}"
+echo ""
+
 cd "$PROJECT_ROOT"
 
 echo ""
@@ -72,6 +79,9 @@ echo "  cd cli && poetry shell"
 echo ""
 echo -e "${BLUE}Worker:${NC}"
 echo "  cd worker && poetry shell"
+echo ""
+echo -e "${BLUE}MCP Server:${NC}"
+echo "  cd mcp && poetry shell"
 echo ""
 echo "Or run commands directly with:"
 echo "  cd backend && poetry run python script.py"

@@ -3,14 +3,13 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 
-ACE-X is an extendable automation and control ecosystem designed for building robust, distributed automation workflows.
+ACE-X is an extendable automation and control ecosystem designed for building robust, distributed automation platforms.
 
 ## 🚀 Features
 
-- **Modular Architecture** - Install only what you need
+- **API-First** - RESTful API for all operations
 - **Distributed Execution** - Scale with worker nodes
 - **CLI Tools** - Powerful command-line interface
-- **API-First** - RESTful API for all operations
 - **Plugin System** - Extend functionality with plugins
 
 ## 📦 Packages
@@ -22,6 +21,7 @@ ACE-X is organized as a monorepo with multiple installable packages:
 | [**acex**](./backend/) | Core backend and API | `pip install acex` |
 | [**acex-cli**](./cli/) | Command-line interface | `pip install acex-cli` |
 | [**acex-worker**](./worker/) | Distributed task worker | `pip install acex-worker` |
+| [**acex-mcp-server**](./mcp/) | MCP server for AI assistants | `pip install acex-mcp-server` |
 
 ## 🔧 Installation
 
@@ -88,11 +88,26 @@ cd worker
 poetry install
 ```
 
+## 🤖 MCP Server
+
+ACE-X includes a Model Context Protocol (MCP) server for integration with AI assistants like Claude Desktop and VS Code Cline:
+
+```bash
+# Install the MCP server
+pip install acex-mcp-server
+
+# Run the server
+acex-mcp
+```
+
+See [MCP Server Documentation](./mcp/README.md) for configuration details.
+
 ## 📚 Documentation
 
 - [Backend Documentation](./backend/README.md)
 - [CLI Documentation](./cli/README.md)
 - [Worker Documentation](./worker/README.md)
+- [MCP Server Documentation](./mcp/README.md)
 
 ## 🤝 Contributing
 

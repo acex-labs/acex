@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "acex-mcp-server"
+version = "0.2.0"
+description = "ACE-X MCP Server - Model Context Protocol server for ACE-X"
+authors = ["Johan Lahti <johan.lahti@acebit.se>"]
+readme = "README.md"
+license = "AGPL-3.0"
+packages = [
+    { include = "acex_mcp", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+acex = {path = "../backend", develop = true}
+mcp = "^1.1.0"
+fastmcp = "^2.13.0.2"
+
+[tool.poetry.scripts]
+acex-mcp = "acex_mcp.server:run"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
