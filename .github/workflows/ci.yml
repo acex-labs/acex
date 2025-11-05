@@ -84,33 +84,45 @@ jobs:
     permissions:
       id-token: write  # Krävs för Trusted Publisher (OIDC)
       contents: read
-    if: |
-      github.ref == 'refs/heads/main' && (
-        (matrix.package == 'backend' && needs.check-versions.outputs.backend-should-publish == 'true') ||
-        (matrix.package == 'cli' && needs.check-versions.outputs.cli-should-publish == 'true') ||
-        (matrix.package == 'mcp' && needs.check-versions.outputs.mcp-should-publish == 'true')
-      )
+    if: github.ref == 'refs/heads/main'
     strategy:
       matrix:
         package: [backend, cli, mcp]
         include:
           - package: backend
             pypi-name: acex
+            should-publish-output: backend-should-publish
           - package: cli
             pypi-name: acex-cli
+            should-publish-output: cli-should-publish
           - package: mcp
             pypi-name: acex-mcp-server
+            should-publish-output: mcp-should-publish
     
     steps:
+    - name: Check if should publish
+      id: should-publish
+      run: |
+        SHOULD_PUBLISH="${{ needs.check-versions.outputs[matrix.should-publish-output] }}"
+        echo "should-publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
+        if [ "$SHOULD_PUBLISH" = "true" ]; then
+          echo "✅ Will build and publish ${{ matrix.pypi-name }}"
+        else
+          echo "⏭️  Skipping ${{ matrix.pypi-name }} - already published"
+        fi
+    
     - name: Checkout code
+      if: steps.should-publish.outputs.should-publish == 'true'
       uses: actions/checkout@v4
     
     - name: Set up Python 3.13
+      if: steps.should-publish.outputs.should-publish == 'true'
       uses: actions/setup-python@v5
       with:
         python-version: "3.13"
     
     - name: Install Poetry
+      if: steps.should-publish.outputs.should-publish == 'true'
       uses: snok/install-poetry@v1
       with:
         version: latest
@@ -118,19 +130,22 @@ jobs:
         virtualenvs-in-project: true
     
     - name: Install dependencies - Backend
-      if: matrix.package != 'backend'
+      if: steps.should-publish.outputs.should-publish == 'true' && matrix.package != 'backend'
       working-directory: ./backend
       run: poetry install --no-interaction
     
     - name: Install dependencies - ${{ matrix.package }}
+      if: steps.should-publish.outputs.should-publish == 'true'
       working-directory: ./${{ matrix.package }}
       run: poetry install --no-interaction
     
     - name: Build package
+      if: steps.should-publish.outputs.should-publish == 'true'
       working-directory: ./${{ matrix.package }}
       run: poetry build
     
     - name: Publish to PyPI using Trusted Publisher
+      if: steps.should-publish.outputs.should-publish == 'true'
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         packages-dir: ${{ matrix.package }}/dist/
