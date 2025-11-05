@@ -132,7 +132,7 @@ jobs:
     - name: Update lock file
       if: steps.should-publish.outputs.should-publish == 'true'
       working-directory: ./${{ matrix.package }}
-      run: poetry lock --no-update
+      run: poetry lock
     
     - name: Install dependencies - ${{ matrix.package }}
       if: steps.should-publish.outputs.should-publish == 'true'
