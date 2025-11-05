@@ -94,7 +94,7 @@ def list_node_instances() -> list:
     return response.json()
 
 @mcp.tool
-def get_node_instance(node_instance_id:str) -> dict:
+def get_node_instance(id: int) -> dict:
     """
     Hämta alla node-instances backend API.
 
@@ -104,18 +104,18 @@ def get_node_instance(node_instance_id:str) -> dict:
 
      När en specific instans efterfrågas kommer den kompileras med all konfiguration. 
     """
-    response = requests.get(f"{BACKEND_API_URL}/inventory/node_instances/{node_instance_id}")
+    response = requests.get(f"{BACKEND_API_URL}/inventory/node_instances/{id}")
     response.raise_for_status()
     return response.json()
 
 @mcp.tool
-def get_node_instance_config(node_instance_id:str) -> dict:
+def get_node_instance_config(id: int) -> dict:
     """
     Hämtar senaste running-config för en specifik node instans
 
     Responsen finns i content och är base64 decodad.
     """
-    response = requests.get(f"{BACKEND_API_URL}/operations/device_configs/{node_instance_id}/latest")
+    response = requests.get(f"{BACKEND_API_URL}/operations/device_configs/{id}/latest")
     response.raise_for_status()
     return response.json()
 

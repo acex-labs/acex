@@ -40,7 +40,9 @@ class AIOpsManager:
         """
         Execute MCP tool using streaming JSON-RPC
         """
-        result = await self.mcp.call_tool(tool_name)
+        if args is None:
+            args = {}
+        result = await self.mcp.call_tool(tool_name, arguments=args)
         return result
     
 
@@ -63,6 +65,8 @@ class AIOpsManager:
                     args = call.function.arguments or {}
                     if isinstance(args, str):
                         args = json.loads(args)
+
+                    print(f"argument till func call: {args}")
 
                     mcp_result = await self.call_mcp_tool(call.function.name, args)
                     # mcp_result.content är lista av TextContent
