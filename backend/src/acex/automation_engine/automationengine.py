@@ -69,7 +69,8 @@ class AutomationEngine:
         self,
         enabled: bool = False,
         api_key: str = None,
-        base_url: str = None
+        base_url: str = None,
+        mcp_server_url: str = None
     ): 
         if enabled is True:
             if api_key is None or base_url is None:
@@ -77,7 +78,7 @@ class AutomationEngine:
                 return None
             # Lazy import - only load when AI ops is actually enabled
             from acex.ai_ops import AIOpsManager
-            self.ai_ops_manager = AIOpsManager(api_key=api_key, base_url=base_url)
+            self.ai_ops_manager = AIOpsManager(api_key=api_key, base_url=base_url, mcp_server_url=mcp_server_url)
 
     def add_configmap_dir(self, dir_path: str):
         self.config_compiler.add_config_map_path(dir_path)
