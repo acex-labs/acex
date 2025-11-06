@@ -2,11 +2,12 @@
 
 from fastmcp import FastMCP
 import requests
+import os
 
 mcp = FastMCP("Acex-MCP")
 
 # Backend API URL
-BACKEND_API_URL = "http://localhost/api/v1"
+BACKEND_API_URL = os.getenv('ACEX_API_URL') or "http://localhost/api/v1"
 
 @mcp.tool
 def hello(name: str) -> str:

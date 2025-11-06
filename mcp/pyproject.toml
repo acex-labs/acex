@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-mcp-server"
-version = "0.2.3"
+version = "0.2.4"
 description = "ACE-X MCP Server - Model Context Protocol server for ACE-X"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
