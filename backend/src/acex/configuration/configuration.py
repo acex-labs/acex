@@ -6,6 +6,8 @@ from acex.configuration.components.interfaces import (
     Physical
 )
 from acex.configuration.components.system import SystemAttribute
+from acex.configuration.components.vlans import Vlans
+
 
 from acex.models import ExternalValue
 from collections import defaultdict
@@ -77,6 +79,7 @@ class Configuration:
                 "ntp": {},
                 },
             "acl": {},
+            "vlans": {},
             "lldp": {},
             "interfaces": {},
             "network-instances": {}
@@ -87,4 +90,6 @@ class Configuration:
                 config["interfaces"][v.path] = v.to_json()
             elif isinstance(v, SystemAttribute):
                 config["system"]["config"][v.type] = v.to_json()
+            elif isinstance(v, Vlans):
+                config["vlans"][v.path] = v.to_json()
         return config
