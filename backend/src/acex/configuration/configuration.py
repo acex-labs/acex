@@ -98,5 +98,5 @@ class Configuration:
                 config["system"]["ssh"][v.path] = v.to_json()
             elif isinstance(v, NetworkInstance):
                 config["network_instances"][v.path] = v.to_json()
-        return config
 
+        return config
