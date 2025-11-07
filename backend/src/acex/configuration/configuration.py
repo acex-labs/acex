@@ -1,13 +1,20 @@
 
-from acex.configuration.components import ConfigComponent
-from acex.configuration.components.interfaces import (
+from acex.core.configuration.components import ConfigComponent
+from acex.core.configuration.components.interfaces import (
     Interface,
     Loopback,
     Physical
 )
-from acex.configuration.components.system import SystemAttribute
+from acex.core.configuration.components.system import SystemAttribute
+from acex.core.configuration.components.system.logging import (
+    LoggingBase, 
+    RemoteLogging,
+    ConsoleLogging,
+    VtyLogging,
+    FileLogging
+)
 
-from acex.models import ExternalValue
+from acex.core.models import ExternalValue
 from collections import defaultdict
 from typing import Dict
 
@@ -87,4 +94,6 @@ class Configuration:
                 config["interfaces"][v.path] = v.to_json()
             elif isinstance(v, SystemAttribute):
                 config["system"]["config"][v.type] = v.to_json()
+            elif isinstance(v, LoggingBase):
+                config["system"]["logging"][v.path] = v.to_json()
         return config
