@@ -8,6 +8,11 @@ from acex.configuration.components.interfaces import (
 from acex.configuration.components.system import SystemAttribute
 from acex.configuration.components.system.ntp import NtpServer
 from acex.configuration.components.network_instances import NetworkInstance
+<<<<<<< HEAD
+=======
+from acex.configuration.components.system.ntp import NTPServer
+
+>>>>>>> 701f952 (Add support for ntp)
 from acex.models import ExternalValue
 from collections import defaultdict
 from typing import Dict
@@ -93,4 +98,5 @@ class Configuration:
                 config["system"]["ntp"][v.path] = v.to_json()
             elif isinstance(v, NetworkInstance):
                 config["network_instances"][v.path] = v.to_json()
+
         return config
