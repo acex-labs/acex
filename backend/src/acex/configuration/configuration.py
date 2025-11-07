@@ -6,6 +6,7 @@ from acex.configuration.components.interfaces import (
     Physical
 )
 from acex.configuration.components.system import SystemAttribute
+from acex.configuration.components.system.ntp import NTPServer
 
 from acex.models import ExternalValue
 from collections import defaultdict
@@ -87,4 +88,7 @@ class Configuration:
                 config["interfaces"][v.path] = v.to_json()
             elif isinstance(v, SystemAttribute):
                 config["system"]["config"][v.type] = v.to_json()
+            elif isinstance(v, NTPServer):
+                config["system"]["ntp"][v.path] = v.to_json()
+
         return config
