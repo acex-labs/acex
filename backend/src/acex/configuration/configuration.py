@@ -89,8 +89,22 @@ class Configuration:
                 config["interfaces"][v.path] = v.to_json()
             elif isinstance(v, SystemAttribute):
                 config["system"]["config"][v.type] = v.to_json()
+<<<<<<< HEAD
             elif isinstance(v, NtpServer):
+=======
+            elif isinstance(v, NetworkInstance):
+                config["network_instances"][v.path] = v.to_json()
+<<<<<<< HEAD
+            elif isinstance(v, NTPServer):
+>>>>>>> 60e05cc (Add support for ntp)
                 config["system"]["ntp"][v.path] = v.to_json()
             elif isinstance(v, NetworkInstance):
                 config["network_instances"][v.path] = v.to_json()
+<<<<<<< HEAD
+=======
+>>>>>>> 3006904 (Add support for vlans (#1))
+=======
+
+>>>>>>> 95ca379 (Add support for ntp)
+>>>>>>> 60e05cc (Add support for ntp)
         return config
