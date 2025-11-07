@@ -1,5 +1,5 @@
-from acex.core.configuration.components.base_component import ConfigComponent
-from acex.core.models.logging_server import (
+from acex.configuration.components.base_component import ConfigComponent
+from acex.models.logging_server import (
     RemoteServers,
     ConsoleLines,
     VtyLines,

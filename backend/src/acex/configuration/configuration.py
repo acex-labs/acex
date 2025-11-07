@@ -1,20 +1,14 @@
 
-from acex.core.configuration.components import ConfigComponent
-from acex.core.configuration.components.interfaces import (
+from acex.configuration.components import ConfigComponent
+from acex.configuration.components.interfaces import (
     Interface,
     Loopback,
     Physical
 )
-from acex.core.configuration.components.system import SystemAttribute
-from acex.core.configuration.components.system.logging import (
-    LoggingBase, 
-    RemoteLogging,
-    ConsoleLogging,
-    VtyLogging,
-    FileLogging
-)
+from acex.configuration.components.system import SystemAttribute
+from acex.configuration.components.system.logging_server import LoggingBase
 
-from acex.core.models import ExternalValue
+from acex.models import ExternalValue
 from collections import defaultdict
 from typing import Dict
 

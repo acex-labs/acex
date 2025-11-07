@@ -1,5 +1,5 @@
-from acex.core.config_map import ConfigMap, FilterAttribute
-from acex.core.configuration.components.system.logging import (
+from acex.config_map import ConfigMap, FilterAttribute
+from acex.configuration.components.system.logging_server import (
     RemoteLogging,
     ConsoleLogging,
     VtyLogging,
