@@ -3,9 +3,9 @@ from typing import Any
 
 class aaaBaseClass(SQLModel):
     name: str = None
-    enable: bool = False
     
 class aaaServerGroups(aaaBaseClass):
+    enable: bool = False
     tacacs_servers: list = None
     tacacs_all: dict = {
         'name':'tacacs_vip',
