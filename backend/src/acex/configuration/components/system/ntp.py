@@ -1,6 +1,6 @@
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models.ntp_server import NTPServerAttributes
+from acex.models.ntp_server import NtpServerAttributes
 
-class NTPServer(ConfigComponent):
+class NtpServer(ConfigComponent):
     type = "ntp_server"
-    model_cls = NTPServerAttributes
+    model_cls = NtpServerAttributes
