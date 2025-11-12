@@ -1,6 +1,6 @@
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models.ssh_server import SshAttributes
+from acex.models.ssh_server import SshServerAttributes
 
 class SshServer(ConfigComponent):
     type = "ssh_server"
-    model_cls = SshAttributes
+    model_cls = SshServerAttributes

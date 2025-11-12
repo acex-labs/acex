@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel, Field
 from typing import Any
 
-class SshAttributes(SQLModel):
+class SshServerAttributes(SQLModel):
     name: str = None
     enable: bool = True
     protocol_version: int = 2

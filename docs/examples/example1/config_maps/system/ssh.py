@@ -1,11 +1,11 @@
 from acex.config_map import ConfigMap, FilterAttribute
-from acex.configuration.components.system.ssh import SSHServer
+from acex.configuration.components.system.ssh import SshServer
 
 
 class SSHConfig(ConfigMap):
     def compile(self, context):
 
-        ssh = SSHServer(
+        ssh = SshServer(
             name='ssh_config',
             enable=True,
             protocol_version=2,
