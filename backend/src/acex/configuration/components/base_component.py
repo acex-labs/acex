@@ -1,7 +1,7 @@
 from ipaddress import IPv4Interface, IPv6Interface, IPv4Address
 from pydantic import BaseModel
 import json, hashlib
-from typing import Dict, Any, Type, Union, Optional
+from typing import Dict, Any, Type, Union, Optional, get_origin
 from types import NoneType
 from datetime import datetime
 from acex.models import ExternalValue, SingleAttribute
@@ -91,12 +91,39 @@ class ConfigComponent:
     model_cls: Type[BaseModel] = None
 
     def __init__(self, *args, **kwargs):
+        
+        # Hook for preprocessing kwargs before initialization
+        if hasattr(self, "pre_init"):
+            getattr(self, "pre_init")(*args, **kwargs)
 
-        # This is where we store the config.
+        # This is where we store the config for the component itself.
         self.config = {}
+
+        # Check if the component is a parent of a composition:
+        # Compositions are defined as annotations to the configComponent class
+        self.extras = {}
+        annotations = self.__class__.__annotations__
+        if annotations != {}:
+            # print(f"ConfigComponent {self.__class__} is annotated with: {", ".join(annotations.keys())}")
+            for k, v in annotations.items():
+                annotation_type = get_origin(annotations[k])
+
+                # Use value from config map if set, otherwise use empty default type based on annotation.
+                if kwargs.get(k) is not None:
+                    self.extras[k] = kwargs.get(k) # FUDGE. hur hantera om det är typ en lista med components????
+                else:
+                    # If no value is added, use new instance based on annotation
+                    self.extras[k] = annotation_type()
 
         # Check all values against the model
         self.model = self._validate_model(kwargs)
+        if self.type == "Vlan":
+            print(self.model)
+            print("^^^^^")
+            print(self.__class__.model_cls)
+            print("bajskorv")
+            print(kwargs)
+            print(self.model.model_fields.keys())
 
         # For singleattribute components:
         # - key is same as component classname
@@ -109,11 +136,6 @@ class ConfigComponent:
         else:
             self._key = kwargs["name"]
 
-            # Set all attributes as AttributeValue
-            # for key, value in kwargs.items():
-                # v = AttributeValue(value)
-                # self.config[key] = v
-            # Use getattr to preserve original types instead of model_dump()
             for field_name in self.model.model_fields.keys():
                 value = getattr(self.model, field_name)
                 if value is not None:
@@ -145,6 +167,7 @@ class ConfigComponent:
 
         for k,v in self.config.items():
             attributes[k] = v
+
         return attributes
 
     def to_json(self):
@@ -152,7 +175,7 @@ class ConfigComponent:
         result = {
             "name": self.path,
             "type": self.type,
-            "config": {}, # This is where values is placed
+            "config": {}, # This is where item values is placed
             "_meta": {} # this is where stuff like external value ref etc is placed
         }
         for k, v in self.attributes().items():
@@ -160,6 +183,9 @@ class ConfigComponent:
             # Only include attributes that have actual values (not None)
             if k not in ("type", "name", "config") and v.data is not None:
                 result["config"][k] = v.to_json()
+            for k,v in self.extras.items():
+                print(v)
+                result[k] = v.to_json()
         return result
 
 

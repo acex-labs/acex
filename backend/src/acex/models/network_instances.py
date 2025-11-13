@@ -1,35 +1,24 @@
 from sqlmodel import SQLModel, Field
 from typing import Any, Optional
 
-class Network(SQLModel): ...
 
-class InterfacesAttributes(SQLModel):
+
+class NetworkInstanceAttributes(SQLModel):
     name: str = None
-    interface: str = None
-    id: str = None
 
-class VlansAttributes(SQLModel):
+
+class VlanAttributes(SQLModel):
+    name: str = None
     vlan_id: int = None
     vlan_name: str = None
+
+
+class L2DomainAttributes(SQLModel): 
     name: str = None
-    #name: Optional[int] = Field(default=None)
-#
-    #def __init__(self, **data):
-    #    super().__init__(**data)
-    #    if self.name is None:
-    #        self.name = self.vlan_id
 
+class L2DomainL2VlanCompositionAttributes(NetworkInstanceAttributes):
+    name: str
+    vlan_id: int
+    vlan_name: Optional[str] = None
+    vlans: Optional[dict] = None
 
-#class Global(Interfaces):
-#    name: str = 'GLOBAL'
-#    vlans = Vlans
-#    interfaces = Interfaces
-
-#class L2vsiInstance(NetworkInstance):
-#    interface: str = None
-#    vlan: str = None
-#
-#class L3VrfInstance(NetworkInstance):
-#    name: str = None # te0/12/116.2048
-#    interface: str = None # te0/12/116
-#    subinterface: id = 2048

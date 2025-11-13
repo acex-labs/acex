@@ -6,12 +6,7 @@ from acex.configuration.components.interfaces import (
     Physical
 )
 from acex.configuration.components.system import SystemAttribute
-#from acex.configuration.components.vlans import Vlans
-from acex.configuration.components.network_instances import (
-    GlobalInstance,
-    InterfacesInstance,
-    VlansInstance
-)
+from acex.configuration.components.network_instances import NetworkInstance
 
 
 from acex.models import ExternalValue
@@ -87,21 +82,14 @@ class Configuration:
             "vlans": {},
             "lldp": {},
             "interfaces": {},
-            "network-instances": {
-                "interfaces": {},
-                "vlans": {}
-            }
-            }
+            "network-instances": {}
+        }
 
         for k, v in self.components.items():
             if isinstance(v, Interface):
                 config["interfaces"][v.path] = v.to_json()
             elif isinstance(v, SystemAttribute):
                 config["system"]["config"][v.type] = v.to_json()
-            elif isinstance(v, InterfacesInstance):
-                config["network-instances"]['interfaces'][v.path] = v.to_json()
-            elif isinstance(v, VlansInstance):
-                config["network-instances"]['vlans'][v.path] = v.to_json()
-            #elif isinstance(v, Vlans):
-            #    config["vlans"][v.path] = v.to_json()
+            elif isinstance(v, NetworkInstance):
+                config["network-instances"][v.path] = v.to_json()
         return config
