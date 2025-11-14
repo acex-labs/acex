@@ -6,7 +6,9 @@ from acex.configuration.components.interfaces import (
     Physical
 )
 from acex.configuration.components.system import SystemAttribute
+from acex.configuration.components.system import SystemAttribute
 from acex.configuration.components.system.ntp import NtpServer
+from acex.configuration.components.system.ssh import SshServer
 from acex.configuration.components.network_instances import NetworkInstance
 from acex.models import ExternalValue
 from collections import defaultdict
@@ -76,6 +78,7 @@ class Configuration:
                 "aaa": {},
                 "logging": {},
                 "ntp": {},
+                "ssh": {}
                 },
             "acl": {},
             "vlans": {},
@@ -91,7 +94,9 @@ class Configuration:
                 config["system"]["config"][v.type] = v.to_json()
             elif isinstance(v, NtpServer):
                 config["system"]["ntp"][v.path] = v.to_json()
+            elif isinstance(v, SshServer):
+                config["system"]["ssh"][v.path] = v.to_json()
             elif isinstance(v, NetworkInstance):
                 config["network_instances"][v.path] = v.to_json()
-        return config
 
+        return config
