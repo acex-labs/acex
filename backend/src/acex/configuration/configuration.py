@@ -7,7 +7,9 @@ from acex.configuration.components.interfaces import (
 )
 from acex.configuration.components.system import SystemAttribute
 from acex.configuration.components.system.logging_server import LoggingBase
-
+from acex.configuration.components.system.ntp import NtpServer
+from acex.configuration.components.system.ssh import SshServer
+from acex.configuration.components.network_instances import NetworkInstance
 from acex.models import ExternalValue
 from collections import defaultdict
 from typing import Dict
@@ -71,17 +73,19 @@ class Configuration:
                     "contact": "",
                     "hostname": "",
                     "location": "",
-                    "domain-name": "",
+                    "domain_name": "",
                 },
                 "aaa": {},
                 "logging": {},
                 "ntp": {},
+                "ssh": {}
                 },
             "acl": {},
+            "vlans": {},
             "lldp": {},
             "interfaces": {},
-            "network-instances": {}
-            }
+            "network_instances": {}
+        }
 
         for k, v in self.components.items():
             if isinstance(v, Interface):
@@ -90,4 +94,11 @@ class Configuration:
                 config["system"]["config"][v.type] = v.to_json()
             elif isinstance(v, LoggingBase):
                 config["system"]["logging"][v.path] = v.to_json()
+            elif isinstance(v, NtpServer):
+                config["system"]["ntp"][v.path] = v.to_json()
+            elif isinstance(v, SshServer):
+                config["system"]["ssh"][v.path] = v.to_json()
+            elif isinstance(v, NetworkInstance):
+                config["network_instances"][v.path] = v.to_json()
+
         return config
