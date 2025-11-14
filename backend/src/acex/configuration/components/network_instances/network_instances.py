@@ -32,14 +32,15 @@ class L2Domain(NetworkInstance):
     def pre_init(self, kwargs: dict):
         """Handle vlans parameter conversion to VlanMap"""
         vlans_input = kwargs.get('vlans')
+        vlan_map_name = f"{kwargs.get('name', 'unknown')}_vlan_map"
         
         if vlans_input is None:
             # Case 3: No vlan referenced - use empty VlanMap
-            kwargs['vlans'] = VlanMap(vlans={})
+            kwargs['vlans'] = VlanMap(name=vlan_map_name, vlans={})
         elif isinstance(vlans_input, L2Vlan):
             # Case 1: Single vlan mapped - use VlanMap with single vlan
             vlan_key = vlans_input._key if hasattr(vlans_input, '_key') else 'vlan'
-            kwargs['vlans'] = VlanMap(vlans={vlan_key: vlans_input})
+            kwargs['vlans'] = VlanMap(name=vlan_map_name, vlans={vlan_key: vlans_input})
         elif isinstance(vlans_input, list):
             # Case 2: List of vlans - use VlanMap with all listed vlan instances
             vlan_dict = {}
@@ -47,13 +48,13 @@ class L2Domain(NetworkInstance):
                 if isinstance(vlan, L2Vlan):
                     vlan_key = vlan._key if hasattr(vlan, '_key') else f'vlan_{len(vlan_dict)}'
                     vlan_dict[vlan_key] = vlan
-            kwargs['vlans'] = VlanMap(vlans=vlan_dict)
+            kwargs['vlans'] = VlanMap(name=vlan_map_name, vlans=vlan_dict)
         elif isinstance(vlans_input, VlanMap):
             # Already a VlanMap, use as-is
             pass
         else:
             # Invalid type, use empty VlanMap
-            kwargs['vlans'] = VlanMap(vlans={})
+            kwargs['vlans'] = VlanMap(name=vlan_map_name, vlans={})
         
 
 

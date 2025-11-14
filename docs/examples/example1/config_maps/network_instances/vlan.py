@@ -24,8 +24,8 @@ class L2DomainWVlans(ConfigMap):
 
         context.configuration.add(vlan2049)
 
-# vlans = L2DomainWVlans()
-# vlans_filter = FilterAttribute("hostname").eq("R1")
-# vlans.filters = vlans_filter
+vlans = L2DomainWVlans()
+vlans_filter = FilterAttribute("hostname").eq("R1")
+vlans.filters = vlans_filter
 
 # Attach l2domain to interface: ... 

@@ -22,4 +22,4 @@ class VlanMap(SQLModel):
 
 class VlanMapAttributes(SQLModel):
     name: str
-    vlans: Optional[dict] = None
+    vlans: Optional[dict|list] = None
