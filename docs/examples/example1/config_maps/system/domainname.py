@@ -9,6 +9,6 @@ class SetDN(ConfigMap):
         Dn = DomainName(f"{context.logical_node.hostname}.ngninfra.net")
         context.configuration.add(Dn)
 
-hostname = SetDN()
-hostname_filter = FilterAttribute("hostname").eq("/.*/")
-hostname.filters = hostname_filter
+# hostname = SetDN()
+# hostname_filter = FilterAttribute("hostname").eq("/.*/")
+# hostname.filters = hostname_filter

@@ -35,5 +35,5 @@ class Frontpanel(ConfigMap):
 
 
 
-fp = Frontpanel()
-fp.filters = FilterAttribute("role").eq("core")
+# fp = Frontpanel()
+# fp.filters = FilterAttribute("role").eq("core")

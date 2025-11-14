@@ -9,6 +9,6 @@ class SetHostname(ConfigMap):
         Hn = HostName(context.logical_node.hostname)
         context.configuration.add(Hn)
 
-hostname = SetHostname()
-hostname_filter = FilterAttribute("hostname").eq("/.*/")
-hostname.filters = hostname_filter
+# hostname = SetHostname()
+# hostname_filter = FilterAttribute("hostname").eq("/.*/")
+# hostname.filters = hostname_filter
