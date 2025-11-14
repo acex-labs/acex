@@ -72,7 +72,7 @@ class Configuration:
                     "contact": "",
                     "hostname": "",
                     "location": "",
-                    "domain-name": "",
+                    "domain_name": "",
                 },
                 "aaa": {},
                 "logging": {},
@@ -82,7 +82,7 @@ class Configuration:
             "vlans": {},
             "lldp": {},
             "interfaces": {},
-            "network-instances": {}
+            "network_instances": {}
         }
 
         for k, v in self.components.items():
@@ -91,5 +91,5 @@ class Configuration:
             elif isinstance(v, SystemAttribute):
                 config["system"]["config"][v.type] = v.to_json()
             elif isinstance(v, NetworkInstance):
-                config["network-instances"][v.path] = v.to_json()
+                config["network_instances"][v.path] = v.to_json()
         return config

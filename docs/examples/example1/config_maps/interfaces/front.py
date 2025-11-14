@@ -32,8 +32,5 @@ class Frontpanel(ConfigMap):
         context.configuration.add(if47)
 
 
-
-
-
-# fp = Frontpanel()
-# fp.filters = FilterAttribute("role").eq("core")
+fp = Frontpanel()
+fp.filters = FilterAttribute("role").eq("core")

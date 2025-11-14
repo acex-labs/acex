@@ -9,6 +9,6 @@ class SetLocation(ConfigMap):
         Loc = Location("HQ")
         context.configuration.add(Loc)
 
-# hostname = SetLocation()
-# hostname_filter = FilterAttribute("hostname").eq("/.*/")
-# hostname.filters = hostname_filter
+hostname = SetLocation()
+hostname_filter = FilterAttribute("hostname").eq("/.*/")
+hostname.filters = hostname_filter

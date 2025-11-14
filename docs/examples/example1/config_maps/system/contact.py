@@ -12,6 +12,6 @@ class SetContact(ConfigMap):
 
 
 
-# contact = SetContact()
-# cfilter = FilterAttribute("hostname").eq("/.*/")
-# contact.filters = cfilter
+contact = SetContact()
+cfilter = FilterAttribute("hostname").eq("/.*/")
+contact.filters = cfilter
