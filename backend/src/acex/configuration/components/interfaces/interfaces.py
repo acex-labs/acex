@@ -15,7 +15,6 @@ class SubInterface(ConfigComponent):
     type = "subinterface"
     model_cls = SubInterface
 
-
 class Loopback(Interface):
     type = "softwareLoopback"
     model_cls = VirtualInterface

@@ -6,6 +6,8 @@ from acex.configuration.components.interfaces import (
     Physical
 )
 from acex.configuration.components.system import SystemAttribute
+from acex.configuration.components.network_instances import NetworkInstance
+
 
 from acex.models import ExternalValue
 from collections import defaultdict
@@ -70,21 +72,24 @@ class Configuration:
                     "contact": "",
                     "hostname": "",
                     "location": "",
-                    "domain-name": "",
+                    "domain_name": "",
                 },
                 "aaa": {},
                 "logging": {},
                 "ntp": {},
                 },
             "acl": {},
+            "vlans": {},
             "lldp": {},
             "interfaces": {},
-            "network-instances": {}
-            }
+            "network_instances": {}
+        }
 
         for k, v in self.components.items():
             if isinstance(v, Interface):
                 config["interfaces"][v.path] = v.to_json()
             elif isinstance(v, SystemAttribute):
                 config["system"]["config"][v.type] = v.to_json()
+            elif isinstance(v, NetworkInstance):
+                config["network_instances"][v.path] = v.to_json()
         return config
