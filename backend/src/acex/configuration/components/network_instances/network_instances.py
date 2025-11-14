@@ -1,6 +1,11 @@
 
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models.network_instances import NetworkInstanceAttributes, VlanAttributes, L2DomainAttributes, L2DomainL2VlanCompositionAttributes
+from acex.models.network_instances import (
+    NetworkInstanceAttributes,
+    VlanAttributes,
+    L2DomainAttributes,
+    VlanMapAttributes
+)
 
 from pydantic import BaseModel
 
@@ -11,19 +16,20 @@ class L2Vlan(ConfigComponent):
     type = "l2vlan"
     model_cls = VlanAttributes
 
-class VlanMap(BaseModel):
-    model_config = {"arbitrary_types_allowed": True}
+class VlanMap(ConfigComponent):
+    type = "vlan_map"
+    model_cls = VlanMapAttributes
     vlans: dict[str, L2Vlan]
 
     def to_json(self):
-        return {key: vlan.to_json() for key, vlan in self.vlans.items()}
+        return {key: vlan.to_json() for key, vlan in self.children.get('vlans').items()}
 
 class L2Domain(NetworkInstance):
     type = "l2vsi"
     model_cls = L2DomainAttributes
     vlans: VlanMap
 
-    def pre_init(self, *args, **kwargs) -> dict:
+    def pre_init(self, kwargs: dict):
         """Handle vlans parameter conversion to VlanMap"""
         vlans_input = kwargs.get('vlans')
         
@@ -49,34 +55,27 @@ class L2Domain(NetworkInstance):
             # Invalid type, use empty VlanMap
             kwargs['vlans'] = VlanMap(vlans={})
         
-        return kwargs
 
 
 
-class Vlan(L2Domain):
+class Vlan(NetworkInstance):
     """
     Composite config component combining L2Vlan and L2Domain.
     Creates both a VLAN and its associated L2 domain instance.
     """
-    type = "Vlan"
-    model_cls = L2DomainL2VlanCompositionAttributes
+    type = "l2vsi"
+    model_cls = NetworkInstanceAttributes
     
-    def pre_init(self, *args, **kwargs):
-
-        name = kwargs['name']
-        vlan_name = kwargs.get('vlan_name')  # Optional
-        vlan_id = kwargs.get('vlan_id')
-        
-        # Create the L2Vlan instance
+    def pre_init(self, kwargs: dict):
+        vlan_id =  kwargs.pop("vlan_id")
+        name = kwargs.pop("vlan_name")
+        kwargs["bajs"] = "korv"
+        # Create the L2Vlan instance, auto create a 1:1 map
         vlan_instance = L2Vlan(name=name, vlan_id=vlan_id)
-        
-        # Create the L2Domain instance with the vlan reference
-        l2domain_instance = L2Domain(
-            name=f"{name}_l2vsi",
-            vlans=vlan_instance
+        vlan_map = VlanMap(
+            name=f"vlan_map_{name}",
+            vlans={name: vlan_instance}
         )
-        
+        self.children["vlans"] = vlan_map
 
-        # Det här verkar inte komma över till instansen i config... ??? 
-        kwargs["name"] = "hejsansvejsan"
-        kwargs["vlans"] = vlan_instance
+        return None

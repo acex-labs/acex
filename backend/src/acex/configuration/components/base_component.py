@@ -1,3 +1,4 @@
+from collections import defaultdict
 from ipaddress import IPv4Interface, IPv6Interface, IPv4Address
 from pydantic import BaseModel
 import json, hashlib
@@ -92,16 +93,19 @@ class ConfigComponent:
 
     def __init__(self, *args, **kwargs):
         
-        # Hook for preprocessing kwargs before initialization
-        if hasattr(self, "pre_init"):
-            getattr(self, "pre_init")(*args, **kwargs)
-
         # This is where we store the config for the component itself.
         self.config = {}
 
-        # Check if the component is a parent of a composition:
+        # Ff the component is a parent of a composition, it may hold 'children'
         # Compositions are defined as annotations to the configComponent class
-        self.extras = {}
+        self.children = defaultdict(dict)
+
+        # Hook for preprocessing kwargs before initialization
+        # Pass kwargs dict directly (not unpacked) so modifications happen by reference
+        if hasattr(self, "pre_init"):
+            getattr(self, "pre_init")(kwargs)
+
+        # Extras can be added by annontations to the ConfigComponent
         annotations = self.__class__.__annotations__
         if annotations != {}:
             # print(f"ConfigComponent {self.__class__} is annotated with: {", ".join(annotations.keys())}")
@@ -110,20 +114,13 @@ class ConfigComponent:
 
                 # Use value from config map if set, otherwise use empty default type based on annotation.
                 if kwargs.get(k) is not None:
-                    self.extras[k] = kwargs.get(k) # FUDGE. hur hantera om det är typ en lista med components????
+                    self.children[k] = kwargs.get(k) # FUDGE. hur hantera om det är typ en lista med components????
                 else:
                     # If no value is added, use new instance based on annotation
-                    self.extras[k] = annotation_type()
+                    self.children[k] = annotation_type()
 
         # Check all values against the model
         self.model = self._validate_model(kwargs)
-        if self.type == "Vlan":
-            print(self.model)
-            print("^^^^^")
-            print(self.__class__.model_cls)
-            print("bajskorv")
-            print(kwargs)
-            print(self.model.model_fields.keys())
 
         # For singleattribute components:
         # - key is same as component classname
@@ -183,9 +180,11 @@ class ConfigComponent:
             # Only include attributes that have actual values (not None)
             if k not in ("type", "name", "config") and v.data is not None:
                 result["config"][k] = v.to_json()
-            for k,v in self.extras.items():
-                print(v)
-                result[k] = v.to_json()
+        
+        # Add children (like vlans) to the result
+        for k, v in self.children.items():
+            result[k] = v.to_json()
+        
         return result
 
 

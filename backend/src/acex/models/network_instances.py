@@ -16,9 +16,10 @@ class VlanAttributes(SQLModel):
 class L2DomainAttributes(SQLModel): 
     name: str = None
 
-class L2DomainL2VlanCompositionAttributes(NetworkInstanceAttributes):
-    name: str
-    vlan_id: int
-    vlan_name: Optional[str] = None
+class VlanMap(SQLModel):
     vlans: Optional[dict] = None
 
+
+class VlanMapAttributes(SQLModel):
+    name: str
+    vlans: Optional[dict] = None
