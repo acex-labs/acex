@@ -92,6 +92,7 @@ class ConfigComponent:
     model_cls: Type[BaseModel] = None
 
     def __init__(self, *args, **kwargs):
+        self.kwargs = kwargs
         
         # This is where we store the config for the component itself.
         self.config = {}
@@ -103,9 +104,9 @@ class ConfigComponent:
         # Hook for preprocessing kwargs before initialization
         # Pass kwargs dict directly (not unpacked) so modifications happen by reference
         if hasattr(self, "pre_init"):
-            getattr(self, "pre_init")(kwargs)
+            getattr(self, "pre_init")()
 
-        # Extras can be added by annontations to the ConfigComponent
+        # Extra children can be added by annontations to the ConfigComponent
         annotations = self.__class__.__annotations__
         if annotations != {}:
             # print(f"ConfigComponent {self.__class__} is annotated with: {", ".join(annotations.keys())}")
@@ -114,7 +115,7 @@ class ConfigComponent:
 
                 # Use value from config map if set, otherwise use empty default type based on annotation.
                 if kwargs.get(k) is not None:
-                    self.children[k] = kwargs.get(k) # FUDGE. hur hantera om det är typ en lista med components????
+                    self.children[k] = kwargs.get(k) # Must be valid ConfigComponents with .to_json() methods
                 else:
                     # If no value is added, use new instance based on annotation
                     self.children[k] = annotation_type()
@@ -126,12 +127,11 @@ class ConfigComponent:
         # - key is same as component classname
         # - value is first argument from init
         if isinstance(self.model, SingleAttribute):
-            # self._key = self.__class__.__name__.lower()
-            self._key = "value" # TODO: Går det att förenkla strukturen för singleattribte config?
+            self._key = "value"
             value = args[0]
             self.config[self._key] = AttributeValue(value)
         else:
-            self._key = kwargs["name"]
+            self._key = kwargs["name"] # Todo: lägg till felhantering i de fall ett objekt inte är singled attribute men saknar name.
 
             for field_name in self.model.model_fields.keys():
                 value = getattr(self.model, field_name)

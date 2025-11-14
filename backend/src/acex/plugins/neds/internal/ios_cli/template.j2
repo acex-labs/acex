@@ -80,10 +80,9 @@ vlan {{ vlan.config.vlan_id.value }}
 {%-      if vlan.config.vlan_name %}
  name {{ vlan.config.vlan_name.value }}
 {%-      endif %}
+!
 {%-   endfor %}
-!
 {%- endfor %}
-!
 {%- if configuration.spanning_tree %}
 spanning-tree mode {{ configuration.spanning_tree.mode | default('pvst') }}
 {%- endif %}
