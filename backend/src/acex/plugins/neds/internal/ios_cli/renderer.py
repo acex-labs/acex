@@ -26,7 +26,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)
         template = self._load_template_file()
-        return template.render(configuration=processed_config)
+        return template.render(configuration=processed_config, )
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
