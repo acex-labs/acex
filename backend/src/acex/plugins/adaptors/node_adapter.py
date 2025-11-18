@@ -13,9 +13,10 @@ class NodeAdapter(AdapterBase):
         if hasattr(self.plugin, "get"):
             return getattr(self.plugin, "get")(id)
 
-    def query(self) -> list[Node]: 
+    def query(self, filters: dict = None) -> list[Node]: 
         if hasattr(self.plugin, "query"):
-            return getattr(self.plugin, "query")()
+            print(filters)
+            return getattr(self.plugin, "query")(filters)
 
     def update(self, id: str, node: Node): 
         if hasattr(self.plugin, "update"):
