@@ -1,23 +1,23 @@
 
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models import SingleAttribute
+from acex.models.attribute_value import AttributeValue
+
+from acex.models.composed_configuration import *
 
 
-class SystemAttribute(ConfigComponent): ...
-
-class HostName(SystemAttribute):
+class HostName(ConfigComponent):
     type = "hostname"
-    model_cls = SingleAttribute
+    model_cls = AttributeValue[str]
 
-class Contact(SystemAttribute):
+class Contact(ConfigComponent):
     type = "contact"
-    model_cls = SingleAttribute
+    model_cls = AttributeValue[str]
 
-class Location(SystemAttribute):
+class Location(ConfigComponent):
     type = "location"
-    model_cls = SingleAttribute
+    model_cls = AttributeValue[str]
 
-class DomainName(SystemAttribute):
+class DomainName(ConfigComponent):
     type = "domain-name"
-    model_cls = SingleAttribute
+    model_cls = AttributeValue[str]
 

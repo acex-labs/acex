@@ -88,78 +88,42 @@ class ConfigCompiler:
 
     def _resolve_external_values(self, cln: CompiledLogicalNode):
         """
-        Resolves all external values from CompiledLogicalNode.configuration.[attrs]
+        Resolves all external values from CompiledLogicalNode.configuration.composed
         """
         print("Resolving ev!")
-        session = next(self.db.get_session())
-        try:
-            for _, ccomp in cln.configuration.components.items():
-                for k, v in ccomp.attributes().items():
-                    if isinstance(v.data, ExternalValue):
-                        ev = v.data
-                        func = ev._callable
-                        value = func(ev.kind, json.loads(ev.query))
-                        ev.value = value
-                        ev.resolved_at = datetime.now(timezone.utc)
-
-                        # save to db - upsert operation
-                        try:
-                            # Försök att hämta befintligt objekt
-                            existing_ev = session.get(ExternalValue, ev.ref)
-                            
-                            if existing_ev:
-                                # Uppdatera befintligt objekt - bara value och resolved_at
-                                existing_ev.value = value
-                                existing_ev.resolved_at = datetime.now(timezone.utc)
-                            else:
-                                # Skapa nytt objekt
-                                new_ev = ExternalValue(
-                                    ref=ev.ref,
-                                    query=ev.query,
-                                    value=value,
-                                    kind=ev.kind,
-                                    ev_type=ev.ev_type,
-                                    plugin=ev.plugin,
-                                    resolved_at=datetime.now(timezone.utc)
-                                )
-                                session.add(new_ev)
-                            
-                            session.commit()
-                        except Exception as e:
-                            session.rollback()
-                            print(f"Error saving ExternalValue {ev.ref}: {e}")
-                            raise  # Re-raise för att stoppa hela operationen om något går fel
-        finally:
-            session.close()
+        # TODO: Migrate to use cln.configuration.composed instead of components
+        # session = next(self.db.get_session())
+        # try:
+        #     # Need to recursively walk through composed structure to find AttributeValue objects
+        #     pass
+        # finally:
+        #     session.close()
 
 
     def _read_external_value_from_state(self, cln: CompiledLogicalNode):
         """
-        Reads all EVs for compiled logical node and fetches last retreived value
+        Reads all EVs for compiled logical node and fetches last retrieved value
         from state database.
         """
-        session = next(self.db.get_session())
-        try:
-            for _, ccomp in cln.configuration.components.items():
-                for k, v in ccomp.attributes().items():
-                    if isinstance(v.data, ExternalValue):
-                        full_ref = f"{v.data.ref}"
-                        result = session.get(ExternalValue, full_ref)
-
-                        if result is not None:
-                            setattr(v, "value", result.value)
-                            setattr(v, "resolved_at", result.resolved_at)
-        finally:
-            session.close()
+        # TODO: Migrate to use cln.configuration.composed instead of components
+        # session = next(self.db.get_session())
+        # try:
+        #     # Need to recursively walk through composed structure to find AttributeValue objects
+        #     pass
+        # finally:
+        #     session.close()
+        pass
 
     def _map_all_ip_cidrs(self, cln):
         """
-        Maps all ip ...
+        Maps all ip addresses
         """
-        for _, ccom in cln.configuration.components.items():
-            for k,v in ccom.attributes().items():
-                if isinstance(v, IPv4Interface|IPv6Interface):
-                    print(f"IP: {v} ")
+        # TODO: Migrate to use cln.configuration.composed instead of components
+        # for _, ccom in cln.configuration.components.items():
+        #     for k,v in ccom.attributes().items():
+        #         if isinstance(v, IPv4Interface|IPv6Interface):
+        #             print(f"IP: {v} ")
+        pass
 
     async def compile(self, logical_node, integrations, resolve: bool = False) -> dict:
         configuration = Configuration(logical_node.id) # Instanciates a config object
