@@ -10,6 +10,7 @@ class EVType(Enum):
     resource = "resource"
 
 class ExternalValue(SQLModel, table=True):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     ref: str = Field(default=None, primary_key=True)
     
     # query: dict # same query as was used for fetching the data

@@ -80,8 +80,9 @@ class Configuration:
             dict_obj = self._get_nested_attr(self.composed, base_path)
             
             # Set ref for external values (only if model is AttributeValue)
-            if hasattr(component.model, 'is_external') and component.model.is_external():
+            if component.model.is_external():
                 full_ref = f"logical_nodes.{self.logical_node_id}.{ref_path}"
+                print(f"Fixar ref: {full_ref}")
                 component.model.set_metadata('ref', full_ref)
             
             # Add to dict (serialize to dict for dict-based collections)

@@ -1,6 +1,6 @@
 
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 
 from acex.models.external_value import ExternalValue
 from acex.models.attribute_value import AttributeValue
@@ -23,8 +23,9 @@ class Lldp(BaseModel): ...
 class Interface(BaseModel): 
     index: int
     name: str
-    enabled: AttributeValue[bool] = True
-    description: Optional[AttributeValue[str]] = None
+    enabled: Optional[Union[AttributeValue[bool], bool]] = None
+    description: Optional[Union[AttributeValue[str], str]] = None,
+    ipv4: Optional[AttributeValue[str]] = None
 
 
 class NetworkInstance(BaseModel): ...
