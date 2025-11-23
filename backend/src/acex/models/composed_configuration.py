@@ -8,7 +8,7 @@ from acex.models.attribute_value import AttributeValue
 
 class SystemConfig(BaseModel):
     contact: Optional[AttributeValue[str]] = None
-    domain_name:  Optional[AttributeValue[str]] = None
+    domain_name: Optional[AttributeValue[str]] = None
     hostname: Optional[AttributeValue[str]] = None
     location: Optional[AttributeValue[str]] = None
 
@@ -21,10 +21,10 @@ class Vlans(BaseModel): ...
 class Lldp(BaseModel): ...
 
 class Interface(BaseModel): 
-    index: int
-    name: str
-    enabled: Optional[Union[AttributeValue[bool], bool]] = None
-    description: Optional[Union[AttributeValue[str], str]] = None,
+    index: AttributeValue[int]
+    name: AttributeValue[str]
+    enabled: Optional[AttributeValue[bool]] = None
+    description: Optional[AttributeValue[str]] = None,
     ipv4: Optional[AttributeValue[str]] = None
 
 

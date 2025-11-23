@@ -10,7 +10,6 @@ class SetHostname(ConfigMap):
         # Hn = HostName(value=context.integrations.ipam.data.ip_addresses({}))
         context.configuration.add(Hn)
 
-
         Dn = DomainName(value=f"{context.configuration.hostname}.domain.com")
         context.configuration.add(Dn)
 

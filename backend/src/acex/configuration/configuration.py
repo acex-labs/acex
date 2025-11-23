@@ -47,57 +47,61 @@ class Configuration:
         self.composed = ComposedConfiguration()
         self.logical_node_id = logical_node_id
 
-    def _set_nested_attr(self, obj, path: str, value):
+    def _set_nested_attr(self, path: str, value):
         """Set a nested attribute using dot notation path."""
+        obj = self.composed
         parts = path.split('.')
         for part in parts[:-1]:
             obj = getattr(obj, part)
         setattr(obj, parts[-1], value)
     
-    def _get_nested_attr(self, obj, path: str):
+    def _get_nested_attr(self, path: str):
         """Get a nested attribute using dot notation path."""
+        obj = self.composed
         parts = path.split('.')
         for part in parts:
             obj = getattr(obj, part)
         return obj
 
-    def add(self, component): 
-        component_type = type(component)
-        
-        # Get mapping for this component type
-        if component_type not in self.COMPONENT_MAPPING:
-            raise ValueError(f"Unknown component type: {component_type.__name__}")
-        
-        base_path = self.COMPONENT_MAPPING[component_type]
-        
-        # Check if this is a dict-based component (has 'name' attribute)
-        if hasattr(component, 'name') and component.name:
-            # Dict-based component: interfaces, network_instances, etc.
-            key = component.name
-            ref_path = f"{base_path}.{key}"
-            
-            # Get or create the dict
-            dict_obj = self._get_nested_attr(self.composed, base_path)
-            
-            # Set ref for external values (only if model is AttributeValue)
-            if component.model.is_external():
-                full_ref = f"logical_nodes.{self.logical_node_id}.{ref_path}"
-                print(f"Fixar ref: {full_ref}")
-                component.model.set_metadata('ref', full_ref)
-            
-            # Add to dict (serialize to dict for dict-based collections)
-            dict_obj[key] = component.model.model_dump()
+    def _set_ref_on_attributes(self, component):
+        """
+        Set ref metadata on each attribute of the component
+        """
+        # logical_nodes.0.ethernetCsmacd.if0.ipv4
+        base_path = f"logical_nodes.{self.logical_node_id}.{component.type}.{component.name}"
+
+        # single value attributes have value and meta directly: 
+        if "metadata" in component.model.model_dump():
+            component.model.metadata["ref"] = base_path
         else:
-            # Simple single-value component
-            ref_path = base_path
-            
-            # Set ref for external values (only if model is AttributeValue)
-            if hasattr(component.model, 'is_external') and component.model.is_external():
-                full_ref = f"logical_nodes.{self.logical_node_id}.{ref_path}"
-                component.model.set_metadata('ref', full_ref)
-            
-            # Set the AttributeValue object directly (not serialized)
-            self._set_nested_attr(self.composed, ref_path, component.model)
+            for key,_ in component.model.model_dump().items():
+                obj = getattr(component.model, key)
+                obj.metadata["ref"] = f"{base_path}.{key}"
+
+    def add(self, component):
+        """
+        Add a configuration component to the composed configuration.
+        Handles both dict-based and single-value components, sets external refs, and logs actions.
+        Returns the added value or raises ValueError on error.
+        """
+        component_type = type(component)
+        if component_type not in self.COMPONENT_MAPPING:
+            print(f"Unknown component type: {component_type.__name__}")
+            raise ValueError(f"Unknown component type: {component_type.__name__}")
+
+        # ref is used to reference the absolute path of each attribute:
+        self._set_ref_on_attributes(component)
+
+        # modellen för composed talar om ifall vi behöver ett key för componenten: 
+        composite_path = self.COMPONENT_MAPPING[component_type]
+        ptr = self._get_nested_attr(composite_path)
+        if isinstance(ptr, dict):
+            # positionen i composed modellen är en dict, alltså behövs en nyckel.
+            ptr[component.name] = component.model.model_dump()
+        else:
+            # Can only be one of these, no named key needed.
+            self._set_nested_attr(composite_path, component.model)
+    
 
     def __getattr__(self, name: str):
         """
@@ -112,7 +116,7 @@ class Configuration:
         if name in self.ATTRIBUTE_TO_PATH:
             path = self.ATTRIBUTE_TO_PATH[name]
             try:
-                attr_value = self._get_nested_attr(self.composed, path)
+                attr_value = self._get_nested_attr(path)
                 # Check if it's an AttributeValue object
                 if attr_value and hasattr(attr_value, 'get_value'):
                     return attr_value.get_value()

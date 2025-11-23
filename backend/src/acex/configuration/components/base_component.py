@@ -5,7 +5,7 @@ import json, hashlib
 from typing import Dict, Any, Type, Union, Optional, get_origin
 from types import NoneType
 from datetime import datetime
-from acex.models import ExternalValue, SingleAttribute
+from acex.models import ExternalValue, AttributeValue
 
 
 class ConfigComponent:
@@ -26,6 +26,10 @@ class ConfigComponent:
         # Set name for component, must always be unique.
         # For single attribute values, name is same as the single positional arg.
         self._set_name_attribute()
+
+    @property
+    def path(self):
+        return "penistypen"
 
 
     def _validate_model(self, kwargs) -> BaseModel:
@@ -50,9 +54,12 @@ class ConfigComponent:
         """
         Set name attribute to component, not included in the model
         but will have to be unique for mapping/dict-key in the composite configuration.
+
+        # If self.model is AttributeValue[str], that means its a "single-attr 
+        component which has no requirement for name, since it can only be one 
+        of them in the config. So its name is same as the class name.
         """
-        if isinstance(self.model, SingleAttribute):
-            value = args[0]
-            self.name = value
+        if isinstance(self.model, AttributeValue[str]):
+            self.name = self.__class__.__name__.lower()
         else:
-            self.name = self.kwargs.get('name')
+            self.name = self.kwargs.get("name")
