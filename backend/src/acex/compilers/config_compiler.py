@@ -91,13 +91,71 @@ class ConfigCompiler:
         Resolves all external values from CompiledLogicalNode.configuration.composed
         """
         print("Resolving ev!")
-        # TODO: Migrate to use cln.configuration.composed instead of components
-        # session = next(self.db.get_session())
-        # try:
-        #     # Need to recursively walk through composed structure to find AttributeValue objects
-        #     pass
-        # finally:
-        #     session.close()
+        session = next(self.db.get_session())
+        try:
+            for _, component in cln.configuration._components:
+                for k,v in component.model:
+                    if v.is_external():
+                        print("resolve the ev.. ")
+                        
+                        func = v.value._callable
+                        value = func(v.value.kind, json.loads(v.value.query))
+                        v.value = value
+
+                        # save to db - upsert operation
+                        try:
+                            # Försök att hämta befintligt objekt
+                            full_ref = v.metadata["ref"]
+                            existing_ev = session.get(ExternalValue, full_ref)
+
+                            if existing_ev:
+                                # Uppdatera befintligt objekt - bara value och resolved_at
+                                existing_ev.value = v.value
+                                existing_ev.resolved_at = datetime.now(timezone.utc)
+
+                            else:
+                                # Create new ev and save it. 
+                                new_ev = ExternalValue(
+                                    ref=full_ref,
+                                    query=v.metadata["query"],
+                                    value=v.value,
+                                    kind=v.metadata["kind"],
+                                    ev_type=v.metadata["ev_type"],
+                                    plugin=v.metadata["plugin"],
+                                    resolved_at=datetime.now(timezone.utc)
+                                )
+                                session.add(new_ev)
+                            # Save
+                            session.commit()
+
+                        except Exception as e:
+                            session.rollback()
+                            print(f"Error saving ExternalValue {ev.ref}: {e}")
+                            raise  # Re-raise för att stoppa hela operationen om något går fel
+
+
+
+                        #     else:
+                        #         # Skapa nytt objekt
+                        #         new_ev = ExternalValue(
+                        #             ref=ev.ref,
+                        #             query=ev.query,
+                        #             value=value,
+                        #             kind=ev.kind,
+                        #             ev_type=ev.ev_type,
+                        #             plugin=ev.plugin,
+                        #             resolved_at=datetime.now(timezone.utc)
+                        #         )
+                        #         session.add(new_ev)
+                            
+                        #     session.commit()
+                        # except Exception as e:
+                        #     session.rollback()
+                        #     print(f"Error saving ExternalValue {ev.ref}: {e}")
+                        #     raise  # Re-raise för att stoppa hela operationen om något går fel
+
+        finally:
+            session.close()
 
 
     def _read_external_value_from_state(self, cln: CompiledLogicalNode):
@@ -107,37 +165,17 @@ class ConfigCompiler:
         """
         session = next(self.db.get_session())
         try:
-            
             for _, component in cln.configuration._components:
-                print("-" * 50)
-                
-                # TODO: hur får vi ut alla attribut för componenten så vi kan editera dom? 
-                print(type(component))
                 for k,v in component.model:
-                    print(f"k: {k} of t: {type(v.value)}")
-                    if isinstance(v.value, ExternalValue):
-                        print("Den här är external! :) ")
-                    print("-")
-                
-
-
-
-
-
-
-            # for _, ccomp in cln.configuration.components.items():
-            #     for k, v in ccomp.attributes().items():
-            #         if isinstance(v.data, ExternalValue):
-            #             full_ref = f"{v.data.ref}"
-            #             result = session.get(ExternalValue, full_ref)
-
-            #             if result is not None:
-            #                 setattr(v, "value", result.value)
-            #                 setattr(v, "resolved_at", result.resolved_at)
+                    if v.is_external():
+                        full_ref = v.metadata["ref"]
+                        result = session.get(ExternalValue, full_ref)
+                        if result is not None:
+                            setattr(v, "value", result.value)
+                            v.metadata["resolved"] = result.resolved
+                            v.metadata["resolved_at"] = result.resolved_at
         finally:
             session.close()
-
-
 
 
     def _map_all_ip_cidrs(self, cln):
