@@ -6,30 +6,16 @@ from pydantic import BaseModel
 
 from acex.models import ExternalValue
 
-class ModelBase(SQLModel):
-    """Mixin som automatiskt hanterar ExternalValue för alla fält"""
-    
-    # @root_validator(pre=True)
-    # def handle_external_values(cls, values):
-    #     if not isinstance(values, dict):
-    #         return values
-            
-    #     processed_values = {}
-        
-    #     for k, v in values.items():
-    #         processed_values[k] = v
-    #     return processed_values
 
 
-
-class Interface(ModelBase): 
+class Interface(SQLModel): 
     enabled: Union[bool, ExternalValue] = Field(default=True)
     description: Union[Optional[str], ExternalValue] = None
     mac_address: Union[Optional[str], ExternalValue] = None
     ipv4: Union[Optional[str], ExternalValue] = None
 
 
-class SubInterface(ModelBase):
+class SubInterfaceAttributes(SQLModel):
     index: Union[int, ExternalValue] = 0
     enabled: Union[bool, ExternalValue] = Field(default=True)
     description: Union[Optional[str], ExternalValue] = None
@@ -69,7 +55,7 @@ class PhysicalInterface(Interface):
     switchport_mode: Union[Optional[str], ExternalValue] = None  # e.g., 'access', 'trunk'
     switchport_untagged_vlan: Union[Optional[int], ExternalValue] = None
     switchport_trunk_vlans: Union[Optional[List[int]], ExternalValue] = None
-    subinterfaces: Union[Optional[List[SubInterface]], ExternalValue] = None
+    subinterfaces: Union[Optional[List[SubInterfaceAttributes]], ExternalValue] = None
 
     @validator("switchport_mode")
     def validate_switchport_mode(cls, v):

@@ -1,23 +1,33 @@
 
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models import SingleAttribute
+from acex.models.attribute_value import AttributeValue
+
+from acex.models.composed_configuration import *
 
 
-class SystemAttribute(ConfigComponent): ...
+from pydantic import BaseModel
+from typing import Any
 
-class HostName(SystemAttribute):
+
+class SingleAttributeString(BaseModel):
+    value: AttributeValue[str]
+
+
+class HostName(ConfigComponent):
     type = "hostname"
-    model_cls = SingleAttribute
+    model_cls = SingleAttributeString
 
-class Contact(SystemAttribute):
+class Contact(ConfigComponent):
     type = "contact"
-    model_cls = SingleAttribute
+    model_cls = SingleAttributeString
 
-class Location(SystemAttribute):
+class Location(ConfigComponent):
     type = "location"
-    model_cls = SingleAttribute
+    model_cls = SingleAttributeString
 
-class DomainName(SystemAttribute):
+class DomainName(ConfigComponent):
     type = "domain-name"
-    model_cls = SingleAttribute
+    model_cls = SingleAttributeString
+
+
 

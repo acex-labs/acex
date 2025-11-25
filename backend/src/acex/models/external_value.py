@@ -10,6 +10,7 @@ class EVType(Enum):
     resource = "resource"
 
 class ExternalValue(SQLModel, table=True):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     ref: str = Field(default=None, primary_key=True)
     
     # query: dict # same query as was used for fetching the data
@@ -18,9 +19,8 @@ class ExternalValue(SQLModel, table=True):
     kind: str # object kind/type
     ev_type: EVType = Field(default=EVType.data)
     plugin: str
-    resolved_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    resolved: bool = Field(default=False)  # True when value has been resolved
+    resolved_at: Optional[datetime] = Field(default=None)  # Only set when resolved
     
     # Privat attribut för callable (inte i JSON eller databas)
     _callable: Optional[Callable] = PrivateAttr(default=None)
