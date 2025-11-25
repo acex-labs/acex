@@ -51,51 +51,8 @@ class Configuration:
         # Komponenter lagras som objekt, mappade till sin position
         self._components = []
 
-    
-    def _get_nested_component(self, path: str):
-        """Get a nested attribute using dot notation path."""
-        obj = self.composed
-        parts = path.split('.')
-        for part in parts:
-            obj = getattr(obj, part)
-        return obj
 
-    def _set_ref_on_attributes(self, component):
-        """
-        Set ref metadata on each attribute of the component
-        """
-        # logical_nodes.0.ethernetCsmacd.if0.ipv4
-        base_path = f"logical_nodes.{self.logical_node_id}.{component.type}.{component.name}"
-
-        # single value attributes have value and meta directly: 
-        if "metadata" in component.model.model_dump():
-            component.model.metadata["ref"] = base_path
-        else:
-            for key,_ in component.model.model_dump().items():
-                obj = getattr(component.model, key)
-                obj.metadata["ref"] = f"{base_path}.{key}"
-
-    def add(self, component):
-        """
-        Add a configuration component to the composed configuration.
-        Handles both dict-based and single-value components, sets external refs, and logs actions.
-        Returns the added value or raises ValueError on error.
-        """
-        component_type = type(component)
-        if component_type not in self.COMPONENT_MAPPING:
-            print(f"Unknown component type: {component_type.__name__}")
-            raise ValueError(f"Unknown component type: {component_type.__name__}")
-
-        # ref is used to reference the absolute path of each attribute:
-        self._set_ref_on_attributes(component)
-
-        # modellen för composed talar om ifall vi behöver ett key för componenten:
-        composite_path = self.COMPONENT_MAPPING[component_type]
-
-        # lägger till komponenten i en flat list i en tuple med path.
-        self._components.append((composite_path, component))
-
-
+    # TODO: Den här är paj!
     def __getattr__(self, name: str):
         """
         Dynamically get configuration values by attribute name.
@@ -121,6 +78,54 @@ class Configuration:
                 return None
         
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+    
+    def _get_nested_component(self, path: str):
+        """Get a nested attribute using dot notation path."""
+        obj = self.composed
+        parts = path.split('.')
+        for part in parts:
+            obj = getattr(obj, part)
+        return obj
+
+    def _set_ref_on_attributes(self, component):
+        """
+        Set ref metadata on each attribute of the component
+        """
+        # logical_nodes.0.ethernetCsmacd.if0.ipv4
+        if component.name is not None:
+            base_path = f"logical_nodes.{self.logical_node_id}.{component.type}.{component.name}"
+        else:
+            base_path = f"logical_nodes.{self.logical_node_id}.{component.type}"
+
+        # single value attributes have value and meta directly: 
+        if "metadata" in component.model.model_dump():
+            component.model.metadata["ref"] = base_path
+        else:
+            for key,_ in component.model.model_dump().items():
+                obj = getattr(component.model, key)
+                obj.metadata["ref"] = f"{base_path}.{key}"
+
+
+    def add(self, component):
+        """
+        Add a configuration component to the composed configuration.
+        Handles both dict-based and single-value components, sets external refs, and logs actions.
+        Returns the added value or raises ValueError on error.
+        """
+        component_type = type(component)
+        if component_type not in self.COMPONENT_MAPPING:
+            print(f"Unknown component type: {component_type.__name__}")
+            raise ValueError(f"Unknown component type: {component_type.__name__}")
+
+        # ref is used to reference the absolute path of each attribute:
+        self._set_ref_on_attributes(component)
+
+        # modellen för composed talar om ifall vi behöver ett key för componenten:
+        composite_path = self.COMPONENT_MAPPING[component_type]
+
+        # lägger till komponenten i en flat list i en tuple med path.
+        self._components.append((composite_path, component))
+
 
     def as_model(self) -> BaseModel:
 

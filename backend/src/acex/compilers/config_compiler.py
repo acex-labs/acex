@@ -107,12 +107,24 @@ class ConfigCompiler:
         """
         session = next(self.db.get_session())
         try:
-            ...
-            # for component in cln.configuration._components_by_position:
-            #     print("-" * 50)
-            #     print(component)
-                # for k,v in component.attributes():
-                #     print(k)
+            
+            for _, component in cln.configuration._components:
+                print("-" * 50)
+                
+                # TODO: hur får vi ut alla attribut för componenten så vi kan editera dom? 
+                print(type(component))
+                for k,v in component.model:
+                    print(f"k: {k} of t: {type(v.value)}")
+                    if isinstance(v.value, ExternalValue):
+                        print("Den här är external! :) ")
+                    print("-")
+                
+
+
+
+
+
+
             # for _, ccomp in cln.configuration.components.items():
             #     for k, v in ccomp.attributes().items():
             #         if isinstance(v.data, ExternalValue):

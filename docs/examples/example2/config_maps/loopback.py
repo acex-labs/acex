@@ -10,7 +10,7 @@ class LoopbackIf(ConfigMap):
             name="Lo0",
             description = "MPLS Loopback",
             # ipv4 = "192.0.2.3/24",
-            ipv4 = context.integrations.ipam.data.ip_addresses({"hej": "värld"}),
+            ipv4 = context.integrations.ipam.data.ip_addresses({"hej": "verld"}),
             enabled = True
         )
         context.configuration.add(lo0)

@@ -27,18 +27,11 @@ class ConfigComponent:
         # For single attribute values, name is same as the single positional arg.
         self._set_name_attribute()
 
-    @property
-    def path(self):
-        return "penistypen"
-
 
     def _validate_model(self, kwargs) -> BaseModel:
         """
         Validate all kwargs against the model and set attribute
         types accordingly
-
-
-        TODO: Fixa så att concrete värden wrappas med AttributeValues!
         """
         if not self.__class__.model_cls:
             raise ValueError(f"No model_cls defined for {self.__class__.__name__}")
