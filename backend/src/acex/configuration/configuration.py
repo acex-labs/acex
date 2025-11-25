@@ -1,4 +1,5 @@
 
+from pydantic import BaseModel
 from acex.configuration.components import ConfigComponent
 from acex.configuration.components.interfaces import (
     # Interface,
@@ -47,15 +48,11 @@ class Configuration:
         self.composed = ComposedConfiguration()
         self.logical_node_id = logical_node_id
 
-    def _set_nested_attr(self, path: str, value):
-        """Set a nested attribute using dot notation path."""
-        obj = self.composed
-        parts = path.split('.')
-        for part in parts[:-1]:
-            obj = getattr(obj, part)
-        setattr(obj, parts[-1], value)
+        # Komponenter lagras som objekt, mappade till sin position
+        self._components = []
+
     
-    def _get_nested_attr(self, path: str):
+    def _get_nested_component(self, path: str):
         """Get a nested attribute using dot notation path."""
         obj = self.composed
         parts = path.split('.')
@@ -92,16 +89,12 @@ class Configuration:
         # ref is used to reference the absolute path of each attribute:
         self._set_ref_on_attributes(component)
 
-        # modellen för composed talar om ifall vi behöver ett key för componenten: 
+        # modellen för composed talar om ifall vi behöver ett key för componenten:
         composite_path = self.COMPONENT_MAPPING[component_type]
-        ptr = self._get_nested_attr(composite_path)
-        if isinstance(ptr, dict):
-            # positionen i composed modellen är en dict, alltså behövs en nyckel.
-            ptr[component.name] = component.model.model_dump()
-        else:
-            # Can only be one of these, no named key needed.
-            self._set_nested_attr(composite_path, component.model)
-    
+
+        # lägger till komponenten i en flat list i en tuple med path.
+        self._components.append((composite_path, component))
+
 
     def __getattr__(self, name: str):
         """
@@ -116,7 +109,7 @@ class Configuration:
         if name in self.ATTRIBUTE_TO_PATH:
             path = self.ATTRIBUTE_TO_PATH[name]
             try:
-                attr_value = self._get_nested_attr(path)
+                attr_value = self._get_nested_component(path)
                 # Check if it's an AttributeValue object
                 if attr_value and hasattr(attr_value, 'get_value'):
                     return attr_value.get_value()
@@ -129,6 +122,36 @@ class Configuration:
         
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
+    def as_model(self) -> BaseModel:
 
-    def to_json(self): 
-        return self.composed.model_dump()
+        config = self.composed.copy()
+
+        # Apply all values from components to the composed model: 
+        for path, component in self._components:
+
+            # Traverse the composed object to the ptr for the obj.
+            path_parts = path.split('.')
+            attribute_name = path_parts.pop()
+
+            ptr = config
+            for part in path_parts:
+                ptr = getattr(ptr, part)
+
+            # If the value of the ptr is a dict, the item has to be keyed
+            value = getattr(ptr, attribute_name)
+            if isinstance(value, dict):
+                value[component.name] = component.model
+            else:
+                # Cant set value directly, since NoneType is a singleton.
+                # Instead we use setattr using the pointer and attribute name.
+                setattr(ptr, attribute_name, component.model)
+
+        return config
+
+
+    def to_json(self):
+        """
+        Serialisera alla komponenter till rätt position i strukturen.
+        """
+        return self.as_model().model_dump()
+

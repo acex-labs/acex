@@ -105,14 +105,28 @@ class ConfigCompiler:
         Reads all EVs for compiled logical node and fetches last retrieved value
         from state database.
         """
-        # TODO: Migrate to use cln.configuration.composed instead of components
-        # session = next(self.db.get_session())
-        # try:
-        #     # Need to recursively walk through composed structure to find AttributeValue objects
-        #     pass
-        # finally:
-        #     session.close()
-        pass
+        session = next(self.db.get_session())
+        try:
+            ...
+            # for component in cln.configuration._components_by_position:
+            #     print("-" * 50)
+            #     print(component)
+                # for k,v in component.attributes():
+                #     print(k)
+            # for _, ccomp in cln.configuration.components.items():
+            #     for k, v in ccomp.attributes().items():
+            #         if isinstance(v.data, ExternalValue):
+            #             full_ref = f"{v.data.ref}"
+            #             result = session.get(ExternalValue, full_ref)
+
+            #             if result is not None:
+            #                 setattr(v, "value", result.value)
+            #                 setattr(v, "resolved_at", result.resolved_at)
+        finally:
+            session.close()
+
+
+
 
     def _map_all_ip_cidrs(self, cln):
         """
@@ -138,6 +152,5 @@ class ConfigCompiler:
             self._resolve_external_values(self.ln)
 
         self._map_all_ip_cidrs(self.ln)
-
         return self.ln.response
 
