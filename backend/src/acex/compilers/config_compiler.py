@@ -133,27 +133,6 @@ class ConfigCompiler:
                             print(f"Error saving ExternalValue {ev.ref}: {e}")
                             raise  # Re-raise för att stoppa hela operationen om något går fel
 
-
-
-                        #     else:
-                        #         # Skapa nytt objekt
-                        #         new_ev = ExternalValue(
-                        #             ref=ev.ref,
-                        #             query=ev.query,
-                        #             value=value,
-                        #             kind=ev.kind,
-                        #             ev_type=ev.ev_type,
-                        #             plugin=ev.plugin,
-                        #             resolved_at=datetime.now(timezone.utc)
-                        #         )
-                        #         session.add(new_ev)
-                            
-                        #     session.commit()
-                        # except Exception as e:
-                        #     session.rollback()
-                        #     print(f"Error saving ExternalValue {ev.ref}: {e}")
-                        #     raise  # Re-raise för att stoppa hela operationen om något går fel
-
         finally:
             session.close()
 
@@ -178,17 +157,6 @@ class ConfigCompiler:
             session.close()
 
 
-    def _map_all_ip_cidrs(self, cln):
-        """
-        Maps all ip addresses
-        """
-        # TODO: Migrate to use cln.configuration.composed instead of components
-        # for _, ccom in cln.configuration.components.items():
-        #     for k,v in ccom.attributes().items():
-        #         if isinstance(v, IPv4Interface|IPv6Interface):
-        #             print(f"IP: {v} ")
-        pass
-
     async def compile(self, logical_node, integrations, resolve: bool = False) -> dict:
         configuration = Configuration(logical_node.id) # Instanciates a config object
         self.ln = CompiledLogicalNode(configuration, logical_node, integrations)
@@ -201,6 +169,5 @@ class ConfigCompiler:
         else:
             self._resolve_external_values(self.ln)
 
-        self._map_all_ip_cidrs(self.ln)
         return self.ln.response
 
