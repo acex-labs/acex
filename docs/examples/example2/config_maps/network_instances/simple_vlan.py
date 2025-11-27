@@ -1,10 +1,21 @@
-# from acex.config_map import ConfigMap, FilterAttribute
-# from acex.configuration.components.network_instances import Vlan, L2Domain
-# from acex.configuration.components.interfaces import Svi
+from acex.config_map import ConfigMap, FilterAttribute
+from acex.configuration.components.network_instances import Vlan
 
-# # Simple L2 vlan
-# # An instance of Vlan is a composition done behind the scenes that creates
-# # both a l2domain and l2vlan and ties them together 1:1.
+
+class SimpleVlan(ConfigMap):
+    def compile(self, context):
+
+        vl200 = Vlan(
+            name="vl200",
+            vlan_id=200,
+            vlan_name="vl200"
+        )
+        context.configuration.add(vl200)
+
+# vlan = SimpleVlan()
+# vlan.filters = FilterAttribute("hostname").eq("R1")
+
+
 # class SimpleVlan(ConfigMap):
 #     def compile(self, context):
 

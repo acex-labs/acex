@@ -13,10 +13,11 @@ from acex.configuration.components.system import (
     Location,
     DomainName
 )
-from acex.configuration.components.system.logging_server import LoggingBase
+
 from acex.configuration.components.system.ntp import NtpServer
 from acex.configuration.components.system.ssh import SshServer
 from acex.configuration.components.network_instances import NetworkInstance, Vlan
+
 from acex.models import ExternalValue
 from acex.models.composed_configuration import ComposedConfiguration
 from collections import defaultdict
@@ -34,6 +35,7 @@ class Configuration:
         DomainName: "system.config.domain_name",
         Loopback: "interfaces", 
         NetworkInstance: "network_instances",
+        Vlan: "network_instaces.{}"
     }
     
     # Reverse mapping from attribute name to path for __getattr__

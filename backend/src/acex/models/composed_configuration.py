@@ -5,6 +5,12 @@ from typing import Optional, Dict, Any, Union
 from acex.models.external_value import ExternalValue
 from acex.models.attribute_value import AttributeValue
 
+from acex.models.logging import (
+    LoggingConfig,
+    LoggingConsole,
+    RemoteServer,
+    LoggingEvents
+)
 
 class SystemConfig(BaseModel):
     contact: Optional[AttributeValue[str]] = None
@@ -13,11 +19,18 @@ class SystemConfig(BaseModel):
     location: Optional[AttributeValue[str]] = None
 
 class TripleA(BaseModel): ...
-class Logging(BaseModel): ...
+
+
+class Logging(BaseModel): 
+    config: LoggingConfig = LoggingConfig()
+    console: Optional[LoggingConsole] = {}
+    remote_servers: Optional[RemoteServer] = {}
+    events: Optional[LoggingEvents] = {}
+
+
 class Ntp(BaseModel): ...
 class Ssh(BaseModel): ...
 class Acl(BaseModel): ...
-class Vlans(BaseModel): ...
 class Lldp(BaseModel): ...
 
 class Interface(BaseModel): 
@@ -40,7 +53,6 @@ class System(BaseModel):
 class ComposedConfiguration(BaseModel):
     system: Optional[System] = System()
     acl: Optional[Acl] = Acl()
-    vlans: Optional[Vlans] = Vlans()
     lldp: Optional[Lldp] = Lldp()
     interfaces: Dict[str, Interface] = {}
     network_instances: Dict[str, NetworkInstance] = {}

@@ -105,3 +105,4 @@ class AttributeValue(BaseModel, Generic[T]):
 
     def get_value(self) -> T:
         return self.value.value if isinstance(self.value, ExternalValue) else self.value
+
