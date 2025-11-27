@@ -2,7 +2,6 @@ from typing import Callable, Union, Awaitable, List
 from acex.config_map import ConfigMap
 from .compiled_logical_node import CompiledLogicalNode
 from acex.configuration import Configuration
-from acex.models import ExternalValue
 from datetime import datetime, timezone
 from ipaddress import IPv4Interface, IPv6Interface
 
@@ -12,6 +11,9 @@ import sys
 from pathlib import Path
 import inspect
 import json
+
+from acex.models.attribute_value import AttributeValue
+from acex.models import ExternalValue
 
 class ConfigCompiler: 
     """
@@ -95,43 +97,44 @@ class ConfigCompiler:
         try:
             for _, component, _ in cln.configuration._components:
                 for k,v in component.model:
-                    if v.is_external():
-                        print("resolve the ev.. ")
-                        
-                        func = v.value._callable
-                        value = func(v.value.kind, json.loads(v.value.query))
-                        v.value = value
+                    if v is not None:   
+                        if v.is_external():
+                            print("resolve the ev.. ")
+                            
+                            func = v.value._callable
+                            value = func(v.value.kind, json.loads(v.value.query))
+                            v.value = value
 
-                        # save to db - upsert operation
-                        try:
-                            # Försök att hämta befintligt objekt
-                            full_ref = v.metadata["attr_ptr"]
-                            existing_ev = session.get(ExternalValue, full_ref)
+                            # save to db - upsert operation
+                            try:
+                                # Försök att hämta befintligt objekt
+                                full_ref = v.metadata["attr_ptr"]
+                                existing_ev = session.get(ExternalValue, full_ref)
 
-                            if existing_ev:
-                                # Uppdatera befintligt objekt - bara value och resolved_at
-                                existing_ev.value = v.value
-                                existing_ev.resolved_at = datetime.now(timezone.utc)
+                                if existing_ev:
+                                    # Uppdatera befintligt objekt - bara value och resolved_at
+                                    existing_ev.value = v.value
+                                    existing_ev.resolved_at = datetime.now(timezone.utc)
 
-                            else:
-                                # Create new ev and save it. 
-                                new_ev = ExternalValue(
-                                    attr_ptr=full_ref,
-                                    query=v.metadata["query"],
-                                    value=v.value,
-                                    kind=v.metadata["kind"],
-                                    ev_type=v.metadata["ev_type"],
-                                    plugin=v.metadata["plugin"],
-                                    resolved_at=datetime.now(timezone.utc)
-                                )
-                                session.add(new_ev)
-                            # Save
-                            session.commit()
+                                else:
+                                    # Create new ev and save it. 
+                                    new_ev = ExternalValue(
+                                        attr_ptr=full_ref,
+                                        query=v.metadata["query"],
+                                        value=v.value,
+                                        kind=v.metadata["kind"],
+                                        ev_type=v.metadata["ev_type"],
+                                        plugin=v.metadata["plugin"],
+                                        resolved_at=datetime.now(timezone.utc)
+                                    )
+                                    session.add(new_ev)
+                                # Save
+                                session.commit()
 
-                        except Exception as e:
-                            session.rollback()
-                            print(f"Error saving ExternalValue {ev.attr_ptr}: {e}")
-                            raise  # Re-raise för att stoppa hela operationen om något går fel
+                            except Exception as e:
+                                session.rollback()
+                                print(f"Error saving ExternalValue {ev.attr_ptr}: {e}")
+                                raise  # Re-raise för att stoppa hela operationen om något går fel
 
         finally:
             session.close()
@@ -141,6 +144,8 @@ class ConfigCompiler:
         """
         Reads all EVs for compiled logical node and fetches last retrieved value
         from state database.
+
+        TODO: Den här måste ha stöd för stackade komponenter?
         """
         session = next(self.db.get_session())
         try:
@@ -149,7 +154,7 @@ class ConfigCompiler:
 
                 # loop all attributes from the model.
                 for k,v in component.model:
-                    if v is not None:
+                    if isinstance(v, AttributeValue):
                         # check all set attributes if theyre external. 
                         if v.is_external():
                             # If external, set full reference

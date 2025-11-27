@@ -1,11 +1,9 @@
 
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, List
 
 from acex.models.external_value import ExternalValue
 from acex.models.attribute_value import AttributeValue
-
-
 from acex.models.logging import (
     LoggingConfig,
     LoggingConsole,
@@ -57,9 +55,23 @@ class SubInterface(Interface): ...
 class PhysicalInterface(Interface): ...
 
 
+class RouteTarget(BaseModel):
+    value: str # TODO: Add constraints and validators... 
+
+class ImportExportPolicy(BaseModel):
+    export_route_target: Optional[List[RouteTarget]] = None
+    import_route_target: Optional[List[RouteTarget]] = None
+
+class InterInstancePolicy(BaseModel):
+    import_export_policy: ImportExportPolicy
+
 class NetworkInstance(BaseModel): 
-    vlans: Optional[Dict[str, Vlan]] = None
-    interfaces: Optional[Dict[str, Interface]] = None
+    name: AttributeValue[str]
+    description: Optional[AttributeValue[str]] = None
+    vlans: Optional[Dict[str, Vlan]] = {}
+    interfaces: Optional[Dict[str, Interface]] = {}
+    inter_instance_policies: Optional[Dict[str, InterInstancePolicy]] = {}
+
 
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
@@ -73,4 +85,4 @@ class ComposedConfiguration(BaseModel):
     acl: Optional[Acl] = Acl()
     lldp: Optional[Lldp] = Lldp()
     interfaces: Dict[str, Interface] = {}
-    network_instances: Dict[str, NetworkInstance] = {"global": {"vlans": {}, "interfaces": {}}}
+    network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}

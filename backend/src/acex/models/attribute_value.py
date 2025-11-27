@@ -62,7 +62,7 @@ class AttributeValue(BaseModel, Generic[T]):
 
         if isinstance(self.value, ExternalValue):
             self.metadata.setdefault("value_type", "external")
-            self.metadata.setdefault("ref", self.value.ref)
+            self.metadata.setdefault("attr_ptr", self.value.attr_ptr)
             self.metadata.setdefault("plugin", self.value.plugin)
             self.metadata.setdefault(
                 "ev_type",

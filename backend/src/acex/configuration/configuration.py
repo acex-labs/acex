@@ -16,8 +16,9 @@ from acex.configuration.components.system import (
 
 from acex.configuration.components.system.ntp import NtpServer
 from acex.configuration.components.system.ssh import SshServer
-from acex.configuration.components.network_instances import NetworkInstance
+from acex.configuration.components.network_instances import NetworkInstance, L3Vrf
 from acex.configuration.components.vlan import Vlan
+from acex.models.attribute_value import AttributeValue
 
 from acex.models import ExternalValue
 from acex.models.composed_configuration import ComposedConfiguration
@@ -38,15 +39,17 @@ class Configuration:
         DomainName: "system.config.domain_name",
         Loopback: "interfaces", 
         NetworkInstance: "network_instances",
+        L3Vrf: "network_instances",
         Vlan: Template("network_instances.${network_instance}.vlans"),
-        Svi: Template("interfaces")
+        Svi: Template("network_instances.${network_instance}.interfaces")
     }
 
     # Some objects are also referenced in other parts.
     # For instance an interface belongs to configuration.interfaces, but 
     # are usually referenced in network_instances if tied to a VRF. 
     REFERENCE_MAPPING = {
-        Svi: [Template("network_instances.${network_instance}.interfaces")]
+        Svi: [Template("network_instances.${network_instance}.interfaces")],
+        # Loopback: [Template("network_instances.${network_instance}.interfaces")]
     }
     
     # Reverse mapping from attribute name to path for __getattr__
@@ -111,14 +114,16 @@ class Configuration:
         else:
             base_path = f"logical_nodes.{self.logical_node_id}.{component.type}"
 
-        # single value attributes have value and meta directly: 
-        if "metadata" in component.model.model_dump():
-            component.model.metadata["attr_ptr"] = base_path
-        else:
-            for key,_ in component.model.model_dump().items():
-                obj = getattr(component.model, key)
-                if obj is not None:
-                    obj.metadata["attr_ptr"] = f"{base_path}.{key}"
+        #TODO: If singleAttribute class, implementsmart logic to not use key 'value'
+
+        for k, v in component.model.model_dump().items():
+            attribute_value = getattr(component.model, k)
+            if isinstance(attribute_value, AttributeValue):
+                if attribute_value is not None and isinstance(attribute_value.value, ExternalValue):
+                    attribute_value.metadata["attr_ptr"] = f"{base_path}.{k}"
+            else:
+                # print("Värde är inte attributeValue!")
+                ...
 
 
     def _get_component_path(self, component) -> str:
@@ -218,21 +223,21 @@ class Configuration:
                 setattr(ptr, attribute_name, component.model)
 
             # Also add all references
-            print("lägg till referenspunkter här!")
-            for ref in references:
-                print(ref)
-                ref_ptr = config
-                for part in ref.split('.'):
-                    print(f"part: {part}")
-                    if isinstance(ref_ptr, dict):
-                        ref_ptr = ref_ptr.get(part)
-                    else:
-                        ref_ptr = getattr(ref_ptr, part)
-                # Set value: 
-                if isinstance(ref_ptr, dict):
-                    ref_ptr[component.name] = component.model
-                else:
-                    print("saknas sätt att montera in ref, på en annan component.")
+            # print("lägg till referenspunkter här!")
+            # for ref in references:
+            #     print(ref)
+            #     ref_ptr = config
+            #     for part in ref.split('.'):
+            #         print(f"part: {part}")
+            #         if isinstance(ref_ptr, dict):
+            #             ref_ptr = ref_ptr.get(part)
+            #         else:
+            #             ref_ptr = getattr(ref_ptr, part)
+            #     # Set value: 
+            #     if isinstance(ref_ptr, dict):
+            #         ref_ptr[component.name] = component.model
+            #     else:
+            #         print("saknas sätt att montera in ref, på en annan component.")
 
         return config
 

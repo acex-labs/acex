@@ -1,27 +1,35 @@
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.vlan import Vlan
+from acex.configuration.components.network_instances import L3Vrf
+
 
 from acex.configuration.components.interfaces import Svi
 
-class SimpleVlan(ConfigMap):
+class VlanInVrf(ConfigMap):
     def compile(self, context):
 
-        vl200 = Vlan(
-            name="vl200",
-            vlan_id=200,
-            vlan_name="vl200"
+        vrf = L3Vrf(
+            name="my_vrf"
         )
-        context.configuration.add(vl200)
+        context.configuration.add(vrf)
 
-        svi200 = Svi(
-            name="vl200_svi",
-            vlan=vl200,
-            index=0
+        vl300 = Vlan(
+            name="vl300",
+            vlan_id=300,
+            vlan_name="vl300"
         )
-        context.configuration.add(svi200)
+        context.configuration.add(vl300)
+
+        svi300 = Svi(
+            name="vl300_svi",
+            vlan=vl300,
+            index=1,
+            network_instance=vrf
+        )
+        context.configuration.add(svi300)
 
 
-vlan = SimpleVlan()
+vlan = VlanInVrf()
 vlan.filters = FilterAttribute("hostname").eq("R2")
 
 
