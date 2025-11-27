@@ -8,6 +8,13 @@ from acex.models import ExternalValue
 
 
 
+"""
+These models are not used, instead they are defined
+in composed_configuration. But will eventually be moved
+to their own file, like this one. 
+
+"""
+
 class Interface(SQLModel): 
     enabled: Union[bool, ExternalValue] = Field(default=True)
     description: Union[Optional[str], ExternalValue] = None

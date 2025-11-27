@@ -2,6 +2,7 @@
 from acex.configuration.components.base_component import ConfigComponent
 # from acex.models.interfaces import PhysicalInterface, VirtualInterface, SubInterfaceAttributes
 from acex.models.composed_configuration import Interface as InterfaceModel
+from acex.models.composed_configuration import SubInterface
 from typing import Optional
 
 class Interface(ConfigComponent): ...
@@ -26,4 +27,18 @@ class Loopback(Interface):
     type = "softwareLoopback"
     model_cls = InterfaceModel
 
+
+class Svi(Interface):
+    type = "Svi"
+    model_cls = SubInterface
+
+    def pre_init(self):
+        vlan = self.kwargs.pop("vlan")
+        self.kwargs["vlan"] = vlan.name 
+
+        if self.kwargs.get('network_instance') is None:
+            self.kwargs["network_instance"] = "global"
+        else:
+            network_instance = self.kwargs.pop("network_instance")
+            self.kwargs["network_instance"] = network_instance.name 
 

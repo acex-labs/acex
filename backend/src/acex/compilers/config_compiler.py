@@ -144,15 +144,21 @@ class ConfigCompiler:
         """
         session = next(self.db.get_session())
         try:
-            for _, component in cln.configuration._components:
+            # loop all config components of the cln
+            for _, component, _ in cln.configuration._components:
+
+                # loop all attributes from the model.
                 for k,v in component.model:
-                    if v.is_external():
-                        full_ref = v.metadata["ref"]
-                        result = session.get(ExternalValue, full_ref)
-                        if result is not None:
-                            setattr(v, "value", result.value)
-                            v.metadata["resolved"] = result.resolved
-                            v.metadata["resolved_at"] = result.resolved_at
+                    if v is not None:
+                        # check all set attributes if theyre external. 
+                        if v.is_external():
+                            # If external, set full reference
+                            full_ref = v.metadata["ref"]
+                            result = session.get(ExternalValue, full_ref)
+                            if result is not None:
+                                setattr(v, "value", result.value)
+                                v.metadata["resolved"] = result.resolved
+                                v.metadata["resolved_at"] = result.resolved_at
         finally:
             session.close()
 

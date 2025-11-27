@@ -1,15 +1,13 @@
 
 from acex.configuration.components.base_component import ConfigComponent
 from acex.configuration.components.interfaces import Interface
-from acex.configuration.components.vlans import Vlan
+from acex.configuration.components.vlan import Vlan
 
 from acex.models.network_instances import (
     NetworkInstanceAttributes,
     L2DomainAttributes,
     VlanAttributes,
 )
-
-from pydantic import BaseModel
 
 
 class NetworkInstance(ConfigComponent): 

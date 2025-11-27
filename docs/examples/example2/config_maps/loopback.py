@@ -16,4 +16,4 @@ class LoopbackIf(ConfigMap):
         context.configuration.add(lo0)
 
 lo = LoopbackIf()
-lo.filters = FilterAttribute("hostname").eq("/.*/")
+lo.filters = FilterAttribute("hostname").eq("R1")

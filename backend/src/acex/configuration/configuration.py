@@ -5,7 +5,7 @@ from acex.configuration.components.interfaces import (
     # Interface,
     Loopback,
     # Physical,
-    # Svi
+    Svi
 )
 from acex.configuration.components.system import (
     HostName,
@@ -16,13 +16,17 @@ from acex.configuration.components.system import (
 
 from acex.configuration.components.system.ntp import NtpServer
 from acex.configuration.components.system.ssh import SshServer
-from acex.configuration.components.network_instances import NetworkInstance, Vlan
+from acex.configuration.components.network_instances import NetworkInstance
+from acex.configuration.components.vlan import Vlan
 
 from acex.models import ExternalValue
 from acex.models.composed_configuration import ComposedConfiguration
 from collections import defaultdict
 from typing import Dict
+from string import Template
 
+
+import json
 
 class Configuration: 
     # Mapping from component type to path in composed configuration
@@ -35,7 +39,15 @@ class Configuration:
         DomainName: "system.config.domain_name",
         Loopback: "interfaces", 
         NetworkInstance: "network_instances",
-        Vlan: "network_instaces.{}"
+        Vlan: Template("network_instances.${network_instance}.vlans"),
+        Svi: Template("interfaces")
+    }
+
+    # Some objects are also referenced in other parts.
+    # For instance an interface belongs to configuration.interfaces, but 
+    # are usually referenced in network_instances if tied to a VRF. 
+    REFERENCE_MAPPING = {
+        Svi: [Template("network_instances.${network_instance}.interfaces")]
     }
     
     # Reverse mapping from attribute name to path for __getattr__
@@ -105,7 +117,43 @@ class Configuration:
         else:
             for key,_ in component.model.model_dump().items():
                 obj = getattr(component.model, key)
-                obj.metadata["ref"] = f"{base_path}.{key}"
+                if obj is not None:
+                    obj.metadata["ref"] = f"{base_path}.{key}"
+
+
+    def _get_component_path(self, component) -> str:
+        mapped_path = self.COMPONENT_MAPPING[type(component)]
+        return self._render_path(component, mapped_path)
+
+    def _get_reference_paths(self, component) -> list[str]:
+        mapped_paths = self.REFERENCE_MAPPING.get(type(component), [])
+        ref_points = []
+        for ref_path in mapped_paths:
+            ref_points.append(self._render_path(component, ref_path))
+        return ref_points
+
+    def _render_path(self, component, mapped_path: str):
+        """
+        The mapped path can either be a pure string, 
+        or it can be a string.Template. If the latter, we need 
+        to extract the variables and fetch corresponding values which 
+        is expected to be attributeValues of the component itself.     
+        """
+
+        if isinstance(mapped_path, Template):
+            vars_needed = [m.group('named') or m.group('braced')
+               for m in mapped_path.pattern.finditer(mapped_path.template)
+               if m.group('named') or m.group('braced')]
+
+            value_map = {}
+            for v in vars_needed:
+                if hasattr(component.model, v):
+                    av = getattr(component.model, v)
+                    value_map[v] = av.value
+
+            mapped_path = mapped_path.substitute(value_map)
+        return mapped_path
+
 
 
     def add(self, component):
@@ -123,35 +171,68 @@ class Configuration:
         self._set_ref_on_attributes(component)
 
         # modellen för composed talar om ifall vi behöver ett key för componenten:
-        composite_path = self.COMPONENT_MAPPING[component_type]
+        # Fix composite path for mapped objects. 
+        composite_path = self._get_component_path(component)
+        reference_points = self._get_reference_paths(component)
 
-        # lägger till komponenten i en flat list i en tuple med path.
-        self._components.append((composite_path, component))
+        if composite_path is not None:
+            # lägger till komponenten i en flat list i en tuple med path.
+            self._components.append((composite_path, component, reference_points))
 
 
     def as_model(self) -> BaseModel:
 
+        # Dont edit the actual composed model, we make a model from a copy
         config = self.composed.copy()
 
         # Apply all values from components to the composed model: 
-        for path, component in self._components:
+        for path, component, references in self._components:
 
             # Traverse the composed object to the ptr for the obj.
             path_parts = path.split('.')
             attribute_name = path_parts.pop()
 
+            # First place the pointer on the attribute key
             ptr = config
             for part in path_parts:
-                ptr = getattr(ptr, part)
+                if isinstance(ptr, dict):
+                    ptr = ptr.get(part)
+                elif hasattr(ptr, part):
+                    ptr = getattr(ptr, part)
+                else:
+                    raise Exception(f"Component pointer invalid for component: {component}, path: {path_parts}")
 
+
+            # Get value of the pointer
+            if isinstance(ptr, dict):
+                value = ptr.get(attribute_name)
+            else:
+                value = getattr(ptr, attribute_name)
+            
             # If the value of the ptr is a dict, the item has to be keyed
-            value = getattr(ptr, attribute_name)
             if isinstance(value, dict):
                 value[component.name] = component.model
             else:
                 # Cant set value directly, since NoneType is a singleton.
                 # Instead we use setattr using the pointer and attribute name.
                 setattr(ptr, attribute_name, component.model)
+
+            # Also add all references
+            print("lägg till referenspunkter här!")
+            for ref in references:
+                print(ref)
+                ref_ptr = config
+                for part in ref.split('.'):
+                    print(f"part: {part}")
+                    if isinstance(ref_ptr, dict):
+                        ref_ptr = ref_ptr.get(part)
+                    else:
+                        ref_ptr = getattr(ref_ptr, part)
+                # Set value: 
+                if isinstance(ref_ptr, dict):
+                    ref_ptr[component.name] = component.model
+                else:
+                    print("saknas sätt att montera in ref, på en annan component.")
 
         return config
 
