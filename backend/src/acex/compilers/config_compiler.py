@@ -93,7 +93,7 @@ class ConfigCompiler:
         print("Resolving ev!")
         session = next(self.db.get_session())
         try:
-            for _, component in cln.configuration._components:
+            for _, component, _ in cln.configuration._components:
                 for k,v in component.model:
                     if v.is_external():
                         print("resolve the ev.. ")
@@ -105,7 +105,7 @@ class ConfigCompiler:
                         # save to db - upsert operation
                         try:
                             # Försök att hämta befintligt objekt
-                            full_ref = v.metadata["ref"]
+                            full_ref = v.metadata["attr_ptr"]
                             existing_ev = session.get(ExternalValue, full_ref)
 
                             if existing_ev:
@@ -116,7 +116,7 @@ class ConfigCompiler:
                             else:
                                 # Create new ev and save it. 
                                 new_ev = ExternalValue(
-                                    ref=full_ref,
+                                    attr_ptr=full_ref,
                                     query=v.metadata["query"],
                                     value=v.value,
                                     kind=v.metadata["kind"],
@@ -130,7 +130,7 @@ class ConfigCompiler:
 
                         except Exception as e:
                             session.rollback()
-                            print(f"Error saving ExternalValue {ev.ref}: {e}")
+                            print(f"Error saving ExternalValue {ev.attr_ptr}: {e}")
                             raise  # Re-raise för att stoppa hela operationen om något går fel
 
         finally:
@@ -153,7 +153,7 @@ class ConfigCompiler:
                         # check all set attributes if theyre external. 
                         if v.is_external():
                             # If external, set full reference
-                            full_ref = v.metadata["ref"]
+                            full_ref = v.metadata["attr_ptr"]
                             result = session.get(ExternalValue, full_ref)
                             if result is not None:
                                 setattr(v, "value", result.value)

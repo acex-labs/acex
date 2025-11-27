@@ -24,9 +24,8 @@ from acex.models.composed_configuration import ComposedConfiguration
 from collections import defaultdict
 from typing import Dict
 from string import Template
-
-
 import json
+
 
 class Configuration: 
     # Mapping from component type to path in composed configuration
@@ -101,9 +100,10 @@ class Configuration:
             obj = getattr(obj, part)
         return obj
 
-    def _set_ref_on_attributes(self, component):
+    def _set_attr_ptr_on_attributes(self, component):
         """
-        Set ref metadata on each attribute of the component
+        Set attr_ptr metadata on each attribute of the component.
+        Only necessary for externalValue types
         """
         # logical_nodes.0.ethernetCsmacd.if0.ipv4
         if component.name is not None:
@@ -113,12 +113,12 @@ class Configuration:
 
         # single value attributes have value and meta directly: 
         if "metadata" in component.model.model_dump():
-            component.model.metadata["ref"] = base_path
+            component.model.metadata["attr_ptr"] = base_path
         else:
             for key,_ in component.model.model_dump().items():
                 obj = getattr(component.model, key)
                 if obj is not None:
-                    obj.metadata["ref"] = f"{base_path}.{key}"
+                    obj.metadata["attr_ptr"] = f"{base_path}.{key}"
 
 
     def _get_component_path(self, component) -> str:
@@ -168,7 +168,7 @@ class Configuration:
             raise ValueError(f"Unknown component type: {component_type.__name__}")
 
         # ref is used to reference the absolute path of each attribute:
-        self._set_ref_on_attributes(component)
+        self._set_attr_ptr_on_attributes(component)
 
         # modellen för composed talar om ifall vi behöver ett key för componenten:
         # Fix composite path for mapped objects. 
