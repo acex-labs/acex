@@ -21,7 +21,7 @@ from acex.configuration.components.vlan import Vlan
 from acex.models.attribute_value import AttributeValue
 
 from acex.models import ExternalValue
-from acex.models.composed_configuration import ComposedConfiguration
+from acex.models.composed_configuration import ComposedConfiguration, Reference, RenderedReference
 from collections import defaultdict
 from typing import Dict
 from string import Template
@@ -41,17 +41,10 @@ class Configuration:
         NetworkInstance: "network_instances",
         L3Vrf: "network_instances",
         Vlan: Template("network_instances.${network_instance}.vlans"),
-        Svi: Template("network_instances.${network_instance}.interfaces")
+        # Svi: Template("network_instances.${network_instance}.interfaces")
+        Svi: Template("interfaces")
     }
 
-    # Some objects are also referenced in other parts.
-    # For instance an interface belongs to configuration.interfaces, but 
-    # are usually referenced in network_instances if tied to a VRF. 
-    REFERENCE_MAPPING = {
-        Svi: [Template("network_instances.${network_instance}.interfaces")],
-        # Loopback: [Template("network_instances.${network_instance}.interfaces")]
-    }
-    
     # Reverse mapping from attribute name to path for __getattr__
     ATTRIBUTE_TO_PATH = {
         "hostname": "system.config.hostname",
@@ -67,8 +60,11 @@ class Configuration:
         # Komponenter lagras som objekt, mappade till sin position
         self._components = []
 
+        # Lagra alla Reference object. Läggs till efter att komponenter lagts till
+        self._references = []
 
-    # TODO: Den här är paj!
+
+    # TODO: Den här är paj! - 
     def __getattr__(self, name: str):
         """
         Dynamically get configuration values by attribute name.
@@ -107,35 +103,24 @@ class Configuration:
         """
         Set attr_ptr metadata on each attribute of the component.
         Only necessary for externalValue types
+        # TODO: If singleAttribute class, implementsmart logic to not use key 'value'?
         """
-        # logical_nodes.0.ethernetCsmacd.if0.ipv4
+        # example: logical_nodes.0.ethernetCsmacd.if0.ipv4
         if component.name is not None:
             base_path = f"logical_nodes.{self.logical_node_id}.{component.type}.{component.name}"
         else:
             base_path = f"logical_nodes.{self.logical_node_id}.{component.type}"
-
-        #TODO: If singleAttribute class, implementsmart logic to not use key 'value'
 
         for k, v in component.model.model_dump().items():
             attribute_value = getattr(component.model, k)
             if isinstance(attribute_value, AttributeValue):
                 if attribute_value is not None and isinstance(attribute_value.value, ExternalValue):
                     attribute_value.metadata["attr_ptr"] = f"{base_path}.{k}"
-            else:
-                # print("Värde är inte attributeValue!")
-                ...
 
 
     def _get_component_path(self, component) -> str:
         mapped_path = self.COMPONENT_MAPPING[type(component)]
         return self._render_path(component, mapped_path)
-
-    def _get_reference_paths(self, component) -> list[str]:
-        mapped_paths = self.REFERENCE_MAPPING.get(type(component), [])
-        ref_points = []
-        for ref_path in mapped_paths:
-            ref_points.append(self._render_path(component, ref_path))
-        return ref_points
 
     def _render_path(self, component, mapped_path: str):
         """
@@ -159,7 +144,34 @@ class Configuration:
             mapped_path = mapped_path.substitute(value_map)
         return mapped_path
 
+    def _pop_all_references(self, component):
+        """
+        Pops all references and stores them in a flat list instead.
 
+        --> self._references
+        """
+        # Path is needed for this side of the edge
+
+        mapped_path = self.COMPONENT_MAPPING[type(component)]
+        rendered_mapped_path = self._render_path(component, mapped_path)
+
+        if component.name is not None:
+            self_path = f"{rendered_mapped_path}.{component.name}"
+        else:
+            self_path = rendered_mapped_path
+        for k,v in component.kwargs.items():
+            if isinstance(v, Reference):
+                if v.direction == "to_self":
+                    ri = RenderedReference(
+                        from_ptr = v.pointer,
+                        to_ptr = self_path
+                    )
+                else:
+                    ri = RenderedReference(
+                        from_ptr = self_path,
+                        to_ptr = v.pointer
+                    )
+                self._references.append(ri)
 
     def add(self, component):
         """
@@ -172,17 +184,19 @@ class Configuration:
             print(f"Unknown component type: {component_type.__name__}")
             raise ValueError(f"Unknown component type: {component_type.__name__}")
 
+        # pop references
+        self._pop_all_references(component)
+
         # ref is used to reference the absolute path of each attribute:
         self._set_attr_ptr_on_attributes(component)
 
         # modellen för composed talar om ifall vi behöver ett key för componenten:
         # Fix composite path for mapped objects. 
         composite_path = self._get_component_path(component)
-        reference_points = self._get_reference_paths(component)
 
         if composite_path is not None:
             # lägger till komponenten i en flat list i en tuple med path.
-            self._components.append((composite_path, component, reference_points))
+            self._components.append((composite_path, component))
 
 
     def as_model(self) -> BaseModel:
@@ -191,7 +205,7 @@ class Configuration:
         config = self.composed.copy()
 
         # Apply all values from components to the composed model: 
-        for path, component, references in self._components:
+        for path, component in self._components:
 
             # Traverse the composed object to the ptr for the obj.
             path_parts = path.split('.')
@@ -207,7 +221,6 @@ class Configuration:
                 else:
                     raise Exception(f"Component pointer invalid for component: {component}, path: {path_parts}")
 
-
             # Get value of the pointer
             if isinstance(ptr, dict):
                 value = ptr.get(attribute_name)
@@ -222,22 +235,49 @@ class Configuration:
                 # Instead we use setattr using the pointer and attribute name.
                 setattr(ptr, attribute_name, component.model)
 
-            # Also add all references
-            # print("lägg till referenspunkter här!")
-            # for ref in references:
-            #     print(ref)
-            #     ref_ptr = config
-            #     for part in ref.split('.'):
-            #         print(f"part: {part}")
-            #         if isinstance(ref_ptr, dict):
-            #             ref_ptr = ref_ptr.get(part)
-            #         else:
-            #             ref_ptr = getattr(ref_ptr, part)
-            #     # Set value: 
-            #     if isinstance(ref_ptr, dict):
-            #         ref_ptr[component.name] = component.model
-            #     else:
-            #         print("saknas sätt att montera in ref, på en annan component.")
+
+        # Add all references: 
+        for reference in self._references:
+            print(f"Adding reference: {reference}")
+            # Resolve destination value: 
+            path_parts = reference.to_ptr.split('.')
+            attr_name = path_parts.pop()
+            ptr = config
+            for part in path_parts:
+                if isinstance(ptr, dict):
+                    ptr = ptr.get(part)
+                else:
+                    ptr = getattr(ptr, part)
+
+            # Get value of the pointer
+            if isinstance(ptr, dict):
+                destination_value = ptr.get(attr_name)
+            else:
+                destination_value = getattr(ptr, attr_name)
+            # Resolve source value: 
+            path_parts = reference.from_ptr.split('.')
+            attr_name = path_parts.pop()
+            ptr = config
+            for part in path_parts:
+                if isinstance(ptr, dict):
+                    ptr = ptr.get(part)
+                else:
+                    ptr = getattr(ptr, part)
+
+            # Get value of the pointer
+            if isinstance(ptr, dict):
+                source_item = ptr.get(attr_name)
+            else:
+                source_item = getattr(ptr, attr_name)
+
+            if isinstance(source_item, dict):
+                source_item[destination_value.name.value] = {
+                    "name": destination_value.name.value,
+                    "metadata": {
+                        "type": "reference",
+                        "path": reference.to_ptr
+                    }
+                    }
 
         return config
 

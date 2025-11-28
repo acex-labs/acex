@@ -1,6 +1,7 @@
 
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, Union, List
+from enum import Enum
 
 from acex.models.external_value import ExternalValue
 from acex.models.attribute_value import AttributeValue
@@ -10,6 +11,21 @@ from acex.models.logging import (
     RemoteServer,
     LoggingEvents
 )
+
+
+class ReferenceDirection(str, Enum):
+    to_self = "to_self"
+    from_self = "from_self"
+
+
+class Reference(BaseModel):
+    pointer: str
+    direction: ReferenceDirection
+
+class RenderedReference(BaseModel):
+    from_ptr: str
+    to_ptr: str
+
 
 class SystemConfig(BaseModel):
     contact: Optional[AttributeValue[str]] = None
@@ -46,7 +62,6 @@ class Interface(BaseModel):
     enabled: Optional[AttributeValue[bool]] = None
     description: Optional[AttributeValue[str]] = None
     ipv4: Optional[AttributeValue[str]] = None
-    network_instance: Optional[AttributeValue[str]] = None
 
 
 class SubInterface(Interface): ...

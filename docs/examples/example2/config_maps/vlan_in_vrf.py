@@ -1,9 +1,8 @@
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.vlan import Vlan
 from acex.configuration.components.network_instances import L3Vrf
-
-
 from acex.configuration.components.interfaces import Svi
+
 
 class VlanInVrf(ConfigMap):
     def compile(self, context):
@@ -27,6 +26,7 @@ class VlanInVrf(ConfigMap):
             network_instance=vrf
         )
         context.configuration.add(svi300)
+
 
 
 vlan = VlanInVrf()

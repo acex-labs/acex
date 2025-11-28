@@ -56,3 +56,4 @@ class ConfigComponent:
             self.name = self.__class__.__name__.lower()
         else:
             self.name = self.kwargs.get("name")
+

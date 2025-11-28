@@ -95,7 +95,7 @@ class ConfigCompiler:
         print("Resolving ev!")
         session = next(self.db.get_session())
         try:
-            for _, component, _ in cln.configuration._components:
+            for _, component in cln.configuration._components:
                 for k,v in component.model:
                     if v is not None:   
                         if v.is_external():
@@ -150,7 +150,7 @@ class ConfigCompiler:
         session = next(self.db.get_session())
         try:
             # loop all config components of the cln
-            for _, component, _ in cln.configuration._components:
+            for _, component in cln.configuration._components:
 
                 # loop all attributes from the model.
                 for k,v in component.model:

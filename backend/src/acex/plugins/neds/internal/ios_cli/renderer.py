@@ -26,7 +26,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)
         template = self._load_template_file()
-        return template.render(configuration=processed_config, )
+        return template.render(configuration=processed_config)
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
@@ -36,13 +36,18 @@ class CiscoIOSCLIRenderer(RendererBase):
     def physical_interface_names(self, configuration, asset) -> None:
         """Assign physical interface names based on asset data."""
 
-        for _,intf in configuration.get("interfaces", {}).items():
-            if intf["type"] == "ethernetCsmacd":
-                index = intf["config"]["index"]["value"]
-                speed = intf["config"]["speed"]["value"]
-                intf_prefix = self.get_port_prefix(asset.os, speed)
-                intf_suffix = self.get_port_suffix(asset.hardware_model, index)
-                intf["config"]["name"] = f"{intf_prefix}{intf_suffix}"
+        # for _,intf in configuration.get("interfaces", {}).items():
+        #     if intf["type"] == "ethernetCsmacd":
+        #         index = intf["config"]["index"]["value"]
+        #         speed = intf["config"]["speed"]["value"]
+        #         intf_prefix = self.get_port_prefix(asset.os, speed)
+        #         intf_suffix = self.get_port_suffix(asset.hardware_model, index)
+        #         intf["config"]["name"] = f"{intf_prefix}{intf_suffix}"
+
+        for _, vrf in configuration["network_instances"].items():
+            for _,intf in vrf.get('interfaces', {}).items():
+                print(intf)
+                print("\r\n - Not done with ned!")
 
         return configuration
 
