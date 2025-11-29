@@ -1,5 +1,5 @@
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, Union, List
 from enum import Enum
 
@@ -11,6 +11,10 @@ from acex.models.logging import (
     RemoteServer,
     LoggingEvents
 )
+
+
+class Metadata(BaseModel):
+    type: str = "NoneType"
 
 
 class ReferenceDirection(str, Enum):
@@ -25,7 +29,6 @@ class Reference(BaseModel):
 class RenderedReference(BaseModel):
     from_ptr: str
     to_ptr: str
-
 
 class SystemConfig(BaseModel):
     contact: Optional[AttributeValue[str]] = None
@@ -54,6 +57,7 @@ class Vlan(BaseModel):
     vlan_id: Optional[AttributeValue[int]] = None
     vlan_name: Optional[AttributeValue[str]] = None
     network_instance: Optional[AttributeValue[str]] = None
+    metadata: Optional[Metadata] = Metadata()
 
 
 class Interface(BaseModel): 
@@ -62,6 +66,7 @@ class Interface(BaseModel):
     enabled: Optional[AttributeValue[bool]] = None
     description: Optional[AttributeValue[str]] = None
     ipv4: Optional[AttributeValue[str]] = None
+    metadata: Optional[Metadata] = Metadata()
 
 
 class SubInterface(Interface): ...

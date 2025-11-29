@@ -4,18 +4,19 @@ service timestamps debug datetime msec
 service timestamps log datetime msec
 no service password-encryption
 !
+
 {%- if configuration.system.config['domain-name'] %}
 ip domain-name {{ configuration.system.config['domain-name'].config.value.value  }}
 {%- endif %}
- {%- if configuration.cef is not defined or configuration.cef %}
+{%- if configuration.cef is not defined or configuration.cef %}
 !
 ip cef
 {%- endif %}
 !
 {%- if configuration.system.config.hostname %}
-hostname {{ configuration.system.config.hostname.config.value.value }}
+{# hostname {{ configuration.system.config.hostname.config.value.value }} #}
+hostname {{ configuration.system.config.hostname.value.value }}
 {%- endif %}
-!
 {%- if configuration.enable_secret %}
 enable secret {{ configuration.enable_secret }}
 {%- endif %}
@@ -27,33 +28,51 @@ username {{ user.name }} privilege {{ user.privilege | default(15) }} secret {{ 
 {%- endif %}
 !
 {%- for _, intf in configuration.interfaces.items() %}
-{%-  if intf.type == "softwareLoopback" %}
-interface Loopback{{ intf.config.index.value }}
-{%-    if intf.config.description %}
- description {{ intf.config.description.value }}
+{%-  if intf.metadata.type == "softwareLoopback" %}
+interface Loopback{{ intf.index.value }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
 {%-    endif %}
-{%-    if intf.config.ipv4 %}
- ip address {{ intf.config.ipv4.value|cidr_to_addrmask }}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
 {%-  endif %}
 {%- endfor %}
 !
 {%- for _, intf in configuration.interfaces.items() %}
-{%-  if intf.type == "ethernetCsmacd" %}
-interface {{ intf.config.name }}
-{%-    if intf.config.description %}
- description {{ intf.config.description.value }}
+{%-  if intf.metadata.type == "ethernetCsmacd" %}
+interface {{ intf.name }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
 {%-    endif %}
-{%-    if intf.config.ipv4 %}
- ip address {{ intf.config.ipv4.value|cidr_to_addrmask }}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
-{%-    if intf.config.enabled.value %}
+{%-    if intf.enabled.value %}
  no shutdown
 {%- else %}
  shutdown
 {%-     endif %}
 {%-  endif %}
 !
+{# 
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.metadata.type == "Svi" %}
+interface {{ intf.name }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
+{%-    endif %}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
+{%-     endif %}
+{%-    if intf.enabled.value %}
+ no shutdown
+{%- else %}
+ shutdown
+{%-     endif %}
+{%-  endif %} #}
+
+{# !
 {%- endfor %}
 {%- if configuration.routing %}
 {%- if configuration.routing.static_routes %}
@@ -130,4 +149,4 @@ ip ssh time-out {{ configuration.ssh.timeout }}
 ip ssh authentication-retries {{ configuration.ssh.authentication_retries }}
 {%- endif %}
 {%- endif %}
-!
+! #}

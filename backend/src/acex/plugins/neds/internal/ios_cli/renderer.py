@@ -31,24 +31,20 @@ class CiscoIOSCLIRenderer(RendererBase):
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
         configuration = self.physical_interface_names(configuration, asset)
+        # configuration = self.add_vrf_to_intefaces(configuration)
         return configuration
 
     def physical_interface_names(self, configuration, asset) -> None:
         """Assign physical interface names based on asset data."""
 
-        # for _,intf in configuration.get("interfaces", {}).items():
-        #     if intf["type"] == "ethernetCsmacd":
-        #         index = intf["config"]["index"]["value"]
-        #         speed = intf["config"]["speed"]["value"]
-        #         intf_prefix = self.get_port_prefix(asset.os, speed)
-        #         intf_suffix = self.get_port_suffix(asset.hardware_model, index)
-        #         intf["config"]["name"] = f"{intf_prefix}{intf_suffix}"
-
-        for _, vrf in configuration["network_instances"].items():
-            for _,intf in vrf.get('interfaces', {}).items():
-                print(intf)
-                print("\r\n - Not done with ned!")
-
+        for _,intf in configuration.get("interfaces", {}).items():
+            print(_)
+            # if intf["type"] == "ethernetCsmacd":
+            #     index = intf["config"]["index"]["value"]
+            #     speed = intf["config"]["speed"]["value"]
+            #     intf_prefix = self.get_port_prefix(asset.os, speed)
+            #     intf_suffix = self.get_port_suffix(asset.hardware_model, index)
+            #     intf["config"]["name"] = f"{intf_prefix}{intf_suffix}"
         return configuration
 
     def get_port_prefix(self, os:str, speed:int) -> Optional[str]:

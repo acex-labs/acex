@@ -63,33 +63,6 @@ class Configuration:
         # Lagra alla Reference object. Läggs till efter att komponenter lagts till
         self._references = []
 
-
-    # TODO: Den här är paj! - 
-    def __getattr__(self, name: str):
-        """
-        Dynamically get configuration values by attribute name.
-        Returns the actual value (not the AttributeValue wrapper).
-        """
-        # Avoid infinite recursion for internal attributes
-        if name.startswith('_') or name in ('composed', 'logical_node_id'):
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-        
-        # Check if this is a mapped attribute
-        if name in self.ATTRIBUTE_TO_PATH:
-            path = self.ATTRIBUTE_TO_PATH[name]
-            try:
-                attr_value = self._get_nested_component(path)
-                # Check if it's an AttributeValue object
-                if attr_value and hasattr(attr_value, 'get_value'):
-                    return attr_value.get_value()
-                # Fallback to dict format (for backwards compatibility)
-                elif attr_value and isinstance(attr_value, dict):
-                    return attr_value.get('value')
-                return None
-            except AttributeError:
-                return None
-        
-        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
     
     def _get_nested_component(self, path: str):
         """Get a nested attribute using dot notation path."""
@@ -101,8 +74,7 @@ class Configuration:
 
     def _set_attr_ptr_on_attributes(self, component):
         """
-        Set attr_ptr metadata on each attribute of the component.
-        Only necessary for externalValue types
+        Set attr_ptr metadata on externalValue attributes of the component.
         # TODO: If singleAttribute class, implementsmart logic to not use key 'value'?
         """
         # example: logical_nodes.0.ethernetCsmacd.if0.ipv4
@@ -151,7 +123,6 @@ class Configuration:
         --> self._references
         """
         # Path is needed for this side of the edge
-
         mapped_path = self.COMPONENT_MAPPING[type(component)]
         rendered_mapped_path = self._render_path(component, mapped_path)
 
@@ -198,7 +169,6 @@ class Configuration:
             # lägger till komponenten i en flat list i en tuple med path.
             self._components.append((composite_path, component))
 
-
     def as_model(self) -> BaseModel:
 
         # Dont edit the actual composed model, we make a model from a copy
@@ -206,6 +176,10 @@ class Configuration:
 
         # Apply all values from components to the composed model: 
         for path, component in self._components:
+
+            # Set metadata of the component
+            if hasattr(component.model, "metadata"):
+                component.model.metadata.type = component.type
 
             # Traverse the composed object to the ptr for the obj.
             path_parts = path.split('.')
@@ -238,7 +212,6 @@ class Configuration:
 
         # Add all references: 
         for reference in self._references:
-            print(f"Adding reference: {reference}")
             # Resolve destination value: 
             path_parts = reference.to_ptr.split('.')
             attr_name = path_parts.pop()
@@ -275,10 +248,9 @@ class Configuration:
                     "name": destination_value.name.value,
                     "metadata": {
                         "type": "reference",
-                        "path": reference.to_ptr
+                        "ref_path": reference.to_ptr
                     }
                     }
-
         return config
 
 

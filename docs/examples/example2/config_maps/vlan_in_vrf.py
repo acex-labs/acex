@@ -23,7 +23,8 @@ class VlanInVrf(ConfigMap):
             name="vl300_svi",
             vlan=vl300,
             index=1,
-            network_instance=vrf
+            network_instance=vrf,
+            ipv4 = "192.0.2.1/24"
         )
         context.configuration.add(svi300)
 
