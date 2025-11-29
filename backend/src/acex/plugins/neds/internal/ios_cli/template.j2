@@ -50,15 +50,16 @@ interface {{ intf.name }}
 {%-     endif %}
 {%-    if intf.enabled.value %}
  no shutdown
-{%- else %}
+{%-    else %}
  shutdown
-{%-     endif %}
+{%-   endif %}
 {%-  endif %}
+{%- endfor %}
 !
-{# 
+
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "Svi" %}
-interface {{ intf.name }}
+interface vlan{{ intf.vlan_id }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}
@@ -70,10 +71,13 @@ interface {{ intf.name }}
 {%- else %}
  shutdown
 {%-     endif %}
-{%-  endif %} #}
-
-{# !
+{%-  endif %}
+!
 {%- endfor %}
+
+
+{# 
+!
 {%- if configuration.routing %}
 {%- if configuration.routing.static_routes %}
 {%- for route in configuration.routing.static_routes %}

@@ -36,6 +36,8 @@ class Svi(Interface):
     def pre_init(self):
         vlan = self.kwargs.pop("vlan")
         self.kwargs["vlan"] = vlan.name 
+        self.kwargs["vlan_id"] = vlan.model.vlan_id.value
+
 
         if self.kwargs.get('network_instance') is None:
             self.kwargs["network_instance"] = Reference(

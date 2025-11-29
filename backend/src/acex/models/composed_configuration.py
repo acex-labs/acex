@@ -63,13 +63,13 @@ class Vlan(BaseModel):
 class Interface(BaseModel): 
     index: AttributeValue[int]
     name: AttributeValue[str]
+    vlan_id: Optional[int] = 0
     enabled: Optional[AttributeValue[bool]] = None
     description: Optional[AttributeValue[str]] = None
     ipv4: Optional[AttributeValue[str]] = None
     metadata: Optional[Metadata] = Metadata()
 
-
-class SubInterface(Interface): ...
+class SubInterface(Interface):  ...
 
 
 class PhysicalInterface(Interface): ...
