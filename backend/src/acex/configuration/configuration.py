@@ -2,9 +2,9 @@
 from pydantic import BaseModel
 from acex.configuration.components import ConfigComponent
 from acex.configuration.components.interfaces import (
-    # Interface,
     Loopback,
-    # Physical,
+    Physical,
+    Subinterface,
     Svi
 )
 from acex.configuration.components.system import (
@@ -38,6 +38,8 @@ class Configuration:
         Location: "system.config.location",
         DomainName: "system.config.domain_name",
         Loopback: "interfaces", 
+        Physical: "interfaces",
+        Subinterface: "interfaces",
         NetworkInstance: "network_instances",
         L3Vrf: "network_instances",
         Vlan: Template("network_instances.${network_instance}.vlans"),

@@ -1,6 +1,6 @@
 
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, Union, List
+from typing import Optional, Dict, List, Literal, ClassVar
 from enum import Enum
 
 from acex.models.external_value import ExternalValue
@@ -61,18 +61,66 @@ class Vlan(BaseModel):
 
 
 class Interface(BaseModel): 
+    "Base class for all interfaces"
     index: AttributeValue[int]
     name: AttributeValue[str]
-    vlan_id: Optional[int] = 0
-    enabled: Optional[AttributeValue[bool]] = None
+
     description: Optional[AttributeValue[str]] = None
+    enabled: Optional[AttributeValue[bool]] = None
     ipv4: Optional[AttributeValue[str]] = None
-    metadata: Optional[Metadata] = Metadata()
+    vlan_id: Optional[AttributeValue[int]] = None
+    
+    metadata: Optional[Metadata] = Field(default_factory=Metadata)
+    type: Literal[
+        "ethernetCsmacd",
+        "ieee8023adLag",
+        "l3ipvlan",
+        "softwareLoopback",
+        "subinterface",
+        ] = "ethernetCsmacd"
+    
+    model_config = {
+        "discriminator": "type"
+    }
 
-class SubInterface(Interface):  ...
+class EthernetCsmacdInterface(Interface):
+    "Physical Interface"
+    type: Literal["ethernetCsmacd"] = "ethernetCsmacd"
+
+    # Egenskaper för fysiska interface
+    subinterfaces: list["SubInterface"] = Field(default_factory=list)
+    speed: Optional[AttributeValue[int]] = None
+    duplex: Optional[AttributeValue[str]] = None
+    switchport_mode: Optional[AttributeValue[Literal["access", "trunk"]]] = None
+    trunk_allowed_vlans: Optional[AttributeValue[List[int]]] = None
+    native_vlan: Optional[AttributeValue[int]] = None
+    voice_vlan: Optional[AttributeValue[int]] = None
 
 
-class PhysicalInterface(Interface): ...
+class Ieee8023adLagInterface(Interface):
+    "LAG Interface"
+    type: Literal["ieee8023adLag"] = "ieee8023adLag"
+    members: list[str] = Field(default_factory=list)
+
+class L3IpvlanInterface(Interface):
+    "SVI Interface"
+    type: Literal["l3ipvlan"] = "l3ipvlan"
+    vlan_id: Optional[int] = None
+
+class SoftwareLoopbackInterface(Interface):
+    "Loopback Interface"
+    type: Literal["softwareLoopback"] = "softwareLoopback"
+
+    # Loopback har varken vlan, duplex eller speed
+    vlan_id: Optional[int] = None
+    ipv4: Optional[AttributeValue[str]] = None
+
+class SubInterface(Interface):
+    "Subinterface"
+    type: Literal["subinterface"] = "subinterface"
+
+    vlan_id: Optional[int] = None
+    ipv4: Optional[AttributeValue[str]] = None
 
 
 class RouteTarget(BaseModel):

@@ -6,7 +6,7 @@ from acex.configuration.components.system import Location
 class SetLocation(ConfigMap): 
     def compile(self, context):
         
-        Loc = Location("HQ")
+        Loc = Location(value="HQ")
         context.configuration.add(Loc)
 
 hostname = SetLocation()
