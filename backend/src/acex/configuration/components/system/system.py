@@ -1,12 +1,7 @@
 
 from acex.configuration.components.base_component import ConfigComponent
 from acex.models.attribute_value import AttributeValue
-
-from acex.models.composed_configuration import *
-
-
 from pydantic import BaseModel
-from typing import Any
 
 
 class SingleAttributeString(BaseModel):

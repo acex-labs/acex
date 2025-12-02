@@ -6,7 +6,7 @@ from acex.configuration.components.system import DomainName
 class SetDN(ConfigMap): 
     def compile(self, context):
         
-        Dn = DomainName(f"{context.logical_node.hostname}.ngninfra.net")
+        Dn = DomainName(value=f"{context.logical_node.hostname}.ngninfra.net")
         context.configuration.add(Dn)
 
 hostname = SetDN()

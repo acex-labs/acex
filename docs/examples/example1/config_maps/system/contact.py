@@ -7,7 +7,7 @@ from acex.configuration.components.system import Contact
 class SetContact(ConfigMap): 
     def compile(self, context):
         
-        C = Contact("KK")
+        C = Contact(value="KK")
         context.configuration.add(C)
 
 

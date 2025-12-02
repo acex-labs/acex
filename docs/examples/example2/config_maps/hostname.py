@@ -15,5 +15,5 @@ class SetHostname(ConfigMap):
         # context.configuration.add(Dn)
 
 hostname = SetHostname()
-hostname_filter = FilterAttribute("hostname").eq("/.*/")
+hostname_filter = FilterAttribute("hostname").eq("/.*/")# & FilterAttribute("hostname").ne("R2")
 hostname.filters = hostname_filter

@@ -11,7 +11,7 @@ class EVType(Enum):
 
 class ExternalValue(SQLModel, table=True):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    ref: str = Field(default=None, primary_key=True)
+    attr_ptr: str = Field(default=None, primary_key=True)
     
     # query: dict # same query as was used for fetching the data
     query: str = '{"json_query": "in_stringformat"}'
