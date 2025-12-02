@@ -15,7 +15,7 @@ from acex.configuration.components.system import (
 )
 
 from acex.configuration.components.system.ntp import NtpServer
-from acex.configuration.components.system.ssh import SshServer
+from acex.configuration.components.system.ssh import SshServer, AuthorizedKey
 from acex.configuration.components.network_instances import NetworkInstance, L3Vrf
 from acex.configuration.components.vlan import Vlan
 from acex.models.attribute_value import AttributeValue
@@ -33,6 +33,7 @@ class Configuration:
     # Note that some paths are containers, like interfaces where the component also
     # must be referenced using its name attribute
     COMPONENT_MAPPING = {
+        AuthorizedKey: "system.ssh.host_keys",
         HostName: "system.config.hostname",
         Contact: "system.config.contact",
         Location: "system.config.location",

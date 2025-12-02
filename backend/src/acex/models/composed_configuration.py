@@ -68,15 +68,25 @@ class SshServer(BaseModel):
     timeout: Optional[AttributeValue[int]] = None
     auth_retries: Optional[AttributeValue[int]] = None
 
+class AuthorizedKeyAlgorithms(str, Enum):
+    SSH_ED25519 = "ssh-ed25519"
+    ECDSA_NISTP256 = "ecdsa-sha2-nistp256"
+    ECDSA_NISTP384 = "ecdsa-sha2-nistp384"
+    ECDSA_NISTP521 = "ecdsa-sha2-nistp521"
+    RSA_SHA2_256 = "rsa-sha2-256"
+    RSA_SHA2_512 = "rsa-sha2-512"
+    SK_SSH_ED25519 = "sk-ssh-ed25519@openssh.com"
+    SK_ECDSA_NISTP256 = "sk-ecdsa-sha2-nistp256@openssh.com"
+    SSH_RSA = "ssh-rsa"
+    SSH_DSS = "ssh-dss"
+
 class AuthorizedKey(BaseModel):
-    key_id: str
-    algorithm: str
+    algorithm: AuthorizedKeyAlgorithms
     public_key: str
 
 class Ssh(BaseModel): 
     config: Optional[SshServer] = None
-    host_keys: Optional[Dict[str, AuthorizedKey]] = None
-
+    host_keys: Optional[Dict[str, AuthorizedKey]] = {}
 
 class Acl(BaseModel): ...
 class Lldp(BaseModel): ...
