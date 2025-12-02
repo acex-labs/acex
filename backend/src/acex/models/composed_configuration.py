@@ -13,6 +13,7 @@ from acex.models.logging import (
 )
 
 
+
 class Metadata(BaseModel):
     type: str = "NoneType"
 
@@ -47,6 +48,8 @@ class Logging(BaseModel):
 
 
 class Ntp(BaseModel): ...
+
+
 class Ssh(BaseModel): ...
 class Acl(BaseModel): ...
 class Lldp(BaseModel): ...

@@ -12,7 +12,22 @@ from acex.models.composed_configuration import (
 from acex.models.composed_configuration import Reference
 from typing import Optional
 
-class Interface(ConfigComponent): ...
+class Interface(ConfigComponent):
+
+    def _add_vrf(self):
+
+        if self.kwargs.get('network_instance') is None:
+            self.kwargs["network_instance"] = Reference(
+                                                        pointer="network_instances.global.interfaces",
+                                                        direction="to_self"
+                                                        )
+        else:
+            network_instance = self.kwargs.pop("network_instance")
+            self.kwargs["network_instance"] = Reference(
+                                                        pointer=f"network_instances.{network_instance.name}.interfaces",
+                                                        direction="to_self"
+                                                        )
+
 
 
 class Physical(Interface):
@@ -29,23 +44,19 @@ class Svi(Interface):
     type = "l3ipvlan"
     model_cls = L3IpvlanInterface
 
+    def pre_init(self):
+        referenced_vlan = self.kwargs.pop("vlan")
+        self.kwargs["vlan_id"] = referenced_vlan.model.vlan_id.value
+        self._add_vrf()
+
+
+
 class Loopback(Interface):
     type = "softwareLoopback"
     model_cls = SoftwareLoopbackInterface
 
     def pre_init(self):
-        if self.kwargs.get('network_instance') is None:
-            self.kwargs["network_instance"] = Reference(
-                                                        pointer="network_instances.global.interfaces",
-                                                        direction="to_self"
-                                                        )
-        else:
-            network_instance = self.kwargs.pop("network_instance")
-            self.kwargs["network_instance"] = Reference(
-                                                        pointer=f"network_instances.{network_instance.name}.interfaces",
-                                                        direction="to_self"
-                                                        )
-
+        self._add_vrf()
 
 class Subinterface(Interface):
     type = "subinterface"
@@ -56,16 +67,4 @@ class Subinterface(Interface):
         self.kwargs["vlan"] = vlan.name 
         self.kwargs["vlan_id"] = vlan.model.vlan_id.value
 
-
-        if self.kwargs.get('network_instance') is None:
-            self.kwargs["network_instance"] = Reference(
-                                                        pointer="network_instances.global.interfaces",
-                                                        direction="to_self"
-                                                        )
-        else:
-            network_instance = self.kwargs.pop("network_instance")
-            self.kwargs["network_instance"] = Reference(
-                                                        pointer=f"network_instances.{network_instance.name}.interfaces",
-                                                        direction="to_self"
-                                                        )
-
+        self._add_vrf()

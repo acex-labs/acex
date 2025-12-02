@@ -4,7 +4,6 @@ service timestamps debug datetime msec
 service timestamps log datetime msec
 no service password-encryption
 !
-
 {%- if configuration.system.config['domain-name'] %}
 ip domain-name {{ configuration.system.config['domain-name'].config.value.value  }}
 {%- endif %}
@@ -33,6 +32,9 @@ interface Loopback{{ intf.index.value }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}
+{%- if intf.vrf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
 {%-    if intf.ipv4 %}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
@@ -45,6 +47,9 @@ interface {{ intf.name }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}
+{%- if intf.vrf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
 {%-    if intf.ipv4 %}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
@@ -56,13 +61,15 @@ interface {{ intf.name }}
 {%-  endif %}
 {%- endfor %}
 !
-
 {%- for _, intf in configuration.interfaces.items() %}
-{%-  if intf.metadata.type == "Svi" %}
+{%-  if intf.metadata.type == "l3ipvlan" %}
 interface vlan{{ intf.vlan_id }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}
+{%- if intf.vrf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
 {%-    if intf.ipv4 %}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}

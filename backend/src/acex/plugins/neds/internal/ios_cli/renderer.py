@@ -31,20 +31,34 @@ class CiscoIOSCLIRenderer(RendererBase):
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
         configuration = self.physical_interface_names(configuration, asset)
-        # configuration = self.add_vrf_to_intefaces(configuration)
+        self.add_vrf_to_intefaces(configuration)
         return configuration
+
+    def add_vrf_to_intefaces(self, config):
+        """
+        Loops all network_instances and add vrf definition to 
+        referenced interfaces
+        """
+        vrfs = config["network_instances"]
+        for vrf_name, vrf in vrfs.items():
+            if vrf["name"]["value"] == "global":
+                ...
+            else:
+                for _,interface in vrf["interfaces"].items():
+                    ref_path = interface["metadata"]["ref_path"]
+                    intf = config["interfaces"][ref_path.split('.')[1]]
+                    intf["vrf"] = vrf["name"]["value"]
 
     def physical_interface_names(self, configuration, asset) -> None:
         """Assign physical interface names based on asset data."""
 
         for _,intf in configuration.get("interfaces", {}).items():
-            print(_)
-            # if intf["type"] == "ethernetCsmacd":
-            #     index = intf["config"]["index"]["value"]
-            #     speed = intf["config"]["speed"]["value"]
-            #     intf_prefix = self.get_port_prefix(asset.os, speed)
-            #     intf_suffix = self.get_port_suffix(asset.hardware_model, index)
-            #     intf["config"]["name"] = f"{intf_prefix}{intf_suffix}"
+            if intf["metadata"]["type"] == "ethernetCsmacd":
+                index = intf["index"]["value"]
+                speed = intf.get("speed", {}).get("value") or 1000000 # Default to gig
+                intf_prefix = self.get_port_prefix(asset.os, speed)
+                intf_suffix = self.get_port_suffix(asset.hardware_model, index)
+                intf["name"] = f"{intf_prefix}{intf_suffix}"
         return configuration
 
     def get_port_prefix(self, os:str, speed:int) -> Optional[str]:
