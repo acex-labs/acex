@@ -10,7 +10,8 @@ class SSHConfig(ConfigMap):
             enable=True,
             protocol_version=2,
             timeout=60,
-            auth_retries=2
+            auth_retries=2,
+            source_interface_name="Vlan2"
         )
         context.configuration.add(ssh)
 

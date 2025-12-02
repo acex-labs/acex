@@ -8,6 +8,9 @@ class SshServer(ConfigComponent):
     type = "ssh_server"
     model_cls = SshServerAttributes
 
+    def pre_init(self):
+        print(self.kwargs)
+
 
 class AuthorizedKey(ConfigComponent):
     type = "authorized_key"

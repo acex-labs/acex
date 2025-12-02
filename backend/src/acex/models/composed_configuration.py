@@ -56,6 +56,7 @@ class NtpServer(BaseModel):
     version: Optional[AttributeValue[int]] = None
     association_typ: Optional[AttributeValue[str]] = None
     prefer: Optional[AttributeValue[bool]] = None
+    source_interface_name: Optional[AttributeValue[str]] = None
 
 
 class Ntp(BaseModel): 
@@ -67,6 +68,7 @@ class SshServer(BaseModel):
     protocol_version: Optional[AttributeValue[int]] = 2
     timeout: Optional[AttributeValue[int]] = None
     auth_retries: Optional[AttributeValue[int]] = None
+    source_interface_name: Optional[AttributeValue[str]] = None
 
 class AuthorizedKeyAlgorithms(str, Enum):
     SSH_ED25519 = "ssh-ed25519"
@@ -91,14 +93,12 @@ class Ssh(BaseModel):
 class Acl(BaseModel): ...
 class Lldp(BaseModel): ...
 
-
 class Vlan(BaseModel):
     name: AttributeValue[str]
     vlan_id: Optional[AttributeValue[int]] = None
     vlan_name: Optional[AttributeValue[str]] = None
     network_instance: Optional[AttributeValue[str]] = None
     metadata: Optional[Metadata] = Metadata()
-
 
 class Interface(BaseModel): 
     "Base class for all interfaces"
