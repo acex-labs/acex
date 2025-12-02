@@ -43,8 +43,8 @@ class Configuration:
         NetworkInstance: "network_instances",
         L3Vrf: "network_instances",
         Vlan: Template("network_instances.${network_instance}.vlans"),
-        # Svi: Template("network_instances.${network_instance}.interfaces")
-        Svi: Template("interfaces")
+        Svi: Template("interfaces"),
+        NtpServer: "system.ntp.servers"
     }
 
     # Reverse mapping from attribute name to path for __getattr__
