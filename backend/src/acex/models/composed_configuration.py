@@ -47,7 +47,20 @@ class Logging(BaseModel):
     events: Optional[LoggingEvents] = None
 
 
-class Ntp(BaseModel): ...
+class NtpConfig(BaseModel):
+    enabled: AttributeValue[bool] = False
+
+class NtpServer(BaseModel):
+    address: AttributeValue[str]
+    port: Optional[AttributeValue[int]] = None
+    version: Optional[AttributeValue[int]] = None
+    association_typ: Optional[AttributeValue[str]] = None
+    prefer: Optional[AttributeValue[bool]] = None
+
+
+class Ntp(BaseModel): 
+    config: Optional[NtpConfig] = NtpConfig()
+    servers: Optional[Dict[str, NtpServer]] = {}
 
 
 class Ssh(BaseModel): ...
