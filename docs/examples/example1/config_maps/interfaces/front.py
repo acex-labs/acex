@@ -1,5 +1,5 @@
 from acex.config_map import ConfigMap, FilterAttribute
-from acex.configuration.components.interfaces import Physical, SubInterface
+from acex.configuration.components.interfaces import Physical
 
 
 class Frontpanel(ConfigMap):

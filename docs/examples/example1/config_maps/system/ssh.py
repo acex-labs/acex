@@ -12,8 +12,8 @@ class SSHConfig(ConfigMap):
             timeout=60,
             auth_retries=2
         )
-#         context.configuration.add(ssh)
+        context.configuration.add(ssh)
 
-# sshconfig = SSHConfig()
-# sshconfig_filter = FilterAttribute("hostname").eq("/.*/")
-# sshconfig.filters = sshconfig_filter
+sshconfig = SSHConfig()
+sshconfig_filter = FilterAttribute("hostname").eq("/.*/")
+sshconfig.filters = sshconfig_filter

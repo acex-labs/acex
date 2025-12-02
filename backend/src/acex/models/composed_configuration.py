@@ -62,8 +62,22 @@ class Ntp(BaseModel):
     config: Optional[NtpConfig] = NtpConfig()
     servers: Optional[Dict[str, NtpServer]] = {}
 
+class SshServer(BaseModel): 
+    enable: Optional[AttributeValue[bool]] = None
+    protocol_version: Optional[AttributeValue[int]] = 2
+    timeout: Optional[AttributeValue[int]] = None
+    auth_retries: Optional[AttributeValue[int]] = None
 
-class Ssh(BaseModel): ...
+class AuthorizedKey(BaseModel):
+    key_id: str
+    algorithm: str
+    public_key: str
+
+class Ssh(BaseModel): 
+    config: Optional[SshServer] = None
+    host_keys: Optional[Dict[str, AuthorizedKey]] = None
+
+
 class Acl(BaseModel): ...
 class Lldp(BaseModel): ...
 
@@ -110,8 +124,8 @@ class EthernetCsmacdInterface(Interface):
     switchport_mode: Optional[AttributeValue[Literal["access", "trunk"]]] = None
     trunk_allowed_vlans: Optional[AttributeValue[List[int]]] = None
     native_vlan: Optional[AttributeValue[int]] = None
+    access_vlan: Optional[AttributeValue[int]] = None
     voice_vlan: Optional[AttributeValue[int]] = None
-
 
 class Ieee8023adLagInterface(Interface):
     "LAG Interface"
