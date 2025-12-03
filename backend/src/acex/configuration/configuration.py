@@ -21,7 +21,7 @@ from acex.configuration.components.vlan import Vlan
 from acex.models.attribute_value import AttributeValue
 
 from acex.models import ExternalValue
-from acex.models.composed_configuration import ComposedConfiguration, Reference, RenderedReference
+from acex.models.composed_configuration import ComposedConfiguration, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict
 from typing import Dict
 from string import Template
@@ -123,30 +123,37 @@ class Configuration:
     def _pop_all_references(self, component):
         """
         Pops all references and stores them in a flat list instead.
-
+        Source of the reference must always be an attribute, destination 
+        can be an object. 
         --> self._references
         """
-        # Path is needed for this side of the edge
-        mapped_path = self.COMPONENT_MAPPING[type(component)]
-        rendered_mapped_path = self._render_path(component, mapped_path)
-
-        if component.name is not None:
-            self_path = f"{rendered_mapped_path}.{component.name}"
-        else:
-            self_path = rendered_mapped_path
         for k,v in component.kwargs.items():
-            if isinstance(v, Reference):
-                if v.direction == "to_self":
+
+            if isinstance(v, (ReferenceFrom, ReferenceTo)):
+                self_component_path = self.COMPONENT_MAPPING[type(component)]
+                rendered_self_component_path = self._render_path(component, self_component_path)
+
+                # use key if item in dict
+                if rendered_self_component_path.endswith('.config'):
+                    self_path = f"{rendered_self_component_path}"
+                else:    
+                    self_path = f"{rendered_self_component_path}.{component.name}"
+
+                if isinstance(v, ReferenceTo):
+                    # if self is the source, the source must be an attribute. 
                     ri = RenderedReference(
-                        from_ptr = v.pointer,
-                        to_ptr = self_path
-                    )
-                else:
-                    ri = RenderedReference(
-                        from_ptr = self_path,
+                        from_ptr = f"{self_path}.{k}",
                         to_ptr = v.pointer
                     )
+                elif isinstance(v, ReferenceFrom):
+                    
+                    ri = RenderedReference(
+                        from_ptr = v.pointer,
+                        to_ptr = f"{self_path}"
+                    )
                 self._references.append(ri)
+
+                
 
     def add(self, component):
         """
@@ -213,7 +220,59 @@ class Configuration:
                 # Instead we use setattr using the pointer and attribute name.
                 setattr(ptr, attribute_name, component.model)
 
+        
 
+        # Add and resolve references:
+        for reference in self._references:
+            # From pointer is always an attribute, to is a referenced object
+
+            # insertion point 
+            insertion_path_parts = reference.from_ptr.split('.')
+            insertion_attr = insertion_path_parts.pop()
+
+            # referenced value
+            value_path_parts = reference.to_ptr.split('.')
+            value_attr = value_path_parts.pop()
+
+            # pointer startpoint is the full config.
+            ptr = config
+
+            # Move pointer to the value
+            for part in value_path_parts:
+                if isinstance(ptr, dict):
+                    ptr = ptr.get(part)
+                else:
+                    ptr = getattr(ptr, part)
+            
+            # Store pointer value, this will be inserted at insertion point
+            pointer_value = ptr[value_attr]
+
+            # Reset pointer to base of configuration
+            ptr = config
+
+            # Move pointer to insertion point
+            for part in insertion_path_parts:
+                if isinstance(ptr, dict):
+                    ptr = ptr.get(part)
+                else:
+                    ptr = getattr(ptr, part)
+
+            value = {}
+            value[value_attr] = {
+                "name": pointer_value.name.value,
+                "metadata": {
+                    "type": "reference",
+                    "ref_path": reference.to_ptr
+                }
+            }
+            # Insert the referenced value dict to the insertion point.
+            setattr(ptr, insertion_attr, value)
+
+
+
+
+        return config
+        # OLD VER BELOW: 
         # Add all references: 
         for reference in self._references:
             # Resolve destination value: 
@@ -255,6 +314,12 @@ class Configuration:
                         "ref_path": reference.to_ptr
                     }
                     }
+            # If the source item is not a dict with multiple keys:
+            elif isinstance(source_item, Reference):
+                source_item.metadata["type"] = "reference"
+                source_item.metadata["ref_path"] = reference.to_ptr
+
+                print("\r\n")
         return config
 
 

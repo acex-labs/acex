@@ -9,7 +9,7 @@ from acex.models.composed_configuration import (
     SubInterface as SubInterfaceModel
 )
 
-from acex.models.composed_configuration import Reference
+from acex.models.composed_configuration import ReferenceFrom
 from typing import Optional
 
 class Interface(ConfigComponent):
@@ -17,16 +17,10 @@ class Interface(ConfigComponent):
     def _add_vrf(self):
 
         if self.kwargs.get('network_instance') is None:
-            self.kwargs["network_instance"] = Reference(
-                                                        pointer="network_instances.global.interfaces",
-                                                        direction="to_self"
-                                                        )
+            self.kwargs["network_instance"] = ReferenceFrom(pointer="network_instances.global.interfaces")
         else:
             network_instance = self.kwargs.pop("network_instance")
-            self.kwargs["network_instance"] = Reference(
-                                                        pointer=f"network_instances.{network_instance.name}.interfaces",
-                                                        direction="to_self"
-                                                        )
+            self.kwargs["network_instance"] = ReferenceFrom(pointer=f"network_instances.{network_instance.name}.interfaces")
 
 
 
