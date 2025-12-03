@@ -31,9 +31,9 @@ class LoggingConsole(BaseModel):
 class RemoteServer(BaseModel):
     name: str = None
     host: str = None
-    port: int = 514
-    transfer: str = 'udp'
-    source_address: str = None
+    port: Optional[AttributeValue][int] = 514
+    transfer: Optional[AttributeValue][str] = 'udp'
+    source_address: Optional[AttributeValue][str] = None
 
 class VtyLines(BaseModel):
     name: str = None
@@ -49,7 +49,7 @@ class FileConfig(BaseModel):
     filename: str = None # name of the file
     rotate: int = None # How many versions to keep
     max_size: int = None # Think Ciscos "logging buffered"
-    facility: str = None # Level for logs
+    facility: LoggingSeverity # Level for logs
 
 
 class LoggingEvent(BaseModel):
