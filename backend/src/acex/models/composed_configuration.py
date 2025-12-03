@@ -17,15 +17,15 @@ from acex.models.logging import (
 class Metadata(BaseModel):
     type: str = "NoneType"
 
+class Reference(BaseModel): ...
 
-class ReferenceDirection(str, Enum):
-    to_self = "to_self"
-    from_self = "from_self"
-
-
-class Reference(BaseModel):
+class ReferenceTo(Reference):
     pointer: str
-    direction: ReferenceDirection
+    metadata: Optional[Dict] = {}
+
+class ReferenceFrom(Reference):
+    pointer: str
+    metadata: Optional[Dict] = {}
 
 class RenderedReference(BaseModel):
     from_ptr: str
@@ -56,8 +56,7 @@ class NtpServer(BaseModel):
     version: Optional[AttributeValue[int]] = None
     association_typ: Optional[AttributeValue[str]] = None
     prefer: Optional[AttributeValue[bool]] = None
-    source_interface_name: Optional[AttributeValue[str]] = None
-
+    source_interface: Optional[AttributeValue[str]] = None
 
 class Ntp(BaseModel): 
     config: Optional[NtpConfig] = NtpConfig()
@@ -68,7 +67,7 @@ class SshServer(BaseModel):
     protocol_version: Optional[AttributeValue[int]] = 2
     timeout: Optional[AttributeValue[int]] = None
     auth_retries: Optional[AttributeValue[int]] = None
-    source_interface_name: Optional[AttributeValue[str]] = None
+    source_interface: Optional[Reference] = None
 
 class AuthorizedKeyAlgorithms(str, Enum):
     SSH_ED25519 = "ssh-ed25519"
