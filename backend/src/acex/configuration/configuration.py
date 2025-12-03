@@ -220,8 +220,6 @@ class Configuration:
                 # Instead we use setattr using the pointer and attribute name.
                 setattr(ptr, attribute_name, component.model)
 
-        
-
         # Add and resolve references:
         for reference in self._references:
             # From pointer is always an attribute, to is a referenced object
