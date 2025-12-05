@@ -3,7 +3,9 @@ from pydantic import BaseModel
 from acex.configuration.components import ConfigComponent
 from acex.configuration.components.interfaces import (
     Loopback,
-    Physical,
+    #Physical,
+    FrontPanelPort,
+    ManagementPort,
     Subinterface,
     Svi
 )
@@ -39,7 +41,9 @@ class Configuration:
         Location: "system.config.location",
         DomainName: "system.config.domain_name",
         Loopback: "interfaces", 
-        Physical: "interfaces",
+        #Physical: "interfaces",
+        FrontPanelPort: "interfaces",
+        ManagementPort: "interfaces",
         Subinterface: "interfaces",
         NetworkInstance: "network_instances",
         L3Vrf: "network_instances",

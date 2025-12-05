@@ -6,6 +6,7 @@ from acex.models.composed_configuration import (
     Ieee8023adLagInterface,
     L3IpvlanInterface,
     SoftwareLoopbackInterface,
+    ManagementInterface,
     SubInterface as SubInterfaceModel
 )
 
@@ -34,8 +35,8 @@ class FrontPanelPort(Interface):
         self._add_vrf()
 
 class ManagementPort(Interface):
-    type = "ethernetCsmacd"
-    model_cls = EthernetCsmacdInterface
+    type = "ManagementInterface"
+    model_cls = ManagementInterface
 
     # VRF can be set on mgmt interfaces. Usually "mgmt" but can be something else depending on device and vendor.
     def pre_init(self):
