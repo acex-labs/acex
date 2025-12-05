@@ -22,10 +22,24 @@ class Interface(ConfigComponent):
             self.kwargs["network_instance"] = ReferenceFrom(pointer=f"network_instances.{network_instance.name}.interfaces")
 
 
+# Keep commented for now
+#class Physical(Interface):
+#    type = "ethernetCsmacd"
+#    model_cls = EthernetCsmacdInterface
 
-class Physical(Interface):
+class FrontPanelPort(Interface):
     type = "ethernetCsmacd"
     model_cls = EthernetCsmacdInterface
+    def pre_init(self):
+        self._add_vrf()
+
+class ManagementPort(Interface):
+    type = "ethernetCsmacd"
+    model_cls = EthernetCsmacdInterface
+
+    # VRF can be set on mgmt interfaces. Usually "mgmt" but can be something else depending on device and vendor.
+    def pre_init(self):
+        self._add_vrf()
 
 class LagInterface(Interface):
     """

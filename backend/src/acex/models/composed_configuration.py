@@ -115,6 +115,7 @@ class Interface(BaseModel):
         "l3ipvlan",
         "softwareLoopback",
         "subinterface",
+        "managementInterface"
         ] = "ethernetCsmacd"
     
     model_config = {
@@ -161,6 +162,12 @@ class SubInterface(Interface):
     vlan_id: Optional[int] = None
     ipv4: Optional[AttributeValue[str]] = None
 
+class ManagementInterface(Interface):
+    "Management Interface"
+    type: Literal["managementInterface"] = "managementInterface"
+
+    # Mgmt har inte vlan
+    vlan_id: Optional[int] = None
 
 class RouteTarget(BaseModel):
     value: str # TODO: Add constraints and validators... 
