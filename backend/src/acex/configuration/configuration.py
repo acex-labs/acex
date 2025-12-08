@@ -16,7 +16,7 @@ from acex.configuration.components.system import (
     DomainName
 )
 
-from acex.configuration.components.system.logging import LoggingServer, LoggingConsole, VtyLines, LoggingConfig
+from acex.configuration.components.system.logging import LoggingServer, LoggingConsole, VtyLines, LoggingConfig, FileConfig
 
 from acex.configuration.components.system.ntp import NtpServer
 from acex.configuration.components.system.ssh import SshServer, AuthorizedKey
@@ -46,6 +46,7 @@ class Configuration:
         LoggingConsole: "system.logging.console",
         VtyLines: "system.logging.vty",
         LoggingConfig: "system.logging.config",
+        FileConfig: "system.logging.files",
         Loopback: "interfaces", 
         #Physical: "interfaces",
         FrontpanelPort: "interfaces",

@@ -18,6 +18,22 @@ class LoggingSeverity(str, Enum):
     INFORMATIONAL = "INFORMATIONAL"
     DEBUG = "DEBUG"
 
+class LoggingFacility(str, Enum):
+    # Some are specific for Juniper devices and are taken directly from their documentation.
+    KERN = "KERN"
+    USER = "USER"
+    DAEMON = "DAEMON"
+    AUTHORIZATION = "AUTHORIZATION"
+    FTP = "FTP"
+    NTP = "NTP"
+    DFC = "DFC"
+    EXTERNAL = "EXTERNAL"
+    FIREWALL = "FIREWALL"
+    PFE = "PFE"
+    CONFLICTLOG = "CONFLICTLOG"
+    CHANGELOG = "CHANGELOG"
+    INTERACTIVE_COMMANDS = "INTERACTIVE_COMMANDS"
+
 class Reference(BaseModel): ...
 
 class LoggingConfig(BaseModel):
@@ -57,10 +73,11 @@ class VtyLines(BaseModel):
 class FileConfig(BaseModel):
     name: str = None # object name
     filename: str = None # name of the file
-    rotate: int = None # How many versions to keep
-    max_size: int = None # Think Ciscos "logging buffered"
-    facility: LoggingSeverity # Level for logs
-
+    files: Optional[int] = None # How many versions to keep. Juniper specific.
+    max_size: Optional[int] = None # Max size in bytes. Used both for Cisco and Juniper. 
+    min_size: Optional[int] = None # Min size in bytes. Only used for Cisco.
+    facility: LoggingFacility # Type of log
+    severity: LoggingSeverity # Severity level
 
 class LoggingEvent(BaseModel):
     enabled: bool
