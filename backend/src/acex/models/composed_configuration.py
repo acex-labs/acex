@@ -9,6 +9,8 @@ from acex.models.logging import (
     LoggingConfig,
     LoggingConsole,
     RemoteServer,
+    VtyLines,
+    #GlobalConfig,
     LoggingEvents
 )
 
@@ -39,13 +41,14 @@ class SystemConfig(BaseModel):
 
 class TripleA(BaseModel): ...
 
-
-class Logging(BaseModel): 
+# Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
+class LoggingComponents(BaseModel): 
     config: LoggingConfig = LoggingConfig()
     console: Optional[LoggingConsole] = None
-    remote_servers: Optional[RemoteServer] = None
+    #remote_servers: Optional[RemoteServer] = None
+    remote_servers: Optional[Dict[str, RemoteServer]] = {}
     events: Optional[LoggingEvents] = None
-
+    vty: Optional[Dict[str, VtyLines]] = {}
 
 class NtpConfig(BaseModel):
     enabled: AttributeValue[bool] = False
@@ -193,7 +196,7 @@ class NetworkInstance(BaseModel):
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
-    logging: Optional[Logging] = Logging()
+    logging: Optional[LoggingComponents] = LoggingComponents() # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
 

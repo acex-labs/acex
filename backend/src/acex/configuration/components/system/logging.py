@@ -1,39 +1,56 @@
 from acex.configuration.components.base_component import ConfigComponent
+from acex.configuration.components.interfaces import Interface
+from acex.models.composed_configuration import ReferenceTo
 from acex.models.logging import (
-    LoggingConfig,
-    LoggingConsole,
-    RemoteServer,
-    LoggingEvent,
-    VtyLines,
-    FileConfig,
-    GlobalConfig
+    LoggingConfig as LoggingConfigAttributes,
+    LoggingConsole as LoggingConsoleAttributes,
+    RemoteServer as RemoteServerAttributes,
+    LoggingEvent as LoggingEventAttributes,
+    VtyLines as VtyLinesAttributes,
+    FileConfig as FileConfigAttributes,
+    #GlobalConfig as GlobalConfigAttributes
 )
 
 
 class LoggingConfig(ConfigComponent):
     type= 'logging_config'
-    model_cls = LoggingConfig
+    model_cls = LoggingConfigAttributes
 
-class GlobalConfig(ConfigComponent):
-    type= 'logging_config'
-    model_cls = GlobalConfig
+#class GlobalConfig(ConfigComponent):
+#    type= 'logging_config'
+#    model_cls = GlobalConfigAttributes
 
 class LoggingConsole(ConfigComponent):
     type = 'console'
-    model_cls = LoggingConsole
+    model_cls = LoggingConsoleAttributes
 
 class VtyLines(ConfigComponent):
     type = 'vty_lines'
-    model_cls = VtyLines
+    model_cls = VtyLinesAttributes
 
 class LoggingServer(ConfigComponent):
     type = 'logging_server'
-    model_cls = RemoteServer
+    model_cls = RemoteServerAttributes
+
+    # We will not use interface reference here for now as source_interface can be both an IP address or an interface.
+    #def pre_init(self):
+    #    # Resolve source_interface
+    #    if "source_interface" in self.kwargs:
+    #        si = self.kwargs.pop("source_interface")
+    #        if isinstance(si, type(None)):
+    #            pass
+    #        elif isinstance(si, str):
+    #            ref = ReferenceTo(pointer=f"interfaces.{si}")
+    #            self.kwargs["source_interface"] = ref
+#
+    #        elif isinstance(si, Interface):
+    #            ref = ReferenceTo(pointer=f"interfaces.{si.name}")
+    #            self.kwargs["source_interface"] = ref
 
 class LoggingEvent(ConfigComponent):
     type = 'logging_event'
-    model_cls = LoggingEvent
+    model_cls = LoggingEventAttributes
 
 class FileConfig(ConfigComponent):
     type = 'file_config'
-    model_cls = FileConfig
+    model_cls = FileConfigAttributes
