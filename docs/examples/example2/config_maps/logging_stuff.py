@@ -3,9 +3,9 @@ from acex.configuration.components.system.logging import (
     LoggingServer,
     LoggingConsole,
     LoggingConfig,
+    FileConfig,
     #GlobalConfig,
     VtyLines
-#    GlobalLogging,
 )
 
 #from acex.configuration.components.interfaces import Svi # We will not use interface reference here for now as source_interface can be both an IP address or an interface.
@@ -71,6 +71,21 @@ class VtyConfig(ConfigMap):
                 )
             context.configuration.add(vty_line)
 
+class FileLoggingConfig(ConfigMap):
+    def compile(self, context):
+
+        file_config = FileConfig(
+            name='logfile1',
+            filename='/var/log/messages',
+            files=5, # Juniper specific
+            max_size=20480, # Max size in bytes. Used both for Cisco and Juniper
+            min_size=1024, # Only used for Cisco
+            facility='DAEMON',
+            severity='INFORMATIONAL'
+        )
+    
+        context.configuration.add(file_config)
+
 loggingserverconfig = LoggingServerConfig()
 loggingserverconfig_filter = FilterAttribute("site").eq("C3241128")
 loggingserverconfig.filters = loggingserverconfig_filter
@@ -86,3 +101,7 @@ vtyconfig.filters = vtyconfig_filter
 globalconfig = GlobalConfig()
 globalconfig_filter = FilterAttribute("site").eq("C3241128")
 globalconfig.filters = globalconfig_filter
+
+fileloggingconfig = FileLoggingConfig()
+fileloggingconfig_filter = FilterAttribute("site").eq("C3241128")
+fileloggingconfig.filters = fileloggingconfig_filter

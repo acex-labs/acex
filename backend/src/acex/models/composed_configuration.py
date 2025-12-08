@@ -10,6 +10,7 @@ from acex.models.logging import (
     LoggingConsole,
     RemoteServer,
     VtyLines,
+    FileConfig,
     #GlobalConfig,
     LoggingEvents
 )
@@ -49,6 +50,7 @@ class LoggingComponents(BaseModel):
     remote_servers: Optional[Dict[str, RemoteServer]] = {}
     events: Optional[LoggingEvents] = None
     vty: Optional[Dict[str, VtyLines]] = {}
+    files: Optional[Dict[str, FileConfig]] = {}
 
 class NtpConfig(BaseModel):
     enabled: AttributeValue[bool] = False
