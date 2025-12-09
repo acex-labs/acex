@@ -107,7 +107,6 @@ class Interface(BaseModel):
     description: Optional[AttributeValue[str]] = None
     enabled: Optional[AttributeValue[bool]] = None
     ipv4: Optional[AttributeValue[str]] = None
-    vlan_id: Optional[AttributeValue[int]] = None
     
     metadata: Optional[Metadata] = Field(default_factory=Metadata)
     type: Literal[
@@ -134,6 +133,7 @@ class EthernetCsmacdInterface(Interface):
     trunk_allowed_vlans: Optional[AttributeValue[List[int]]] = None
     native_vlan: Optional[AttributeValue[int]] = None
     access_vlan: Optional[AttributeValue[int]] = None
+    vlan_id: Optional[AttributeValue[int]] = None
     voice_vlan: Optional[AttributeValue[int]] = None
 
 class Ieee8023adLagInterface(Interface):
