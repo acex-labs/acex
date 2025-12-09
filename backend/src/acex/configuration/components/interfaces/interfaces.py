@@ -15,7 +15,6 @@ from typing import Optional
 class Interface(ConfigComponent):
 
     def _add_vrf(self):
-
         if self.kwargs.get('network_instance') is None:
             self.kwargs["network_instance"] = ReferenceFrom(pointer="network_instances.global.interfaces")
         else:
@@ -60,5 +59,4 @@ class Subinterface(Interface):
         vlan = self.kwargs.pop("vlan")
         self.kwargs["vlan"] = vlan.name 
         self.kwargs["vlan_id"] = vlan.model.vlan_id.value
-
         self._add_vrf()

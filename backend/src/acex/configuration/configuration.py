@@ -255,8 +255,7 @@ class Configuration:
                 else:
                     ptr = getattr(ptr, part)
 
-            value = {}
-            value[value_attr] = {
+            value = {
                 "name": pointer_value.name.value,
                 "metadata": {
                     "type": "reference",
@@ -264,60 +263,14 @@ class Configuration:
                 }
             }
             # Insert the referenced value dict to the insertion point.
-            setattr(ptr, insertion_attr, value)
-
-
-
-
-        return config
-        # OLD VER BELOW: 
-        # Add all references: 
-        for reference in self._references:
-            # Resolve destination value: 
-            path_parts = reference.to_ptr.split('.')
-            attr_name = path_parts.pop()
-            ptr = config
-            for part in path_parts:
-                if isinstance(ptr, dict):
-                    ptr = ptr.get(part)
-                else:
-                    ptr = getattr(ptr, part)
-
-            # Get value of the pointer
-            if isinstance(ptr, dict):
-                destination_value = ptr.get(attr_name)
+            # If attribute of insertionpoint is a dict, value has to be keyed
+            if isinstance(getattr(ptr, insertion_attr), dict):
+                insertion_point = getattr(ptr, insertion_attr)
+                insertion_point[pointer_value.name.value] = value
             else:
-                destination_value = getattr(ptr, attr_name)
-            # Resolve source value: 
-            path_parts = reference.from_ptr.split('.')
-            attr_name = path_parts.pop()
-            ptr = config
-            for part in path_parts:
-                if isinstance(ptr, dict):
-                    ptr = ptr.get(part)
-                else:
-                    ptr = getattr(ptr, part)
+            # Otherwise, just set the source key as insertion point:
+                setattr(ptr, insertion_attr, value)
 
-            # Get value of the pointer
-            if isinstance(ptr, dict):
-                source_item = ptr.get(attr_name)
-            else:
-                source_item = getattr(ptr, attr_name)
-
-            if isinstance(source_item, dict):
-                source_item[destination_value.name.value] = {
-                    "name": destination_value.name.value,
-                    "metadata": {
-                        "type": "reference",
-                        "ref_path": reference.to_ptr
-                    }
-                    }
-            # If the source item is not a dict with multiple keys:
-            elif isinstance(source_item, Reference):
-                source_item.metadata["type"] = "reference"
-                source_item.metadata["ref_path"] = reference.to_ptr
-
-                print("\r\n")
         return config
 
 
