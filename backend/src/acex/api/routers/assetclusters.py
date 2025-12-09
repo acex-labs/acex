@@ -13,7 +13,7 @@ def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/assetclusters")
     tags = ["Inventory"]
 
-    acm = automation_engine.asset_cluster_manager
+    acm = automation_engine.inventory.asset_cluster_manager
 
     router.add_api_route(
         "/asset_clusters/",

@@ -23,14 +23,12 @@ class AutomationEngine:
         from acex.device_configs import DeviceConfigManager
         from acex.management_connections import ManagementConnectionManager
         from acex.automation_engine.integrations import Integrations
-        from acex.inventory.asset_cluster_manager import AssetClusterManager
         from acex.inventory import Inventory
         
         self.api = Api()
         self.plugin_manager = PluginManager()
         self.integrations = Integrations(self.plugin_manager)
         self.db = DatabaseManager(db_connection)
-        self.asset_cluster_manager = AssetClusterManager(self.db)
         self.config_compiler = ConfigCompiler(self.db)
         self.device_config_manager = DeviceConfigManager(self.db)
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
