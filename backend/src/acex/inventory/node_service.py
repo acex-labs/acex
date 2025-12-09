@@ -1,6 +1,7 @@
 import inspect
 from acex.models import Node, NodeResponse
 from acex.plugins.neds.manager.ned_manager import NEDManager
+from acex.models.asset import Asset
 
 class NodeService:
     """Service layer för Node business logik."""
@@ -24,9 +25,15 @@ class NodeService:
             return None
 
         node = node.model_dump()
-        asset = self.inventory.assets.get(node["asset_id"])
-        if asset is not None:
+        asset = None
+        if node.get("asset_ref_type") == "assetcluster":
+            asset = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"])
+        else:
+            asset = self.inventory.assets.get(node["asset_ref_id"])
+        if isinstance(asset, Asset):
             node["asset"] = asset.model_dump()
+        else:
+            node["asset"] = asset
         ln = await self.inventory.logical_nodes.get(node["logical_node_id"])
         if ln is not None:
             node["logical_node"] = ln.model_dump()
@@ -40,7 +47,11 @@ class NodeService:
         ni = await self.get(id)
         ln = await self.inventory.logical_nodes.get(ni.logical_node_id)
 
-        asset = self.inventory.assets.get(ni.asset_id)
+        asset = None
+        if getattr(ni, "asset_ref_type", "asset") == "assetcluster":
+            asset = self.inventory.assetclusters.get(ni.asset_ref_id)
+        else:
+            asset = self.inventory.assets.get(ni.asset_ref_id)
         ned_manager = NEDManager()
         ned = ned_manager.get_driver(asset.ned_id)
 

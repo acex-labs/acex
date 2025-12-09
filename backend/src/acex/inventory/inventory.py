@@ -3,7 +3,7 @@ from acex.plugins.integrations import IntegrationPluginBase, DatabasePlugin
 from acex.models import Asset, LogicalNode, Node
 from acex.inventory.logical_node_service import LogicalNodeService
 from acex.inventory.node_service import NodeService
-
+from acex.inventory.asset_cluster_manager import AssetClusterManager
 
 class Inventory: 
 
@@ -44,4 +44,5 @@ class Inventory:
         node_instance_plugin = DatabasePlugin(db_connection, Node)
         node_instances_adapter = NodeAdapter(node_instance_plugin)
         self.node_instances = NodeService(node_instances_adapter, self)
+        self.asset_cluster_manager = AssetClusterManager(db_connection)
 

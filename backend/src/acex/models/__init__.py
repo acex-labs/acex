@@ -1,5 +1,5 @@
 
-from .asset import Asset, AssetInterface, AssetResponse, Ned
+from .asset import Asset, AssetCluster, AssetClusterLink, AssetResponse, Ned
 from .logical_node import LogicalNode, LogicalNodeResponse, LogicalNodeListResponse
 from .node import Node, NodeResponse
 from .external_value import ExternalValue
