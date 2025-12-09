@@ -1,6 +1,6 @@
 
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List, Literal, ClassVar
+from typing import Optional, Dict, List, Literal, ClassVar, Union
 from enum import Enum
 
 from acex.models.external_value import ExternalValue
@@ -121,6 +121,7 @@ class Interface(BaseModel):
     model_config = {
         "discriminator": "type"
     }
+    
 
 class EthernetCsmacdInterface(Interface):
     "Physical Interface"
@@ -130,6 +131,7 @@ class EthernetCsmacdInterface(Interface):
     subinterfaces: list["SubInterface"] = Field(default_factory=list)
     speed: Optional[AttributeValue[int]] = None
     duplex: Optional[AttributeValue[str]] = None
+    switchport: Optional[AttributeValue[bool]] = None
     switchport_mode: Optional[AttributeValue[Literal["access", "trunk"]]] = None
     trunk_allowed_vlans: Optional[AttributeValue[List[int]]] = None
     native_vlan: Optional[AttributeValue[int]] = None
@@ -195,9 +197,20 @@ class System(BaseModel):
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
 
+
+# For different types of interfaces that are fine for response model:
+InterfaceType = Union[
+    EthernetCsmacdInterface,
+    Ieee8023adLagInterface,
+    L3IpvlanInterface,
+    SoftwareLoopbackInterface,
+    SubInterface,
+    ManagementInterface,
+]
+
 class ComposedConfiguration(BaseModel):
     system: Optional[System] = System()
     acl: Optional[Acl] = Acl()
     lldp: Optional[Lldp] = Lldp()
-    interfaces: Dict[str, Interface] = {}
+    interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}

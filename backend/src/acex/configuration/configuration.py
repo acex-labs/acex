@@ -4,7 +4,7 @@ from acex.configuration.components import ConfigComponent
 from acex.configuration.components.interfaces import (
     Loopback,
     #Physical,
-    FrontPanelPort,
+    FrontpanelPort,
     ManagementPort,
     Subinterface,
     Svi
@@ -42,7 +42,7 @@ class Configuration:
         DomainName: "system.config.domain_name",
         Loopback: "interfaces", 
         #Physical: "interfaces",
-        FrontPanelPort: "interfaces",
+        FrontpanelPort: "interfaces",
         ManagementPort: "interfaces",
         Subinterface: "interfaces",
         NetworkInstance: "network_instances",
@@ -195,6 +195,7 @@ class Configuration:
             # Set metadata of the component
             if hasattr(component.model, "metadata"):
                 component.model.metadata.type = component.type
+                print(component.model)
 
             # Traverse the composed object to the ptr for the obj.
             path_parts = path.split('.')
