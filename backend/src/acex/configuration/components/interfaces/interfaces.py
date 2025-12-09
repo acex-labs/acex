@@ -28,7 +28,7 @@ class Interface(ConfigComponent):
 #    type = "ethernetCsmacd"
 #    model_cls = EthernetCsmacdInterface
 
-class FrontPanelPort(Interface):
+class FrontpanelPort(Interface):
     type = "ethernetCsmacd"
     model_cls = EthernetCsmacdInterface
     def pre_init(self):
