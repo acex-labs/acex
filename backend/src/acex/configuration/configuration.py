@@ -195,7 +195,6 @@ class Configuration:
             # Set metadata of the component
             if hasattr(component.model, "metadata"):
                 component.model.metadata.type = component.type
-                print(component.model)
 
             # Traverse the composed object to the ptr for the obj.
             path_parts = path.split('.')
