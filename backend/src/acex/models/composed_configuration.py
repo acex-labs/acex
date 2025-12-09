@@ -136,6 +136,7 @@ class EthernetCsmacdInterface(Interface):
     access_vlan: Optional[AttributeValue[int]] = None
     vlan_id: Optional[AttributeValue[int]] = None
     voice_vlan: Optional[AttributeValue[int]] = None
+    mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
 
 class Ieee8023adLagInterface(Interface):
     "LAG Interface"
