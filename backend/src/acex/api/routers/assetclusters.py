@@ -10,7 +10,7 @@ from acex.constants import BASE_URL
 
 
 def create_router(automation_engine):
-    router = APIRouter(prefix=f"{BASE_URL}/assetclusters")
+    router = APIRouter(prefix=f"{BASE_URL}/inventory")
     tags = ["Inventory"]
 
     acm = automation_engine.inventory.asset_cluster_manager
@@ -28,7 +28,7 @@ def create_router(automation_engine):
         tags=tags
     )
     router.add_api_route(
-        "/asset_clusters/{cluster_id}",
+        "/asset_clusters/{id}",
         acm.get_cluster,
         methods=["GET"],
         tags=tags
