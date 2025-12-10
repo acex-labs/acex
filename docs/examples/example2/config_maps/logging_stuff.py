@@ -4,11 +4,8 @@ from acex.configuration.components.system.logging import (
     LoggingConsole,
     LoggingConfig,
     FileConfig,
-    #GlobalConfig,
     VtyLines
 )
-
-#from acex.configuration.components.interfaces import Svi # We will not use interface reference here for now as source_interface can be both an IP address or an interface.
 
 class GlobalConfig(ConfigMap):
     def compile(self, context):
@@ -22,20 +19,12 @@ class GlobalConfig(ConfigMap):
 class LoggingServerConfig(ConfigMap):
     def compile(self, context):
 
-        # We will not use interface reference here for now as source_interface can be both an IP address or an interface.
-        #svi2 = Svi(
-        #    name="svi2",
-        #    vlan_id=2,
-        #    index=0
-        #)
-        #context.configuration.add(svi2)
-
         remote_server1 = LoggingServer(
             name='logg-server1.test.net',
             host='123.123.123.123',
             port=514, # default 514, does not have to be defined
             transport='udp', # default udp, does not have to be defined
-            source_interface='svi2'
+            source_address='vlan2' # Can be an IP address or an interface reference
         )
         context.configuration.add(remote_server1)
 
@@ -87,21 +76,16 @@ class FileLoggingConfig(ConfigMap):
         context.configuration.add(file_config)
 
 loggingserverconfig = LoggingServerConfig()
-loggingserverconfig_filter = FilterAttribute("site").eq("C3241128")
-loggingserverconfig.filters = loggingserverconfig_filter
+loggingserverconfig.filters = FilterAttribute("hostname").eq("/.*/")
 
 consoleconfig = ConsoleConfig()
-consoleconfig_filter = FilterAttribute("site").eq("C3241128")
-consoleconfig.filters = consoleconfig_filter
+consoleconfig.filters = FilterAttribute("hostname").eq("/.*/")
 
 vtyconfig = VtyConfig()
-vtyconfig_filter = FilterAttribute("site").eq("C3241128")
-vtyconfig.filters = vtyconfig_filter
+vtyconfig.filters = FilterAttribute("hostname").eq("/.*/")
 
 globalconfig = GlobalConfig()
-globalconfig_filter = FilterAttribute("site").eq("C3241128")
-globalconfig.filters = globalconfig_filter
+globalconfig.filters = FilterAttribute("hostname").eq("/.*/")
 
 fileloggingconfig = FileLoggingConfig()
-fileloggingconfig_filter = FilterAttribute("site").eq("C3241128")
-fileloggingconfig.filters = fileloggingconfig_filter
+fileloggingconfig.filters = FilterAttribute("hostname").eq("/.*/")
