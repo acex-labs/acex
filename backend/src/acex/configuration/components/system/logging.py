@@ -7,18 +7,13 @@ from acex.models.logging import (
     RemoteServer as RemoteServerAttributes,
     LoggingEvent as LoggingEventAttributes,
     VtyLines as VtyLinesAttributes,
-    FileConfig as FileConfigAttributes,
-    #GlobalConfig as GlobalConfigAttributes
+    FileConfig as FileConfigAttributes
 )
 
 
 class LoggingConfig(ConfigComponent):
     type= 'logging_config'
     model_cls = LoggingConfigAttributes
-
-#class GlobalConfig(ConfigComponent):
-#    type= 'logging_config'
-#    model_cls = GlobalConfigAttributes
 
 class LoggingConsole(ConfigComponent):
     type = 'console'
@@ -31,21 +26,6 @@ class VtyLines(ConfigComponent):
 class LoggingServer(ConfigComponent):
     type = 'logging_server'
     model_cls = RemoteServerAttributes
-
-    # We will not use interface reference here for now as source_interface can be both an IP address or an interface.
-    #def pre_init(self):
-    #    # Resolve source_interface
-    #    if "source_interface" in self.kwargs:
-    #        si = self.kwargs.pop("source_interface")
-    #        if isinstance(si, type(None)):
-    #            pass
-    #        elif isinstance(si, str):
-    #            ref = ReferenceTo(pointer=f"interfaces.{si}")
-    #            self.kwargs["source_interface"] = ref
-#
-    #        elif isinstance(si, Interface):
-    #            ref = ReferenceTo(pointer=f"interfaces.{si.name}")
-    #            self.kwargs["source_interface"] = ref
 
 class LoggingEvent(ConfigComponent):
     type = 'logging_event'

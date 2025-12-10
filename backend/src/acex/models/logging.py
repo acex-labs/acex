@@ -51,24 +51,13 @@ class RemoteServer(BaseModel):
     host: str = None
     port: Optional[int] = 514
     transfer: Optional[str] = 'udp'
-    source_interface: Optional[str] = None
-    
-    # We will not use interface reference here for now as source_interface can be both an IP address or an interface.
-    #source_address: Optional[str] = None
-    # Could be "vlan2, mgmt0" etc.
-    #source_interface: Optional[Reference] = None
-    # Source address as an option too?
-    #source_address: Optional[str] = None
+    source_address: Optional[AttributeValue[str]] = None # Used by Juniper devices
 
 class VtyLines(BaseModel):
     name: str = None
     line_number: int = None
     logging_synchronous: bool = True
     transport_input: Optional[str] = 'ssh'
-
-#class GlobalConfig(BaseModel):
-#    name: str = None
-#    buffer_size: int = 4096
 
 class FileConfig(BaseModel):
     name: str = None # object name
