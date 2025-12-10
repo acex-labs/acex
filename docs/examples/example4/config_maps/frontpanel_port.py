@@ -1,5 +1,5 @@
 from acex.config_map import ConfigMap, FilterAttribute
-from acex.configuration.components.interfaces import FrontPanelPort, ManagementPort
+from acex.configuration.components.interfaces import FrontpanelPort, ManagementPort
 from acex.configuration.components.network_instances import L3Vrf
 
 
@@ -45,7 +45,9 @@ interface_list = [
         'native_vlan': 123,
         'enabled': True,
         'speed': 10000000,
-        'description': 'Uplink to Core'
+        'description': 'Uplink to Core',
+        'trunk_allowed_vlans': [10,20,30,40,50,60,61,70,80,90,100,110,120,123,129],
+        'mtu': 9216
     },
     {
         'interface':'Port-2/0/1',
@@ -70,16 +72,18 @@ class Interfaces(ConfigMap):
     def compile(self, context):
         for intf in interface_list:
 
-            interface = FrontPanelPort(
+            interface = FrontpanelPort(
                 name = intf.get("interface"),
                 index = intf.get("index"),
-                trunk_allowed_vlans = intf.get('trunk_allowed_vlans') if intf.get('trunk_allowed_vlans') else None,
+                mtu = intf.get('mtu') if intf.get('mtu') else None,
+                speed = intf.get('speed') if intf.get('speed') else None,
+                trunk_allowed_vlans = intf.get('trunk_allowed_vlans') if intf.get('trunk_allowed_vlans') else None, 
                 enabled = interface_templates.get(intf.get("_template"), {}).get("enabled") or intf.get("enabled"),
                 description = interface_templates.get(intf.get("_template"), {}).get("description") or intf.get("description"),
-                switchport_mode = interface_templates.get(intf.get("_template"), {}).get("switchport_mode") or intf.get("switchport_mode"),
-                switchport = interface_templates.get(intf.get("_template"), {}).get("switchport") or intf.get("switchport"),
-                access_vlan = interface_templates.get(intf.get("_template"), {}).get("access_vlan") or intf.get("access_vlan"),
-                native_vlan = interface_templates.get(intf.get("_template"), {}).get("native_vlan") or intf.get("native_vlan")
+                switchport_mode = interface_templates.get(intf.get("_template"), {}).get("switchport_mode") or intf.get("switchport_mode"), 
+                switchport = interface_templates.get(intf.get("_template"), {}).get("switchport") or intf.get("switchport"), 
+                access_vlan = interface_templates.get(intf.get("_template"), {}).get("access_vlan") or intf.get("access_vlan"), 
+                native_vlan = interface_templates.get(intf.get("_template"), {}).get("native_vlan") or intf.get("native_vlan") 
                 )
             context.configuration.add(interface)
 
