@@ -39,6 +39,12 @@ def create_router(automation_engine):
         methods=["PATCH"],
         tags=tags
     )
+    router.add_api_route(
+        "/asset_clusters/{id}",
+        acm.delete_cluster,
+        methods=["DELETE"],
+        tags=tags
+    )
     return router
 
 
