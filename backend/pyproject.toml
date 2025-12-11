@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex"
-version = "3.4.3"
+version = "3.4.4"
 description = "ACE-X Backend - Core automation engine and API"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
