@@ -7,14 +7,12 @@ from acex.models.external_value import ExternalValue
 from acex.models.attribute_value import AttributeValue
 from acex.models.logging import (
     LoggingConfig,
-    LoggingConsole,
+    Console,
     RemoteServer,
-    VtyLines,
-    FileConfig,
+    VtyLine,
+    FileLogging,
     LoggingEvents
 )
-
-
 
 class Metadata(BaseModel):
     type: str = "NoneType"
@@ -44,12 +42,11 @@ class TripleA(BaseModel): ...
 # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
 class LoggingComponents(BaseModel): 
     config: LoggingConfig = LoggingConfig()
-    console: Optional[LoggingConsole] = None
-    #remote_servers: Optional[RemoteServer] = None
+    console: Optional[Console] = None
     remote_servers: Optional[Dict[str, RemoteServer]] = {}
     events: Optional[LoggingEvents] = None
-    vty: Optional[Dict[str, VtyLines]] = {}
-    files: Optional[Dict[str, FileConfig]] = {}
+    vty: Optional[Dict[str, VtyLine]] = {}
+    files: Optional[Dict[str, FileLogging]] = {}
 
 class NtpConfig(BaseModel):
     enabled: AttributeValue[bool] = False

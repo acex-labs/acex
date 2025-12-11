@@ -41,7 +41,7 @@ class LoggingConfig(BaseModel):
     severity: Optional[AttributeValue[LoggingSeverity]] = None
     buffer_size: Optional[AttributeValue[int]] = 4096
 
-class LoggingConsole(BaseModel):
+class Console(BaseModel):
     name: str = None
     line_number: int = None
     logging_synchronous: bool = True
@@ -51,18 +51,18 @@ class RemoteServer(BaseModel):
     host: str = None
     port: Optional[int] = 514
     transfer: Optional[str] = 'udp'
-    source_address: Optional[AttributeValue[str]] = None # Used by Juniper devices
+    source_address: Optional[AttributeValue[str]] = None # Can be an IP address or an interface reference
 
-class VtyLines(BaseModel):
+class VtyLine(BaseModel):
     name: str = None
     line_number: int = None
     logging_synchronous: bool = True
-    transport_input: Optional[str] = 'ssh'
+    transport_input: Optional[str] = 'ssh' # default is SSH. Mostly used by Cisco.
 
-class FileConfig(BaseModel):
+class FileLogging(BaseModel):
     name: str = None # object name
     filename: str = None # name of the file
-    files: Optional[int] = None # How many versions to keep. Juniper specific.
+    rotate: Optional[int] = None # How many versions to keep. Juniper specific. 
     max_size: Optional[int] = None # Max size in bytes. Used both for Cisco and Juniper. 
     min_size: Optional[int] = None # Min size in bytes. Only used for Cisco.
     facility: LoggingFacility # Type of log
