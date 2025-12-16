@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "acex-client"
-version = "0.0.1"
+version = "0.0.2"
 description = "ACE-X CLIENT - Client for ACE-X"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
 license = "AGPL-3.0"
 keywords = ["automation", "control"]
 packages = [
-    { include = "acex-client", from = "src" }
+    { include = "acex_client", from = "src" }
 ]
 
 [tool.poetry.dependencies]
