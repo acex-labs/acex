@@ -4,8 +4,8 @@ service timestamps debug datetime msec
 service timestamps log datetime msec
 no service password-encryption
 !
-{%- if configuration.system.config['domain-name'] %}
-ip domain-name {{ configuration.system.config['domain-name'].config.value.value  }}
+{%- if configuration.system.config['domain-name'] is defined and configuration.system.config['domain-name'] %}
+ip domain-name {{ configuration.system.config['domain-name'].config.value.value }}
 {%- endif %}
 {%- if configuration.cef is not defined or configuration.cef %}
 !
@@ -13,26 +13,23 @@ ip cef
 {%- endif %}
 !
 {%- if configuration.system.config.hostname %}
-{# hostname {{ configuration.system.config.hostname.config.value.value }} #}
 hostname {{ configuration.system.config.hostname.value.value }}
 {%- endif %}
-{%- if configuration.enable_secret %}
-enable secret {{ configuration.enable_secret }}
-{%- endif %}
 !
-{%- if configuration.system.users %}
+{%- if "users" in configuration.system %}
 {%- for user in configuration.system.users.config %}
 username {{ user.name }} privilege {{ user.privilege | default(15) }} secret {{ user.secret }}
 {%- endfor %}
 {%- endif %}
 !
+{#
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "softwareLoopback" %}
 interface Loopback{{ intf.index.value }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}
-{%- if intf.vrf %}
+{%- if 'vrf' in intf %}
  vrf forwarding {{ intf.vrf}}
 {%- endif %}
 {%-    if intf.ipv4 %}
@@ -40,6 +37,7 @@ interface Loopback{{ intf.index.value }}
 {%-     endif %}
 {%-  endif %}
 {%- endfor %}
+#}
 !
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "ethernetCsmacd" %}
@@ -47,33 +45,54 @@ interface {{ intf.name }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}
-{%- if intf.vrf %}
+{%- if 'vrf' in intf %}
  vrf forwarding {{ intf.vrf}}
 {%- endif %}
+{%- if 'ipv4' in intf %}
 {%-    if intf.ipv4 %}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
-{%-    if intf.enabled.value %}
+{%- endif %}
+{%-  if intf.switchport and intf.switchport.value %}
+{%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
+ switchport mode access
+{%-      if intf.native_vlan %}
+ switchport access vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+{%-    endif %}
+{%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
+ switchport mode trunk
+{%-      if intf.native_vlan %}
+ switchport trunk native vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+{%-      if intf.trunk_allowed_vlans %}
+    switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
+{%-      endif %}
+{%-    endif %}
+{%-  endif %}
+{%-  if intf.enabled and intf.enabled.value %}
  no shutdown
 {%-    else %}
  shutdown
 {%-   endif %}
 {%-  endif %}
+!
 {%- endfor %}
 !
+{#
 {%- for _, intf in configuration.interfaces.items() %}
-{%-  if intf.metadata.type == "l3ipvlan" %}
-interface vlan{{ intf.vlan_id }}
+{%-  if intf.metadata.type == "l3ipvlan" and intf.vlan_id %}
+interface vlan{{ intf.vlan_id.value }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}
-{%- if intf.vrf %}
+{%- if 'vrf' in intf %}
  vrf forwarding {{ intf.vrf}}
 {%- endif %}
 {%-    if intf.ipv4 %}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
-{%-    if intf.enabled.value %}
+{%-    if intf.enabled and intf.enabled.value %}
  no shutdown
 {%- else %}
  shutdown
@@ -81,10 +100,30 @@ interface vlan{{ intf.vlan_id }}
 {%-  endif %}
 !
 {%- endfor %}
-
-
-{# 
+#}
 !
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.metadata.type == "ManagementInterface" and intf.name %}
+interface {{ intf.name.value }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
+{%-    endif %}
+{%- if 'vrf' in intf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
+{%-     endif %}
+{%-    if intf.enabled and intf.enabled.value %}
+ no shutdown
+{%- else %}
+ shutdown
+{%-     endif %}
+{%-  endif %}
+!
+{%- endfor %}
+!
+{# 
 {%- if configuration.routing %}
 {%- if configuration.routing.static_routes %}
 {%- for route in configuration.routing.static_routes %}
@@ -103,21 +142,22 @@ router ospf {{ configuration.routing.ospf.process_id | default(1) }}
 {%- endif %}
 {%- endif %}
 {%- endif %}
+#}
 !
-{%- for _, ni in configuration.network_instances.items() %}
-{%-   for _, vlan in ni.vlans.items() %}
-vlan {{ vlan.config.vlan_id.value }}
-{%-      if vlan.config.vlan_name %}
- name {{ vlan.config.vlan_name.value }}
+{%- for ni in configuration.network_instances.values() %}
+{%-   for vlan in ni.vlans.values() %}
+vlan {{ vlan.vlan_id.value }}
+{%-      if vlan.vlan_name %}
+ name {{ vlan.vlan_name.value }}
 {%-      endif %}
 !
 {%-   endfor %}
 {%- endfor %}
-{%- if configuration.spanning_tree %}
+{%- if "spanning_tree" in configuration %}
 spanning-tree mode {{ configuration.spanning_tree.mode | default('pvst') }}
 {%- endif %}
 !
-{%- if configuration.snmp %}
+{%- if "snmp" in configuration %}
 {%- if configuration.snmp.community %}
 snmp-server community {{ configuration.snmp.community }} {{ configuration.snmp.access | default('RO') }}
 {%- endif %}
@@ -129,35 +169,52 @@ snmp-server contact {{ configuration.snmp.contact }}
 {%- endif %}
 {%- endif %}
 !
-{%- if configuration.ntp %}
-{%- for server in configuration.ntp.servers %}
-ntp server {{ server }}
+{%- if configuration.system.ntp %}
+{%- for server in configuration.system.ntp.servers.values() %}
+{%-   if server.prefer %}
+ntp server {{ server.address.value }} prefer
+{%-   else %}
+ntp server {{ server.address.value }}
+{%-   endif %}
 {%- endfor %}
 {%- endif %}
 !
-{%- if configuration.logging %}
-{%- if configuration.logging.host %}
-logging host {{ configuration.logging.host }}
-{%- endif %}
-logging buffered {{ configuration.logging.buffer_size | default(4096) }}
+{%- if configuration.system.logging %}
+{%-   if configuration.system.logging.config and configuration.system.logging.config.get('buffer_size') %}
+logging buffered {{ configuration.system.logging.config['buffer_size'].value | default(4096) }}
+{%-   endif %}
+{%-   if configuration.system.logging.get('remote_servers') %}
+{%-     for server in configuration.system.logging.get('remote_servers').values() %}
+{%-       if server.host %}
+logging host {{ server.host }}
+{%-         if server.source_address %}
+logging source-interface {{ server.source_address.value }}
+{%-         endif %}
+{%-       endif %}
+{%-     endfor %}
+{%-   endif %}
 {%- endif %}
 !
 line con 0
  logging synchronous
  exec-timeout 0 0
 line vty 0 4
-{%- if configuration.users %}
- login local
-{%- endif %}
  transport input ssh
 !
-{%- if configuration.ssh %}
-ip ssh version 2
-{%- if configuration.ssh.timeout %}
-ip ssh time-out {{ configuration.ssh.timeout }}
+{% set ssh = configuration.system.ssh.config %}
+{%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
+{%-   if ssh.get('protocol_version') %}
+ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
+{%-   endif %}
+{%-   if ssh.get('timeout') %}
+ip ssh time-out {{ ssh.get('timeout').value }}
+{%-   endif %}
+{%-   if ssh.get('auth_retries') %}
+ip ssh authentication-retries {{ ssh.get('auth_retries').value }}
+{%-   endif %}
+{%-   if ssh.get('source_interface') %}
+ip ssh source-interface {{ ssh['source_interface'].metadata.ref_path }}
+{%-   endif %}
 {%- endif %}
-{%- if configuration.ssh.authentication_retries %}
-ip ssh authentication-retries {{ configuration.ssh.authentication_retries }}
-{%- endif %}
-{%- endif %}
-! #}
+!
+end
