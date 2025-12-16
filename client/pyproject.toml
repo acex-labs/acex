@@ -9,7 +9,7 @@ homepage = "https://github.com/acex-labs/acex"
 repository = "https://github.com/acex-labs/acex"
 keywords = ["automation", "cli", "control"]
 packages = [
-    { include = "client", from = "src" }
+    { include = "acex_client", from = "src" }
 ]
 
 [tool.poetry.dependencies]
