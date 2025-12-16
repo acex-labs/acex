@@ -11,15 +11,18 @@ jobs:
     outputs:
       backend-should-publish: ${{ steps.check-backend.outputs.should-publish }}
       cli-should-publish: ${{ steps.check-cli.outputs.should-publish }}
+      client-should-publish: ${{ steps.check-client.outputs.should-publish }}
       mcp-should-publish: ${{ steps.check-mcp.outputs.should-publish }}
     strategy:
       matrix:
-        package: [backend, cli, mcp]
+        package: [backend, cli, client, mcp]
         include:
           - package: backend
             pypi-name: acex
           - package: cli
             pypi-name: acex-cli
+          - package: client
+            pypi-name: acex-client
           - package: mcp
             pypi-name: acex-mcp-server
     
@@ -73,6 +76,11 @@ jobs:
       run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
     
     - name: Set matrix output
+      id: check-client
+      if: matrix.package == 'client'
+      run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
+    
+    - name: Set matrix output
       id: check-mcp
       if: matrix.package == 'mcp'
       run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
@@ -96,6 +104,9 @@ jobs:
           - package: cli
             pypi-name: acex-cli
             should-publish-output: cli-should-publish
+          - package: client
+            pypi-name: acex-client
+            should-publish-output: client-should-publish
           - package: mcp
             pypi-name: acex-mcp-server
             should-publish-output: mcp-should-publish
