@@ -3,7 +3,7 @@ from acex.plugins.neds.core import RendererBase
 from typing import Any, Dict, Optional
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from .filters import cidr_to_addrmask
 
 
@@ -13,7 +13,8 @@ class CiscoIOSCLIRenderer(RendererBase):
         """Load a Jinja2 template file."""
         template_name = "template.j2"
         path = Path(__file__).parent
-        env = Environment(loader=FileSystemLoader(path))
+        env = Environment(loader=FileSystemLoader(path),undefined=StrictUndefined) # StrictUndefined to catch undefined variables, testing
+        #env = Environment(loader=FileSystemLoader(path), trim_blocks=True, lstrip_blocks=True) # För att slippa ha "-" i "{%-"
         env.filters["cidr_to_addrmask"] = cidr_to_addrmask
         template = env.get_template(template_name)
         return template
@@ -55,7 +56,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         for _,intf in configuration.get("interfaces", {}).items():
             if intf["metadata"]["type"] == "ethernetCsmacd":
                 index = intf["index"]["value"]
-                speed = intf.get("speed", {}).get("value") or 1000000 # Default to gig
+                speed = (intf.get("speed") or {}).get("value") or 1000000 # Default to gig
                 intf_prefix = self.get_port_prefix(asset.os, speed)
                 intf_suffix = self.get_port_suffix(asset.hardware_model, index)
                 intf["name"] = f"{intf_prefix}{intf_suffix}"
@@ -68,6 +69,7 @@ class CiscoIOSCLIRenderer(RendererBase):
             },
             "cisco_iosxe": {
                 1000000: "GigabitEthernet",
+                10000000: "TenGigabitEthernet",
             },
             "cisco_iosxr": {
                 1000000: "GigabitEthernet",
@@ -87,6 +89,8 @@ class CiscoIOSCLIRenderer(RendererBase):
         match hardware_model:
             case "C9300-48":
                 max_index = 48
+            case "C9300-48P":
+                max_index = 48
 
         # TODO: Fungerar upp till max port, förutsätter sen att man är 
         # på en modul, stöd för en modul eftersom vi inte vet maxportar på
@@ -96,3 +100,5 @@ class CiscoIOSCLIRenderer(RendererBase):
         elif index > max_index:
             suffix_string = f"1/1/{index - max_index + 1}"
         return suffix_string
+    
+    # Create functions to handle ref paths
