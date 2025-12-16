@@ -5,9 +5,7 @@ description = "ACE-X CLIENT - Client for ACE-X"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
 license = "AGPL-3.0"
-homepage = "https://github.com/acex-labs/acex"
-repository = "https://github.com/acex-labs/acex"
-keywords = ["automation", "cli", "control"]
+keywords = ["automation", "control"]
 packages = [
     { include = "acex_client", from = "src" }
 ]
