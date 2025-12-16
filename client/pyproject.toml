@@ -7,7 +7,7 @@ readme = "README.md"
 license = "AGPL-3.0"
 keywords = ["automation", "control"]
 packages = [
-    { include = "acex_client", from = "src" }
+    { include = "acex-client", from = "src" }
 ]
 
 [tool.poetry.dependencies]
