@@ -96,7 +96,7 @@ jobs:
     strategy:
       fail-fast: false  # Fortsätt med andra paket även om ett failar
       matrix:
-        package: [backend, cli, mcp]
+        package: [backend, cli, client, mcp]
         include:
           - package: backend
             pypi-name: acex
