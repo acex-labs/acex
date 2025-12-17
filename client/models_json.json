@@ -1,0 +1,3665 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "ACE-X - Extendable Automation & Control Ecosystem",
+        "version": "0.2.0"
+    },
+    "paths": {
+        "/api/v1/operations/device_configs/{node_instance_id}": {
+            "get": {
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "List Config Hashes",
+                "operationId": "list_config_hashes_api_v1_operations_device_configs__node_instance_id__get",
+                "parameters": [
+                    {
+                        "name": "node_instance_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Node Instance Id"
+                        }
+                    },
+                    {
+                        "name": "point_in_time",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time",
+                            "title": "Point In Time"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 100,
+                            "title": "Limit"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {},
+                                    "title": "Response List Config Hashes Api V1 Operations Device Configs  Node Instance Id  Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/operations/device_configs/{node_instance_id}/latest": {
+            "get": {
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Get Latest Config",
+                "operationId": "get_latest_config_api_v1_operations_device_configs__node_instance_id__latest_get",
+                "parameters": [
+                    {
+                        "name": "node_instance_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Node Instance Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StoredDeviceConfig"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/operations/device_configs/{node_instance_id}/{hash}": {
+            "get": {
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Get Config By Hash",
+                "operationId": "get_config_by_hash_api_v1_operations_device_configs__node_instance_id___hash__get",
+                "parameters": [
+                    {
+                        "name": "node_instance_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Node Instance Id"
+                        }
+                    },
+                    {
+                        "name": "hash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Hash"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StoredDeviceConfig"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/operations/device_configs/": {
+            "post": {
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Upload Config",
+                "operationId": "upload_config_api_v1_operations_device_configs__post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceConfig"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StoredDeviceConfig"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/management_connections/{id}": {
+            "post": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Create Connection",
+                "operationId": "create_connection_api_v1_inventory_management_connections__id__post",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ManagementConnectionBase"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ManagementConnectionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Get Connection",
+                "operationId": "get_connection_api_v1_inventory_management_connections__id__get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ManagementConnectionResponse"
+                                        },
+                                        {
+                                            "type": "null"
+                                        }
+                                    ],
+                                    "title": "Response Get Connection Api V1 Inventory Management Connections  Id  Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Delete Connection",
+                "operationId": "delete_connection_api_v1_inventory_management_connections__id__delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "boolean",
+                                    "title": "Response Delete Connection Api V1 Inventory Management Connections  Id  Delete"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/management_connections/": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "List Connections",
+                "operationId": "list_connections_api_v1_inventory_management_connections__get",
+                "parameters": [
+                    {
+                        "name": "node_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Node Id"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 100,
+                            "title": "Limit"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 0,
+                            "title": "Offset"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ManagementConnectionResponse"
+                                    },
+                                    "title": "Response List Connections Api V1 Inventory Management Connections  Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/asset_clusters/": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "List Clusters",
+                "operationId": "list_clusters_api_v1_inventory_asset_clusters__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/AssetCluster"
+                                    },
+                                    "type": "array",
+                                    "title": "Response List Clusters Api V1 Inventory Asset Clusters  Get"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Create Cluster",
+                "operationId": "create_cluster_api_v1_inventory_asset_clusters__post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AssetClusterCreate"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetCluster"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/asset_clusters/{id}": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Get Cluster",
+                "operationId": "get_cluster_api_v1_inventory_asset_clusters__id__get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": true,
+                                    "title": "Response Get Cluster Api V1 Inventory Asset Clusters  Id  Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Update Cluster Assets",
+                "operationId": "update_cluster_assets_api_v1_inventory_asset_clusters__id__patch",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                },
+                                "title": "Asset Ids"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetCluster"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Delete Cluster",
+                "operationId": "delete_cluster_api_v1_inventory_asset_clusters__id__delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/assets/": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Query",
+                "operationId": "query_api_v1_inventory_assets__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/AssetResponse"
+                                    },
+                                    "type": "array",
+                                    "title": "Response Query Api V1 Inventory Assets  Get"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Create",
+                "operationId": "create_api_v1_inventory_assets__post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Asset"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/assets/{id}": {
+            "delete": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Delete",
+                "operationId": "delete_api_v1_inventory_assets__id__delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Get",
+                "operationId": "get_api_v1_inventory_assets__id__get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Update",
+                "operationId": "update_api_v1_inventory_assets__id__patch",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Asset"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/logical_nodes/": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Query",
+                "operationId": "query_api_v1_inventory_logical_nodes__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Create",
+                "operationId": "create_api_v1_inventory_logical_nodes__post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogicalNode"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/logical_nodes/{id}": {
+            "delete": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Delete",
+                "operationId": "delete_api_v1_inventory_logical_nodes__id__delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Get",
+                "operationId": "get_api_v1_inventory_logical_nodes__id__get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    },
+                    {
+                        "name": "resolve",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false,
+                            "title": "Resolve"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LogicalNodeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Update",
+                "operationId": "update_api_v1_inventory_logical_nodes__id__patch",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogicalNode"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/neds/": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "List Neds",
+                "operationId": "list_neds_api_v1_neds__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/neds/{ned_id}": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Get Ned",
+                "operationId": "get_ned_api_v1_neds__ned_id__get",
+                "parameters": [
+                    {
+                        "name": "driver_name",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Driver Name"
+                        }
+                    },
+                    {
+                        "name": "version",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "",
+                            "title": "Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/node_instances/": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Query",
+                "operationId": "query_api_v1_inventory_node_instances__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Create",
+                "operationId": "create_api_v1_inventory_node_instances__post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Node"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/node_instances/{id}": {
+            "delete": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Delete",
+                "operationId": "delete_api_v1_inventory_node_instances__id__delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Get",
+                "operationId": "get_api_v1_inventory_node_instances__id__get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Update",
+                "operationId": "update_api_v1_inventory_node_instances__id__patch",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Node"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/node_instances/{id}/config": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Get Rendered Config",
+                "description": "Renderar konfigurationen f\u00f6r en nod instans.",
+                "operationId": "get_rendered_config_api_v1_inventory_node_instances__id__config_get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Acl": {
+                "properties": {},
+                "type": "object",
+                "title": "Acl"
+            },
+            "Asset": {
+                "properties": {
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    },
+                    "vendor": {
+                        "type": "string",
+                        "title": "Vendor",
+                        "default": "cisco"
+                    },
+                    "serial_number": {
+                        "type": "string",
+                        "title": "Serial Number",
+                        "default": "abc123"
+                    },
+                    "os": {
+                        "type": "string",
+                        "title": "Os",
+                        "default": "ios"
+                    },
+                    "os_version": {
+                        "type": "string",
+                        "title": "Os Version",
+                        "default": "12.0.1"
+                    },
+                    "hardware_model": {
+                        "type": "string",
+                        "title": "Hardware Model",
+                        "default": ""
+                    },
+                    "ned_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ned Id"
+                    }
+                },
+                "type": "object",
+                "title": "Asset"
+            },
+            "AssetCluster": {
+                "properties": {
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "AssetCluster"
+            },
+            "AssetClusterCreate": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "AssetClusterCreate"
+            },
+            "AssetRefType": {
+                "type": "string",
+                "enum": [
+                    "asset",
+                    "assetcluster"
+                ],
+                "title": "AssetRefType"
+            },
+            "AssetResponse": {
+                "properties": {
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    },
+                    "vendor": {
+                        "type": "string",
+                        "title": "Vendor",
+                        "default": "cisco"
+                    },
+                    "serial_number": {
+                        "type": "string",
+                        "title": "Serial Number",
+                        "default": "abc123"
+                    },
+                    "os": {
+                        "type": "string",
+                        "title": "Os",
+                        "default": "ios"
+                    },
+                    "os_version": {
+                        "type": "string",
+                        "title": "Os Version",
+                        "default": "12.0.1"
+                    },
+                    "hardware_model": {
+                        "type": "string",
+                        "title": "Hardware Model",
+                        "default": ""
+                    },
+                    "ned_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ned Id"
+                    },
+                    "meta_data": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Meta Data"
+                    }
+                },
+                "type": "object",
+                "title": "AssetResponse"
+            },
+            "AttributeValue_List_int__": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "integer"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[List[int]]"
+            },
+            "AttributeValue_Literal__access____trunk___": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "access",
+                                    "trunk"
+                                ]
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[Literal['access', 'trunk']]"
+            },
+            "AttributeValue_LoggingSeverity_": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/LoggingSeverity"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[LoggingSeverity]"
+            },
+            "AttributeValue_bool_": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[bool]"
+            },
+            "AttributeValue_int_": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[int]"
+            },
+            "AttributeValue_str_": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[str]"
+            },
+            "AuthorizedKey": {
+                "properties": {
+                    "algorithm": {
+                        "$ref": "#/components/schemas/AuthorizedKeyAlgorithms"
+                    },
+                    "public_key": {
+                        "type": "string",
+                        "title": "Public Key"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "algorithm",
+                    "public_key"
+                ],
+                "title": "AuthorizedKey"
+            },
+            "AuthorizedKeyAlgorithms": {
+                "type": "string",
+                "enum": [
+                    "ssh-ed25519",
+                    "ecdsa-sha2-nistp256",
+                    "ecdsa-sha2-nistp384",
+                    "ecdsa-sha2-nistp521",
+                    "rsa-sha2-256",
+                    "rsa-sha2-512",
+                    "sk-ssh-ed25519@openssh.com",
+                    "sk-ecdsa-sha2-nistp256@openssh.com",
+                    "ssh-rsa",
+                    "ssh-dss"
+                ],
+                "title": "AuthorizedKeyAlgorithms"
+            },
+            "ComposedConfiguration": {
+                "properties": {
+                    "system": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/System"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "config": {},
+                            "aaa": {},
+                            "logging": {
+                                "config": {
+                                    "buffer_size": 4096
+                                },
+                                "files": {},
+                                "remote_servers": {},
+                                "vty": {}
+                            },
+                            "ntp": {
+                                "config": {
+                                    "enabled": false
+                                },
+                                "servers": {}
+                            },
+                            "ssh": {
+                                "host_keys": {}
+                            }
+                        }
+                    },
+                    "acl": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Acl"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {}
+                    },
+                    "lldp": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Lldp"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {}
+                    },
+                    "interfaces": {
+                        "additionalProperties": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EthernetCsmacdInterface"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/Ieee8023adLagInterface"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/L3IpvlanInterface"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SoftwareLoopbackInterface"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SubInterface"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ManagementInterface"
+                                }
+                            ]
+                        },
+                        "type": "object",
+                        "title": "Interfaces",
+                        "default": {}
+                    },
+                    "network_instances": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/NetworkInstance"
+                        },
+                        "type": "object",
+                        "title": "Network Instances",
+                        "default": {
+                            "global": {
+                                "inter_instance_policies": {},
+                                "interfaces": {},
+                                "name": {
+                                    "metadata": {
+                                        "type": "str",
+                                        "value_type": "concrete"
+                                    },
+                                    "value": "global"
+                                },
+                                "vlans": {}
+                            }
+                        }
+                    }
+                },
+                "type": "object",
+                "title": "ComposedConfiguration"
+            },
+            "ConnectionType": {
+                "type": "string",
+                "enum": [
+                    "ssh",
+                    "telnet"
+                ],
+                "title": "ConnectionType"
+            },
+            "Console": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "line_number": {
+                        "type": "integer",
+                        "title": "Line Number"
+                    },
+                    "logging_synchronous": {
+                        "type": "boolean",
+                        "title": "Logging Synchronous",
+                        "default": true
+                    }
+                },
+                "type": "object",
+                "title": "Console"
+            },
+            "DeviceConfig": {
+                "properties": {
+                    "node_instance_id": {
+                        "type": "string",
+                        "title": "Node Instance Id"
+                    },
+                    "content": {
+                        "type": "string",
+                        "title": "Content"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "node_instance_id",
+                    "content"
+                ],
+                "title": "DeviceConfig"
+            },
+            "EVType": {
+                "type": "string",
+                "enum": [
+                    "data",
+                    "resource"
+                ],
+                "title": "EVType"
+            },
+            "EthernetCsmacdInterface": {
+                "properties": {
+                    "index": {
+                        "$ref": "#/components/schemas/AttributeValue_int_"
+                    },
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "enabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ipv4": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Metadata"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "type": "str",
+                            "value_source": "concrete"
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "const": "ethernetCsmacd",
+                        "title": "Type",
+                        "default": "ethernetCsmacd"
+                    },
+                    "subinterfaces": {
+                        "items": {
+                            "$ref": "#/components/schemas/SubInterface"
+                        },
+                        "type": "array",
+                        "title": "Subinterfaces"
+                    },
+                    "speed": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "duplex": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "switchport": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "switchport_mode": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_Literal__access____trunk___"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "trunk_allowed_vlans": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_List_int__"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "native_vlan": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "access_vlan": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "vlan_id": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "voice_vlan": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "mtu": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "name"
+                ],
+                "title": "EthernetCsmacdInterface",
+                "description": "Physical Interface"
+            },
+            "ExternalValue": {
+                "properties": {
+                    "attr_ptr": {
+                        "type": "string",
+                        "title": "Attr Ptr"
+                    },
+                    "query": {
+                        "type": "string",
+                        "title": "Query",
+                        "default": "{\"json_query\": \"in_stringformat\"}"
+                    },
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "title": "Kind"
+                    },
+                    "ev_type": {
+                        "type": "string"
+                    },
+                    "plugin": {
+                        "type": "string",
+                        "title": "Plugin"
+                    },
+                    "resolved": {
+                        "type": "boolean",
+                        "title": "Resolved",
+                        "default": false
+                    },
+                    "resolved_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Resolved At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "kind",
+                    "plugin"
+                ],
+                "title": "ExternalValue"
+            },
+            "FileLogging": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "filename": {
+                        "type": "string",
+                        "title": "Filename"
+                    },
+                    "rotate": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Rotate"
+                    },
+                    "max_size": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Size"
+                    },
+                    "min_size": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Min Size"
+                    },
+                    "facility": {
+                        "$ref": "#/components/schemas/LoggingFacility"
+                    },
+                    "severity": {
+                        "$ref": "#/components/schemas/LoggingSeverity"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "facility",
+                    "severity"
+                ],
+                "title": "FileLogging"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "Ieee8023adLagInterface": {
+                "properties": {
+                    "index": {
+                        "$ref": "#/components/schemas/AttributeValue_int_"
+                    },
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "enabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ipv4": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Metadata"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "type": "str",
+                            "value_source": "concrete"
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "const": "ieee8023adLag",
+                        "title": "Type",
+                        "default": "ieee8023adLag"
+                    },
+                    "members": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Members"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "name"
+                ],
+                "title": "Ieee8023adLagInterface",
+                "description": "LAG Interface"
+            },
+            "ImportExportPolicy": {
+                "properties": {
+                    "export_route_target": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/RouteTarget"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Export Route Target"
+                    },
+                    "import_route_target": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/RouteTarget"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Import Route Target"
+                    }
+                },
+                "type": "object",
+                "title": "ImportExportPolicy"
+            },
+            "InterInstancePolicy": {
+                "properties": {
+                    "import_export_policy": {
+                        "$ref": "#/components/schemas/ImportExportPolicy"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "import_export_policy"
+                ],
+                "title": "InterInstancePolicy"
+            },
+            "L3IpvlanInterface": {
+                "properties": {
+                    "index": {
+                        "$ref": "#/components/schemas/AttributeValue_int_"
+                    },
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "enabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ipv4": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Metadata"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "type": "str",
+                            "value_source": "concrete"
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "const": "l3ipvlan",
+                        "title": "Type",
+                        "default": "l3ipvlan"
+                    },
+                    "vlan_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Vlan Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "name"
+                ],
+                "title": "L3IpvlanInterface",
+                "description": "SVI Interface"
+            },
+            "Lldp": {
+                "properties": {},
+                "type": "object",
+                "title": "Lldp"
+            },
+            "LoggingComponents": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/LoggingConfig",
+                        "default": {
+                            "buffer_size": 4096
+                        }
+                    },
+                    "console": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Console"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "remote_servers": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/RemoteServer"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Remote Servers",
+                        "default": {}
+                    },
+                    "events": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/LoggingEvents"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "vty": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/VtyLine"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Vty",
+                        "default": {}
+                    },
+                    "files": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/FileLogging"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Files",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "LoggingComponents"
+            },
+            "LoggingConfig": {
+                "properties": {
+                    "rate_limit": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "severity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_LoggingSeverity_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "buffer_size": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": 4096
+                    }
+                },
+                "type": "object",
+                "title": "LoggingConfig"
+            },
+            "LoggingEvent": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled"
+                    },
+                    "severity": {
+                        "$ref": "#/components/schemas/LoggingSeverity"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "enabled",
+                    "severity"
+                ],
+                "title": "LoggingEvent"
+            },
+            "LoggingEvents": {
+                "properties": {
+                    "events": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/LoggingEvent"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Events",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "LoggingEvents"
+            },
+            "LoggingFacility": {
+                "type": "string",
+                "enum": [
+                    "KERN",
+                    "USER",
+                    "DAEMON",
+                    "AUTHORIZATION",
+                    "FTP",
+                    "NTP",
+                    "DFC",
+                    "EXTERNAL",
+                    "FIREWALL",
+                    "PFE",
+                    "CONFLICTLOG",
+                    "CHANGELOG",
+                    "INTERACTIVE_COMMANDS"
+                ],
+                "title": "LoggingFacility"
+            },
+            "LoggingSeverity": {
+                "type": "string",
+                "enum": [
+                    "EMERGENCY",
+                    "ALERT",
+                    "CRITICAL",
+                    "ERROR",
+                    "WARNING",
+                    "NOTICE",
+                    "INFORMATIONAL",
+                    "DEBUG"
+                ],
+                "title": "LoggingSeverity"
+            },
+            "LogicalNode": {
+                "properties": {
+                    "hostname": {
+                        "type": "string",
+                        "title": "Hostname",
+                        "default": "R1"
+                    },
+                    "role": {
+                        "type": "string",
+                        "title": "Role",
+                        "default": "core"
+                    },
+                    "site": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Site",
+                        "default": "HQ"
+                    },
+                    "sequence": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Sequence",
+                        "default": 1
+                    },
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    }
+                },
+                "type": "object",
+                "title": "LogicalNode"
+            },
+            "LogicalNodeResponse": {
+                "properties": {
+                    "hostname": {
+                        "type": "string",
+                        "title": "Hostname",
+                        "default": "R1"
+                    },
+                    "role": {
+                        "type": "string",
+                        "title": "Role",
+                        "default": "core"
+                    },
+                    "site": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Site",
+                        "default": "HQ"
+                    },
+                    "sequence": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Sequence",
+                        "default": 1
+                    },
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    },
+                    "configuration": {
+                        "$ref": "#/components/schemas/ComposedConfiguration",
+                        "default": {
+                            "system": {
+                                "aaa": {},
+                                "config": {},
+                                "logging": {
+                                    "config": {
+                                        "buffer_size": 4096
+                                    },
+                                    "files": {},
+                                    "remote_servers": {},
+                                    "vty": {}
+                                },
+                                "ntp": {
+                                    "config": {
+                                        "enabled": false
+                                    },
+                                    "servers": {}
+                                },
+                                "ssh": {
+                                    "host_keys": {}
+                                }
+                            },
+                            "acl": {},
+                            "lldp": {},
+                            "interfaces": {},
+                            "network_instances": {
+                                "global": {
+                                    "inter_instance_policies": {},
+                                    "interfaces": {},
+                                    "name": {
+                                        "metadata": {
+                                            "type": "str",
+                                            "value_type": "concrete"
+                                        },
+                                        "value": "global"
+                                    },
+                                    "vlans": {}
+                                }
+                            }
+                        }
+                    },
+                    "meta_data": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Meta Data"
+                    }
+                },
+                "type": "object",
+                "title": "LogicalNodeResponse"
+            },
+            "ManagementConnectionBase": {
+                "properties": {
+                    "primary": {
+                        "type": "boolean",
+                        "title": "Primary",
+                        "default": true
+                    },
+                    "node_id": {
+                        "type": "integer",
+                        "title": "Node Id"
+                    },
+                    "connection_type": {
+                        "$ref": "#/components/schemas/ConnectionType",
+                        "default": "ssh"
+                    },
+                    "target_ip": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Target Ip"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "node_id"
+                ],
+                "title": "ManagementConnectionBase"
+            },
+            "ManagementConnectionResponse": {
+                "properties": {
+                    "primary": {
+                        "type": "boolean",
+                        "title": "Primary"
+                    },
+                    "node_id": {
+                        "type": "integer",
+                        "title": "Node Id"
+                    },
+                    "connection_type": {
+                        "$ref": "#/components/schemas/ConnectionType"
+                    },
+                    "target_ip": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Target Ip"
+                    },
+                    "id": {
+                        "type": "integer",
+                        "title": "Id"
+                    }
+                },
+                "type": "object",
+                "title": "ManagementConnectionResponse"
+            },
+            "ManagementInterface": {
+                "properties": {
+                    "index": {
+                        "$ref": "#/components/schemas/AttributeValue_int_"
+                    },
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "enabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ipv4": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Metadata"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "type": "str",
+                            "value_source": "concrete"
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "const": "managementInterface",
+                        "title": "Type",
+                        "default": "managementInterface"
+                    },
+                    "vlan_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Vlan Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "name"
+                ],
+                "title": "ManagementInterface",
+                "description": "Management Interface"
+            },
+            "Metadata": {
+                "properties": {
+                    "type": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Type",
+                        "default": "str"
+                    },
+                    "value_source": {
+                        "$ref": "#/components/schemas/MetadataValueType",
+                        "default": "concrete"
+                    }
+                },
+                "type": "object",
+                "title": "Metadata"
+            },
+            "MetadataValueType": {
+                "type": "string",
+                "enum": [
+                    "concrete",
+                    "externalValue",
+                    "reference"
+                ],
+                "title": "MetadataValueType"
+            },
+            "NetworkInstance": {
+                "properties": {
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "vlans": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Vlan"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Vlans",
+                        "default": {}
+                    },
+                    "interfaces": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Reference"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Interfaces",
+                        "default": {}
+                    },
+                    "inter_instance_policies": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/InterInstancePolicy"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Inter Instance Policies",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "NetworkInstance"
+            },
+            "Node": {
+                "properties": {
+                    "asset_ref_id": {
+                        "type": "integer",
+                        "title": "Asset Ref Id"
+                    },
+                    "asset_ref_type": {
+                        "$ref": "#/components/schemas/AssetRefType",
+                        "default": "asset"
+                    },
+                    "logical_node_id": {
+                        "type": "integer",
+                        "title": "Logical Node Id"
+                    },
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "asset_ref_id",
+                    "logical_node_id"
+                ],
+                "title": "Node"
+            },
+            "Ntp": {
+                "properties": {
+                    "config": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/NtpConfig"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "enabled": false
+                        }
+                    },
+                    "servers": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/NtpServer"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Servers",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "Ntp"
+            },
+            "NtpConfig": {
+                "properties": {
+                    "enabled": {
+                        "$ref": "#/components/schemas/AttributeValue_bool_",
+                        "default": false
+                    }
+                },
+                "type": "object",
+                "title": "NtpConfig"
+            },
+            "NtpServer": {
+                "properties": {
+                    "address": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "port": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "version": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "association_typ": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "prefer": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "source_interface": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "address"
+                ],
+                "title": "NtpServer"
+            },
+            "Reference": {
+                "properties": {
+                    "pointer": {
+                        "type": "string",
+                        "title": "Pointer"
+                    },
+                    "metadata": {
+                        "$ref": "#/components/schemas/Metadata",
+                        "default": {
+                            "type": "str",
+                            "value_source": "reference"
+                        }
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "pointer"
+                ],
+                "title": "Reference"
+            },
+            "RemoteServer": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "host": {
+                        "type": "string",
+                        "title": "Host"
+                    },
+                    "port": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Port",
+                        "default": 514
+                    },
+                    "transfer": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Transfer",
+                        "default": "udp"
+                    },
+                    "source_address": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "RemoteServer"
+            },
+            "RouteTarget": {
+                "properties": {
+                    "value": {
+                        "type": "string",
+                        "title": "Value"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "RouteTarget"
+            },
+            "SoftwareLoopbackInterface": {
+                "properties": {
+                    "index": {
+                        "$ref": "#/components/schemas/AttributeValue_int_"
+                    },
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "enabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ipv4": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Metadata"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "type": "str",
+                            "value_source": "concrete"
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "const": "softwareLoopback",
+                        "title": "Type",
+                        "default": "softwareLoopback"
+                    },
+                    "vlan_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Vlan Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "name"
+                ],
+                "title": "SoftwareLoopbackInterface",
+                "description": "Loopback Interface"
+            },
+            "Ssh": {
+                "properties": {
+                    "config": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SshServer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "host_keys": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/AuthorizedKey"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Host Keys",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "Ssh"
+            },
+            "SshServer": {
+                "properties": {
+                    "enable": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "protocol_version": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": 2
+                    },
+                    "timeout": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "auth_retries": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "source_interface": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Reference"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "SshServer"
+            },
+            "StoredDeviceConfig": {
+                "properties": {
+                    "node_instance_id": {
+                        "type": "string",
+                        "title": "Node Instance Id"
+                    },
+                    "content": {
+                        "type": "string",
+                        "title": "Content"
+                    },
+                    "id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id"
+                    },
+                    "hash": {
+                        "type": "string",
+                        "title": "Hash"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "node_instance_id",
+                    "content",
+                    "hash"
+                ],
+                "title": "StoredDeviceConfig"
+            },
+            "SubInterface": {
+                "properties": {
+                    "index": {
+                        "$ref": "#/components/schemas/AttributeValue_int_"
+                    },
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "enabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ipv4": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Metadata"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "type": "str",
+                            "value_source": "concrete"
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "const": "subinterface",
+                        "title": "Type",
+                        "default": "subinterface"
+                    },
+                    "vlan_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Vlan Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "name"
+                ],
+                "title": "SubInterface",
+                "description": "Subinterface"
+            },
+            "System": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/SystemConfig",
+                        "default": {}
+                    },
+                    "aaa": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TripleA"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {}
+                    },
+                    "logging": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/LoggingComponents"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "config": {
+                                "buffer_size": 4096
+                            },
+                            "remote_servers": {},
+                            "vty": {},
+                            "files": {}
+                        }
+                    },
+                    "ntp": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Ntp"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "config": {
+                                "enabled": false
+                            },
+                            "servers": {}
+                        }
+                    },
+                    "ssh": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Ssh"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "host_keys": {}
+                        }
+                    }
+                },
+                "type": "object",
+                "title": "System"
+            },
+            "SystemConfig": {
+                "properties": {
+                    "contact": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "domain_name": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "hostname": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "location": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "SystemConfig"
+            },
+            "TripleA": {
+                "properties": {},
+                "type": "object",
+                "title": "TripleA"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            },
+            "Vlan": {
+                "properties": {
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "vlan_id": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "vlan_name": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "network_instance": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Metadata"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "metadata"
+                ],
+                "title": "Vlan"
+            },
+            "VtyLine": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "line_number": {
+                        "type": "integer",
+                        "title": "Line Number"
+                    },
+                    "logging_synchronous": {
+                        "type": "boolean",
+                        "title": "Logging Synchronous",
+                        "default": true
+                    },
+                    "transport_input": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Transport Input",
+                        "default": "ssh"
+                    }
+                },
+                "type": "object",
+                "title": "VtyLine"
+            }
+        }
+    }
+}
