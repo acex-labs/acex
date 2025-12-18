@@ -250,7 +250,7 @@ ip ssh time-out {{ ssh.get('timeout').value }}
 ip ssh authentication-retries {{ ssh.get('auth_retries').value }}
 {%-   endif %}
 {%-   if ssh.get('source_interface') %}
-ip ssh source-interface {{ ssh['source_interface'].metadata.ref_path }}
+ip ssh source-interface {{ ssh['source_interface'] }}
 {%-   endif %}
 {%- endif %}
 !

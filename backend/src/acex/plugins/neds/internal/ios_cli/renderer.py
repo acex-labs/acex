@@ -33,6 +33,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         """Pre-process the configuration model before rendering j2."""
         configuration = self.physical_interface_names(configuration, asset)
         self.add_vrf_to_intefaces(configuration)
+        self.ssh_interface(configuration)
         return configuration
 
     #def handle_vty_lines(self, configuration):
@@ -47,6 +48,33 @@ class CiscoIOSCLIRenderer(RendererBase):
     #    
     #    vtys['lines'] = vty_lines
     #    return configuration
+
+    def ssh_interface(self, configuration):
+        """Process SSH interface configurations if needed."""
+        ssh = configuration.get('system', {}).get('ssh')
+        if not ssh:
+            return
+
+        # Resolve the referenced interface name from ref_path
+        ref = ssh.get('config', {}).get('source_interface', {})
+        metadata = ref.get('metadata') or {}
+        ref_path = metadata.get('ref_path')
+        if not ref_path:
+            return
+
+        ref_name = ref_path.split('.')[1]
+        intf = configuration.get('interfaces', {}).get(ref_name)
+        if not intf:
+            return
+
+        vlan_id = intf.get('vlan_id')
+        if vlan_id is None:
+            return
+
+        ssh_interface = f"vlan{vlan_id}"
+        print('ssh interface: ', ssh_interface)
+        # Store resolved interface for template use if needed
+        ssh['config']['source_interface'] = ssh_interface
 
     def add_vrf_to_intefaces(self, config):
         """
