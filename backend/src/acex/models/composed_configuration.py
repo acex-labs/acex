@@ -142,6 +142,13 @@ class EthernetCsmacdInterface(Interface):
     voice_vlan: Optional[AttributeValue[int]] = None
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
 
+    # LACP relaterade attribut
+    lacp_enabled: Optional[AttributeValue[bool]] = None
+    lacp_mode: Optional[AttributeValue[Literal["active", "passive"]]] = None
+    lacp_system_priority: Optional[AttributeValue[int]] = None
+    lacp_system_id_mac: Optional[AttributeValue[str]] = None
+    lacp_interval : Optional[AttributeValue[Literal["fast", "slow"]]] = None
+
 class Ieee8023adLagInterface(Interface):
     "LAG Interface"
     type: Literal["ieee8023adLag"] = "ieee8023adLag"
@@ -196,6 +203,12 @@ class NetworkInstance(BaseModel):
     interfaces: Optional[Dict[str, Interface]] = {}
     inter_instance_policies: Optional[Dict[str, InterInstancePolicy]] = {}
 
+class LacpConfig(BaseModel):
+    system_priority: Optional[AttributeValue[int]] = None
+
+class Lacp(BaseModel):
+    config: LacpConfig = LacpConfig()
+    interfaces: Optional[Dict[str, Interface]] = {}
 
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
@@ -203,7 +216,6 @@ class System(BaseModel):
     logging: Optional[LoggingComponents] = LoggingComponents() # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
-
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
@@ -221,3 +233,4 @@ class ComposedConfiguration(BaseModel):
     lldp: Optional[Lldp] = Lldp()
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
+    #lacp: Optional[Lacp] = Lacp()
