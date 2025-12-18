@@ -5,6 +5,7 @@ from acex.configuration.components.interfaces import (
     Loopback,
     #Physical,
     FrontpanelPort,
+    LagInterface,
     ManagementPort,
     Subinterface,
     Svi
@@ -50,6 +51,7 @@ class Configuration:
         Loopback: "interfaces", 
         #Physical: "interfaces",
         FrontpanelPort: "interfaces",
+        LagInterface: "interfaces",
         ManagementPort: "interfaces",
         Subinterface: "interfaces",
         NetworkInstance: "network_instances",

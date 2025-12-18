@@ -35,6 +35,19 @@ class CiscoIOSCLIRenderer(RendererBase):
         self.add_vrf_to_intefaces(configuration)
         return configuration
 
+    #def handle_vty_lines(self, configuration):
+    #    """Process VTY line configurations if needed."""
+    #    vtys = configuration['vty']
+    #    vty_lines = None
+#
+    #    if vtys is None:
+    #        return
+    #    for vty in vtys.values():
+    #        vty_lines.append(vty['line_number']['value'])
+    #    
+    #    vtys['lines'] = vty_lines
+    #    return configuration
+
     def add_vrf_to_intefaces(self, config):
         """
         Loops all network_instances and add vrf definition to 
@@ -56,10 +69,15 @@ class CiscoIOSCLIRenderer(RendererBase):
         for _,intf in configuration.get("interfaces", {}).items():
             if intf["metadata"]["type"] == "ethernetCsmacd":
                 index = intf["index"]["value"]
+                stack_index = (intf.get("stack_index") or {}).get("value")
                 speed = (intf.get("speed") or {}).get("value") or 1000000 # Default to gig
                 intf_prefix = self.get_port_prefix(asset.os, speed)
-                intf_suffix = self.get_port_suffix(asset.hardware_model, index)
+                intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index)
                 intf["name"] = f"{intf_prefix}{intf_suffix}"
+            if intf['metadata']['type'] == "ieee8023adLag":
+                # Handle LAG interface names here
+                index = intf["index"]["value"]
+                intf["name"] = f"Port-channel{index}"
         return configuration
 
     def get_port_prefix(self, os:str, speed:int) -> Optional[str]:
@@ -70,6 +88,9 @@ class CiscoIOSCLIRenderer(RendererBase):
             "cisco_iosxe": {
                 1000000: "GigabitEthernet",
                 10000000: "TenGigabitEthernet",
+                25000000: "TwentyFiveGigE",
+                40000000: "FortyGigabitEthernet",
+                100000000: "HundredGigE",
             },
             "cisco_iosxr": {
                 1000000: "GigabitEthernet",
@@ -81,7 +102,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
 
 
-    def get_port_suffix(self, hardware_model:str, index:int) -> Optional[str]:
+    def get_port_suffix(self, hardware_model:str, index:int, stack_index:int) -> Optional[str]:
         max_index = 0
         suffix_string = ""
 
@@ -90,15 +111,24 @@ class CiscoIOSCLIRenderer(RendererBase):
             case "C9300-48":
                 max_index = 48
             case "C9300-48P":
-                max_index = 48
+                max_index = 52
+            case "C9500-48Y4C":
+                max_index = 52
 
         # TODO: Fungerar upp till max port, förutsätter sen att man är 
         # på en modul, stöd för en modul eftersom vi inte vet maxportar på
         # tilläggsmodulen.
-        if index < max_index:
-            suffix_string = f"1/0/{index+1}"
+        if index <= max_index:
+            if stack_index is not None:
+                suffix_string = f"{stack_index}/0/{index+1}"
+            #suffix_string = f"1/0/{index+1}"
         elif index > max_index:
-            suffix_string = f"1/1/{index - max_index + 1}"
+            if stack_index is not None:
+                suffix_string = f"{stack_index}/1/{index - max_index + 1}"
+            #suffix_string = f"1/1/{index - max_index + 1}"
         return suffix_string
     
     # Create functions to handle ref paths
+
+    # Create functions to handle port channles
+    # def get_port_channel_suffix(self, hardware_model:str, index:int) -> Optional[str]:

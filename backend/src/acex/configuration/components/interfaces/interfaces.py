@@ -46,7 +46,8 @@ class LagInterface(Interface):
     """
     WIP :) 
     """
-    ...
+    type = "ieee8023adLag"
+    model_cls = Ieee8023adLagInterface
 
 class Svi(Interface):
     type = "l3ipvlan"

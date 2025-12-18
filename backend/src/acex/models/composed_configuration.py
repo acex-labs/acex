@@ -146,6 +146,11 @@ class Ieee8023adLagInterface(Interface):
     "LAG Interface"
     type: Literal["ieee8023adLag"] = "ieee8023adLag"
     members: list[str] = Field(default_factory=list)
+    switchport: Optional[AttributeValue[bool]] = None
+    switchport_mode: Optional[AttributeValue[Literal["access", "trunk"]]] = None
+    trunk_allowed_vlans: Optional[AttributeValue[List[int]]] = None
+    native_vlan: Optional[AttributeValue[int]] = None
+    mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
 
 class L3IpvlanInterface(Interface):
     "SVI Interface"

@@ -22,7 +22,6 @@ username {{ user.name }} privilege {{ user.privilege | default(15) }} secret {{ 
 {%- endfor %}
 {%- endif %}
 !
-{#
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "softwareLoopback" %}
 interface Loopback{{ intf.index.value }}
@@ -37,7 +36,46 @@ interface Loopback{{ intf.index.value }}
 {%-     endif %}
 {%-  endif %}
 {%- endfor %}
-#}
+!
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.metadata.type == "ieee8023adLag" %}
+interface {{ intf.name }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
+{%-    endif %}
+{%- if 'vrf' in intf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
+{%- if 'ipv4' in intf %}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
+{%-     endif %}
+{%- endif %}
+{%-  if intf.switchport and intf.switchport.value %}
+{%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
+ switchport mode access
+{%-      if intf.native_vlan %}
+ switchport access vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+{%-    endif %}
+{%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
+ switchport mode trunk
+{%-      if intf.native_vlan %}
+ switchport trunk native vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+{%-      if intf.trunk_allowed_vlans %}
+    switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
+{%-      endif %}
+{%-    endif %}
+{%-  endif %}
+{%-  if intf.enabled and intf.enabled.value %}
+ no shutdown
+{%-    else %}
+ shutdown
+{%-   endif %}
+{%-  endif %}
+!
+{%- endfor %}
 !
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "ethernetCsmacd" %}
@@ -78,7 +116,6 @@ interface {{ intf.name }}
 {%-  endif %}
 !
 {%- endfor %}
-!
 {#
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "l3ipvlan" and intf.vlan_id %}
