@@ -121,11 +121,13 @@ class CiscoIOSCLIRenderer(RendererBase):
         if index <= max_index:
             if stack_index is not None:
                 suffix_string = f"{stack_index}/0/{index+1}"
-            #suffix_string = f"1/0/{index+1}"
+            else:
+                suffix_string = f"1/0/{index+1}"
         elif index > max_index:
             if stack_index is not None:
                 suffix_string = f"{stack_index}/1/{index - max_index + 1}"
-            #suffix_string = f"1/1/{index - max_index + 1}"
+            else:
+                suffix_string = f"1/0/{index - max_index + 1}"
         return suffix_string
     
     # Create functions to handle ref paths
