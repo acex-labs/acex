@@ -34,6 +34,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         configuration = self.physical_interface_names(configuration, asset)
         self.add_vrf_to_intefaces(configuration)
         self.ssh_interface(configuration)
+        #self.lacp_load_balancing(configuration)
         return configuration
 
     #def handle_vty_lines(self, configuration):
@@ -48,6 +49,33 @@ class CiscoIOSCLIRenderer(RendererBase):
     #    
     #    vtys['lines'] = vty_lines
     #    return configuration
+
+    #def lacp_load_balancing(self, configuration):
+    #    """Process LACP load balancing configurations if needed."""
+    #    lacp = configuration.get('lacp')
+    #    print('lacp: ', lacp)
+    #    if not lacp:
+    #        return
+#
+    #    load_balance_algorithm = lacp.get('config', {}).get('load_balance_algorithm')
+    #    if not load_balance_algorithm:
+    #        return
+#
+    #    print("load_balance_algorithm: ", load_balance_algorithm)
+    #    # Regular handling for single algorithm
+    #    if len(load_balance_algorithm) == 1:
+    #        algorithm_str = load_balance_algorithm['value'][0]
+    #        lacp['config']['load_balance_algorithm'] = algorithm_str+','
+    #        return
+#
+    #    # Extended handling for Cisco IOS load balancing algorithms
+    #    if len(load_balance_algorithm) >= 2:
+    #    # Cisco IOS expects a comma-separated string of algorithms
+    #    # Convert list to comma-separated string for template use
+    #        algorithm_str = ','.join(load_balance_algorithm['value'])
+    #        print("algorithm_str: ", algorithm_str)
+    #        lacp['config']['load_balance_algorithm'] = algorithm_str
+    #        return
 
     def ssh_interface(self, configuration):
         """Process SSH interface configurations if needed."""

@@ -18,7 +18,7 @@ from acex.configuration.components.system import (
 )
 
 from acex.configuration.components.system.logging import RemoteServer, Console, VtyLine, LoggingConfig, FileLogging
-
+from acex.configuration.components.lacp import LacpConfig
 from acex.configuration.components.system.ntp import NtpServer
 from acex.configuration.components.system.ssh import SshServer, AuthorizedKey
 from acex.configuration.components.network_instances import NetworkInstance, L3Vrf
@@ -48,6 +48,9 @@ class Configuration:
         VtyLine: "system.logging.vty",
         LoggingConfig: "system.logging.config",
         FileLogging: "system.logging.files",
+        LacpConfig: "lacp.config",
+        #LacpInterfaces: "lacp.interfaces",
+        #LacpConfgi: "lacp.config",
         Loopback: "interfaces", 
         #Physical: "interfaces",
         FrontpanelPort: "interfaces",

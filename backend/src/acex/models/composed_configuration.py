@@ -143,17 +143,19 @@ class EthernetCsmacdInterface(Interface):
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
 
     # LACP relaterade attribut
-    aggregate_id: Optional[AttributeValue[str]] = None
+    aggregate_id: Optional[AttributeValue[int]] = None
     lacp_enabled: Optional[AttributeValue[bool]] = None
-    lacp_mode: Optional[AttributeValue[Literal["active", "passive"]]] = None
-    lacp_system_priority: Optional[AttributeValue[int]] = None
-    lacp_system_id_mac: Optional[AttributeValue[str]] = None
+    lacp_mode: Optional[AttributeValue[Literal["active", "passive", "on", "auto"]]] = None
+    lacp_port_priority: Optional[AttributeValue[int]] = None
+    #lacp_system_id_mac: Optional[AttributeValue[str]] = None
     lacp_interval : Optional[AttributeValue[Literal["fast", "slow"]]] = None
 
 class Ieee8023adLagInterface(Interface):
     "LAG Interface"
     type: Literal["ieee8023adLag"] = "ieee8023adLag"
+    aggregate_id: AttributeValue[int] = None
     members: list[str] = Field(default_factory=list)
+    max_ports = Optional[AttributeValue[int]] = None
     switchport: Optional[AttributeValue[bool]] = None
     switchport_mode: Optional[AttributeValue[Literal["access", "trunk"]]] = None
     trunk_allowed_vlans: Optional[AttributeValue[List[int]]] = None
@@ -206,9 +208,11 @@ class NetworkInstance(BaseModel):
 
 class LacpConfig(BaseModel):
     system_priority: Optional[AttributeValue[int]] = None
+    system_id_mac: Optional[AttributeValue[str]] = None
+    load_balance_algorithm: Optional[AttributeValue[list[Literal["src-mac", "dst-mac", "src-dst-mac", "src-ip", "dst-ip", "src-dst-ip", "src-port", "dst-port", "src-dst-port"]]]] = None
 
 class Lacp(BaseModel):
-    config: LacpConfig = LacpConfig()
+    config: Optional[LacpConfig] = LacpConfig()
     interfaces: Optional[Dict[str, Interface]] = {}
 
 class System(BaseModel):
@@ -217,6 +221,7 @@ class System(BaseModel):
     logging: Optional[LoggingComponents] = LoggingComponents() # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
+    #lacp: Optional[Lacp] = Lacp()
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
@@ -232,6 +237,7 @@ class ComposedConfiguration(BaseModel):
     system: Optional[System] = System()
     acl: Optional[Acl] = Acl()
     lldp: Optional[Lldp] = Lldp()
+    lacp: Optional[Lacp] = Lacp()
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
-    #lacp: Optional[Lacp] = Lacp()
+    
