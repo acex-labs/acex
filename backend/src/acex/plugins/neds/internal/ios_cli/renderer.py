@@ -72,7 +72,6 @@ class CiscoIOSCLIRenderer(RendererBase):
             return
 
         ssh_interface = f"vlan{vlan_id}"
-        print('ssh interface: ', ssh_interface)
         # Store resolved interface for template use if needed
         ssh['config']['source_interface'] = ssh_interface
 
