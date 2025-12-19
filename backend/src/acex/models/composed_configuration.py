@@ -143,6 +143,7 @@ class EthernetCsmacdInterface(Interface):
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
 
     # LACP relaterade attribut
+    aggregate_id: Optional[AttributeValue[str]] = None
     lacp_enabled: Optional[AttributeValue[bool]] = None
     lacp_mode: Optional[AttributeValue[Literal["active", "passive"]]] = None
     lacp_system_priority: Optional[AttributeValue[int]] = None

@@ -10,7 +10,7 @@ from acex.models.composed_configuration import (
     SubInterface as SubInterfaceModel
 )
 
-from acex.models.composed_configuration import ReferenceFrom
+from acex.models.composed_configuration import ReferenceFrom, ReferenceTo
 from typing import Optional
 
 class Interface(ConfigComponent):
@@ -33,6 +33,20 @@ class FrontpanelPort(Interface):
     model_cls = EthernetCsmacdInterface
     def pre_init(self):
         self._add_vrf()
+        # Resolve referenced etherchannel if any
+        #print('self.kwargs: ', self.kwargs)
+        #if "etherchannel" in self.kwargs:
+        #    print('self.kwargs: ', self.kwargs)
+        #    ec = self.kwargs.pop("etherchannel")
+        #    if isinstance(ec, type(None)):
+        #        pass
+        #    elif isinstance(ec, str):
+        #        ref = ReferenceTo(pointer=f"interfaces.{ec}")
+        #        #print("ref: ", ref)
+        #        self.kwargs["etherchannel"] = ref
+        #    elif isinstance(ec, LagInterface):
+        #        #print("ref: ", ref)
+        #        self.kwargs["etherchannel"] = ReferenceTo(pointer=f"interfaces.{ec.name}")
 
 class ManagementPort(Interface):
     type = "ManagementInterface"
@@ -48,6 +62,10 @@ class LagInterface(Interface):
     """
     type = "ieee8023adLag"
     model_cls = Ieee8023adLagInterface
+
+    #def pre_init(self):
+    #    # Resolve referenced interfaces if any
+    #    if "etherchannel" in self.kwargs:
 
 class Svi(Interface):
     type = "l3ipvlan"
