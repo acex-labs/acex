@@ -172,3 +172,53 @@ jobs:
       with:
         packages-dir: ${{ matrix.package }}/dist/
         verbose: true
+
+
+  # Drivers below, slightly different logic
+
+  build-and-publish-drivers:
+    name: Build & Publish Drivers
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Krävs för Trusted Publisher (OIDC)
+      contents: read
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        driver:
+          - cisco_ios_cli
+          - juniper_junos_cli
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Update lock file
+        working-directory: ./drivers/${{ matrix.driver }}
+        run: poetry lock
+
+      - name: Install dependencies - ${{ matrix.driver }}
+        working-directory: ./drivers/${{ matrix.driver }}
+        run: poetry install --no-interaction
+
+      - name: Build driver package
+        working-directory: ./drivers/${{ matrix.driver }}
+        run: poetry build
+
+      - name: Publish to PyPI using Trusted Publisher
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: drivers/${{ matrix.driver }}/dist/
+          verbose: true
