@@ -25,6 +25,8 @@ jobs:
             pypi-name: acex-client
           - package: mcp
             pypi-name: acex-mcp-server
+          - package: driver_cisco
+            pypi-name: acex-driver-cisco-ioscli
     
     steps:
     - name: Checkout code
@@ -85,6 +87,11 @@ jobs:
       if: matrix.package == 'mcp'
       run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
 
+    - name: Set matrix output
+      id: check-driver-ciscl
+      if: matrix.package == 'driver_cisco'
+      run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
+
   build-and-publish:
     name: Build & Publish ${{ matrix.package }}
     needs: check-versions
@@ -96,7 +103,7 @@ jobs:
     strategy:
       fail-fast: false  # Fortsätt med andra paket även om ett failar
       matrix:
-        package: [backend, cli, client, mcp]
+        package: [backend, cli, client, mcp, driver_cisco]
         include:
           - package: backend
             pypi-name: acex
@@ -110,7 +117,10 @@ jobs:
           - package: mcp
             pypi-name: acex-mcp-server
             should-publish-output: mcp-should-publish
-    
+          - package: driver_cisco
+            pypi-name: acex-driver-cisco-ioscli
+            should-publish-output: driver_cisco-should-publish
+
     steps:
     - name: Check if should publish
       id: should-publish

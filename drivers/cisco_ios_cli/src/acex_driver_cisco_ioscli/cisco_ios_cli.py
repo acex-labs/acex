@@ -27,25 +27,9 @@ class CiscoIOSTransport(TransportBase):
         pass
 
 
-class CiscoIOSCLI(NetworkElementDriver):
-    """Driver for Cisco IOS CLI devices."""
+class CiscoIOSCLIDriver(NetworkElementDriver):
+    """Cisco IOS CLI driver."""
 
-    version = "1.0.0"
-    renderer_class = CiscoIOSCLIRenderer
-    transport_class = CiscoIOSTransport
-
-    def render(self, logical_node, asset):
-        """Render the configuration for a Cisco IOS CLI device."""
-        # Call the base class render method
-        config = self.renderer.render(logical_node, asset)
-        return config
-
-
-class CiscoIOSCLIDriver2(NetworkElementDriver):
-    """Version 2 of Cisco IOS CLI driver."""
-
-    name = "CiscoIOSCLIDriver".lower() # Can be overridden like this if necessary for versioning.
-    version = "2.0.0"
     renderer_class = CiscoIOSCLIRenderer
     transport_class = CiscoIOSTransport
 

@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "acex-driver-cisco-ioscli"
+version = "0.0.1"
+description = "ACE-X Driver: Cisco IOS CLI SSH"
+authors = ["Johan Lahti <johan.lahti@acebit.se>"]
+license = "AGPL-3.0"
+homepage = "https://github.com/acex-labs/acex"
+repository = "https://github.com/acex-labs/acex"
+
+packages = [
+    { include = "acex_driver_cisco_ioscli", from="src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.plugins."acex.neds"]
+cisco_ios_cli = "acex_driver_cisco_ioscli.cisco_ios_cli:CiscoIOSCLIDriver"
