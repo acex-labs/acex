@@ -25,7 +25,7 @@ from acex.configuration.components.vlan import Vlan
 from acex.models.attribute_value import AttributeValue
 
 from acex.models import ExternalValue
-from acex.models.composed_configuration import ComposedConfiguration, ReferenceTo, ReferenceFrom, RenderedReference
+from acex.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict
 from typing import Dict
 from string import Template
@@ -266,13 +266,11 @@ class Configuration:
                 else:
                     ptr = getattr(ptr, part)
 
-            value = {
-                "name": pointer_value.name.value,
-                "metadata": {
-                    "type": "reference",
-                    "ref_path": reference.to_ptr
-                }
-            }
+            reference = Reference(
+                pointer = reference.to_ptr
+            )
+
+            value = reference
             # Insert the referenced value dict to the insertion point.
             # If attribute of insertionpoint is a dict, value has to be keyed
             if isinstance(getattr(ptr, insertion_attr), dict):

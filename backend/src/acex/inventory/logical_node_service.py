@@ -1,5 +1,5 @@
 import inspect
-from acex.models import LogicalNode
+from acex.models import LogicalNode, LogicalNodeResponse
 
 
 class LogicalNodeService:
@@ -30,7 +30,7 @@ class LogicalNodeService:
         result = await self._call_method(self.adapter.create, logical_node)
         return result
     
-    async def get(self, id: str, resolve: bool = False):
+    async def get(self, id: str, resolve: bool = False) -> LogicalNodeResponse:
 
         # Fetch LN from plugin:
         ln = await self._call_method(self.adapter.get, id)

@@ -1,5 +1,6 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional, Dict
+from acex.models.composed_configuration import ComposedConfiguration
 
 class LogicalNodeBase(SQLModel):
     hostname: str = Field(default="R1")
@@ -15,7 +16,7 @@ class LogicalNodeCreate(LogicalNodeBase):
 
 class LogicalNodeResponse(LogicalNodeBase):
     id: Optional[int] = Field(default=None)
-    configuration: Dict = Field(default_factory=dict)
+    configuration: ComposedConfiguration = ComposedConfiguration()
     meta_data: Dict = Field(default_factory=dict)
 
 class LogicalNodeListResponse(LogicalNodeBase):
