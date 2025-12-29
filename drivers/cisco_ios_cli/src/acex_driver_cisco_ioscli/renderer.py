@@ -3,7 +3,7 @@ from acex.plugins.neds.core import RendererBase
 from typing import Any, Dict, Optional
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from jinja2 import Environment, FileSystemLoader
 from .filters import cidr_to_addrmask
 
 
