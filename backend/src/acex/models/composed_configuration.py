@@ -1,6 +1,6 @@
 
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List, Literal, ClassVar, Union, Any
+from typing import Optional, Dict, List, Literal, ClassVar, Union
 from enum import Enum
 
 from acex.models.external_value import ExternalValue
@@ -14,18 +14,10 @@ from acex.models.logging import (
     LoggingEvents
 )
 
-class MetadataValueType(Enum):
-    CONCRETE = "concrete"
-    EXTERNALVALUE = "externalValue"
-    REFERENCE = "reference"
-
 class Metadata(BaseModel):
-    type: Optional[str] = "str"
-    value_source: MetadataValueType = MetadataValueType.CONCRETE 
+    type: str = "NoneType"
 
-class Reference(BaseModel): 
-    pointer: str
-    metadata: Metadata = Metadata(type="str", value_source="reference")
+class Reference(BaseModel): ...
 
 class ReferenceTo(Reference):
     pointer: str
@@ -106,7 +98,7 @@ class Vlan(BaseModel):
     vlan_id: Optional[AttributeValue[int]] = None
     vlan_name: Optional[AttributeValue[str]] = None
     network_instance: Optional[AttributeValue[str]] = None
-    metadata: Optional[Metadata]
+    metadata: Optional[Metadata] = Metadata()
 
 class Interface(BaseModel): 
     "Base class for all interfaces"
@@ -117,7 +109,7 @@ class Interface(BaseModel):
     enabled: Optional[AttributeValue[bool]] = None
     ipv4: Optional[AttributeValue[str]] = None
     
-    metadata: Optional[Metadata] = Metadata()
+    metadata: Optional[Metadata] = Field(default_factory=Metadata)
     type: Literal[
         "ethernetCsmacd",
         "ieee8023adLag",
@@ -137,6 +129,7 @@ class EthernetCsmacdInterface(Interface):
     type: Literal["ethernetCsmacd"] = "ethernetCsmacd"
 
     # Egenskaper för fysiska interface
+    stack_index: Optional[AttributeValue[int]] = None 
     subinterfaces: list["SubInterface"] = Field(default_factory=list)
     speed: Optional[AttributeValue[int]] = None
     duplex: Optional[AttributeValue[str]] = None
@@ -149,10 +142,25 @@ class EthernetCsmacdInterface(Interface):
     voice_vlan: Optional[AttributeValue[int]] = None
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
 
+    # LACP relaterade attribut
+    aggregate_id: Optional[AttributeValue[int]] = None
+    lacp_enabled: Optional[AttributeValue[bool]] = None
+    lacp_mode: Optional[AttributeValue[Literal["active", "passive", "on", "auto"]]] = None
+    lacp_port_priority: Optional[AttributeValue[int]] = None
+    #lacp_system_id_mac: Optional[AttributeValue[str]] = None
+    lacp_interval : Optional[AttributeValue[Literal["fast", "slow"]]] = None
+
 class Ieee8023adLagInterface(Interface):
     "LAG Interface"
     type: Literal["ieee8023adLag"] = "ieee8023adLag"
+    aggregate_id: AttributeValue[int] = None
     members: list[str] = Field(default_factory=list)
+    max_ports = Optional[AttributeValue[int]] = None
+    switchport: Optional[AttributeValue[bool]] = None
+    switchport_mode: Optional[AttributeValue[Literal["access", "trunk"]]] = None
+    trunk_allowed_vlans: Optional[AttributeValue[List[int]]] = None
+    native_vlan: Optional[AttributeValue[int]] = None
+    mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
 
 class L3IpvlanInterface(Interface):
     "SVI Interface"
@@ -195,9 +203,17 @@ class NetworkInstance(BaseModel):
     name: AttributeValue[str]
     description: Optional[AttributeValue[str]] = None
     vlans: Optional[Dict[str, Vlan]] = {}
-    interfaces: Optional[Dict[str, Reference]] = {}
+    interfaces: Optional[Dict[str, Interface]] = {}
     inter_instance_policies: Optional[Dict[str, InterInstancePolicy]] = {}
 
+class LacpConfig(BaseModel):
+    system_priority: Optional[AttributeValue[int]] = None
+    system_id_mac: Optional[AttributeValue[str]] = None
+    load_balance_algorithm: Optional[AttributeValue[list[Literal["src-mac", "dst-mac", "src-dst-mac", "src-ip", "dst-ip", "src-dst-ip", "src-port", "dst-port", "src-dst-port"]]]] = None
+
+class Lacp(BaseModel):
+    config: Optional[LacpConfig] = LacpConfig()
+    interfaces: Optional[Dict[str, Interface]] = {}
 
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
@@ -205,7 +221,7 @@ class System(BaseModel):
     logging: Optional[LoggingComponents] = LoggingComponents() # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
-
+    #lacp: Optional[Lacp] = Lacp()
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
@@ -221,5 +237,7 @@ class ComposedConfiguration(BaseModel):
     system: Optional[System] = System()
     acl: Optional[Acl] = Acl()
     lldp: Optional[Lldp] = Lldp()
+    lacp: Optional[Lacp] = Lacp()
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
+    
