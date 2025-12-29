@@ -43,6 +43,7 @@ class Interfaces(ConfigMap):
         for portchannel in portchannel_list:
             portchannel = LagInterface(
                 name = f'Port-channel{portchannel.get("index")}',
+                aggregate_id = portchannel.get("aggregate_id"),
                 index = portchannel.get("index"),
                 description = portchannel.get("description"),
                 switchport_mode = portchannel.get("switchport_mode"),
