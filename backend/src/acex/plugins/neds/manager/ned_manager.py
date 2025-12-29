@@ -2,83 +2,142 @@ import importlib
 import pkgutil
 from typing import Dict, Type
 from importlib.metadata import entry_points
+from acex.constants import NED_WHEEL_DIR, DEFAULT_DRIVERS
 from acex.plugins.neds.core import NetworkElementDriver
+
+import subprocess
+import sys
+from pathlib import Path
+
 
 class NEDManager:
     def __init__(self):
 
+        self.driver_dir = Path.cwd() / NED_WHEEL_DIR # TODO: Fix a more robust way to discover project root. or just be run at specifik cli command
+        self.driver_dir.mkdir(parents=True, exist_ok=True)
         self.drivers: Dict[str, list[NetworkElementDriver]] = {}
-        self.load_internal_drivers()
-        self.load_external_drivers()
 
-    def load_internal_drivers(self):
-        """Ladda interna drivrutiner från plugins.neds.internal-katalogen."""
-        base_path = "acex.plugins.neds.internal"
-        for importer, module_name, _ in pkgutil.walk_packages(
-            path=importlib.import_module(base_path).__path__,
-            prefix=f"{base_path}."
-        ):
-            try:
-                module = importlib.import_module(module_name)
-                for attr_name in dir(module):
-                    klass = getattr(module, attr_name)
-                    if (
-                        isinstance(klass, type)
-                        and issubclass(klass, NetworkElementDriver)
-                        and klass is not NetworkElementDriver
-                    ):
-                        instance = klass()
-                        key = instance.key
-                        self.drivers.setdefault(key, []).append(instance)
-            except Exception as e:
-                print(f"Fel vid laddning av {module_name}: {e}")
+        # All driver specs saved here.
+        self.driver_specs = []
+        for driver in DEFAULT_DRIVERS:
+            self.driver_specs.append(driver)
+
+        self._download_and_install_neds_in_specs()
+
+        # Load all installed drivers
+        self.load_drivers()
 
 
-    def load_external_drivers(self):
+    def _build_spec(self, package: str, version: str) -> str:
+        if version == "latest":
+            return package
+        # om version innehåller operator (> , >= , < , <= , ==) så lämna som den är
+        operators = ["<=", ">=", ">", "<", "==", "~=", "!="]
+        if any(op in version for op in operators):
+            return f"{package}{version}"
+        # annars tolka som exakt version
+        return f"{package}=={version}"
+
+
+    def _install_whl(self, whl_path: Path):
+        subprocess.run([
+            "python", "-m", "pip", "install", str(whl_path)
+        ], check=True)
+
+    def _download_and_install_neds_in_specs(self):
+        for driver in self.driver_specs:
+            self._download_driver_whl(**driver)
+
+    def _download_driver_whl(self, package: str, version: str, source: str = "pypi"):
+        """
+        Downloads driver from external source, such as pypi, and places
+        whl in a local folder for later distribution via API, and local
+        install. 
+        """
+        spec = self._build_spec(package, version)
+        print(f"Downloading: {spec}")
+        subprocess.run([
+            "python", "-m", "pip", "download", spec,
+            "--only-binary=:all:",
+            "--dest", str(self.driver_dir)
+        ], check=True)
+
+        # find downloaded wheel
+        pattern = f"{package.replace('-', '_')}*.whl"  # pip använder _ i modulnamn ibland
+        whl_files = list(self.driver_dir.glob(pattern))
+        if not whl_files:
+            raise FileNotFoundError(f"No wheel found for {spec} in {self.driver_dir}")
+        
+        # install first if many
+        whl_path = whl_files[0] 
+        print(f"Installing wheel: {whl_path}")
+
+        # Installera
+        self._install_whl(whl_path)
+
+
+    def load_drivers(self):
         """Ladda externa drivrutiner via entry_points."""
 
         for entry_point in entry_points(group="acex.neds"):
             try:
                 klass = entry_point.load()
-                if issubclass(klass, NetworkElementDriver):
-                    instance = klass()
-                    key = instance.key
-                    self.drivers.setdefault(key, []).append(instance)
+                instance = klass()
+                version = entry_point.dist.version 
+                self.drivers[klass.__name__] = {
+                    "instance": instance,
+                    "version": version,
+                    "distname": entry_point.dist.name
+                }
             except Exception as e:
                 print(f"Fel vid laddning av {entry_point.name}: {e}")
 
-    def get_driver(self, driver_name: str, version: str = None) -> NetworkElementDriver:
-        """Hämta en drivrutinsinstans efter namn och ev. version. Om version inte anges, returnera den med högst version."""
-        candidates = self.drivers.get(driver_name.lower(), [])
-        if not candidates:
-            raise ValueError(f"Drivrutinen {driver_name} finns inte")
-        if version:
-            for driver in candidates:
-                driver_version = getattr(type(driver), "version", None)
-                if driver_version == version:
-                    return driver
-            raise ValueError(f"Drivrutinen {driver_name} med version {version} finns inte")
-        if len(candidates) == 1:
-            return candidates[0]
-        try:
-            from packaging.version import parse as parse_version
-            candidates.sort(key=lambda d: parse_version(getattr(type(d), "version", "0.0.0")), reverse=True)
-        except ImportError:
-            candidates.sort(key=lambda d: getattr(type(d), "version", "0.0.0"), reverse=True)
-        return candidates[0]
+        print("Installed neds:")
+        for d in self.drivers:
+            print(f" - {d}")
+
+    def get_driver_info(self, driver_name: str) -> NetworkElementDriver:
+        """Hämta en drivrutinsinstans efter namn"""
+        ned = self.drivers.get(driver_name)
+
+        if ned is None:
+            return None
+
+        ned_instance = ned["instance"]
+        response = {
+            "name": driver_name,
+            "version": ned.get("version"),
+            "description": type(ned_instance).__doc__
+        }
+
+        return response
+
+    def driver_download_path(self, driver_name: str) -> NetworkElementDriver:
+        """Returnera sökvägen till .whl-filen för en installerad drivrutin."""
+        ned = self.drivers.get(driver_name)
+        if ned is None:
+            return None
+
+        version = ned.get("version")
+        dist_name = ned.get('distname')
+        pattern = f"{dist_name.replace('-', '_')}-{version}-*.whl"
+        matches = list(self.driver_dir.glob(pattern))
+
+        if not matches:
+            return None
+        return str(matches[0])
+
 
     def list_drivers(self) -> list[dict]:
         """Returnera en lista över tillgängliga drivrutinsnamn."""
         result = []
-        for key, drivers in self.drivers.items():
-            for driver in drivers:
+        for key, driver_data in self.drivers.items():
+                driver = driver_data["instance"]
                 kind = type(driver)
                 info = {
-                    "name": getattr(kind, "name", key),
-                    "class": kind.__name__,
-                    "version": getattr(kind, "version", "n/a"),
+                    "id": key,
+                    "version": driver_data.get("version", "n/a"),
                     "description": kind.__doc__ or "n/a",
-                    "identifier": driver.key
                 }
                 result.append(info)
         return result

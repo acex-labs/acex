@@ -33,14 +33,6 @@ class NetworkElementDriver:
         self.renderer = self.renderer_class()
         self.transport = self.transport_class()
 
-    @property
-    def key(self) -> str:
-        """Returnerar en unik identifierare för denna driver."""
-
-        name = getattr(self.__class__, "name", self.__class__.__name__.lower())
-
-        return f"{name}:{self.__class__.version.lower()}"
-
     @abstractmethod
     def render(self, logical_node:LogicalNode) -> Any:
         """Tar en LogicalNode och returnerar en konfigurationsrepresentation."""
