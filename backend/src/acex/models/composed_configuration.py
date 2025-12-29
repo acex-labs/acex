@@ -106,7 +106,7 @@ class Vlan(BaseModel):
     vlan_id: Optional[AttributeValue[int]] = None
     vlan_name: Optional[AttributeValue[str]] = None
     network_instance: Optional[AttributeValue[str]] = None
-    metadata: Optional[Metadata]
+    metadata: Optional[Metadata] = Metadata()
 
 class Interface(BaseModel): 
     "Base class for all interfaces"
