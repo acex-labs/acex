@@ -4,6 +4,7 @@ from typing import Dict, Type
 from importlib.metadata import entry_points
 from acex.constants import NED_WHEEL_DIR, DEFAULT_DRIVERS
 from acex.plugins.neds.core import NetworkElementDriver
+from acex.models.ned import Ned
 
 import subprocess
 import sys
@@ -22,10 +23,10 @@ class NEDManager:
         for driver in DEFAULT_DRIVERS:
             self.driver_specs.append(driver)
 
-        self._download_and_install_neds_in_specs()
+        
 
         # Load all installed drivers
-        self.load_drivers()
+        # self.load_drivers()
 
 
     def _build_spec(self, package: str, version: str) -> str:
@@ -44,7 +45,7 @@ class NEDManager:
             "python", "-m", "pip", "install", str(whl_path)
         ], check=True)
 
-    def _download_and_install_neds_in_specs(self):
+    def download_and_install_neds_in_specs(self):
         for driver in self.driver_specs:
             self._download_driver_whl(**driver)
 
@@ -74,7 +75,6 @@ class NEDManager:
 
         # Installera
         self._install_whl(whl_path)
-
 
     def load_drivers(self):
         """Ladda externa drivrutiner via entry_points."""
@@ -135,6 +135,19 @@ class NEDManager:
         }
 
         return response
+
+
+    def get_driver_instance(self, driver_name:str):
+        """
+        Returns an instance of the driver class based on name.
+        Checks for installed driver based on entrypoint and then name
+        of the class. 
+        """
+        for entry_point in entry_points(group="acex.neds"):
+            print()
+            if entry_point.value.split(":")[-1] == driver_name:
+                return entry_point.load()()
+
 
     def list_drivers(self) -> list[dict]:
         """Returnera en lista över tillgängliga drivrutinsnamn."""

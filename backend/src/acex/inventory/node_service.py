@@ -52,11 +52,13 @@ class NodeService:
             asset = self.inventory.assetclusters.get(ni.asset_ref_id)
         else:
             asset = self.inventory.assets.get(ni.asset_ref_id)
+
+        print(f"fetch ned: {asset.ned_id}")
         ned_manager = NEDManager()
-        ned = ned_manager.get_driver(asset.ned_id)
+        ned = ned_manager.get_driver_instance(asset.ned_id)
 
         if ned is None:
-            return {"error": "NED not found"}
+            return "error: NED not found"
         try:
             config = ned.render(logical_node=ln, asset=asset)
         except Exception as e:
