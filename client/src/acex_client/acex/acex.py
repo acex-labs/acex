@@ -1,7 +1,11 @@
 import requests
 from models.models import ComposedConfiguration
-from models.models import LogicalNode
+from models.models import LogicalNode, Ned
 from restclient.restclient import RestClient
+
+from .logical_nodes import LogicalNodes
+from .neds import Neds
+
 
 class Acex: 
     def __init__(
@@ -12,20 +16,6 @@ class Acex:
         self.api_url = f"{baseurl}api/v{api_ver}"
         self.rest = RestClient(api_url = self.api_url)
 
-    
-    def test(self):
-        t = requests.get(f"{self.api_url}/inventory/logical_nodes/1")
-        t = t.json()
+        self.logical_nodes = LogicalNodes(self.rest)
+        self.neds = Neds(self.rest)
 
-        cc = ComposedConfiguration(**t["configuration"])
-
-
-    def logical_nodes(self):
-        response = []
-        ep = "/inventory/logical_nodes/"
-        api_response = self.rest.query_items(ep)
-
-        for ln in api_response:
-            response.append(LogicalNode(**ln))
-
-        return response
