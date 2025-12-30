@@ -23,8 +23,6 @@ class NEDManager:
         for driver in DEFAULT_DRIVERS:
             self.driver_specs.append(driver)
 
-        
-
         # Load all installed drivers
         # self.load_drivers()
 
@@ -105,8 +103,6 @@ class NEDManager:
         version = ned.get("version")
         package_name = ned.get('package_name')
         pattern = f"{package_name.replace('-', '_')}-{version}-*.whl"
-        package_name = ned.get('package_name')
-        pattern = f"{package_name.replace('-', '_')}-{version}-*.whl"
         matches = list(self.driver_dir.glob(pattern))
 
         if not matches:
@@ -158,12 +154,9 @@ class NEDManager:
                 driver = driver_data["instance"]
                 kind = type(driver)
                 filename = self.driver_filename(key)
-                filename = self.driver_filename(key)
                 info = {
                     "name": key,
-                    "name": key,
                     "version": driver_data.get("version", "n/a"),
-                    "package_name": driver_data.get('package_name'),
                     "package_name": driver_data.get('package_name'),
                     "description": kind.__doc__ or "n/a",
                     "filename": filename
