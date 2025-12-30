@@ -88,6 +88,7 @@ class NEDManager:
                     "instance": instance,
                     "version": version,
                     "package_name": entry_point.dist.name
+                    "package_name": entry_point.dist.name
                 }
             except Exception as e:
                 print(f"Fel vid laddning av {entry_point.name}: {e}")
@@ -103,6 +104,8 @@ class NEDManager:
             return None
 
         version = ned.get("version")
+        package_name = ned.get('package_name')
+        pattern = f"{package_name.replace('-', '_')}-{version}-*.whl"
         package_name = ned.get('package_name')
         pattern = f"{package_name.replace('-', '_')}-{version}-*.whl"
         matches = list(self.driver_dir.glob(pattern))
@@ -136,19 +139,6 @@ class NEDManager:
 
         return response
 
-
-    def get_driver_instance(self, driver_name:str):
-        """
-        Returns an instance of the driver class based on name.
-        Checks for installed driver based on entrypoint and then name
-        of the class. 
-        """
-        for entry_point in entry_points(group="acex.neds"):
-            print()
-            if entry_point.value.split(":")[-1] == driver_name:
-                return entry_point.load()()
-
-
     def list_drivers(self) -> list[dict]:
         """Returnera en lista över tillgängliga drivrutinsnamn."""
         result = []
@@ -156,11 +146,15 @@ class NEDManager:
                 driver = driver_data["instance"]
                 kind = type(driver)
                 filename = self.driver_filename(key)
+                filename = self.driver_filename(key)
                 info = {
+                    "name": key,
                     "name": key,
                     "version": driver_data.get("version", "n/a"),
                     "package_name": driver_data.get('package_name'),
+                    "package_name": driver_data.get('package_name'),
                     "description": kind.__doc__ or "n/a",
+                    "filename": filename
                     "filename": filename
                 }
                 result.append(info)
