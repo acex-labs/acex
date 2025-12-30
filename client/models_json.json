@@ -1002,7 +1002,13 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Ned"
+                                    },
+                                    "type": "array",
+                                    "title": "Response List Neds Api V1 Neds  Get"
+                                }
                             }
                         }
                     }
@@ -1018,22 +1024,54 @@
                 "operationId": "get_ned_api_v1_neds__ned_id__get",
                 "parameters": [
                     {
-                        "name": "driver_name",
-                        "in": "query",
+                        "name": "ned_id",
+                        "in": "path",
                         "required": true,
                         "schema": {
                             "type": "string",
-                            "title": "Driver Name"
+                            "title": "Ned Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Ned"
+                                }
+                            }
                         }
                     },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/neds/download/{filename}": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Download Ned",
+                "operationId": "download_ned_api_v1_neds_download__filename__get",
+                "parameters": [
                     {
-                        "name": "version",
-                        "in": "query",
-                        "required": false,
+                        "name": "filename",
+                        "in": "path",
+                        "required": true,
                         "schema": {
                             "type": "string",
-                            "default": "",
-                            "title": "Version"
+                            "title": "Filename"
                         }
                     }
                 ],
@@ -2853,6 +2891,39 @@
                     "reference"
                 ],
                 "title": "MetadataValueType"
+            },
+            "Ned": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "package_name": {
+                        "type": "string",
+                        "title": "Package Name"
+                    },
+                    "version": {
+                        "type": "string",
+                        "title": "Version"
+                    },
+                    "description": {
+                        "type": "string",
+                        "title": "Description"
+                    },
+                    "filename": {
+                        "type": "string",
+                        "title": "Filename"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "package_name",
+                    "version",
+                    "description",
+                    "filename"
+                ],
+                "title": "Ned"
             },
             "NetworkInstance": {
                 "properties": {

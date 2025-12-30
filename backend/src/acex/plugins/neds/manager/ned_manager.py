@@ -4,6 +4,7 @@ from typing import Dict, Type
 from importlib.metadata import entry_points
 from acex.constants import NED_WHEEL_DIR, DEFAULT_DRIVERS
 from acex.plugins.neds.core import NetworkElementDriver
+from acex.models.ned import Ned
 
 import subprocess
 import sys
@@ -22,10 +23,10 @@ class NEDManager:
         for driver in DEFAULT_DRIVERS:
             self.driver_specs.append(driver)
 
-        self._download_and_install_neds_in_specs()
+        
 
         # Load all installed drivers
-        self.load_drivers()
+        # self.load_drivers()
 
 
     def _build_spec(self, package: str, version: str) -> str:
@@ -44,7 +45,7 @@ class NEDManager:
             "python", "-m", "pip", "install", str(whl_path)
         ], check=True)
 
-    def _download_and_install_neds_in_specs(self):
+    def download_and_install_neds_in_specs(self):
         for driver in self.driver_specs:
             self._download_driver_whl(**driver)
 
@@ -75,7 +76,6 @@ class NEDManager:
         # Installera
         self._install_whl(whl_path)
 
-
     def load_drivers(self):
         """Ladda externa drivrutiner via entry_points."""
 
@@ -87,7 +87,7 @@ class NEDManager:
                 self.drivers[klass.__name__] = {
                     "instance": instance,
                     "version": version,
-                    "distname": entry_point.dist.name
+                    "package_name": entry_point.dist.name
                 }
             except Exception as e:
                 print(f"Fel vid laddning av {entry_point.name}: {e}")
@@ -96,22 +96,6 @@ class NEDManager:
         for d in self.drivers:
             print(f" - {d}")
 
-    def get_driver_info(self, driver_name: str) -> NetworkElementDriver:
-        """Hämta en drivrutinsinstans efter namn"""
-        ned = self.drivers.get(driver_name)
-
-        if ned is None:
-            return None
-
-        ned_instance = ned["instance"]
-        response = {
-            "name": driver_name,
-            "version": ned.get("version"),
-            "description": type(ned_instance).__doc__
-        }
-
-        return response
-
     def driver_download_path(self, driver_name: str) -> NetworkElementDriver:
         """Returnera sökvägen till .whl-filen för en installerad drivrutin."""
         ned = self.drivers.get(driver_name)
@@ -119,13 +103,50 @@ class NEDManager:
             return None
 
         version = ned.get("version")
-        dist_name = ned.get('distname')
-        pattern = f"{dist_name.replace('-', '_')}-{version}-*.whl"
+        package_name = ned.get('package_name')
+        pattern = f"{package_name.replace('-', '_')}-{version}-*.whl"
         matches = list(self.driver_dir.glob(pattern))
 
         if not matches:
             return None
         return str(matches[0])
+
+    def driver_filename(self, driver_name):
+        """ Returnera bara filnamnet på driverns whl """
+        full_path = self.driver_download_path(driver_name)
+        filename = full_path.split('/')[-1]
+        return filename
+
+    def get_driver_info(self, driver_name: str) -> NetworkElementDriver:
+        """Hämta en drivrutinsinstans efter namn"""
+        ned = self.drivers.get(driver_name)
+
+        if ned is None:
+            return None
+
+        filename = self.driver_filename(driver_name)
+        ned_instance = ned["instance"]
+        response = {
+            "name": driver_name,
+            "version": ned.get("version"),
+            "package_name": ned.get('package_name'),
+            "description": type(ned_instance).__doc__,
+            "filename": filename
+        }
+
+        return response
+
+
+    def get_driver_instance(self, driver_name:str):
+        """
+        Returns an instance of the driver class based on name.
+        Checks for installed driver based on entrypoint and then name
+        of the class. 
+        """
+        for entry_point in entry_points(group="acex.neds"):
+            print()
+            if entry_point.value.split(":")[-1] == driver_name:
+                return entry_point.load()()
 
 
     def list_drivers(self) -> list[dict]:
@@ -134,10 +155,13 @@ class NEDManager:
         for key, driver_data in self.drivers.items():
                 driver = driver_data["instance"]
                 kind = type(driver)
+                filename = self.driver_filename(key)
                 info = {
-                    "id": key,
+                    "name": key,
                     "version": driver_data.get("version", "n/a"),
+                    "package_name": driver_data.get('package_name'),
                     "description": kind.__doc__ or "n/a",
+                    "filename": filename
                 }
                 result.append(info)
         return result
