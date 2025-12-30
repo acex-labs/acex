@@ -134,19 +134,6 @@ class NEDManager:
 
         return response
 
-
-    def get_driver_instance(self, driver_name:str):
-        """
-        Returns an instance of the driver class based on name.
-        Checks for installed driver based on entrypoint and then name
-        of the class. 
-        """
-        for entry_point in entry_points(group="acex.neds"):
-            print()
-            if entry_point.value.split(":")[-1] == driver_name:
-                return entry_point.load()()
-
-
     def list_drivers(self) -> list[dict]:
         """Returnera en lista över tillgängliga drivrutinsnamn."""
         result = []
