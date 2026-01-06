@@ -3,7 +3,7 @@ from acex.plugins.neds.core import RendererBase
 from typing import Any, Dict, Optional
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from .filters import cidr_to_addrmask
 
 
@@ -21,8 +21,15 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def render(self, logical_node: Dict[str, Any], asset) -> Any:
         """Render the configuration model for Cisco IOS CLI devices."""
-
-        configuration = logical_node.configuration
+        # logical_node may be a Pydantic/SQLModel instance (LogicalNodeResponse)
+        # which contains a ComposedConfiguration. Convert to dict for Jinja + pre-processing.
+        configuration = getattr(logical_node, "configuration", None)
+        if configuration is None:
+            # If logical_node is already a dict, fall back to dict access
+            configuration = logical_node.get("configuration") if isinstance(logical_node, dict) else None
+        # Ensure configuration is a plain dict (Pydantic model -> dict)
+        if hasattr(configuration, "model_dump"):
+            configuration = configuration.model_dump()
 
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)
@@ -84,24 +91,28 @@ class CiscoIOSCLIRenderer(RendererBase):
             return
 
         # Resolve the referenced interface name from ref_path
-        ref = ssh.get('config', {}).get('source_interface', {})
-        metadata = ref.get('metadata') or {}
-        ref_path = metadata.get('ref_path')
-        if not ref_path:
-            return
+        # Add checks for path as it might be that it has not been set
+        ssh_config = ssh.get('config') or {}
+        ref = ssh_config.get('source_interface')
+        if ref is not None:
+            metadata = ref.get('metadata') or {}
+            ref_path = metadata.get('ref_path')
+            if isinstance(ref_path, str) and ref_path:
+            #if not ref_path:
+            #    return
 
-        ref_name = ref_path.split('.')[1]
-        intf = configuration.get('interfaces', {}).get(ref_name)
-        if not intf:
-            return
+                ref_name = ref_path.split('.')[1]
+                intf = configuration.get('interfaces', {}).get(ref_name)
+                if not intf:
+                    return
 
-        vlan_id = intf.get('vlan_id')
-        if vlan_id is None:
-            return
+                vlan_id = intf.get('vlan_id')
+                if vlan_id is None:
+                    return
 
-        ssh_interface = f"vlan{vlan_id}"
-        # Store resolved interface for template use if needed
-        ssh['config']['source_interface'] = ssh_interface
+                ssh_interface = f"vlan{vlan_id}"
+                # Store resolved interface for template use if needed
+                ssh['config']['source_interface'] = ssh_interface
 
     def add_vrf_to_intefaces(self, config):
         """
@@ -114,9 +125,12 @@ class CiscoIOSCLIRenderer(RendererBase):
                 ...
             else:
                 for _,interface in vrf["interfaces"].items():
-                    ref_path = interface["metadata"]["ref_path"]
-                    intf = config["interfaces"][ref_path.split('.')[1]]
-                    intf["vrf"] = vrf["name"]["value"]
+                    #ref_path = interface["metadata"]["ref_path"]
+                    metadata = interface.get("metadata") or {}
+                    ref_path = metadata.get("ref_path")
+                    if isinstance(ref_path, str) and ref_path:
+                        intf = config["interfaces"][ref_path.split('.')[1]]
+                        intf["vrf"] = vrf["name"]["value"]
 
     def physical_interface_names(self, configuration, asset) -> None:
         """Assign physical interface names based on asset data."""
