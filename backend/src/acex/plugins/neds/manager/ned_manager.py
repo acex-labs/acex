@@ -88,7 +88,6 @@ class NEDManager:
                     "instance": instance,
                     "version": version,
                     "package_name": entry_point.dist.name
-                    "package_name": entry_point.dist.name
                 }
             except Exception as e:
                 print(f"Fel vid laddning av {entry_point.name}: {e}")
@@ -167,7 +166,6 @@ class NEDManager:
                     "package_name": driver_data.get('package_name'),
                     "package_name": driver_data.get('package_name'),
                     "description": kind.__doc__ or "n/a",
-                    "filename": filename
                     "filename": filename
                 }
                 result.append(info)
