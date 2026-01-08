@@ -5,7 +5,7 @@ service timestamps log datetime msec
 no service password-encryption
 !
 {%- if configuration.system.config['domain-name'] is defined and configuration.system.config['domain-name'] %}
-ip domain-name {{ configuration.system.config['domain-name'].config.value.value }}
+ip domain-name {{ configuration.system.config['domain-name'].config.value }}
 {%- endif %}
 {%- if configuration.cef is not defined or configuration.cef %}
 !
@@ -13,7 +13,7 @@ ip cef
 {%- endif %}
 !
 {%- if configuration.system.config.hostname %}
-hostname {{ configuration.system.config.hostname.value.value }}
+hostname {{ configuration.system.config.hostname.value }}
 {%- endif %}
 !
 {%- if "users" in configuration.system %}
