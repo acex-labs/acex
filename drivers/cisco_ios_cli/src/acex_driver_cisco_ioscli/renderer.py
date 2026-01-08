@@ -139,9 +139,10 @@ class CiscoIOSCLIRenderer(RendererBase):
             if intf["metadata"]["type"] == "ethernetCsmacd":
                 index = intf["index"]["value"]
                 stack_index = (intf.get("stack_index") or {}).get("value")
+                module_index = (intf.get("module_index") or {}).get("value")
                 speed = (intf.get("speed") or {}).get("value") or 1000000 # Default to gig
                 intf_prefix = self.get_port_prefix(asset.os, speed)
-                intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index)
+                intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index, module_index)
                 intf["name"] = f"{intf_prefix}{intf_suffix}"
             if intf['metadata']['type'] == "ieee8023adLag":
                 # Handle LAG interface names here
@@ -171,7 +172,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
 
 
-    def get_port_suffix(self, hardware_model:str, index:int, stack_index:int) -> Optional[str]:
+    def get_port_suffix(self, hardware_model:str, index:int, stack_index:int, module_index:int=None) -> Optional[str]:
         max_index = 0
         suffix_string = ""
 
@@ -189,14 +190,20 @@ class CiscoIOSCLIRenderer(RendererBase):
         # tilläggsmodulen.
         if index <= max_index:
             if stack_index is not None:
-                suffix_string = f"{stack_index}/0/{index+1}"
+                suffix_string = f"{stack_index}/0/{index}"
+                if module_index is not None:
+                    suffix_string = f"{stack_index}/{module_index}/{index}"
             else:
-                suffix_string = f"1/0/{index+1}"
+                suffix_string = f"1/0/{index}"
         elif index > max_index:
             if stack_index is not None:
-                suffix_string = f"{stack_index}/1/{index - max_index + 1}"
+                suffix_string = f"{stack_index}/1/{index - max_index}"
+                if module_index is not None:
+                    suffix_string = f"{stack_index}/{module_index}/{index}"
             else:
-                suffix_string = f"1/0/{index - max_index + 1}"
+                suffix_string = f"1/0/{index - max_index}"
+                if module_index is not None:
+                    suffix_string = f"1/{module_index}/{index}"
         return suffix_string
     
     # Create functions to handle ref paths
