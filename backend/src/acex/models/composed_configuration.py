@@ -137,6 +137,7 @@ class EthernetCsmacdInterface(Interface):
     type: Literal["ethernetCsmacd"] = "ethernetCsmacd"
 
     # Egenskaper för fysiska interface
+    stack_index: Optional[AttributeValue[int]] = None
     subinterfaces: list["SubInterface"] = Field(default_factory=list)
     speed: Optional[AttributeValue[int]] = None
     duplex: Optional[AttributeValue[str]] = None
