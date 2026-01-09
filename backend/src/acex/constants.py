@@ -6,7 +6,7 @@ NED_WHEEL_DIR = "packages/neds/"
 DEFAULT_DRIVERS = [
     {
         "package": "acex-driver-cisco-ioscli",
-        "version": ">=0.0.2",
+        "version": ">=0.0.3",
         "source": "pypi"
     }
 ]
