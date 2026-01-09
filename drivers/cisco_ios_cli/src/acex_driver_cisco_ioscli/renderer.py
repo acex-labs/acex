@@ -95,8 +95,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         ssh_config = ssh.get('config') or {}
         ref = ssh_config.get('source_interface')
         if ref is not None:
-            metadata = ref.get('metadata') or {}
-            ref_path = metadata.get('ref_path')
+            ref_path = ref.get('pointer')
             if isinstance(ref_path, str) and ref_path:
             #if not ref_path:
             #    return
