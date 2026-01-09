@@ -16,12 +16,12 @@ ip cef
 hostname {{ configuration.system.config.hostname.value }}
 {%- endif %}
 !
-{%- if "users" in configuration.system %}
+{%- if "users" in configuration.system and configuration.system.users.config %}
 {%- for user in configuration.system.users.config %}
 username {{ user.name }} privilege {{ user.privilege | default(15) }} secret {{ user.secret }}
 {%- endfor %}
-{%- endif %}
 !
+{%- endif %}
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "softwareLoopback" %}
 interface Loopback{{ intf.index.value }}
@@ -74,7 +74,9 @@ interface {{ intf.name }}
  shutdown
 {%-   endif %}
 {%-  endif %}
+{%-  if intf.metadata.type == "ieee8023adLag" %}
 !
+{%-  endif %}
 {%- endfor %}
 !
 {%- for _, intf in configuration.interfaces.items() %}
@@ -123,7 +125,9 @@ interface {{ intf.name }}
  shutdown
 {%-   endif %}
 {%-  endif %}
+{%-  if intf.metadata.type == "ethernetCsmacd" %}
 !
+{%-  endif %}
 {%- endfor %}
 {#
 {%- for _, intf in configuration.interfaces.items() %}
@@ -166,7 +170,9 @@ interface {{ intf.name.value }}
  shutdown
 {%-     endif %}
 {%-  endif %}
+{%-  if intf.metadata.type == "ManagementInterface" and intf.name %}
 !
+{%-  endif %}
 {%- endfor %}
 !
 {# 
