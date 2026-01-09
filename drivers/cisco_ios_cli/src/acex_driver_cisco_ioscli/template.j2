@@ -22,6 +22,15 @@ username {{ user.name }} privilege {{ user.privilege | default(15) }} secret {{ 
 {%- endfor %}
 !
 {%- endif %}
+{%- for ni in configuration.network_instances.values() %}
+{%-   for vlan in ni.vlans.values() %}
+vlan {{ vlan.vlan_id.value }}
+{%-      if vlan.vlan_name %}
+ name {{ vlan.vlan_name.value }}
+{%-      endif %}
+!
+{%-   endfor %}
+{%- endfor %}
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "softwareLoopback" %}
 interface Loopback{{ intf.index.value }}
@@ -196,15 +205,6 @@ router ospf {{ configuration.routing.ospf.process_id | default(1) }}
 {%- endif %}
 #}
 !
-{%- for ni in configuration.network_instances.values() %}
-{%-   for vlan in ni.vlans.values() %}
-vlan {{ vlan.vlan_id.value }}
-{%-      if vlan.vlan_name %}
- name {{ vlan.vlan_name.value }}
-{%-      endif %}
-!
-{%-   endfor %}
-{%- endfor %}
 {%- if "spanning_tree" in configuration %}
 spanning-tree mode {{ configuration.spanning_tree.mode | default('pvst') }}
 {%- endif %}
