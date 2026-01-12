@@ -47,6 +47,8 @@ class FrontpanelPort(Interface):
         #    elif isinstance(ec, LagInterface):
         #        #print("ref: ", ref)
         #        self.kwargs["etherchannel"] = ReferenceTo(pointer=f"interfaces.{ec.name}")
+        
+        # Add logic to handle spanning-tree settings per interface if any
 
 class ManagementPort(Interface):
     type = "ManagementInterface"

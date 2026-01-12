@@ -159,6 +159,17 @@ class EthernetCsmacdInterface(Interface):
     #lacp_system_id_mac: Optional[AttributeValue[str]] = None
     lacp_interval: Optional[AttributeValue[Literal["fast", "slow"]]] = None
 
+    # Spanning-tree relaterade attribut
+    stp_port_priority: Optional[int] = None
+    stp_cost: Optional[int] = None
+    stp_edge_port: Optional[bool] = False # Disabled by default
+    stp_bpdu_filter: Optional[bool] = False # Disabled by default
+    stp_bpdu_guard: Optional[bool] = False # Disabled by default
+    stp_loop_guard: Optional[bool] = False # Disabled by default
+    stp_root_guard: Optional[bool] = False # Disabled by default
+    stp_portfast: Optional[bool] = False # Disabled by default
+
+
 class Ieee8023adLagInterface(Interface):
     "LAG Interface"
     type: Literal["ieee8023adLag"] = "ieee8023adLag"
