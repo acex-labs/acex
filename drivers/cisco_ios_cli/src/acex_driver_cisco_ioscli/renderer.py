@@ -42,6 +42,9 @@ class CiscoIOSCLIRenderer(RendererBase):
         self.add_vrf_to_intefaces(configuration)
         self.ssh_interface(configuration)
         #self.lacp_load_balancing(configuration)
+        configuration['asset'] = {
+            'version': asset.os_version,
+        }
         return configuration
 
     #def handle_vty_lines(self, configuration):
