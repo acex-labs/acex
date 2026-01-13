@@ -49,6 +49,10 @@ class FrontpanelPort(Interface):
         #        self.kwargs["etherchannel"] = ReferenceTo(pointer=f"interfaces.{ec.name}")
         
         # Add logic to handle spanning-tree settings per interface if any
+        #if "stp" in self.kwargs:
+        #    stp_settings = self.kwargs.pop("stp")
+        #    for key, value in stp_settings.items():
+        #        self.kwargs[f'stp_{key}'] = value
 
 class ManagementPort(Interface):
     type = "ManagementInterface"
