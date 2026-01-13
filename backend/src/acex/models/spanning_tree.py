@@ -37,3 +37,6 @@ class SpanningTreeInterfaceConfig(BaseModel):
     bpdu_filter: Optional[AttributeValue[bool]] = False # Disabled by default
     bpdu_guard: Optional[AttributeValue[bool]] = False # Disabled by default
     loop_guard: Optional[AttributeValue[bool]] = False # Disabled by default
+    root_guard: Optional[AttributeValue[bool]] = False # Disabled by default
+    portfast: Optional[AttributeValue[bool]] = False # Disabled by default
+    link_type: Optional[AttributeValue[str]] = None  # e.g., "point-to-point", "shared"
