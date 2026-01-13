@@ -7,7 +7,7 @@ from acex.configuration.components.lacp import LacpConfig
 
 interface_templates = {
     "default":{"native_vlan": 1,"description":"default","switchport":True,"switchport_mode":"access","enabled":True},
-    "Mgmt":{"native_vlan": 2,"description":"Mgmt","switchport":True,"switchport_mode":"access","enabled":True},
+    "Mgmt":{"native_vlan": 1337,"description":"Mgmt","switchport":True,"switchport_mode":"access","enabled":True},
     "IoTwired":{"native_vlan": 123,"description":"IoTwired","switchport":True,"switchport_mode":"access","enabled":True},
     "Native":{"native_vlan": 999,"description":"Native","switchport":True,"switchport_mode":"access","enabled":True},
 }
@@ -115,7 +115,7 @@ class SimpleVlan(ConfigMap):
             },
             {
                 "vlan_name": "Mgmt",
-                "vlan_id": 2
+                "vlan_id": 1337
             },
             {
                 "vlan_name": "IOT",
@@ -135,7 +135,7 @@ class SimpleVlan(ConfigMap):
                 vlan_id = _vlan['vlan_id'],
                 vlan_name = _vlan['vlan_name']
                 )
-            if _vlan["vlan_id"] == 2:
+            if _vlan["vlan_id"] == 1337:
                 svi2 = Svi(
                     name=f'vlan{str(_vlan["vlan_id"])}_svi',
                     description=_vlan['vlan_name'],
