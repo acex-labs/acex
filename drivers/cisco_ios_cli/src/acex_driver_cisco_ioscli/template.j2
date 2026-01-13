@@ -1,12 +1,12 @@
-!
-version 15.1
-service timestamps debug datetime msec
-service timestamps log datetime msec
-no service password-encryption
-!
-{%- if configuration.system.config['domain-name'] is defined and configuration.system.config['domain-name'] %}
-ip domain-name {{ configuration.system.config['domain-name'].config.value }}
+{%- if configuration.asset.version %}
+version {{ configuration.asset.version | default('15.2') }}
 {%- endif %}
+service timestamps debug datetime msec localtime show-timezone year
+service timestamps log datetime msec localtime show-timezone year
+no service password-encryption
+service call-home
+platform punt-keepalive disable-kernel-core
+!
 {%- if configuration.cef is not defined or configuration.cef %}
 !
 ip cef
@@ -16,12 +16,37 @@ ip cef
 hostname {{ configuration.system.config.hostname.value }}
 {%- endif %}
 !
+{%- for ni in configuration.network_instances.values() %}
+{%-   if ni.name.value != "global" %}
+vrf definition {{ ni.name.value }}
+ !
+ address-family ipv4
+ exit-address-family
+ !
+ address-family ipv6
+ exit-address-family
+!
+{%-   endif %}
+{%- endfor %}
+!
+logging console emergencies
+aaa new-model
+!
+!
+aaa session-id common
+!
+{%- if configuration.system.config.domain_name is defined and configuration.system.config.domain_name %}
+ip domain_name {{ configuration.system.config.domain_name.value }}
+{%- endif %}
+!
 {%- if "users" in configuration.system and configuration.system.users.config %}
 {%- for user in configuration.system.users.config %}
 username {{ user.name }} privilege {{ user.privilege | default(15) }} secret {{ user.secret }}
 {%- endfor %}
 !
 {%- endif %}
+vtp mode off
+!
 {%- for ni in configuration.network_instances.values() %}
 {%-   for vlan in ni.vlans.values() %}
 vlan {{ vlan.vlan_id.value }}
