@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from acex.models.attribute_value import AttributeValue
-from .composed_configuration import Reference, ReferenceFrom, ReferenceTo
+#from .composed_configuration import Reference, ReferenceFrom, ReferenceTo
 from enum import Enum
 from typing import Optional, Dict
 
@@ -11,7 +11,7 @@ class SpanningTreeModeConfig(BaseModel):
     bridge_priority: Optional[AttributeValue[int]] = None
 
 class SpanningTreeGlobal(SpanningTreeModeConfig):
-    mode: Optional[AttributeValue[SpanningTreeMode]] = "RSTP"
+    mode: Optional[AttributeValue[str]] = "RSTP"
     bpdu_filter: Optional[AttributeValue[bool]] = False # Disabled by default
     bpdu_guard: Optional[AttributeValue[bool]] = False # Disabled by default
     loop_guard: Optional[AttributeValue[bool]] = False # Disabled by default
@@ -23,17 +23,17 @@ class SpanningTreeMode(str, Enum):
     PVST = "PVST"
     PVST_PLUS = "PVST_PLUS"
 
-class SpanningTreeRSTP(SpanningTreeModeConfig): 
-    interfaces: Optional[Dict[str, Reference]] = {}
+class SpanningTreeRSTP(SpanningTreeModeConfig): ...
+#    interfaces: Optional[Dict[str, Reference]] = {}
 
-class SpanningTreeMSTP(SpanningTreeModeConfig):
-    interfaces: Optional[Dict[str, Reference]] = {}
-    mst_instances: Optional[Dict[str, Reference]] = {}
-    vlan: Optional[Dict[str, Reference]] = {}
+class SpanningTreeMSTP(SpanningTreeModeConfig): ...
+#    interfaces: Optional[Dict[str, Reference]] = {}
+#    mst_instances: Optional[Dict[str, Reference]] = {}
+#    vlan: Optional[Dict[str, Reference]] = {}
 
-class SpanningTreeRapidPVST(SpanningTreeModeConfig):
-    interfaces: Optional[Dict[str, Reference]] = {}
-    vlan: Optional[Dict[str, Reference]] = {}
+class SpanningTreeRapidPVST(SpanningTreeModeConfig): ...
+#    interfaces: Optional[Dict[str, Reference]] = {}
+#    vlan: Optional[Dict[str, Reference]] = {}
 
 # How use this per interface?
 class SpanningTreeInterfaceConfig(BaseModel):

@@ -3,14 +3,13 @@ from acex.models.spanning_tree import SpanningTreeGlobal as SpanningTreeGlobalAt
 from acex.models.composed_configuration import ReferenceFrom, ReferenceTo
 
 class SpanningTreeGlobal(ConfigComponent): 
-    type = "spanningTree"
+    type = "SpanningTreeGlobal"
     model_cls = SpanningTreeGlobalAttributes
-    # Interface logic here
-
-    def _add_interface(self):
-        if self.kwargs.get('interface') is None:
-            stp = self.kwargs.pop("stp_mode")
-            self.kwargs["interface"] = ReferenceFrom(pointer=f"{stp.mode.name}.interfaces")
+    # Interface logic here ?
+    #def _add_interface(self):
+    #    if self.kwargs.get('interface') is None:
+    #        stp = self.kwargs.pop("stp_mode")
+    #        self.kwargs["interface"] = ReferenceFrom(pointer=f"{stp.mode.name}.interfaces")
 
 class SpanningTreeRSTPComponent(ConfigComponent): 
     type = "spanningTreeRSTP"

@@ -13,6 +13,7 @@ from acex.models.logging import (
     FileLogging,
     LoggingEvents
 )
+from acex.models.spanning_tree import SpanningTreeGlobal, SpanningTreeRSTP
 
 class MetadataValueType(Enum):
     CONCRETE = "concrete"
@@ -243,6 +244,11 @@ class System(BaseModel):
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
 
+class SpanningTree(BaseModel):
+    config: Optional[SpanningTreeGlobal] = SpanningTreeGlobal()
+    rstp: Optional[SpanningTreeRSTP] = SpanningTreeRSTP()
+    #mstp: Optional[SpanningTreeMSTP] = SpanningTreeMSTP()
+    #rapid_pvst: Optional[SpanningTreeRapidPVST] = SpanningTreeRapidPVST()
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
@@ -261,3 +267,4 @@ class ComposedConfiguration(BaseModel):
     lacp: Optional[Lacp] = Lacp()
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
+    stp: Optional[SpanningTree] = SpanningTree()

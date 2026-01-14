@@ -1,1 +1,1 @@
-from .vlan import SpanningTree
+from .spanning_tree import *
