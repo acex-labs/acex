@@ -156,6 +156,8 @@ class CiscoIOSCLIRenderer(RendererBase):
         PREFIX_MAP = {
             "cisco_ios": {
                 1000000: "GigabitEthernet",
+                10000000: "TenGigabitEthernet",
+
             },
             "cisco_iosxe": {
                 1000000: "GigabitEthernet",
