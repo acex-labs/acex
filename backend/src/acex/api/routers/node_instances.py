@@ -17,7 +17,6 @@ def get_response_model(func):
 def get_request_model(func: Callable) -> Optional[type]:
     sig = inspect.signature(func)
     type_hints = get_type_hints(func)
-
     for name, param in sig.parameters.items():
         if name in ("self", "cls"):
             continue
@@ -34,6 +33,7 @@ def create_router(automation_engine):
     plug = getattr(automation_engine.inventory, "node_instances")
     for cap in plug.capabilities:
         func = getattr(plug, cap)
+        print(func)
         path = plug.path(cap)
         method = plug.http_verb(cap)
         response_model = get_response_model(func)
