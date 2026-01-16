@@ -1,5 +1,5 @@
 
-from models.models import LogicalNode, Ned
+from acex_client.models.models import LogicalNode, Ned
 
 
 class LogicalNodes:

@@ -1,6 +1,6 @@
 from importlib.metadata import entry_points
 import subprocess, sys
-from models.models import LogicalNode, Ned
+from acex_client.models.models import LogicalNode, Ned
 
 
 class Neds:

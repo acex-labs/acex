@@ -2,7 +2,8 @@
 from acex.acex import Acex
 
 
-a = Acex(baseurl = "http://127.0.0.1/")
+# a = Acex(baseurl = "http://127.0.0.1/")
+a = Acex(baseurl = "https://api.auto.ngninfra.net/", verify=False)
 
 
 missing_neds = a.neds.get_missing()
