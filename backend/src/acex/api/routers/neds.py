@@ -10,7 +10,7 @@ import os
 
 
 nm = NEDManager()
-nm.download_and_install_neds_in_specs()
+#nm.download_and_install_neds_in_specs()
 nm.load_drivers()
 
 
