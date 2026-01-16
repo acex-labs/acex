@@ -2,6 +2,7 @@ import inspect
 from acex.models import Node, NodeResponse
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from acex.models.asset import Asset
+from typing import List
 
 class NodeService:
     """Service layer för Node business logik."""
@@ -72,12 +73,12 @@ class NodeService:
         result = await self._call_method(self.adapter.create, logical_node)
         return result
     
-    async def get(self, id: str):
+    async def get(self, id: str) -> NodeResponse:
         result = await self._call_method(self.adapter.get, id)
         result = await self._enrich_data(result)
         return result
 
-    async def query(self):
+    async def query(self) -> List[Node]:
         result = await self._call_method(self.adapter.query)
         return result
 
