@@ -105,7 +105,7 @@ class ManagementInterface(ConfigMap):
             index=0,
             description='Management Port',
             enabled=True,
-            #ipv4='10.112.101.4/24',
+            #ipv4='10.10.10.1/24',
             network_instance=vrf
         )
 
