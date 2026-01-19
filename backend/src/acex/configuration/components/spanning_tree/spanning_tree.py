@@ -1,5 +1,5 @@
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models.spanning_tree import SpanningTreeGlobal as SpanningTreeGlobalAttributes, SpanningTreeRSTP, SpanningTreeMSTP, SpanningTreeRapidPVST, SpanningTreeInterfaceConfig
+from acex.models.spanning_tree import SpanningTreeGlobalAttributes, SpanningTreeRSTPAttributes, SpanningTreeMSTPAttributes, SpanningTreeRapidPVSTAttributes
 from acex.models.composed_configuration import ReferenceFrom, ReferenceTo
 
 class SpanningTreeGlobal(ConfigComponent): 
@@ -11,18 +11,18 @@ class SpanningTreeGlobal(ConfigComponent):
     #        stp = self.kwargs.pop("stp_mode")
     #        self.kwargs["interface"] = ReferenceFrom(pointer=f"{stp.mode.name}.interfaces")
 
-class SpanningTreeRSTPComponent(ConfigComponent): 
+class SpanningTreeRSTP(ConfigComponent): 
     type = "spanningTreeRSTP"
-    model_cls = SpanningTreeRSTP
+    model_cls = SpanningTreeRSTPAttributes
 
-class SpanningTreeMSTPComponent(ConfigComponent): 
+class SpanningTreeMSTP(ConfigComponent): 
     type = "spanningTreeMSTP"
-    model_cls = SpanningTreeMSTP
+    model_cls = SpanningTreeMSTPAttributes
 
-class SpanningTreeRapidPVSTComponent(ConfigComponent): 
+class SpanningTreeRapidPVST(ConfigComponent): 
     type = "spanningTreeRapidPVST"
-    model_cls = SpanningTreeRapidPVST
+    model_cls = SpanningTreeRapidPVSTAttributes
 
-class SpanningTreeInterface(ConfigComponent):
-    type = "spanningTreeInterface"
-    model_cls = SpanningTreeInterfaceConfig
+#class SpanningTreeInterface(ConfigComponent):
+#    type = "spanningTreeInterface"
+#    model_cls = SpanningTreeInterfaceConfig
