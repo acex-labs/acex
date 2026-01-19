@@ -156,6 +156,8 @@ class CiscoIOSCLIRenderer(RendererBase):
         PREFIX_MAP = {
             "cisco_ios": {
                 1000000: "GigabitEthernet",
+                10000000: "TenGigabitEthernet",
+
             },
             "cisco_iosxe": {
                 1000000: "GigabitEthernet",
@@ -196,16 +198,20 @@ class CiscoIOSCLIRenderer(RendererBase):
                 if module_index is not None:
                     suffix_string = f"{stack_index}/{module_index}/{index+1}"
             else:
-                suffix_string = f"1/0/{index+1}"
+                if module_index is not None:
+                    suffix_string = f"1/{module_index}/{index+1}"
+                else:
+                    suffix_string = f"1/0/{index+1}"
         elif index > max_index:
             if stack_index is not None:
                 suffix_string = f"{stack_index}/1/{index - max_index + 1}"
                 if module_index is not None:
                     suffix_string = f"{stack_index}/{module_index}/{index+1}"
             else:
-                suffix_string = f"1/0/{index - max_index + 1}"
                 if module_index is not None:
                     suffix_string = f"1/{module_index}/{index+1}"
+                else:
+                    suffix_string = f"1/0/{index - max_index + 1}"
         return suffix_string
     
     # Create functions to handle ref paths
