@@ -11,8 +11,8 @@ class SpanningTreeModeConfig(BaseModel):
     bridge_priority: Optional[AttributeValue[int]] = None
     hold_count: Optional[AttributeValue[int]] = None # Range 1..10
 
-class SpanningTreeGlobal(BaseModel):
-    mode: Optional[AttributeValue[str]] = "RSTP"
+class SpanningTreeGlobalAttributes(BaseModel):
+    mode: Optional[AttributeValue[str]] = None # Needs to be defined by user. Default for Cisco is RAPID-PVST and for Juniper it's just RSTP
     bpdu_filter: Optional[AttributeValue[bool]] = False # Disabled by default
     bpdu_guard: Optional[AttributeValue[bool]] = False # Disabled by default
     loop_guard: Optional[AttributeValue[bool]] = False # Disabled by default
@@ -23,23 +23,23 @@ class SpanningTreeGlobal(BaseModel):
 class SpanningTreeMode(str, Enum): 
     RSTP = "RSTP"
     MSTP = "MSTP"
-    PVST = "PVST"
-    PVST_PLUS = "PVST_PLUS"
+    #PVST = "PVST"
+    RAPID_PVST = "RAPID_PVST"
 
-class SpanningTreeRSTP(SpanningTreeModeConfig):
+class SpanningTreeRSTPAttributes(SpanningTreeModeConfig):
     name = "RSTP"
 #    interfaces: Optional[Dict[str, Reference]] = {}
 
 class MstInstanceConfig(BaseModel):
     instance_id: AttributeValue[int] # range: 1..4094
     #name: Optional[AttributeValue[str]] = None
-    vlan_range: Optional[AttributeValue[str]] = None # List of VLANs mapped to the MST instance
+    vlan: Optional[AttributeValue[list[int]]] = None # List of VLANs mapped to the MST instance
     hello_time: Optional[AttributeValue[int]] = None
     max_age: Optional[AttributeValue[int]] = None
     forward_delay: Optional[AttributeValue[int]] = None
     bridge_priority: Optional[AttributeValue[int]] = None
 
-class SpanningTreeMSTP(SpanningTreeModeConfig):
+class SpanningTreeMSTPAttributes(SpanningTreeModeConfig):
     name = "MSTP"
     revision: Optional[AttributeValue[int]] = None
     max_hop: Optional[AttributeValue[int]] = None # Range 1..255
@@ -49,8 +49,9 @@ class SpanningTreeMSTP(SpanningTreeModeConfig):
 #    mst_instances: Optional[Dict[str, Reference]] = {}
 #    vlan: Optional[Dict[str, Reference]] = {}
 
-class SpanningTreeRapidPVST(SpanningTreeModeConfig):
-    name = "PVST_PLUS"
+class SpanningTreeRapidPVSTAttributes(SpanningTreeModeConfig):
+    name = "RAPID_PVST"
+    vlan: Optional[AttributeValue[list[int]]] = None # List of VLANs using Rapid PVST+
 #    interfaces: Optional[Dict[str, Reference]] = {}
 #    vlan: Optional[Dict[str, Reference]] = {}
 
