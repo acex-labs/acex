@@ -169,6 +169,7 @@ class EthernetCsmacdInterface(Interface):
     stp_loop_guard: Optional[bool] = False # Disabled by default
     stp_root_guard: Optional[bool] = False # Disabled by default
     stp_portfast: Optional[bool] = False # Disabled by default
+    stp_link_type: Optional[Literal["point-to-point", "shared"]] = None  # e.g., "point-to-point", "shared"
 
 
 class Ieee8023adLagInterface(Interface):
