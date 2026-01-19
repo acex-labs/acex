@@ -6,9 +6,11 @@ from acex.constants import NED_WHEEL_DIR#, DEFAULT_DRIVERS
 from acex.plugins.neds.core import NetworkElementDriver
 from acex.models.ned import Ned
 
+import os
 import subprocess
 import sys
 from pathlib import Path
+import zipfile
 
 
 class NEDManager:
@@ -65,13 +67,41 @@ class NEDManager:
         """
         Build wheels for all installed drivers and store in distribution folder
         for client downloads.
+
+        Builds wheels for all installed drivers based on entry point "acex.neds",
+        creates a new zipped whl and places in the dist-dir for wheels to be 
+        served via the API. 
         """
-        print(f"\r\nDebug: building wheels...")
-        for entry_point in entry_points(group="acex.neds"):
-            print(entry_point)
+        whl_dir = self.driver_dir
+        for ep in entry_points(group="acex.neds"):
+            dist = ep.dist
+            name = dist.metadata["Name"].replace("-", "_")
+            version = dist.version
+            tag = "py3-none-any"
+            wheel_name = f"{name}-{version}-{tag}.whl"
+            wheel_path = Path(whl_dir) / wheel_name
 
-        print("built wheels, done. \r\n")
-
+            if os.path.exists(wheel_path):
+                ...
+            else:
+                with zipfile.ZipFile(wheel_path, "w") as z:
+                    root = dist.locate_file("")
+                    # Lägg till alla paketfiler
+                    for file in dist.files:
+                        src = root / file
+                        if src.is_file():
+                            print(file)
+                            z.write(src, file)
+                    # Lägg till .dist-info-mappen och dess innehåll
+                    dist_info_dirs = [f for f in dist.files if f.parts[-1].endswith('.dist-info')]
+                    for dist_info in dist_info_dirs:
+                        dist_info_path = root / dist_info
+                        if dist_info_path.is_dir():
+                            for dirpath, dirnames, filenames in os.walk(dist_info_path):
+                                for filename in filenames:
+                                    file_path = Path(dirpath) / filename
+                                    arcname = file_path.relative_to(root)
+                                    z.write(file_path, arcname)
 
     def get_driver_instance(self, driver_name:str):
         """
