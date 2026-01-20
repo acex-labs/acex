@@ -3,46 +3,46 @@ from acex.configuration.components.interfaces import FrontpanelPort, ManagementP
 from acex.configuration.components.network_instances import L3Vrf
 from acex.configuration.components.network_instances import Vlan
 from acex.configuration.components.lacp import LacpConfig
-from acex.configuration.components.spanning_tree import SpanningTreeGlobal, SpanningTreeInterfaceConfig
+#from acex.configuration.components.spanning_tree import SpanningTreeGlobal
 
-#interface_templates = {
-#    "default":{"native_vlan": 1,"description":"default","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "Mgmt":{"native_vlan": 2,"description":"Mgmt","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "PC_FL0":{"native_vlan": 11,"description":"PC_FL0","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "PC_FL1":{"native_vlan": 12,"description":"PC_FL1","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "PC_FL2":{"native_vlan": 13,"description":"PC_FL2","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "PC_FL3":{"native_vlan": 14,"description":"PC_FL3","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "PC_FL4":{"native_vlan": 15,"description":"PC_FL4","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "Printer":{"native_vlan": 61,"description":"Printer","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "IFLEX":{"native_vlan": 91,"description":"IFLEX","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "DSL":{"native_vlan": 99,"description":"DSL","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "ECWiFi":{"native_vlan": 100,"description":"ECWiFi","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "FACTORY_DEVICES":{"native_vlan": 128,"description":"FACTORY_DEVICES","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "GUEST":{"native_vlan": 129,"description":"GUEST","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "Video":{"native_vlan": 150,"description":"Video","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "IoTwired":{"native_vlan": 601,"description":"IoTwired","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#    "Native":{"native_vlan": 999,"description":"Native","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
-#}
+interface_templates = {
+    "default":{"native_vlan": 1,"description":"default","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "Mgmt":{"native_vlan": 2,"description":"Mgmt","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "PC_FL0":{"native_vlan": 11,"description":"PC_FL0","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "PC_FL1":{"native_vlan": 12,"description":"PC_FL1","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "PC_FL2":{"native_vlan": 13,"description":"PC_FL2","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "PC_FL3":{"native_vlan": 14,"description":"PC_FL3","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "PC_FL4":{"native_vlan": 15,"description":"PC_FL4","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "Printer":{"native_vlan": 61,"description":"Printer","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "IFLEX":{"native_vlan": 91,"description":"IFLEX","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "DSL":{"native_vlan": 99,"description":"DSL","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "ECWiFi":{"native_vlan": 100,"description":"ECWiFi","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "FACTORY_DEVICES":{"native_vlan": 128,"description":"FACTORY_DEVICES","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "GUEST":{"native_vlan": 129,"description":"GUEST","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "Video":{"native_vlan": 150,"description":"Video","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "IoTwired":{"native_vlan": 601,"description":"IoTwired","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+    "Native":{"native_vlan": 999,"description":"Native","switchport":True,"switchport_mode":"access","enabled":True,"stp_portfast":True, "stp_bpdu_guard": True},
+}
 
 # Without STP config
-interface_templates = {
-    "default":{"native_vlan": 1,"description":"default","switchport":True,"switchport_mode":"access","enabled":True,},
-    "Mgmt":{"native_vlan": 2,"description":"Mgmt","switchport":True,"switchport_mode":"access","enabled":True,},
-    "PC_FL0":{"native_vlan": 11,"description":"PC_FL0","switchport":True,"switchport_mode":"access","enabled":True,},
-    "PC_FL1":{"native_vlan": 12,"description":"PC_FL1","switchport":True,"switchport_mode":"access","enabled":True,},
-    "PC_FL2":{"native_vlan": 13,"description":"PC_FL2","switchport":True,"switchport_mode":"access","enabled":True,},
-    "PC_FL3":{"native_vlan": 14,"description":"PC_FL3","switchport":True,"switchport_mode":"access","enabled":True,},
-    "PC_FL4":{"native_vlan": 15,"description":"PC_FL4","switchport":True,"switchport_mode":"access","enabled":True,},
-    "Printer":{"native_vlan": 61,"description":"Printer","switchport":True,"switchport_mode":"access","enabled":True,},
-    "IFLEX":{"native_vlan": 91,"description":"IFLEX","switchport":True,"switchport_mode":"access","enabled":True,},
-    "DSL":{"native_vlan": 99,"description":"DSL","switchport":True,"switchport_mode":"access","enabled":True,},
-    "ECWiFi":{"native_vlan": 100,"description":"ECWiFi","switchport":True,"switchport_mode":"access","enabled":True,},
-    "FACTORY_DEVICES":{"native_vlan": 128,"description":"FACTORY_DEVICES","switchport":True,"switchport_mode":"access","enabled":True,},
-    "GUEST":{"native_vlan": 129,"description":"GUEST","switchport":True,"switchport_mode":"access","enabled":True,},
-    "Video":{"native_vlan": 150,"description":"Video","switchport":True,"switchport_mode":"access","enabled":True,},
-    "IoTwired":{"native_vlan": 601,"description":"IoTwired","switchport":True,"switchport_mode":"access","enabled":True,},
-    "Native":{"native_vlan": 999,"description":"Native","switchport":True,"switchport_mode":"access","enabled":True,},
-}
+#interface_templates = {
+#    "default":{"native_vlan": 1,"description":"default","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "Mgmt":{"native_vlan": 2,"description":"Mgmt","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "PC_FL0":{"native_vlan": 11,"description":"PC_FL0","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "PC_FL1":{"native_vlan": 12,"description":"PC_FL1","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "PC_FL2":{"native_vlan": 13,"description":"PC_FL2","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "PC_FL3":{"native_vlan": 14,"description":"PC_FL3","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "PC_FL4":{"native_vlan": 15,"description":"PC_FL4","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "Printer":{"native_vlan": 61,"description":"Printer","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "IFLEX":{"native_vlan": 91,"description":"IFLEX","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "DSL":{"native_vlan": 99,"description":"DSL","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "ECWiFi":{"native_vlan": 100,"description":"ECWiFi","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "FACTORY_DEVICES":{"native_vlan": 128,"description":"FACTORY_DEVICES","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "GUEST":{"native_vlan": 129,"description":"GUEST","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "Video":{"native_vlan": 150,"description":"Video","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "IoTwired":{"native_vlan": 601,"description":"IoTwired","switchport":True,"switchport_mode":"access","enabled":True,},
+#    "Native":{"native_vlan": 999,"description":"Native","switchport":True,"switchport_mode":"access","enabled":True,},
+#}
 
 portchannel_list = [
     {'interface': 'Port-channel42', 'aggregate_id':42,'description':'CORE uplink', 'index': 1, 'switchport': True, 'switchport_mode': 'trunk', "enabled": True, "native_vlan": 123, "members":["TwentyFiveGigE1/1/1","TenGigabitEthernet2/1/1"]},
@@ -235,11 +235,11 @@ interface_list = [
 # with the interface list and templates above.
 class Interfaces(ConfigMap):
     def compile(self, context):
-        stp_intf_config = SpanningTreeInterfaceConfig(
-            portfast_enable=True,
-            bpdu_guard_enable=True
-        )
-        context.configuration.add(stp_intf_config)
+        #stp_intf_config = SpanningTreeInterfaceConfig(
+        #    portfast_enable=True,
+        #    bpdu_guard_enable=True
+        #)
+        #context.configuration.add(stp_intf_config)
 
         for portchannel in portchannel_list:
             portchannel = LagInterface(
@@ -274,7 +274,7 @@ class Interfaces(ConfigMap):
                 aggregate_id = intf.get("aggregate_id") if intf.get("aggregate_id") else None,
                 lacp_enabled = intf.get("lacp_enabled") if intf.get("lacp_enabled") else None,
                 lacp_mode = intf.get("lacp_mode") if intf.get("lacp_mode") else None,
-                stp = stp_intf_config
+                #stp = stp_intf_config
                 #lacp_interval = intf.get("lacp_interval") if intf.get("lacp_interval") else None
                 #stp_portfast = interface_templates.get(intf.get("_template"), {}).get("stp_portfast") or intf.get("stp_portfast"),
                 #stp_bpdu_guard = interface_templates.get(intf.get("_template"), {}).get("stp_bpdu_guard") or intf.get("stp_bpdu_guard"),
@@ -331,13 +331,13 @@ class LACPConfig(ConfigMap):
         )
         context.configuration.add(lacp)
 
-class SpanningTreeGlobalConfig(ConfigMap):
-    def compile(self, context):
-        stp_global = SpanningTreeGlobal(
-            mode="rapid-pvst",
-            bridge_priority=4096
-        )
-        context.configuration.add(stp_global)
+#class SpanningTreeGlobalConfig(ConfigMap):
+#    def compile(self, context):
+#        stp_global = SpanningTreeGlobal(
+#            mode="rapid-pvst",
+#            bridge_priority=4096
+#        )
+#        context.configuration.add(stp_global)
 
 vlan = SimpleVlan()
 vlan.filters = FilterAttribute("site").eq("/.*/")
@@ -351,5 +351,5 @@ mgmt.filters = FilterAttribute("hostname").eq("/.*/")
 lacp = LACPConfig()
 lacp.filters = FilterAttribute("hostname").eq("/.*/")
 
-stp = SpanningTreeGlobalConfig()
-stp.filters = FilterAttribute("hostname").eq("/.*/")
+#stp = SpanningTreeGlobalConfig()
+#stp.filters = FilterAttribute("hostname").eq("/.*/")
