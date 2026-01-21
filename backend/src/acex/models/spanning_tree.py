@@ -44,21 +44,21 @@ class MSTPConfig(BaseModel):
     config: MstpAttributes = MstpAttributes()
     mst_instances: Optional[Dict[str, MstpInstanceAttributes]] = {}
 
+### Rapid PVST
+class RapidPVSTAttributes(SpanningTreeModeConfig):
+    vlan_id: Optional[AttributeValue[int]] = None  # Single VLAN ID or list of VLANs using Rapid PVST+
+
+#class RapidPVSTVlan(BaseModel):
+#    config: RapidPVSTAttributes = RapidPVSTAttributes()
+
+class RapidPVSTConfig(BaseModel):
+    vlan: Optional[Dict[str, RapidPVSTAttributes]] = {}
+
 class SpanningTree(BaseModel):
     config: SpanningTreeGlobalAttributes = SpanningTreeGlobalAttributes()
     rstp: RSTPConfig = RSTPConfig()
     mstp: MSTPConfig = MSTPConfig()
-    #rapidpvst: RapidPVSTConfig = RapidPVSTConfig()
-#
-### Rapid PVST
-#class SpanningTreeRapidPVSTAttributes(SpanningTreeModeConfig):
-#    vlan_id: Optional[AttributeValue[int]] = None  # Single VLAN ID or list of VLANs using Rapid PVST+
-#
-#class RapidPVSTVlan(BaseModel):
-#    config: SpanningTreeRapidPVSTAttributes = SpanningTreeRapidPVSTAttributes()
-#
-#class RapidPVSTConfig(BaseModel):
-#    vlan: Optional[Dict[str, RapidPVSTVlan]] = {}
+    rapidpvst: RapidPVSTConfig = RapidPVSTConfig()
 
 ## STP interface config
 #

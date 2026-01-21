@@ -1,6 +1,5 @@
 from acex.configuration.components.base_component import ConfigComponent
-#from acex.models.spanning_tree import SpanningTreeGlobalAttributes, SpanningTreeRSTPAttributes, SpanningTreeMSTPAttributes, SpanningTreeRapidPVSTAttributes
-from acex.models.spanning_tree import SpanningTreeGlobalAttributes, RstpAttributes, MstpAttributes, MstpInstanceAttributes
+from acex.models.spanning_tree import SpanningTreeGlobalAttributes, RstpAttributes, MstpAttributes, MstpInstanceAttributes, RapidPVSTAttributes
 #from acex.models.composed_configuration import ReferenceFrom, ReferenceTo
 
 class SpanningTreeGlobal(ConfigComponent): 
@@ -23,10 +22,10 @@ class SpanningTreeMSTP(ConfigComponent):
 class SpanningTreeMstpInstance(ConfigComponent): 
     type = "SpanningTreeMstpInstance"
     model_cls = MstpInstanceAttributes
-#
-#class SpanningTreeRapidPVST(ConfigComponent): 
-#    type = "SpanningTreeRapidPVST"
-#    model_cls = SpanningTreeRapidPVSTAttributes
+
+class SpanningTreeRapidPVST(ConfigComponent): 
+    type = "SpanningTreeRapidPVST"
+    model_cls = RapidPVSTAttributes
 
 #    def pre_init(self):
 #        # Handle vlan if any
