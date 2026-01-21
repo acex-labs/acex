@@ -52,7 +52,7 @@ class RapidPVSTConfig(ConfigMap):
     def compile(self, context):
         rapid_pvst_vlan10 = SpanningTreeRapidPVST(
             name = 'VLAN10',
-            vlan_id = 10,
+            vlan = 10,
             bridge_priority = 32768,
             hello_time = 2,
             max_age = 20,
@@ -63,7 +63,7 @@ class RapidPVSTConfig(ConfigMap):
 
         rapid_pvst_vlan20 = SpanningTreeRapidPVST(
             name = 'VLAN20',
-            vlan_id = 20,
+            vlan = 20,
             bridge_priority = 32768,
             hello_time = 2,
             max_age = 20,
@@ -71,6 +71,17 @@ class RapidPVSTConfig(ConfigMap):
             hold_count = 3
         )
         context.configuration.add(rapid_pvst_vlan20)
+
+        rapid_pvst_vlan_range = SpanningTreeRapidPVST(
+            name = 'VLAN30-40',
+            vlan = [30,40],
+            bridge_priority = 32768,
+            hello_time = 2,
+            max_age = 20,
+            forward_delay = 15,
+            hold_count = 3
+        )
+        context.configuration.add(rapid_pvst_vlan_range)
 
 stpconfig = STPConfig()
 stpconfig.filters = FilterAttribute("site").eq("/.*/")

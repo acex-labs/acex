@@ -46,7 +46,8 @@ class MSTPConfig(BaseModel):
 
 ### Rapid PVST
 class RapidPVSTAttributes(SpanningTreeModeConfig):
-    vlan_id: Optional[AttributeValue[int]] = None  # Single VLAN ID or list of VLANs using Rapid PVST+
+    #vlan_id: Optional[AttributeValue[int]] = None  # Single VLAN ID or list of VLANs using Rapid PVST+
+    vlan: Optional[AttributeValue[int | list[int]]] = None  # Single VLAN ID or list of VLANs using Rapid PVST+
 
 #class RapidPVSTVlan(BaseModel):
 #    config: RapidPVSTAttributes = RapidPVSTAttributes()
