@@ -1,0 +1,18 @@
+services:
+  acex:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+    ports:
+      - "80:80"
+
+  db:
+    image: postgres:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: "acepassword"
+      POSTGRES_USER: postgres
+      POSTGRES_DB: ace
