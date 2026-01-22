@@ -245,12 +245,6 @@ class System(BaseModel):
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
 
-#class SpanningTree(BaseModel):
-#    config: SpanningTreeGlobalAttributes = SpanningTreeGlobalAttributes()
-#    rstp: SpanningTreeRSTPAttributes = SpanningTreeRSTPAttributes()
-#    mstp: SpanningTreeMSTPAttributes = SpanningTreeMSTPAttributes()
-#    rapidpvst: SpanningTreeRapidPVSTAttributes = SpanningTreeRapidPVSTAttributes()
-
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
     EthernetCsmacdInterface,
