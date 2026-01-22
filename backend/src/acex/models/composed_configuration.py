@@ -13,6 +13,7 @@ from acex.models.logging import (
     FileLogging,
     LoggingEvents
 )
+from acex.models.spanning_tree import SpanningTree
 
 class MetadataValueType(Enum):
     CONCRETE = "concrete"
@@ -159,6 +160,18 @@ class EthernetCsmacdInterface(Interface):
     #lacp_system_id_mac: Optional[AttributeValue[str]] = None
     lacp_interval: Optional[AttributeValue[Literal["fast", "slow"]]] = None
 
+    # Spanning-tree relaterade attribut
+    stp_port_priority: Optional[int] = None
+    stp_cost: Optional[int] = None
+    stp_edge_port: Optional[bool] = False # Disabled by default
+    stp_bpdu_filter: Optional[bool] = False # Disabled by default
+    stp_bpdu_guard: Optional[bool] = False # Disabled by default
+    stp_loop_guard: Optional[bool] = False # Disabled by default
+    stp_root_guard: Optional[bool] = False # Disabled by default
+    stp_portfast: Optional[bool] = False # Disabled by default
+    stp_link_type: Optional[Literal["point-to-point", "shared"]] = None  # e.g., "point-to-point", "shared"
+
+
 class Ieee8023adLagInterface(Interface):
     "LAG Interface"
     type: Literal["ieee8023adLag"] = "ieee8023adLag"
@@ -232,7 +245,6 @@ class System(BaseModel):
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
 
-
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
     EthernetCsmacdInterface,
@@ -250,3 +262,4 @@ class ComposedConfiguration(BaseModel):
     lacp: Optional[Lacp] = Lacp()
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
+    stp: Optional[SpanningTree] = SpanningTree() 

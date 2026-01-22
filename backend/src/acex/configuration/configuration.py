@@ -23,6 +23,7 @@ from acex.configuration.components.system.ntp import NtpServer
 from acex.configuration.components.system.ssh import SshServer, AuthorizedKey
 from acex.configuration.components.network_instances import NetworkInstance, L3Vrf
 from acex.configuration.components.vlan import Vlan
+from acex.configuration.components.spanning_tree import SpanningTreeGlobal, SpanningTreeRSTP, SpanningTreeMSTP, SpanningTreeMstpInstance, SpanningTreeRapidPVST
 from acex.models.attribute_value import AttributeValue
 
 from acex.models import ExternalValue
@@ -62,7 +63,12 @@ class Configuration:
         Vlan: Template("network_instances.${network_instance}.vlans"),
         Svi: Template("interfaces"),
         NtpServer: "system.ntp.servers",
-        SshServer: "system.ssh.config"
+        SshServer: "system.ssh.config",
+        SpanningTreeGlobal: "stp.config",
+        SpanningTreeRSTP: "stp.rstp.config",
+        SpanningTreeMSTP: "stp.mstp.config",
+        SpanningTreeMstpInstance: "stp.mstp.mst_instances",
+        SpanningTreeRapidPVST: "stp.rapidpvst.vlan",
     }
 
     # Reverse mapping from attribute name to path for __getattr__
