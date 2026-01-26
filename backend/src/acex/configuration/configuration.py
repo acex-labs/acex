@@ -25,6 +25,12 @@ from acex.configuration.components.network_instances import NetworkInstance, L3V
 from acex.configuration.components.vlan import Vlan
 from acex.configuration.components.spanning_tree import SpanningTreeGlobal, SpanningTreeRSTP, SpanningTreeMSTP, SpanningTreeMstpInstance, SpanningTreeRapidPVST
 from acex.models.attribute_value import AttributeValue
+from acex.configuration.components.system.snmp import (
+    SnmpGlobal,
+    SnmpUser,
+    SnmpServer,
+    SnmpTrap
+)
 
 from acex.models import ExternalValue
 from acex.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
@@ -49,6 +55,10 @@ class Configuration:
         VtyLine: "system.logging.vty",
         LoggingConfig: "system.logging.config",
         FileLogging: "system.logging.files",
+        SnmpGlobal: "system.snmp.config",
+        #SnmpUser: "system.snmp.users",
+        SnmpServer: "system.snmp.trap_servers",
+        SnmpTrap: Template("system.snmp.traps.${trap_event}"),
         LacpConfig: "lacp.config",
         #LacpInterfaces: "lacp.interfaces",
         #LacpConfgi: "lacp.config",

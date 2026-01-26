@@ -14,6 +14,7 @@ from acex.models.logging import (
     LoggingEvents
 )
 from acex.models.spanning_tree import SpanningTree
+from acex.models.snmp import Snmp
 
 class MetadataValueType(Enum):
     CONCRETE = "concrete"
@@ -244,6 +245,7 @@ class System(BaseModel):
     logging: Optional[LoggingComponents] = LoggingComponents() # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
+    snmp: Optional[Snmp] = Snmp()
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[

@@ -3,6 +3,18 @@ from acex.models.attribute_value import AttributeValue
 from enum import Enum
 from typing import Optional, Dict, Literal, List
 
+class MetadataValueType(Enum):
+    CONCRETE = "concrete"
+    EXTERNALVALUE = "externalValue"
+    REFERENCE = "reference"
+
+class Metadata(BaseModel):
+    type: Optional[str] = "str"
+    value_source: MetadataValueType = MetadataValueType.CONCRETE 
+
+class Reference(BaseModel): 
+    pointer: str
+    metadata: Metadata = Metadata(type="str", value_source="reference")
 
 class SnmpAccess(str, Enum):
 	READ_ONLY = "READ_ONLY"
@@ -35,7 +47,7 @@ class SnmpPrivProtocol(str, Enum):
 class SnmpConfig(BaseModel):
 	enabled: AttributeValue[bool] = False
 	engine_id: Optional[AttributeValue[str]] = None
-	source_interface: Optional[AttributeValue[str]] = None
+	source_interface: Optional[Reference] = None
 	location: Optional[AttributeValue[str]] = None
 	contact: Optional[AttributeValue[str]] = None
 
@@ -72,7 +84,8 @@ class SnmpServer(BaseModel):
 	community: Optional[AttributeValue[str]] = None
 	username: Optional[AttributeValue[str]] = None
 	security_level: Optional[AttributeValue[SnmpSecurityLevel]] = None
-	source_interface: Optional[AttributeValue[str]] = None
+	source_interface: Optional[AttributeValue[str | Reference]] = None
+	network_instance: Optional[AttributeValue[str | Reference]] = None
 
 # ----------------------------
 # Enum-based trap groups
