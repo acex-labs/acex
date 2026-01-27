@@ -1,15 +1,35 @@
 from importlib.metadata import entry_points
 import subprocess, sys
-from models.models import LogicalNode, Ned
+from acex_client.models.models import LogicalNode, Ned
+from .resource_base import Resource
 
 
-class Neds:
+class Neds(Resource):
 
-    def __init__(
-        self,
-        rest_client
-        ):
+    ENDPOINT =  "/neds/"
+    RESPONSE_MODEL = Ned
+
+    def __init__(self, rest_client):
         self.rest = rest_client
+        self.drivers = {}
+        self._load_installed_drivers()
+
+    def _load_installed_drivers(self):
+        """
+        Loads installed drivers into self.drivers
+        """
+        for entry_point in entry_points(group="acex.neds"):
+            try:
+                _class = entry_point.load()
+                instance = _class()
+                version = entry_point.dist.version 
+                self.drivers[_class.__name__] = {
+                    "instance": instance,
+                    "version": version,
+                    "package_name": entry_point.dist.name
+                }
+            except Exception as e:
+                print(f"Error when loading {entry_point.name}: {e}")
 
     def _url_for_wheel(self, ned: Ned) -> str:
         """
@@ -26,17 +46,6 @@ class Neds:
         subprocess.check_call([
             sys.executable, "-m", "pip", "install", url
         ])
-
-    def get_all(self):
-        """
-        List all NEDs installed centrally.
-        """
-        response = []
-        ep = "/neds/"
-        api_response = self.rest.query_items(ep)
-        for ned in api_response:
-            response.append(Ned(**ned))
-        return response
 
     def install(self, ned:Ned): 
         """
@@ -68,3 +77,17 @@ class Neds:
             if self.check_status(ned) is False:
                 missing.append(ned)
         return missing
+
+
+    def get_driver(self, driver_name: str):
+        """
+        Returns an instance based on name.
+        """
+        return self.drivers.get(driver_name)
+
+
+    def get_driver_instance(self, driver_name: str):
+        """
+        Returns an instance based on name.
+        """
+        return self.drivers.get(driver_name).get('instance')
