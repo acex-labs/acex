@@ -12,7 +12,11 @@ class RestClient:
     def get_item(self, endpoint: str, id: int): 
         url = f"{self.url}{endpoint}{id}"
         response = requests.get(url, verify=self.verify)
-        data = response.json()
+
+        if response.status_code == 200:
+            data = response.json()
+        else:
+            data = {}
         return data
 
     def query_items(self, endpoint: str, params: dict = {}, limit: int = 100, cursor: str = None): 

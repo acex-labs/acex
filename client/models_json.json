@@ -1109,7 +1109,13 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Node"
+                                    },
+                                    "type": "array",
+                                    "title": "Response Query Api V1 Inventory Node Instances  Get"
+                                }
                             }
                         }
                     }
@@ -1214,7 +1220,9 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "$ref": "#/components/schemas/NodeResponse"
+                                }
                             }
                         }
                     },
@@ -1557,6 +1565,80 @@
                 ],
                 "title": "AttributeValue[Literal['access', 'trunk']]"
             },
+            "AttributeValue_Literal__active____passive____on____auto___": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "active",
+                                    "passive",
+                                    "on",
+                                    "auto"
+                                ]
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[Literal['active', 'passive', 'on', 'auto']]"
+            },
+            "AttributeValue_Literal__fast____slow___": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "fast",
+                                    "slow"
+                                ]
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[Literal['fast', 'slow']]"
+            },
             "AttributeValue_LoggingSeverity_": {
                 "properties": {
                     "value": {
@@ -1652,6 +1734,52 @@
                     "value"
                 ],
                 "title": "AttributeValue[int]"
+            },
+            "AttributeValue_list_Literal__src-mac____dst-mac____src-dst-mac____src-ip____dst-ip____src-dst-ip____src-port____dst-port____src-dst-port____": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "src-mac",
+                                        "dst-mac",
+                                        "src-dst-mac",
+                                        "src-ip",
+                                        "dst-ip",
+                                        "src-dst-ip",
+                                        "src-port",
+                                        "dst-port",
+                                        "src-dst-port"
+                                    ]
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[list[Literal['src-mac', 'dst-mac', 'src-dst-mac', 'src-ip', 'dst-ip', 'src-dst-ip', 'src-port', 'dst-port', 'src-dst-port']]]"
             },
             "AttributeValue_str_": {
                 "properties": {
@@ -1772,6 +1900,20 @@
                             }
                         ],
                         "default": {}
+                    },
+                    "lacp": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Lacp"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "config": {},
+                            "interfaces": {}
+                        }
                     },
                     "interfaces": {
                         "additionalProperties": {
@@ -1936,6 +2078,26 @@
                         "title": "Type",
                         "default": "ethernetCsmacd"
                     },
+                    "stack_index": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "module_index": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
                     "subinterfaces": {
                         "items": {
                             "$ref": "#/components/schemas/SubInterface"
@@ -2037,6 +2199,56 @@
                         "anyOf": [
                             {
                                 "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "aggregate_id": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "lacp_enabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "lacp_mode": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_Literal__active____passive____on____auto___"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "lacp_port_priority": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "lacp_interval": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_Literal__fast____slow___"
                             },
                             {
                                 "type": "null"
@@ -2238,12 +2450,76 @@
                         "title": "Type",
                         "default": "ieee8023adLag"
                     },
+                    "aggregate_id": {
+                        "type": "integer",
+                        "title": "Aggregate Id"
+                    },
                     "members": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array",
                         "title": "Members"
+                    },
+                    "max_ports": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "switchport": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "switchport_mode": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_Literal__access____trunk___"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "trunk_allowed_vlans": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_List_int__"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "native_vlan": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "mtu": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
@@ -2299,6 +2575,80 @@
                     "import_export_policy"
                 ],
                 "title": "InterInstancePolicy"
+            },
+            "Interface": {
+                "properties": {
+                    "index": {
+                        "$ref": "#/components/schemas/AttributeValue_int_"
+                    },
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "enabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ipv4": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Metadata"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "type": "str",
+                            "value_source": "concrete"
+                        }
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "ethernetCsmacd",
+                            "ieee8023adLag",
+                            "l3ipvlan",
+                            "softwareLoopback",
+                            "subinterface",
+                            "managementInterface"
+                        ],
+                        "title": "Type",
+                        "default": "ethernetCsmacd"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "index",
+                    "name"
+                ],
+                "title": "Interface",
+                "description": "Base class for all interfaces"
             },
             "L3IpvlanInterface": {
                 "properties": {
@@ -2377,6 +2727,74 @@
                 ],
                 "title": "L3IpvlanInterface",
                 "description": "SVI Interface"
+            },
+            "Lacp": {
+                "properties": {
+                    "config": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/LacpConfig"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {}
+                    },
+                    "interfaces": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Interface"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Interfaces",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "Lacp"
+            },
+            "LacpConfig": {
+                "properties": {
+                    "system_priority": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "system_id_mac": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "load_balance_algorithm": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_list_Literal__src-mac____dst-mac____src-dst-mac____src-ip____dst-ip____src-dst-ip____src-port____dst-port____src-dst-port____"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "LacpConfig"
             },
             "Lldp": {
                 "properties": {},
@@ -2692,6 +3110,10 @@
                             },
                             "acl": {},
                             "lldp": {},
+                            "lacp": {
+                                "config": {},
+                                "interfaces": {}
+                            },
                             "interfaces": {},
                             "network_instances": {
                                 "global": {
@@ -3024,6 +3446,36 @@
                     "logical_node_id"
                 ],
                 "title": "Node"
+            },
+            "NodeResponse": {
+                "properties": {
+                    "asset_ref_id": {
+                        "type": "integer",
+                        "title": "Asset Ref Id"
+                    },
+                    "asset_ref_type": {
+                        "$ref": "#/components/schemas/AssetRefType",
+                        "default": "asset"
+                    },
+                    "logical_node_id": {
+                        "type": "integer",
+                        "title": "Logical Node Id"
+                    },
+                    "asset": {
+                        "$ref": "#/components/schemas/AssetResponse"
+                    },
+                    "logical_node": {
+                        "$ref": "#/components/schemas/LogicalNodeResponse"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "asset_ref_id",
+                    "logical_node_id",
+                    "asset",
+                    "logical_node"
+                ],
+                "title": "NodeResponse"
             },
             "Ntp": {
                 "properties": {
@@ -3690,13 +4142,16 @@
                             {
                                 "type": "null"
                             }
-                        ]
+                        ],
+                        "default": {
+                            "type": "str",
+                            "value_source": "concrete"
+                        }
                     }
                 },
                 "type": "object",
                 "required": [
-                    "name",
-                    "metadata"
+                    "name"
                 ],
                 "title": "Vlan"
             },
