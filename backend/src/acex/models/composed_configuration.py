@@ -271,18 +271,19 @@ class SnmpPrivProtocol(str, Enum):
 class SnmpConfig(BaseModel):
 	enabled: AttributeValue[bool] = False
 	engine_id: Optional[AttributeValue[str]] = None
-	#source_interface: Optional[Reference] = None
-	#source_interface: Optional[str] = None
 	location: Optional[AttributeValue[str]] = None
 	contact: Optional[AttributeValue[str]] = None
 
 
 class SnmpCommunity(BaseModel):
-	name: AttributeValue[str]
-	access: Optional[AttributeValue[SnmpAccess]] = SnmpAccess.READ_ONLY
-	view: Optional[AttributeValue[str]] = None
-	ipv4_acl: Optional[AttributeValue[str]] = None
-	ipv6_acl: Optional[AttributeValue[str]] = None
+    name: AttributeValue[str]
+    community: Optional[AttributeValue[str]] = None # Community string
+    access: Optional[AttributeValue[SnmpAccess]] = SnmpAccess.READ_ONLY
+    view: Optional[AttributeValue[str]] = None
+    ipv4_acl: Optional[AttributeValue[str]] = None # Cisco and "liknande" vendors 
+    ipv6_acl: Optional[AttributeValue[str]] = None
+    source_interface: Optional[Reference] = None
+    clients: Optional[AttributeValue[List[str]]] = None # Juniper specific
 
 
 class SnmpUser(BaseModel):
@@ -292,7 +293,6 @@ class SnmpUser(BaseModel):
 	auth_password: Optional[AttributeValue[str]] = None
 	priv_protocol: Optional[AttributeValue[SnmpPrivProtocol]] = None
 	priv_password: Optional[AttributeValue[str]] = None
-	engine_id: Optional[AttributeValue[str]] = None
 
 
 class SnmpView(BaseModel):
@@ -437,12 +437,12 @@ class TrapEvent(BaseModel):
 #class SnmpTrap(BaseModel): ...
 
 class Snmp(BaseModel):
-	config: SnmpConfig = SnmpConfig()
-	communities: Optional[Dict[str, SnmpCommunity]] = {}
-	users: Optional[Dict[str, SnmpUser]] = {}
-	trap_servers: Optional[Dict[str, SnmpServer]] = {}
-	trap_events: Optional[List[TrapEvent]] = Field(default_factory=list)
-	views: Optional[Dict[str, SnmpView]] = {}
+    config: SnmpConfig = SnmpConfig()
+    communities: Optional[Dict[str, SnmpCommunity]] = {}
+    users: Optional[Dict[str, SnmpUser]] = {}
+    trap_servers: Optional[Dict[str, SnmpServer]] = {}
+    trap_events: Optional[Dict[str, TrapEvent]] = {}
+    views: Optional[Dict[str, SnmpView]] = {}
 
 class System(BaseModel):
     config: SystemConfig = SystemConfig()

@@ -6,7 +6,8 @@ from acex.models.composed_configuration import (
     SnmpConfig, 
     SnmpUser as SnmpUserAttributes,
     SnmpServer as SnmpServerAttributes,
-    TrapEvent
+    TrapEvent,
+    SnmpCommunity as SnmpCommunityAttributes
 )
 
 class SnmpGlobal(ConfigComponent):
@@ -52,3 +53,21 @@ class SnmpServer(ConfigComponent):
 class SnmpTrap(ConfigComponent):
     type = "snmp_trap"
     model_cls = TrapEvent
+
+class SnmpCommunity(ConfigComponent):
+    type = "snmp_community"
+    model_cls = SnmpCommunityAttributes
+
+    def pre_init(self):
+        # Resolve source_interface
+        if "source_interface" in self.kwargs:
+            si = self.kwargs.pop("source_interface")
+            if isinstance(si, type(None)):
+                pass
+            elif isinstance(si, str):
+                ref = ReferenceTo(pointer=f"interfaces.{si}")
+                self.kwargs["source_interface"] = ref
+
+            elif isinstance(si, Interface):
+                ref = ReferenceTo(pointer=f"interfaces.{si.name}")
+                self.kwargs["source_interface"] = ref

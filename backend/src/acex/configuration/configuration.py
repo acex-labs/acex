@@ -29,7 +29,8 @@ from acex.configuration.components.system.snmp import (
     SnmpGlobal,
     SnmpUser,
     SnmpServer,
-    SnmpTrap
+    SnmpTrap,
+    SnmpCommunity
 )
 
 from acex.models import ExternalValue
@@ -56,9 +57,10 @@ class Configuration:
         LoggingConfig: "system.logging.config",
         FileLogging: "system.logging.files",
         SnmpGlobal: "system.snmp.config",
-        #SnmpUser: "system.snmp.users",
+        SnmpUser: "system.snmp.users",
         SnmpServer: "system.snmp.trap_servers",
-        SnmpTrap: Template("system.snmp.traps.${trap_event}"),
+        SnmpCommunity: "system.snmp.communities",
+        SnmpTrap: "system.snmp.trap_events",
         LacpConfig: "lacp.config",
         #LacpInterfaces: "lacp.interfaces",
         #LacpConfgi: "lacp.config",
@@ -227,9 +229,18 @@ class Configuration:
             # Traverse the composed object to the ptr for the obj.
             path_parts = path.split('.')
             attribute_name = path_parts.pop()
+            #print('component')
+            #print(component.name)
+            #print('attribute_name')
+            #print(attribute_name)
+            #print('='*40)
 
             # First place the pointer on the attribute key
             ptr = config
+            #print('='*100)
+            #print('ptr')
+            #print(ptr)
+            #print('='*100)
             for part in path_parts:
                 if isinstance(ptr, dict):
                     ptr = ptr.get(part)
@@ -258,7 +269,9 @@ class Configuration:
 
             # insertion point 
             insertion_path_parts = reference.from_ptr.split('.')
+            #print('insertion_path_parts:', insertion_path_parts)
             insertion_attr = insertion_path_parts.pop()
+            #print('insertion_attr:', insertion_attr)
 
             # referenced value
             value_path_parts = reference.to_ptr.split('.')
