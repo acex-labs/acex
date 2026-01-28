@@ -6,13 +6,8 @@ from acex.configuration.components.system.snmp import (
     SnmpTrap,
     SnmpCommunity
 )
-from acex.configuration.components.network_instances import L3Vrf
 from acex.configuration.components.interfaces import Svi
 from acex.configuration.components.network_instances import Vlan
-
-#class SNMPConfig(ConfigMap):
-#    def compile(self, context):
-
 
 class SNMPUserConfig(ConfigMap):
     def compile(self, context):
@@ -92,12 +87,6 @@ class SnmpTrapsConfig(ConfigMap):
             event_name = 'vrf-down'
         )
         context.configuration.add(vrf_down)
-
-#class SnmpCommunitiesConfig(ConfigMap):
-
-
-#snmp_server = SNMPConfig()
-#snmp_server.filters = FilterAttribute("site").eq("/.*/")
 
 snmp_user = SNMPUserConfig()
 snmp_user.filters = FilterAttribute("site").eq("/.*/")
