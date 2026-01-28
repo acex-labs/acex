@@ -259,8 +259,8 @@ class SimpleVlan(ConfigMap):
     def compile(self, context):
         # At the moment we need to define the vlan for mgmt SVI here as we otherweise can't make the connection.
         vlan = Vlan(
-            name = 'vlan_1337', # You are allowed to change these stats. If ID changes, change name to "vlan_{ID}"
-            vlan_id = 1337, # You are allowed to change these stats.
+            name = 'vlan_2', # You are allowed to change these stats. If ID changes, change name to "vlan_{ID}"
+            vlan_id = 2, # You are allowed to change these stats.
             vlan_name = 'Mgmt' # You are allowed to change these stats.
         )
         context.configuration.add(vlan)
