@@ -17,7 +17,7 @@ class ManagementConnection(ManagementConnectionBase, table=True):
     id: int = Field(primary_key=True)
 
 class ManagementConnectionResponse(ManagementConnection):
-    id: int
+    pass
 
 class DeviceManagement(SQLModel):
     asset_id: int
