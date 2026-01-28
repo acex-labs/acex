@@ -1,7 +1,7 @@
 from acex.configuration.components.base_component import ConfigComponent
 from acex.models.composed_configuration import ReferenceTo, ReferenceFrom
 from acex.configuration.components.interfaces import Interface
-from acex.configuration.components.network_instances import NetworkInstance
+from acex.configuration.components.network_instances import L3Vrf
 from acex.models.composed_configuration import (
     SnmpConfig, 
     SnmpUser as SnmpUserAttributes,
@@ -22,21 +22,21 @@ class SnmpServer(ConfigComponent):
     type = "snmp_trap_server"
     model_cls = SnmpServerAttributes
 
-    def _add_vrf(self):
-        if self.kwargs.get('network_instance'):
-            ni = self.kwargs.pop("network_instance")
-            if isinstance(ni, type(None)):
-                pass
-            elif isinstance(ni, str):
-                ref = ReferenceTo(pointer=f"network_instances.{ni}")
-                self.kwargs["network_instance"] = ref
-
-            elif isinstance(ni, NetworkInstance):
-                ref = ReferenceTo(pointer=f"network_instances.{ni.name}")
-                self.kwargs["network_instance"] = ref
+    #def _add_vrf(self):
+    #    if self.kwargs.get('network_instance'):
+    #        ni = self.kwargs.pop("network_instance")
+    #        if isinstance(ni, type(None)):
+    #            pass
+    #        elif isinstance(ni, str):
+    #            ref = ReferenceFrom(pointer=f"network_instances.{ni}")
+    #            self.kwargs["network_instance"] = ref
+#
+    #        elif isinstance(ni, L3Vrf):
+    #            ref = ReferenceFrom(pointer=f"network_instances.{ni.name}")
+    #            self.kwargs["network_instance"] = ref
 
     def pre_init(self):
-        self._add_vrf()
+        #self._add_vrf()
         # Resolve source_interface
         if "source_interface" in self.kwargs:
             si = self.kwargs.pop("source_interface")

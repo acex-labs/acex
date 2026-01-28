@@ -14,7 +14,6 @@ from acex.models.logging import (
     LoggingEvents
 )
 from acex.models.spanning_tree import SpanningTree
-#from acex.models.snmp import Snmp
 
 class MetadataValueType(Enum):
     CONCRETE = "concrete"
@@ -311,9 +310,7 @@ class SnmpServer(BaseModel):
     username: Optional[AttributeValue[str]] = None
     security_level: Optional[AttributeValue[SnmpSecurityLevel]] = None
     source_interface: Optional[Reference] = None
-    network_instance: Optional[Reference] = None
-    #source_interface: Optional[str] = None
-    #network_instance: Optional[str] = None
+    network_instance: Optional[AttributeValue[str]] = None
 
 # ----------------------------
 # Enum-based trap groups

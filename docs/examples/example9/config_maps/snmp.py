@@ -30,11 +30,6 @@ class SNMPUserConfig(ConfigMap):
 
 class SNMPConfig(ConfigMap):
     def compile(self, context):
-        enet_vrf = L3Vrf(
-            name="ENET"
-        )
-        context.configuration.add(enet_vrf)
-
         vlan = Vlan(
             name = 'vlan_1337', # You are allowed to change these stats. If ID changes, change name to "vlan_{ID}"
             vlan_id = 1337, # You are allowed to change these stats.
@@ -66,7 +61,7 @@ class SNMPConfig(ConfigMap):
             community = "public",
             version = "v3",
             source_interface = svi1337,
-            network_instance = enet_vrf
+            network_instance = "ENET"
         )
 
         context.configuration.add(snmp_server)
