@@ -19,7 +19,6 @@ def list(ctx: typer.Context):
 @app.command()
 def show(ctx: typer.Context, asset_id: str):
     """Show details for an asset."""
-    typer.echo(f"Showing asset {asset_id} (implement logic here)")
     sdk = get_sdk(ctx.obj.get_active_context())
     asset = sdk.assets.get(asset_id)
 
