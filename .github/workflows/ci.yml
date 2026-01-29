@@ -150,6 +150,11 @@ jobs:
       if: steps.should-publish.outputs.should-publish == 'true'
       working-directory: ./${{ matrix.package }}
       run: poetry install --no-interaction
+
+    - name: Switch acex-client dependency to version (prod)
+      if: steps.should-publish.outputs.should-publish == 'true' && matrix.package == 'cli'
+      working-directory: ./cli
+      run: bash switch_acex_client_dep.sh prod
     
     - name: Build package
       if: steps.should-publish.outputs.should-publish == 'true'
