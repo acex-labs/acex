@@ -451,7 +451,7 @@ class aaaTacacsAttributes(aaaBaseClass):
     secret_key_hashed: Optional[str] = None
     address: Optional[str] = None
     timeout: Optional[int] = 30
-    source_address: Optional[str] = None #Optional[Reference] = None # should be reference
+    source_interface: Optional[Reference] = None #Optional[Reference] = None # should be reference
 
 class aaaRadiusAttributes(aaaBaseClass):
     auth_port: Optional[int] = 1812
@@ -460,7 +460,7 @@ class aaaRadiusAttributes(aaaBaseClass):
     secret_key_hashed: Optional[str] = None
     address: Optional[str] = None
     timeout: Optional[int] = 30
-    source_address: Optional[str] = None #Optional[Reference] = None # should be reference
+    source_interface: Optional[Reference] = None #Optional[Reference] = None # should be reference
     retransmit_attempts: Optional[int] = 3
 
 class aaaServerGroupAttributes(BaseModel):
@@ -469,12 +469,15 @@ class aaaServerGroupAttributes(BaseModel):
     #servers: Optional[list] = None 
     #address: Optional[str] = None 
     #timeout: Optional[int] = 30
-    tacacs: Optional[Reference] = None
+    tacacs: Optional[Dict[str, Reference]] = None
     radius: Optional[Reference] = None
 
 # Authentication Models
 class aaaAuthenticationMethods(aaaBaseClass):
-    method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL'], TACACS_GROUP is reference to server group
+    method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL', 'default', 'enable'] - TACACS_GROUP is reference to server group
+    # Cisco example:
+    # aaa authentication login default group TACACS-GROUP-NEW local
+    # aaa authentication enable default group TACACS-GROUP-NEW enable
 
 class authenticationUser(aaaBaseClass):
     username: Optional[str] = None
@@ -520,22 +523,23 @@ class aaaAccountingMethods(BaseModel):
     method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
 
 class aaaAccountingEvents(BaseModel):
-    event: list = [
-        {
-        'event-type': 'command',
-        'config': {
-            'event-type': 'command',
-            'method': ['tacacs_group']
-            }
-        },
-        {
-        'event-type': 'system',
-        'config': {
-            'event-type': 'system',
-            'method': ['tacacs_group']
-            }
-        }
-    ]
+    events: Optional[List[str]] = Field(default_factory=list)
+    #event: list = [
+    #    {
+    #    'event-type': 'command',
+    #    'config': {
+    #        'event-type': 'command',
+    #        'method': ['tacacs_group']
+    #        }
+    #    },
+    #    {
+    #    'event-type': 'system',
+    #    'config': {
+    #        'event-type': 'system',
+    #        'method': ['tacacs_group']
+    #        }
+    #    }
+    #]
 
 class aaaAccounting(BaseModel):
     config: aaaAccountingMethods = aaaAccountingMethods()

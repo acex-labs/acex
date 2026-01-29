@@ -5,7 +5,8 @@ from acex.configuration.components.system.aaa import (
     aaaRadius,
     aaaAuthenticationMethods,
     aaaAuthorizationMethods,
-    aaaAccountingMethods
+    aaaAccountingMethods,
+    aaaAccountingEvents
 )
 
 from acex.configuration.components.interfaces import Svi
@@ -34,16 +35,43 @@ class TacacsConfig(ConfigMap):
             port = 49,
             secret_key = 'MySecretKey',
             address = '10.10.10.1',
-            source_interface = svi1337
+            source_interface = svi1337 # Could be a reference to an interface, or just an IP.
         )
         context.configuration.add(tacacs)
+
+        tacacs2 = aaaTacacs(
+            name = "tacacs_server_2",
+            port = 49,
+            secret_key = 'MySecretKey',
+            address = '10.123.132.1',
+            source_interface = svi1337 # Could be a reference to an interface, or just an IP.
+        )
+        context.configuration.add(tacacs2)
+
+        radius = aaaRadius(
+            name = "radius_server_1",
+            port = 49,
+            secret_key = 'radiusSomeSecretKey',
+            address = '172.16.23.54',
+            source_interface = svi1337 # Could be a reference to an interface, or just an IP.
+        )
+        context.configuration.add(radius)
+
+        radius2 = aaaRadius(
+            name = "radius_server_2",
+            port = 49,
+            secret_key = 'radiusSecretKey',
+            address = '172.16.12.123',
+            source_interface = svi1337 # Could be a reference to an interface, or just an IP.
+        )
+        context.configuration.add(radius2)
 
         server_group = aaaServerGroup(
             name = 'TACACS_GROUP',
             enable = True,
             type = 'tacacs',
-            tacacs = tacacs,
-            radius = 'hej'
+            tacacs = [tacacs, tacacs2],
+            radius = radius
             #servers = ['10.10.10.1,172.16.23.1']
         )
         context.configuration.add(server_group)
@@ -67,6 +95,12 @@ class aaaConfig(ConfigMap):
             method = ['TACACS_GROUP','LOCAL']
         )
         context.configuration.add(aaa_accounting_methods)
+
+        aaa_accounting_events = aaaAccountingEvents(
+            name = 'AAA_ACCOUNT_EVENTS',
+            events = ['login','change-log','interactive-commands']
+        )
+        context.configuration.add(aaa_accounting_events)
 
 tacacs_config = TacacsConfig()
 tacacs_config.filters = FilterAttribute("site").eq("/.*/")
