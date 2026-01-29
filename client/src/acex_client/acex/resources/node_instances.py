@@ -6,5 +6,6 @@ from .resource_base import Resource
 class NodeInstances(Resource):
 
     ENDPOINT =  "/inventory/node_instances/"
-    RESPONSE_MODEL = NodeResponse
+    RESPONSE_MODEL_SINGLE = NodeResponse
+    RESPONSE_MODEL_LIST = Node
 

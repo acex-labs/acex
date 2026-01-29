@@ -19,20 +19,31 @@ class Resource:
         return self.__class__.ENDPOINT or ""
 
     @property
-    def model(self):
+    def list_model(self):
         """
         Each resource define their specific response model 
         as a class variable that can be used via this 
-        property.
+        property. this property handles the model
+        used when listing multiple items.
         """
-        return self.__class__.RESPONSE_MODEL
+        return self.__class__.RESPONSE_MODEL_LIST
+
+    @property
+    def single_model(self):
+        """
+        Each resource define their specific response model 
+        as a class variable that can be used via this 
+        property. this property handles the model
+        used when getting single item.
+        """
+        return self.__class__.RESPONSE_MODEL_SINGLE
 
 
     def get(self, id):
         data = self.rest.get_item(self.ep, id)
 
         if data != {}:
-            resource = self.model(**data)
+            resource = self.single_model(**data)
             return resource    
 
     def get_all(self):
@@ -40,6 +51,6 @@ class Resource:
         api_response = self.rest.query_items(self.ep)
 
         for resource in api_response:
-            response.append(self.model(**resource))
+            response.append(self.list_model(**resource))
 
         return response
