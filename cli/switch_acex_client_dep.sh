@@ -6,7 +6,7 @@
 
 set -e
 
-elif [[ "$1" == "prod" ]]; then
+
 
 PYPROJECT="$(dirname "$0")/pyproject.toml"
 
