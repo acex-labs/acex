@@ -7,7 +7,9 @@ from .resource_base import Resource
 class Neds(Resource):
 
     ENDPOINT =  "/neds/"
-    RESPONSE_MODEL = Ned
+    RESPONSE_MODEL_SINGLE = Ned
+    RESPONSE_MODEL_LIST = Ned
+
 
     def __init__(self, rest_client):
         self.rest = rest_client

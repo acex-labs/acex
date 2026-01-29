@@ -6,5 +6,5 @@ from .resource_base import Resource
 class Assets(Resource):
 
     ENDPOINT =  "/inventory/assets/"
-    RESPONSE_MODEL = AssetResponse
-
+    RESPONSE_MODEL_SINGLE = AssetResponse
+    RESPONSE_MODEL_LIST = AssetResponse
