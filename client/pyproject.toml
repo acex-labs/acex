@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-client"
-version = "0.0.7"
+version = "0.0.8"
 description = "ACE-X CLIENT - Client for ACE-X"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"

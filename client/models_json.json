@@ -1671,6 +1671,44 @@
                 ],
                 "title": "AttributeValue[LoggingSeverity]"
             },
+            "AttributeValue_Union_int__list_int___": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "items": {
+                                    "type": "integer"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[Union[int, list[int]]]"
+            },
             "AttributeValue_bool_": {
                 "properties": {
                     "value": {
@@ -1780,6 +1818,41 @@
                     "value"
                 ],
                 "title": "AttributeValue[list[Literal['src-mac', 'dst-mac', 'src-dst-mac', 'src-ip', 'dst-ip', 'src-dst-ip', 'src-port', 'dst-port', 'src-dst-port']]]"
+            },
+            "AttributeValue_list_int__": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "integer"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[list[int]]"
             },
             "AttributeValue_str_": {
                 "properties": {
@@ -1960,6 +2033,35 @@
                                     "value": "global"
                                 },
                                 "vlans": {}
+                            }
+                        }
+                    },
+                    "stp": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SpanningTree"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "config": {
+                                "bpdu_filter": false,
+                                "bpdu_guard": false,
+                                "bridge_assurance": false,
+                                "loop_guard": false,
+                                "portfast": false
+                            },
+                            "rstp": {
+                                "config": {}
+                            },
+                            "mstp": {
+                                "config": {},
+                                "mst_instances": {}
+                            },
+                            "rapidpvst": {
+                                "vlan": {}
                             }
                         }
                     }
@@ -2254,6 +2356,115 @@
                                 "type": "null"
                             }
                         ]
+                    },
+                    "stp_port_priority": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stp Port Priority"
+                    },
+                    "stp_cost": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stp Cost"
+                    },
+                    "stp_edge_port": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stp Edge Port",
+                        "default": false
+                    },
+                    "stp_bpdu_filter": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stp Bpdu Filter",
+                        "default": false
+                    },
+                    "stp_bpdu_guard": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stp Bpdu Guard",
+                        "default": false
+                    },
+                    "stp_loop_guard": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stp Loop Guard",
+                        "default": false
+                    },
+                    "stp_root_guard": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stp Root Guard",
+                        "default": false
+                    },
+                    "stp_portfast": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stp Portfast",
+                        "default": false
+                    },
+                    "stp_link_type": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "point-to-point",
+                                    "shared"
+                                ]
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stp Link Type"
                     }
                 },
                 "type": "object",
@@ -3128,6 +3339,25 @@
                                     },
                                     "vlans": {}
                                 }
+                            },
+                            "stp": {
+                                "config": {
+                                    "bpdu_filter": false,
+                                    "bpdu_guard": false,
+                                    "bridge_assurance": false,
+                                    "loop_guard": false,
+                                    "portfast": false
+                                },
+                                "mstp": {
+                                    "config": {},
+                                    "mst_instances": {}
+                                },
+                                "rapidpvst": {
+                                    "vlan": {}
+                                },
+                                "rstp": {
+                                    "config": {}
+                                }
                             }
                         }
                     },
@@ -3139,6 +3369,31 @@
                 },
                 "type": "object",
                 "title": "LogicalNodeResponse"
+            },
+            "MSTPConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/MstpAttributes",
+                        "default": {}
+                    },
+                    "mst_instances": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/MstpInstanceAttributes"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Mst Instances",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "MSTPConfig"
             },
             "ManagementConnectionBase": {
                 "properties": {
@@ -3313,6 +3568,174 @@
                     "reference"
                 ],
                 "title": "MetadataValueType"
+            },
+            "MstpAttributes": {
+                "properties": {
+                    "hello_time": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hello Time"
+                    },
+                    "max_age": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Age"
+                    },
+                    "forward_delay": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Forward Delay"
+                    },
+                    "bridge_priority": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bridge Priority"
+                    },
+                    "hold_count": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hold Count"
+                    },
+                    "revision": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "max_hop": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "MstpAttributes"
+            },
+            "MstpInstanceAttributes": {
+                "properties": {
+                    "hello_time": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hello Time"
+                    },
+                    "max_age": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Age"
+                    },
+                    "forward_delay": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Forward Delay"
+                    },
+                    "bridge_priority": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bridge Priority"
+                    },
+                    "hold_count": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hold Count"
+                    },
+                    "instance_id": {
+                        "$ref": "#/components/schemas/AttributeValue_int_"
+                    },
+                    "name": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "vlan": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_list_int__"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "instance_id"
+                ],
+                "title": "MstpInstanceAttributes"
             },
             "Ned": {
                 "properties": {
@@ -3583,6 +4006,109 @@
                 ],
                 "title": "NtpServer"
             },
+            "RSTPConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/RstpAttributes",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "RSTPConfig"
+            },
+            "RapidPVSTAttributes": {
+                "properties": {
+                    "hello_time": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hello Time"
+                    },
+                    "max_age": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Age"
+                    },
+                    "forward_delay": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Forward Delay"
+                    },
+                    "bridge_priority": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bridge Priority"
+                    },
+                    "hold_count": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hold Count"
+                    },
+                    "vlan": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_Union_int__list_int___"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "RapidPVSTAttributes",
+                "description": "Docstring for RapidPVSTAttributes\nvlan can be a string or list. Depending on how NED is built it will check wether it's a single VLAN or multiple VLANs and then format the data to the correct format\nfor the command of the specific vendor.\nFor example for Cisco:\n* Single VLAN\n    spanning-tree vlan 10 priority 8192\n* Multiple VLANs\n    spanning-tree vlan 10-30 priority 8192"
+            },
+            "RapidPVSTConfig": {
+                "properties": {
+                    "vlan": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/RapidPVSTAttributes"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Vlan",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "RapidPVSTConfig"
+            },
             "Reference": {
                 "properties": {
                     "pointer": {
@@ -3664,6 +4190,67 @@
                 ],
                 "title": "RouteTarget"
             },
+            "RstpAttributes": {
+                "properties": {
+                    "hello_time": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hello Time"
+                    },
+                    "max_age": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Age"
+                    },
+                    "forward_delay": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Forward Delay"
+                    },
+                    "bridge_priority": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bridge Priority"
+                    },
+                    "hold_count": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Hold Count"
+                    }
+                },
+                "type": "object",
+                "title": "RstpAttributes"
+            },
             "SoftwareLoopbackInterface": {
                 "properties": {
                     "index": {
@@ -3741,6 +4328,118 @@
                 ],
                 "title": "SoftwareLoopbackInterface",
                 "description": "Loopback Interface"
+            },
+            "SpanningTree": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/SpanningTreeGlobalAttributes",
+                        "default": {
+                            "bpdu_filter": false,
+                            "bpdu_guard": false,
+                            "loop_guard": false,
+                            "portfast": false,
+                            "bridge_assurance": false
+                        }
+                    },
+                    "rstp": {
+                        "$ref": "#/components/schemas/RSTPConfig",
+                        "default": {
+                            "config": {}
+                        }
+                    },
+                    "mstp": {
+                        "$ref": "#/components/schemas/MSTPConfig",
+                        "default": {
+                            "config": {},
+                            "mst_instances": {}
+                        }
+                    },
+                    "rapidpvst": {
+                        "$ref": "#/components/schemas/RapidPVSTConfig",
+                        "default": {
+                            "vlan": {}
+                        }
+                    }
+                },
+                "type": "object",
+                "title": "SpanningTree"
+            },
+            "SpanningTreeGlobalAttributes": {
+                "properties": {
+                    "mode": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Mode"
+                    },
+                    "bpdu_filter": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bpdu Filter",
+                        "default": false
+                    },
+                    "bpdu_guard": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bpdu Guard",
+                        "default": false
+                    },
+                    "loop_guard": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Loop Guard",
+                        "default": false
+                    },
+                    "portfast": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Portfast",
+                        "default": false
+                    },
+                    "bridge_assurance": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Bridge Assurance",
+                        "default": false
+                    }
+                },
+                "type": "object",
+                "title": "SpanningTreeGlobalAttributes"
             },
             "Ssh": {
                 "properties": {
