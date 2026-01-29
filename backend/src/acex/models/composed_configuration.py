@@ -441,6 +441,115 @@ class Snmp(BaseModel):
     trap_events: Optional[Dict[str, TrapEvent]] = {}
     views: Optional[Dict[str, SnmpView]] = {}
 
+# AAA
+class aaaBaseClass(BaseModel):
+    name: str = None
+
+class aaaTacacsAttributes(aaaBaseClass):
+    port: Optional[int] = 49
+    secret_key: Optional[str] = None
+    secret_key_hashed: Optional[str] = None
+    address: Optional[str] = None
+    timeout: Optional[int] = 30
+    source_address: Optional[str] = None #Optional[Reference] = None # should be reference
+
+class aaaRadiusAttributes(aaaBaseClass):
+    auth_port: Optional[int] = 1812
+    acct_port: Optional[int] = 1813
+    secret_key: Optional[str] = None
+    secret_key_hashed: Optional[str] = None
+    address: Optional[str] = None
+    timeout: Optional[int] = 30
+    source_address: Optional[str] = None #Optional[Reference] = None # should be reference
+    retransmit_attempts: Optional[int] = 3
+
+class aaaServerGroupAttributes(BaseModel):
+    enable: Optional[bool] = False
+    type: Optional[Literal['tacacs','radius']] = None
+    #servers: Optional[list] = None 
+    #address: Optional[str] = None 
+    #timeout: Optional[int] = 30
+    tacacs: Optional[Reference] = None
+    radius: Optional[Reference] = None
+
+# Authentication Models
+class aaaAuthenticationMethods(aaaBaseClass):
+    method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL'], TACACS_GROUP is reference to server group
+
+class authenticationUser(aaaBaseClass):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    password_hahsed: Optional[str] = None
+    ssh_key: Optional[str] = None
+    role: Optional[str] = None
+
+class aaaAuthenticationUsers(aaaBaseClass):
+    username: Optional[Dict[str, authenticationUser]] = {}
+
+class adminUser(aaaBaseClass): # when to use this?
+    admin_password: Optional[str] = None
+    admin_password_hashed: Optional[str] = None
+
+class aaaAuthenticationAdminUsers(BaseModel):
+    config: Optional[Dict[str, adminUser]] = {}
+
+class aaaAuthentication(BaseModel):
+    config: Optional[Dict[str, aaaAuthenticationMethods]] = {}
+    admin_user: Optional[Dict[str, aaaAuthenticationAdminUsers]] = {}
+    users: Optional[Dict[str, aaaAuthenticationUsers]] = {}
+
+# Authorization Models
+class aaaAuthorizationMethods(aaaBaseClass):
+    method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
+
+class aaaAuthorizationEvent(aaaBaseClass):
+    event_type: dict = {
+        'event-type':'command',
+        'method':['tacacs_group']
+    }
+
+class aaaAuthorizationEvents(BaseModel):
+    event: Optional[Dict[str, aaaAuthorizationEvent]] = {}
+
+class aaaAuthorization(BaseModel):
+    config: Optional[Dict[str, aaaAuthorizationMethods]] = {}
+    events: Optional[Dict[str, aaaAuthorizationEvents]] = {}
+
+# Accounting Models
+class aaaAccountingMethods(BaseModel):
+    method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
+
+class aaaAccountingEvents(BaseModel):
+    event: list = [
+        {
+        'event-type': 'command',
+        'config': {
+            'event-type': 'command',
+            'method': ['tacacs_group']
+            }
+        },
+        {
+        'event-type': 'system',
+        'config': {
+            'event-type': 'system',
+            'method': ['tacacs_group']
+            }
+        }
+    ]
+
+class aaaAccounting(BaseModel):
+    config: aaaAccountingMethods = aaaAccountingMethods()
+    events: aaaAccountingEvents = aaaAccountingEvents()
+
+class TripleA(BaseModel):
+    #config: dict = None
+    server_groups: Optional[Dict[str, aaaServerGroupAttributes]] = {}
+    tacacs: Optional[Dict[str, aaaTacacsAttributes]] = {}
+    radius: Optional[Dict[str, aaaRadiusAttributes]] = {}
+    authentication: aaaAuthentication = aaaAuthentication()
+    authorization: aaaAuthorization = aaaAuthorization()
+    accounting: aaaAccounting = aaaAccounting()
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
