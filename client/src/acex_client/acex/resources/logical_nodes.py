@@ -1,9 +1,10 @@
 
-from acex_client.models.models import LogicalNode, Ned
+from acex_client.models.models import LogicalNode,LogicalNodeResponse
 from .resource_base import Resource
 
 
 class LogicalNodes(Resource):
 
     ENDPOINT =  "/inventory/logical_nodes/"
-    RESPONSE_MODEL = LogicalNode
+    RESPONSE_MODEL_SINGLE = LogicalNodeResponse
+    RESPONSE_MODEL_LIST = LogicalNode
