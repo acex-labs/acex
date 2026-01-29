@@ -33,6 +33,15 @@ from acex.configuration.components.system.snmp import (
     SnmpCommunity
 )
 
+from acex.configuration.components.system.aaa import (
+    aaaServerGroup,
+    aaaTacacs,
+    aaaRadius,
+    aaaAuthenticationMethods,
+    aaaAuthorizationMethods,
+    aaaAccountingMethods
+)
+
 from acex.models import ExternalValue
 from acex.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict
@@ -61,6 +70,12 @@ class Configuration:
         SnmpServer: "system.snmp.trap_servers",
         SnmpCommunity: "system.snmp.communities",
         SnmpTrap: "system.snmp.trap_events",
+        aaaServerGroup: "system.aaa.server_groups",
+        aaaTacacs: "system.aaa.tacacs",
+        aaaRadius: "system.aaa.radius",
+        aaaAuthenticationMethods: "system.aaa.authentication.config",
+        aaaAuthorizationMethods: "system.aaa.authorization.config",
+        aaaAccountingMethods: "system.aaa.accounting.config",
         LacpConfig: "lacp.config",
         #LacpInterfaces: "lacp.interfaces",
         #LacpConfgi: "lacp.config",
