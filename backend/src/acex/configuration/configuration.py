@@ -39,7 +39,8 @@ from acex.configuration.components.system.aaa import (
     aaaRadius,
     aaaAuthenticationMethods,
     aaaAuthorizationMethods,
-    aaaAccountingMethods
+    aaaAccountingMethods,
+    aaaAccountingEvents
 )
 
 from acex.models import ExternalValue
@@ -76,6 +77,7 @@ class Configuration:
         aaaAuthenticationMethods: "system.aaa.authentication.config",
         aaaAuthorizationMethods: "system.aaa.authorization.config",
         aaaAccountingMethods: "system.aaa.accounting.config",
+        aaaAccountingEvents: "system.aaa.accounting.events",
         LacpConfig: "lacp.config",
         #LacpInterfaces: "lacp.interfaces",
         #LacpConfgi: "lacp.config",
