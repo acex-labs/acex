@@ -464,6 +464,26 @@ class aaaRadiusAttributes(aaaBaseClass):
     retransmit_attempts: Optional[int] = 3
 
 class aaaServerGroupAttributes(BaseModel):
+    """
+    Define a AAA server group that can contain multiple TACACS+ and/or RADIUS servers.
+
+    Type is used to tell future renderers what kind of server group this is.
+    Example:
+    type = 'tacacs' or type = 'radius'
+    
+    The tacacs and radius attributes expect a reference to the aaaTacacs and aaaRadius models respectively.
+
+    Example in config map:
+    enable = True
+    type = 'tacacs'
+    tacacs = [tacacs_server1, tacacs_server2] 
+    radius = radius_server1
+
+    Cisco example:
+    aaa group server tacacs+ TACACS-GROUP
+     server name tacacs_server1
+     server name tacacs_server2
+    """
     enable: Optional[bool] = False
     type: Optional[Literal['tacacs','radius']] = None
     #servers: Optional[list] = None 
@@ -474,7 +494,19 @@ class aaaServerGroupAttributes(BaseModel):
 
 # Authentication Models
 class aaaAuthenticationMethods(aaaBaseClass):
+    """
+    Define the authentiation methods used by AAA. If you define a server group using the "aaaServerGroup" model, 
+    you can reference it here by its name, but only as a string.
+
+    Example in config map:
+    method = ['TACACS_GROUP','LOCAL']
+
+    Cisco example:
+    aaa authentication login default group TACACS-GROUP-NEW local
+    """
     method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL', 'default', 'enable'] - TACACS_GROUP is reference to server group
+    # Method could handle a reference to a server group in the future. For now we only use strings. Important for users to know this.
+
     # Cisco example:
     # aaa authentication login default group TACACS-GROUP-NEW local
     # aaa authentication enable default group TACACS-GROUP-NEW enable
@@ -503,6 +535,16 @@ class aaaAuthentication(BaseModel):
 
 # Authorization Models
 class aaaAuthorizationMethods(aaaBaseClass):
+    """
+    Define the authorization methods used by AAA. If you define a server group using the "aaaServerGroup" model, 
+    you can reference it here by its name, but only as a string.
+
+    Example in config map:
+    method = ['TACACS_GROUP','LOCAL']
+
+    Cisco example:
+    aaa authentication login default group TACACS-GROUP-NEW local
+    """
     method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
 
 class aaaAuthorizationEvent(aaaBaseClass):
@@ -520,6 +562,16 @@ class aaaAuthorization(BaseModel):
 
 # Accounting Models
 class aaaAccountingMethods(BaseModel):
+    """
+    Define the accounting methods used by AAA. If you define a server group using the "aaaServerGroup" model, 
+    you can reference it here by its name, but only as a string.
+
+    Example in config map:
+    method = ['TACACS_GROUP','LOCAL']
+
+    Cisco example:
+    aaa authentication login default group TACACS-GROUP-NEW local
+    """
     method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
 
 class aaaAccountingEvents(BaseModel):
