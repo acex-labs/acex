@@ -5,6 +5,7 @@ from acex.configuration.components.system.aaa import (
     aaaRadius,
     aaaAuthenticationMethods,
     aaaAuthorizationMethods,
+    aaaAuthorizationEvents,
     aaaAccountingMethods,
     aaaAccountingEvents
 )
@@ -90,6 +91,12 @@ class aaaConfig(ConfigMap):
         )
         context.configuration.add(aaa_authorization_methods)
 
+        aaa_authorization_events = aaaAuthorizationEvents(
+            name = 'AAA_AUTHOR_EVENTS',
+            events = ['config-commands','console','interactive-commands']
+        )
+        context.configuration.add(aaa_authorization_events)
+
         aaa_accounting_methods = aaaAccountingMethods(
             name = 'AAA_ACCOUNT_METHODS',
             method = ['TACACS_GROUP','LOCAL']
@@ -98,7 +105,7 @@ class aaaConfig(ConfigMap):
 
         aaa_accounting_events = aaaAccountingEvents(
             name = 'AAA_ACCOUNT_EVENTS',
-            events = ['login','change-log','interactive-commands']
+            events = ['send','cstop-record','authentication']
         )
         context.configuration.add(aaa_accounting_events)
 
