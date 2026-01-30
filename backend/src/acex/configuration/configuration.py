@@ -39,6 +39,7 @@ from acex.configuration.components.system.aaa import (
     aaaRadius,
     aaaAuthenticationMethods,
     aaaAuthorizationMethods,
+    aaaAuthorizationEvents,
     aaaAccountingMethods,
     aaaAccountingEvents
 )
@@ -76,6 +77,7 @@ class Configuration:
         aaaRadius: "system.aaa.radius",
         aaaAuthenticationMethods: "system.aaa.authentication.config",
         aaaAuthorizationMethods: "system.aaa.authorization.config",
+        aaaAuthorizationEvents: "system.aaa.authorization.events",
         aaaAccountingMethods: "system.aaa.accounting.config",
         aaaAccountingEvents: "system.aaa.accounting.events",
         LacpConfig: "lacp.config",

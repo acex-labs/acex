@@ -7,6 +7,7 @@ from acex.models.composed_configuration import (
     aaaServerGroupAttributes,
     aaaAuthenticationMethods as aaaAuthenticationMethodsAttributes,
     aaaAuthorizationMethods as aaaAuthorizationMethodsAttributes,
+    aaaAuthorizationEvents as aaaAuthorizationEventsAttributes,
     aaaAccountingMethods as aaaAccountingMethodsAttributes,
     aaaAccountingEvents as aaaAccountingEventsAttributes
 )
@@ -96,6 +97,10 @@ class aaaAuthenticationMethods(ConfigComponent):
 class aaaAuthorizationMethods(ConfigComponent):
     type = "aaaAuthorizationMethods"
     model_cls = aaaAuthorizationMethodsAttributes
+
+class aaaAuthorizationEvents(ConfigComponent):
+    type = "aaaAuthorizationEvents"
+    model_cls = aaaAuthorizationEventsAttributes
 
 class aaaAccountingMethods(ConfigComponent):
     type = "aaaAccountingMethods"

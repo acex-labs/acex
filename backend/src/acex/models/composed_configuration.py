@@ -543,18 +543,23 @@ class aaaAuthorizationMethods(aaaBaseClass):
     method = ['TACACS_GROUP','LOCAL']
 
     Cisco example:
-    aaa authentication login default group TACACS-GROUP-NEW local
+    aaa authorization login default group TACACS-GROUP-NEW local
     """
     method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
 
-class aaaAuthorizationEvent(aaaBaseClass):
-    event_type: dict = {
-        'event-type':'command',
-        'method':['tacacs_group']
-    }
+class aaaAuthorizationEvents(aaaBaseClass):
+    """
+    Define authorization events. 
 
-class aaaAuthorizationEvents(BaseModel):
-    event: Optional[Dict[str, aaaAuthorizationEvent]] = {}
+    Cisco example:
+    aaa authorization config-commands
+    aaa authorization console
+    """
+    events: Optional[List[str]] = Field(default_factory=list) # Ex. ['config-commands','console']
+    #event_type: dict = {
+    #    'event-type':'command',
+    #    'method':['tacacs_group']
+    #}
 
 class aaaAuthorization(BaseModel):
     config: Optional[Dict[str, aaaAuthorizationMethods]] = {}
@@ -570,12 +575,18 @@ class aaaAccountingMethods(BaseModel):
     method = ['TACACS_GROUP','LOCAL']
 
     Cisco example:
-    aaa authentication login default group TACACS-GROUP-NEW local
+    aaa accounting login default group TACACS-GROUP-NEW local
     """
     method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
 
 class aaaAccountingEvents(BaseModel):
-    events: Optional[List[str]] = Field(default_factory=list)
+    """
+    Define accounting events.
+    
+    Cisco example:
+    aaa accounting send stop-record authentication failure
+    """
+    events: Optional[List[str]] = Field(default_factory=list) # Ex. ['send','stop-record','authentication', 'failure']
     #event: list = [
     #    {
     #    'event-type': 'command',
