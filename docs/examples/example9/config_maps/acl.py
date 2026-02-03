@@ -39,7 +39,8 @@ class AclConfig(ConfigMap):
             description = 'Permit Ipv4 traffic',
             source = '172.16.1.0/24',
             destination = '192.168.1.0/24',
-            #protocol = 'TCP'
+            protocol = 'TCP',
+            destination_port = '443',
         )
 
         context.configuration.add(ipv4aclentry)
@@ -50,7 +51,8 @@ class AclConfig(ConfigMap):
             description = 'Permit Ipv6 traffic',
             source = '2001:db8:1::/64',
             destination = '2001:db8:2::/64',
-            #protocol = 'TCP'
+            protocol = 'TCP',
+            destination_port = '443',
         )
 
         context.configuration.add(ipv6aclentry)
