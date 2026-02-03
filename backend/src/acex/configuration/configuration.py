@@ -47,6 +47,14 @@ from acex.configuration.components.system.aaa import (
     aaaAccountingEvents
 )
 
+from acex.configuration.components.acl import (
+    AclEntry,
+    AclIpv4,
+    AclIpv6,
+    AclIcmpv4,
+    AclTransport
+)
+
 from acex.configuration.components.routing import StaticRoute, StaticRouteNextHop
 
 from acex_devkit.models import ExternalValue
@@ -110,6 +118,14 @@ class Configuration:
         SpanningTreeMSTP: "stp.mstp.config",
         SpanningTreeMstpInstance: "stp.mstp.mst_instances",
         SpanningTreeRapidPVST: "stp.rapidpvst.vlan",
+        #AclEntry: "acl.acl_sets.acl_set.acl_entries",
+        #AclIpv4: Template("acl.acl_sets.acl_set.acl_entries.{acl_entry}.ipv4"),
+        #AclIcmpv4: "acl.acl_sets.acl_set.acl_entries.acl-entry.ipv4.icmpv4",
+        #AclTransport: "acl.acl_sets.acl_set.acl_entries.acl-entry.transport",
+        #AclIpv4: "acl.acl_sets.acl_set.acl_entries",
+        AclIpv4: "acl.acl_entries.ipv4acl",
+        #AclIpv6: "acl.acl_sets.acl_set.acl_entries",
+        AclIpv6: "acl.acl_entries.ipv6acl",
     }
 
     # Reverse mapping from attribute name to path for __getattr__

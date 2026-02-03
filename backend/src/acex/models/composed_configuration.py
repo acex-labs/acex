@@ -14,6 +14,7 @@ from acex.models.logging import (
     LoggingEvents
 )
 from acex.models.spanning_tree import SpanningTree
+from acex.models.acl_model import Acl
 
 class MetadataValueType(str, Enum):
     CONCRETE = "concrete"
@@ -99,7 +100,7 @@ class Ssh(BaseModel):
     config: Optional[SshServer] = None
     host_keys: Optional[Dict[str, AuthorizedKey]] = {}
 
-class Acl(BaseModel): ...
+#class Acl(BaseModel): ...
 class Lldp(BaseModel): ...
 
 class Vlan(BaseModel):
