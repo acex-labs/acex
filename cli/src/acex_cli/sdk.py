@@ -1,4 +1,5 @@
 from acex_client.acex.acex import Acex
+import requests
 
 
 def get_sdk(context):
@@ -11,4 +12,12 @@ def get_sdk(context):
 
     verify = context.get("verify_ssl", True)
 
-    return Acex(baseurl=f"{url}/", verify=verify)
+    client = Acex(baseurl=f"{url}/", verify=verify)
+
+    print(client.api_url)
+    try:
+        requests.head(client.api_url)
+    except requests.ConnectionError as e:
+        print(f"\033[91mCould not connect to API\033[0m\r\n\r\n{e}")
+        exit()
+    return client
