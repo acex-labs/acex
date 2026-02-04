@@ -100,7 +100,6 @@ class Ssh(BaseModel):
     config: Optional[SshServer] = None
     host_keys: Optional[Dict[str, AuthorizedKey]] = {}
 
-#class Acl(BaseModel): ...
 class Lldp(BaseModel): ...
 
 class Vlan(BaseModel):
