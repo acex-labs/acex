@@ -74,12 +74,21 @@ from typing import Optional, Dict, Literal
 #    ipv6: str = "ipv6"  # IPv6 ACL
 #    transport: Optional[Dict[str, AclTransportAttributes]] = {}
 
+class AclProtoclOptions(str, Enum):
+    TCP = 'tcp'
+    UDP = 'udp'
+    ICMP = 'icmp'
+    OSPF = 'ospf'
+    IP = 'ip'
+    ANY = 'any'
+# class IpOptions(BaseModel):
+
 class transportOptions(BaseModel):
     source_port: Optional[AttributeValue[str]] = None # e.g., "100-200"
     #source_port_set: Optional[AttributeValue[str]] = None # Reference to port-set
-    destination_port: Optional[AttributeValue[str]] = None # e.g., "300-
+    destination_port: Optional[AttributeValue[str]] = None # e.g., "300-400"
     #destination_port_set: Optional[AttributeValue[str]] = None # Reference to port-set
-    protocol: Optional[AttributeValue[str]] = None # e.g., TCP(6), UDP(17), ICMP(1) # The protocol carried in the IP packet, expressed either as its IP protocol number, or by a defined identity.
+    protocol: Optional[AttributeValue[AclProtoclOptions]] = None # e.g., TCP(6), UDP(17), ICMP(1) # The protocol carried in the IP packet, expressed either as its IP protocol number, or by a defined identity.
 
 class Ipv4Acl(transportOptions):
     '''
@@ -97,6 +106,7 @@ class Ipv4Acl(transportOptions):
     destination: Optional[AttributeValue[IPvAnyNetwork | Literal['any']]] = None # Destination IPv4 address prefix.
     log: Optional[AttributeValue[bool]] = None # Enable logging for matching packets.
     dscp: Optional[AttributeValue[int]] = None # Value of diffserv codepoint.
+    ipv4acl_set: Optional[AttributeValue[str]] = None # Reference to the ACL Set this entry belongs to.
 
 class Ipv6Acl(transportOptions):
     description: Optional[AttributeValue[str]] = None
@@ -105,17 +115,31 @@ class Ipv6Acl(transportOptions):
     destination: Optional[AttributeValue[IPvAnyNetwork | Literal['any']]] = None # Destination IPv6 address prefix.
     log: Optional[AttributeValue[bool]] = None # Enable logging for matching packets.
     dscp: Optional[AttributeValue[int]] = None # Value of diffserv codepoint.
+    ipv6acl_set: Optional[AttributeValue[str]] = None # Reference to the ACL Set this entry belongs to.
 
-class AclEntries(BaseModel):
-    ipv4acl : Optional[Dict[str, Ipv4Acl]] = {}
-    ipv6acl : Optional[Dict[str, Ipv6Acl]] = {}
+class Ipv4AclSet(BaseModel):
+    name: AttributeValue[str]
+    type: str = "ipv4acl_set"
+    acl_entries: Optional[Dict[str, Ipv4Acl]] = {}
 
-class AclSetsAttributes(BaseModel):
-    acl_entries: Optional[Dict[str, AclEntries]] = {} 
+class Ipv6AclSet(BaseModel):
+    name: AttributeValue[str]
+    type: str = "ipv6acl_set"
+    acl_entries: Optional[Dict[str, Ipv6Acl]] = {}
+
+#class AclEntries(BaseModel):
+#    ipv4acl : Optional[Dict[str, Ipv4Acl]] = {}
+#    ipv6acl : Optional[Dict[str, Ipv6Acl]] = {}
+
+#class AclSetsAttributes(BaseModel):
+#    acl_entries: Optional[Dict[str, AclEntries]] = {} 
     
 class AclSets(BaseModel):
-    acl_set: AclSetsAttributes = AclSetsAttributes()
+    #acl_set: AclSetsAttributes = AclSetsAttributes()
+    ipv4acl_sets: Optional[Dict[str, Ipv4AclSet]] = {}
+    ipv6acl_sets: Optional[Dict[str, Ipv6AclSet]] = {}
 
 class Acl(BaseModel):
-    #acl_sets: AclSets = AclSets()
-    acl_entries: AclEntries = AclEntries()
+    acl_sets: AclSets = AclSets()
+    #acl_entries: AclEntries = AclEntries()
+
