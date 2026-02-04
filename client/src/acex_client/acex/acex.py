@@ -16,7 +16,6 @@ class Acex:
             api_ver: int = 1,
             verify: bool = True
         ):
-
         self.api_url = f"{baseurl}api/v{api_ver}"
         self.rest = RestClient(api_url = self.api_url, verify=verify)
 
