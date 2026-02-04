@@ -1,9 +1,5 @@
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.acl import (
-    #AclEntry,
-    #AclIpv4, 
-    #AclIcmpv4,
-    #AclTransport
     AclIpv4,
     AclIpv6,
     Ipv4AclSet,

@@ -43,13 +43,10 @@ from acex.configuration.components.system.aaa import (
 )
 
 from acex.configuration.components.acl import (
-    #AclEntry,
     AclIpv4,
     Ipv4AclSet,
     AclIpv6,
     Ipv6AclSet,
-    #AclIcmpv4,
-    #AclTransport
 )
 
 from acex.models import ExternalValue
