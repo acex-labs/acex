@@ -29,6 +29,7 @@ portchannel_list = [
 ]
 
 interface_list = [
+    {'interface': 'Gig0/0', 'speed': 1000000, 'module_index': 0, 'index': 0, '_template': 'PC_FL2'},
     {'interface': 'TenGigabitEthernet1/0/1', 'speed': 10000000, 'module_index': 0, 'stack_index': 1, 'index': 0, '_template': 'PC_FL2'},
     {'interface': 'TenGigabitEthernet1/0/2', 'speed': 10000000, 'module_index': 0, 'stack_index': 1, 'index': 1, '_template': 'PC_FL2'},
     {'interface': 'TenGigabitEthernet1/0/3', 'speed': 10000000, 'module_index': 0, 'stack_index': 1, 'index': 2, '_template': 'PC_FL2'},
@@ -235,8 +236,8 @@ class Interfaces(ConfigMap):
             interface = FrontpanelPort(
                 name = intf.get("interface"),
                 index = intf.get("index"),
-                stack_index = intf.get("stack_index") if intf.get("stack_index") else None,
-                module_index = intf.get("module_index") if intf.get("module_index") else None,
+                stack_index = intf.get("stack_index"),
+                module_index = intf.get("module_index"),
                 mtu = intf.get('mtu') if intf.get('mtu') else None,
                 speed = intf.get('speed') if intf.get('speed') else None,
                 trunk_allowed_vlans = intf.get('trunk_allowed_vlans') if intf.get('trunk_allowed_vlans') else None, 
