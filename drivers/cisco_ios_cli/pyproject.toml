@@ -13,6 +13,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.13"
+ntc-templates = "^8.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
