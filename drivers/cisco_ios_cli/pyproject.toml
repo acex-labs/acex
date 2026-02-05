@@ -21,3 +21,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.plugins."acex.neds"]
 cisco_ios_cli = "acex_driver_cisco_ioscli.cisco_ios_cli:CiscoIOSCLIDriver"
+[dependency-groups]
+dev = [
+    "ipython (>=9.10.0,<10.0.0)"
+]
