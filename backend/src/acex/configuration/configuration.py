@@ -48,10 +48,10 @@ from acex.configuration.components.system.aaa import (
 )
 
 from acex.configuration.components.acl import (
-    AclIpv4,
-    Ipv4AclSet,
-    AclIpv6,
-    Ipv6AclSet,
+    Ipv4Acl,
+    Ipv6Acl,
+    Ipv4AclEntry,
+    Ipv6AclEntry
 )
 
 from acex.configuration.components.routing import StaticRoute, StaticRouteNextHop
@@ -117,10 +117,10 @@ class Configuration:
         SpanningTreeMSTP: "stp.mstp.config",
         SpanningTreeMstpInstance: "stp.mstp.mst_instances",
         SpanningTreeRapidPVST: "stp.rapidpvst.vlan",
-        Ipv4AclSet: "acl.acl_sets.ipv4acl_sets",
-        AclIpv4: Template("acl.acl_sets.ipv4acl_sets.${ipv4acl_set}.acl_entries"),
-        Ipv6AclSet: "acl.acl_sets.ipv6acl_sets",
-        AclIpv6: Template("acl.acl_sets.ipv6acl_sets.${ipv6acl_set}.acl_entries"),
+        Ipv4Acl: "acl.ipv4_acls",
+        Ipv4AclEntry: Template("acl.ipv4_acls.${ipv4_acl}.acl_entries"),
+        Ipv6Acl: "acl.ipv6_acls",
+        Ipv6AclEntry: Template("acl.ipv6_acls.${ipv6_acl}.acl_entries"),
     }
 
     # Reverse mapping from attribute name to path for __getattr__

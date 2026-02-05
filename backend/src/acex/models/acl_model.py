@@ -21,7 +21,7 @@ class IpAclOptions(BaseModel):
     log: Optional[AttributeValue[bool]] = None # Enable logging for matching packets.
     dscp: Optional[AttributeValue[int]] = None # Value of diffserv codepoint.
 
-class Ipv4Acl(IpAclOptions):
+class Ipv4AclEntryAttributes(IpAclOptions):
     '''
     Docstring for AclIpv4
 
@@ -30,18 +30,18 @@ class Ipv4Acl(IpAclOptions):
     * log: Enable logging for matching packets.
     * source_port: Source port or port range.
     * destination_port: Destination port or port range.
-    * source: Source IPv4 address or prefix.
-    * destination: Destination IPv4 address or prefix.
+    * source_address: Source IPv4 address or prefix.
+    * destination_address: Destination IPv4 address or prefix.
     * dscp: Value of diffserv codepoint.
-    * ipv4acl_set: Reference to the ACL this entry belongs to.
+    * ipv4acl: Reference to the ACL this entry belongs to.
     
     * protocol: tcp, udp, icmp, ospf, ip, any # The protocol carried in the IP packet, expressed either as its IP protocol number, or by a defined identity.
     '''
-    source: Optional[AttributeValue[IPv4Network | Literal['any']]] = None # Source IPv4 address prefix.
-    destination: Optional[AttributeValue[IPv4Network | Literal['any']]] = None # Destination IPv4 address prefix.
-    ipv4acl_set: Optional[AttributeValue[str]] = None # Reference to the ACL Set this entry belongs to.
+    source_address: Optional[AttributeValue[IPv4Network | Literal['any']]] = None # Source IPv4 address prefix.
+    destination_address: Optional[AttributeValue[IPv4Network | Literal['any']]] = None # Destination IPv4 address prefix.
+    ipv4_acl: Optional[AttributeValue[str]] = None # Reference to the ACL Set this entry belongs to.
 
-class Ipv6Acl(IpAclOptions):
+class Ipv6AclEntryAttributes(IpAclOptions):
     '''
     Docstring for AclIpv4
 
@@ -53,28 +53,25 @@ class Ipv6Acl(IpAclOptions):
     * source: Source IPv6 address or prefix.
     * destination: Destination IPv6 address or prefix.
     * dscp: Value of diffserv codepoint.
-    * ipv6acl_set: Reference to the ACL this entry belongs to.
+    * ipv6acl: Reference to the ACL this entry belongs to.
     
     * protocol: tcp, udp, icmp, ospf, ip, any # The protocol carried in the IP packet, expressed either as its IP protocol number, or by a defined identity.
     '''
-    source: Optional[AttributeValue[IPv6Network | Literal['any']]] = None # Source IPv6 address prefix.
-    destination: Optional[AttributeValue[IPv6Network | Literal['any']]] = None # Destination IPv6 address prefix.
-    ipv6acl_set: Optional[AttributeValue[str]] = None # Reference to the ACL Set this entry belongs to.
+    source_address: Optional[AttributeValue[IPv6Network | Literal['any']]] = None # Source IPv6 address prefix.
+    destination_address: Optional[AttributeValue[IPv6Network | Literal['any']]] = None # Destination IPv6 address prefix.
+    ipv6_acl: Optional[AttributeValue[str]] = None # Reference to the ACL Set this entry belongs to.
 
-class Ipv4AclSet(BaseModel):
+class Ipv4AclAttributes(BaseModel):
     name: AttributeValue[str]
-    type: AttributeValue[str] = "ipv4acl_set"
-    acl_entries: Optional[Dict[str, Ipv4Acl]] = {}
+    type: AttributeValue[str] = "ipv4_acl"
+    acl_entries: Optional[Dict[str, Ipv4AclEntryAttributes]] = {}
 
-class Ipv6AclSet(BaseModel):
+class Ipv6AclAttributes(BaseModel):
     name: AttributeValue[str]
-    type: AttributeValue[str] = "ipv6acl_set"
-    acl_entries: Optional[Dict[str, Ipv6Acl]] = {}
+    type: AttributeValue[str] = "ipv6_acl"
+    acl_entries: Optional[Dict[str, Ipv6AclEntryAttributes]] = {}
     
-class AclSets(BaseModel):
-    ipv4acl_sets: Optional[Dict[str, Ipv4AclSet]] = {}
-    ipv6acl_sets: Optional[Dict[str, Ipv6AclSet]] = {}
-
 class Acl(BaseModel):
-    acl_sets: AclSets = AclSets()
+    ipv4_acls: Optional[Dict[str, Ipv4AclAttributes]] = {}
+    ipv6_acls: Optional[Dict[str, Ipv6AclAttributes]] = {}
 
