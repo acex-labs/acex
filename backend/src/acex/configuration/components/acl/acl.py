@@ -1,45 +1,45 @@
 from acex.configuration.components.base_component import ConfigComponent
 from acex.models.acl_model import (
-    Ipv4Acl as AclIpv4Attributes,
-    Ipv6Acl as AclIpv6Attributes,
-    Ipv4AclSet as Ipv4AclSetAttributes,
-    Ipv6AclSet as Ipv6AclSetAttributes,
+    Ipv4AclEntryAttributes,
+    Ipv6AclEntryAttributes,
+    Ipv4AclAttributes,
+    Ipv6AclAttributes,
 )
 
-class Ipv4AclSet(ConfigComponent):
+class Ipv4Acl(ConfigComponent):
     """
     ACL IPv4 Set Configuration Component
     """
-    type = "ipv4acl_set"
-    model_cls = Ipv4AclSetAttributes
+    type = "ipv4_acl"
+    model_cls = Ipv4AclAttributes
 
-class Ipv6AclSet(ConfigComponent):
+class Ipv6Acl(ConfigComponent):
     """
     ACL IPv6 Set Configuration Component
     """
-    type = "ipv6acl_set"
-    model_cls = Ipv6AclSetAttributes
+    type = "ipv6_acl"
+    model_cls = Ipv6AclAttributes
 
-class AclIpv4(ConfigComponent):
+class Ipv4AclEntry(ConfigComponent):
     """
     ACL IPv4 Configuration Component
     """
-    type = "ipv4acl"
-    model_cls = AclIpv4Attributes
+    type = "ipv4_acl_entry"
+    model_cls = Ipv4AclEntryAttributes
 
     def pre_init(self):
-        if 'ipv4acl_set' in self.kwargs:
-            acl_set = self.kwargs.pop('ipv4acl_set')
-            self.kwargs['ipv4acl_set'] = acl_set.name
+        if 'ipv4_acl' in self.kwargs:
+            acl_set = self.kwargs.pop('ipv4_acl')
+            self.kwargs['ipv4_acl'] = acl_set.name
 
-class AclIpv6(ConfigComponent):
+class Ipv6AclEntry(ConfigComponent):
     """
     ACL IPv6 Configuration Component
     """
-    type = "ipv6acl"
-    model_cls = AclIpv6Attributes
+    type = "ipv6_acl_entry"
+    model_cls = Ipv6AclEntryAttributes
 
     def pre_init(self):
-        if 'ipv6acl_set' in self.kwargs:
-            acl_set = self.kwargs.pop('ipv6acl_set')
-            self.kwargs['ipv6acl_set'] = acl_set.name
+        if 'ipv6_acl' in self.kwargs:
+            acl_set = self.kwargs.pop('ipv6_acl')
+            self.kwargs['ipv6_acl'] = acl_set.name
