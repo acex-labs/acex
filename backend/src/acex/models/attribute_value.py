@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator, field_serializer
 from typing import Union, TypeVar, Generic, Optional, Dict, Any, get_args, get_origin
+import ipaddress
 from acex.models.external_value import ExternalValue
 
 T = TypeVar('T')
@@ -97,6 +98,19 @@ class AttributeValue(BaseModel, Generic[T]):
     def serialize_value(self, value):
         if isinstance(value, ExternalValue):
             return value.value
+        # Ensure ipaddress objects serialize cleanly to JSON
+        if isinstance(
+            value,
+            (
+                ipaddress.IPv4Address,
+                ipaddress.IPv6Address,
+                ipaddress.IPv4Network,
+                ipaddress.IPv6Network,
+                ipaddress.IPv4Interface,
+                ipaddress.IPv6Interface,
+            ),
+        ):
+            return str(value)
         return value
 
     # Convenience helpers
