@@ -15,6 +15,13 @@ from acex.configuration.components.network_instances import Vlan
 
 class TacacsConfig(ConfigMap):
     def compile(self, context):
+        aaa_server_group = aaaServerGroup(
+            name = 'TACACS_GROUP',
+            enable = True,
+            type = 'tacacs',
+        )
+        context.configuration.add(aaa_server_group)
+        
         vlan = Vlan(
             name = 'vlan_1337', # You are allowed to change these stats. If ID changes, change name to "vlan_{ID}"
             vlan_id = 1337, # You are allowed to change these stats.
@@ -36,7 +43,8 @@ class TacacsConfig(ConfigMap):
             port = 49,
             secret_key = 'MySecretKey',
             address = '10.10.10.1',
-            source_interface = svi1337 # Could be a reference to an interface, or just an IP.
+            source_interface = svi1337, # Could be a reference to an interface, or just an IP.
+            server_group = aaa_server_group
         )
         context.configuration.add(tacacs)
 
@@ -45,7 +53,8 @@ class TacacsConfig(ConfigMap):
             port = 49,
             secret_key = 'MySecretKey',
             address = '10.123.132.1',
-            source_interface = svi1337 # Could be a reference to an interface, or just an IP.
+            source_interface = svi1337, # Could be a reference to an interface, or just an IP.
+            server_group = aaa_server_group
         )
         context.configuration.add(tacacs2)
 
@@ -54,7 +63,9 @@ class TacacsConfig(ConfigMap):
             port = 49,
             secret_key = 'radiusSomeSecretKey',
             address = '172.16.23.54',
-            source_interface = svi1337 # Could be a reference to an interface, or just an IP.
+            source_interface = svi1337, # Could be a reference to an interface, or just an IP.
+            server_group = aaa_server_group
+
         )
         context.configuration.add(radius)
 
@@ -63,19 +74,10 @@ class TacacsConfig(ConfigMap):
             port = 49,
             secret_key = 'radiusSecretKey',
             address = '172.16.12.123',
-            source_interface = svi1337 # Could be a reference to an interface, or just an IP.
+            source_interface = svi1337, # Could be a reference to an interface, or just an IP.
+            server_group = aaa_server_group
         )
         context.configuration.add(radius2)
-
-        server_group = aaaServerGroup(
-            name = 'TACACS_GROUP',
-            enable = True,
-            type = 'tacacs',
-            tacacs = [tacacs, tacacs2],
-            radius = radius
-            #servers = ['10.10.10.1,172.16.23.1']
-        )
-        context.configuration.add(server_group)
 
 class aaaConfig(ConfigMap):
     def compile(self, context):
