@@ -1,0 +1,22 @@
+Value NAME (\S+Ethernet\S+)
+Value SWITCHPORT_MODE (\S+)
+Value NATIVE_VLAN (\d+)
+Value ACCESS_VLAN (\d+)
+Value VOICE_VLAN (\d+)
+Value DESCRIPTION (.+)
+Value TRUNK_ALLOWED_VLANS (\S+)
+Value ENABLED (shutdown|no shutdown)
+
+Start
+  ^interface\s+${NAME} -> Interface
+
+Interface
+  ^\s+description ${DESCRIPTION}
+  ^\s+switchport mode ${SWITCHPORT_MODE}
+  ^\s+switchport trunk native vlan ${NATIVE_VLAN}
+  ^\s+switchport trunk allowed vlan ${TRUNK_ALLOWED_VLANS}
+  ^\s+switchport access vlan ${ACCESS_VLAN}
+  ^\s+switchport voice vlan ${VOICE_VLAN}
+  ^\s+${ENABLED}
+  ^! -> Record Start
+  ^interface\s+${NAME} -> Record Interface

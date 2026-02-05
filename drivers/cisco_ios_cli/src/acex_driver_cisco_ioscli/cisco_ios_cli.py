@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 from acex.plugins.neds.core import NetworkElementDriver, TransportBase
 
 from .renderer import CiscoIOSCLIRenderer
+from .parser import CiscoIOSCLIParser
 
 
 class CiscoIOSTransport(TransportBase):
@@ -32,6 +33,7 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
 
     renderer_class = CiscoIOSCLIRenderer
     transport_class = CiscoIOSTransport
+    parser_class = CiscoIOSCLIParser
 
     def render(self, logical_node, asset):
         """Render the configuration for a Cisco IOS CLI device."""
