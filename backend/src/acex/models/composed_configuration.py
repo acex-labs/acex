@@ -445,15 +445,16 @@ class Snmp(BaseModel):
 class aaaBaseClass(BaseModel):
     name: str = None
 
-class aaaTacacsAttributes(aaaBaseClass):
+class aaaTacacsAttributes(BaseModel):
     port: Optional[int] = 49
     secret_key: Optional[str] = None
     secret_key_hashed: Optional[str] = None
     address: Optional[str] = None
     timeout: Optional[int] = 30
     source_interface: Optional[Reference] = None #Optional[Reference] = None # should be reference
+    server_group: Optional[AttributeValue[str]] = None
 
-class aaaRadiusAttributes(aaaBaseClass):
+class aaaRadiusAttributes(BaseModel):
     auth_port: Optional[int] = 1812
     acct_port: Optional[int] = 1813
     secret_key: Optional[str] = None
@@ -462,6 +463,7 @@ class aaaRadiusAttributes(aaaBaseClass):
     timeout: Optional[int] = 30
     source_interface: Optional[Reference] = None #Optional[Reference] = None # should be reference
     retransmit_attempts: Optional[int] = 3
+    server_group: Optional[AttributeValue[str]] = None
 
 class aaaServerGroupAttributes(BaseModel):
     """
@@ -486,11 +488,8 @@ class aaaServerGroupAttributes(BaseModel):
     """
     enable: Optional[bool] = False
     type: Optional[Literal['tacacs','radius']] = None
-    #servers: Optional[list] = None 
-    #address: Optional[str] = None 
-    #timeout: Optional[int] = 30
-    tacacs: Optional[Dict[str, Reference]] = None
-    radius: Optional[Reference] = None
+    tacacs: Optional[Dict[str, aaaTacacsAttributes]] = {} #Optional[Dict[str, Reference]] = None
+    radius: Optional[Dict[str, aaaRadiusAttributes]] = {} #Optional[Dict[str, Reference]] = None
 
 # Authentication Models
 class aaaAuthenticationMethods(aaaBaseClass):
@@ -556,10 +555,6 @@ class aaaAuthorizationEvents(aaaBaseClass):
     aaa authorization console
     """
     events: Optional[List[str]] = Field(default_factory=list) # Ex. ['config-commands','console']
-    #event_type: dict = {
-    #    'event-type':'command',
-    #    'method':['tacacs_group']
-    #}
 
 class aaaAuthorization(BaseModel):
     config: Optional[Dict[str, aaaAuthorizationMethods]] = {}
@@ -587,32 +582,13 @@ class aaaAccountingEvents(BaseModel):
     aaa accounting send stop-record authentication failure
     """
     events: Optional[List[str]] = Field(default_factory=list) # Ex. ['send','stop-record','authentication', 'failure']
-    #event: list = [
-    #    {
-    #    'event-type': 'command',
-    #    'config': {
-    #        'event-type': 'command',
-    #        'method': ['tacacs_group']
-    #        }
-    #    },
-    #    {
-    #    'event-type': 'system',
-    #    'config': {
-    #        'event-type': 'system',
-    #        'method': ['tacacs_group']
-    #        }
-    #    }
-    #]
 
 class aaaAccounting(BaseModel):
     config: aaaAccountingMethods = aaaAccountingMethods()
     events: aaaAccountingEvents = aaaAccountingEvents()
 
 class TripleA(BaseModel):
-    #config: dict = None
     server_groups: Optional[Dict[str, aaaServerGroupAttributes]] = {}
-    tacacs: Optional[Dict[str, aaaTacacsAttributes]] = {}
-    radius: Optional[Dict[str, aaaRadiusAttributes]] = {}
     authentication: aaaAuthentication = aaaAuthentication()
     authorization: aaaAuthorization = aaaAuthorization()
     accounting: aaaAccounting = aaaAccounting()
