@@ -39,7 +39,9 @@ from acex.configuration.components.system.aaa import (
     aaaRadius,
     aaaAuthenticationMethods,
     aaaAuthorizationMethods,
-    aaaAccountingMethods
+    aaaAuthorizationEvents,
+    aaaAccountingMethods,
+    aaaAccountingEvents
 )
 
 from acex.models import ExternalValue
@@ -71,11 +73,15 @@ class Configuration:
         SnmpCommunity: "system.snmp.communities",
         SnmpTrap: "system.snmp.trap_events",
         aaaServerGroup: "system.aaa.server_groups",
-        aaaTacacs: "system.aaa.tacacs",
-        aaaRadius: "system.aaa.radius",
+        aaaTacacs: Template("system.aaa.server_groups.${server_group}.tacacs"),
+        aaaRadius: Template("system.aaa.server_groups.${server_group}.radius"),
+        #aaaTacacs: "system.aaa.tacacs",
+        #aaaRadius: "system.aaa.radius",
         aaaAuthenticationMethods: "system.aaa.authentication.config",
         aaaAuthorizationMethods: "system.aaa.authorization.config",
+        aaaAuthorizationEvents: "system.aaa.authorization.events",
         aaaAccountingMethods: "system.aaa.accounting.config",
+        aaaAccountingEvents: "system.aaa.accounting.events",
         LacpConfig: "lacp.config",
         #LacpInterfaces: "lacp.interfaces",
         #LacpConfgi: "lacp.config",
