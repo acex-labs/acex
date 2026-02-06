@@ -176,7 +176,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
 
 
-    def get_port_suffix(self, hardware_model:str, index:int, stack_index:int, module_index:int=None) -> Optional[str]:
+    def get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
         max_index = 0
         suffix_string = ""
 
@@ -199,9 +199,9 @@ class CiscoIOSCLIRenderer(RendererBase):
                     suffix_string = f"{stack_index}/{module_index}/{index+1}"
             else:
                 if module_index is not None:
-                    suffix_string = f"1/{module_index}/{index+1}"
+                    suffix_string = f"{module_index}/{index+1}"
                 else:
-                    suffix_string = f"1/0/{index+1}"
+                    suffix_string = f"0/{index+1}"
         elif index > max_index:
             if stack_index is not None:
                 suffix_string = f"{stack_index}/1/{index - max_index + 1}"
@@ -209,9 +209,9 @@ class CiscoIOSCLIRenderer(RendererBase):
                     suffix_string = f"{stack_index}/{module_index}/{index+1}"
             else:
                 if module_index is not None:
-                    suffix_string = f"1/{module_index}/{index+1}"
+                    suffix_string = f"{module_index}/{index+1}"
                 else:
-                    suffix_string = f"1/0/{index - max_index + 1}"
+                    suffix_string = f"0/{index - max_index + 1}"
         return suffix_string
     
     # Create functions to handle ref paths
