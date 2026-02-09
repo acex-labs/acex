@@ -11,14 +11,12 @@ from acex_cli.sdk import get_sdk
 from acex_cli.print_utils import print_list_table, print_object
 from acex_client.models.models import Node
 
-app = typer.Typer(help="Node resource commands")
-
 
 class ConfigFormat(str, Enum):
     rendered = "rendered"
     json = "json"
 
-
+#### REMOVE THESE AND USE SDK WHEN IMPLEMENTED 
 def _request_get(sdk, path: str, params: Optional[dict] = None) -> requests.Response:
     verify = getattr(getattr(sdk, "rest", None), "verify", True)
     url = f"{sdk.api_url}{path}"
@@ -64,8 +62,13 @@ def _get_observed_config_before(sdk, node_id: str, point_in_time: str) -> Option
 
 def _decode_config_content(content: str) -> str:
     return base64.b64decode(content).decode("utf-8", errors="replace")
+#### REMOVE THESE AND USE SDK WHEN IMPLEMENTED 
 
 
+
+
+
+app = typer.Typer(help="Node resource commands")
 config_app = typer.Typer(help="Node configuration commands")
 config_diff_app = typer.Typer(help="Configuration diff commands")
 app.add_typer(config_app, name="config")
