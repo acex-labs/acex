@@ -3,6 +3,11 @@ from typing import Any, Dict
 
 from acex.models import LogicalNode
 
+class ParserBase(ABC):
+    @abstractmethod
+    def parse(self, model: Dict[str, Any]) -> Any:
+        """Parsar running-config"""
+
 class RendererBase(ABC):
     @abstractmethod
     def render(self, model: Dict[str, Any]) -> Any:
@@ -26,12 +31,14 @@ class NetworkElementDriver:
     """Kombinerar renderer + transport – exponeras som en plugin."""
     renderer_class = None
     transport_class = None
+    parser_class = None
 
     def __init__(self):
-        if self.renderer_class is None or self.transport_class is None:
+        if self.renderer_class is None or self.transport_class is None or self.parser_class is None:
             raise NotImplementedError("renderer_class and transport_class must be set in subclass")
         self.renderer = self.renderer_class()
         self.transport = self.transport_class()
+        self.parser_class = self.parser_class()
 
     @abstractmethod
     def render(self, logical_node:LogicalNode) -> Any:
