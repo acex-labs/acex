@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-client"
-version = "0.0.8"
+version = "0.0.9"
 description = "ACE-X CLIENT - Client for ACE-X"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -18,7 +18,8 @@ requests = "^2.32.5"
 datamodel-code-generator = "^0.43.1"
 pydantic = "^2.12.5"
 datetime = "^6.0"
-acex = "^3.5.1" 
+acex = { path = "../backend", develop = true }
+acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

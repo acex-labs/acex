@@ -38,7 +38,7 @@ class NetworkElementDriver:
             raise NotImplementedError("renderer_class and transport_class must be set in subclass")
         self.renderer = self.renderer_class()
         self.transport = self.transport_class()
-        self.parser_class = self.parser_class()
+        self.parser = self.parser_class()
 
     @abstractmethod
     def render(self, logical_node:LogicalNode) -> Any:
