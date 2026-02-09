@@ -23,4 +23,5 @@ class Acex:
         self.logical_nodes = LogicalNodes(self.rest)
         self.node_instances = NodeInstances(self.rest)
         self.neds = Neds(self.rest)
+        
 

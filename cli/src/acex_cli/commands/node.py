@@ -12,9 +12,9 @@ from acex_cli.print_utils import print_list_table, print_object
 from acex_client.models.models import Node
 
 
-class ConfigFormat(str, Enum):
-    rendered = "rendered"
-    json = "json"
+def _get_ned(asset_name: str):
+    print("Fixar nedden")
+
 
 #### REMOVE THESE AND USE SDK WHEN IMPLEMENTED 
 def _request_get(sdk, path: str, params: Optional[dict] = None) -> requests.Response:
@@ -66,14 +66,8 @@ def _decode_config_content(content: str) -> str:
 
 
 
-
-
 app = typer.Typer(help="Node resource commands")
-config_app = typer.Typer(help="Node configuration commands")
-config_diff_app = typer.Typer(help="Configuration diff commands")
-app.add_typer(config_app, name="config")
-config_app.add_typer(config_diff_app, name="diff")
-
+# NODE RESOURCE COMMANDS: 
 @app.command()
 def list(ctx: typer.Context):
     """List all nodes."""
@@ -92,23 +86,33 @@ def show(ctx: typer.Context, node_id: str):
     node = sdk.node_instances.get(node_id)
 
     print_object(node, pydantic_class=Node, title=f"Node {node_id} details")
+####################################################################
 
+# NODE CONFIG COMMANDS: #
+config_app = typer.Typer(help="Node configuration commands")
 
-@config_app.command("desired")
+## node config show|diff
+config_show_app = typer.Typer(help="Configuration diff commands")
+config_diff_app = typer.Typer(help="Configuration diff commands")
+
+app.add_typer(config_app, name="config")
+config_app.add_typer(config_diff_app, name="diff")
+config_app.add_typer(config_show_app, name="show")
+
+####################################################################
+
+# NODE CONFIG SHOW COMMANDS
+
+# TODO: IMPLEMENT desired
+@config_show_app.command("desired")
 def desired_config(
     ctx: typer.Context,
     node_id: str,
-    output: ConfigFormat = typer.Option(
-        ConfigFormat.rendered, "--format", "-f", help="Output format"
-    ),
+    render: bool = False,
+    path: str = None,
 ):
     """Show desired config (rendered or JSON data model)."""
     sdk = get_sdk(ctx.obj.get_active_context())
-
-    if output == ConfigFormat.rendered:
-        rendered = _get_rendered_config(sdk, node_id)
-        typer.echo(rendered)
-        return
 
     node_instance = sdk.node_instances.get(node_id)
     if not node_instance:
@@ -125,184 +129,217 @@ def desired_config(
         typer.echo("No desired configuration found.")
         return
 
-    data = configuration.model_dump() if hasattr(configuration, "model_dump") else configuration
-    typer.echo(json.dumps(data, indent=2, default=str))
+
+    # dump to json
+    config_dump = configuration.model_dump()
+
+    # If path, select part of dump..
+    # TODO: implement here.
+
+    # If render, use renderer in sdk to render config
+    ned = sdk.neds.get_driver_instance(node_instance.asset.ned_id)
+    
+    rendered = ned.render(logical_node, node_instance.asset)
+
+    # typer.echo(json.dumps(config_dump, indent=2, default=str))
 
 
-@config_app.command("observed")
-def observed_config(
-    ctx: typer.Context,
-    node_id: str,
-    output: ConfigFormat = typer.Option(
-        ConfigFormat.rendered, "--format", "-f", help="Output format"
-    ),
-    config_hash: Optional[str] = typer.Option(
-        None, "--hash", help="Fetch a specific backup by hash"
-    ),
-):
-    """Show observed (backup) config (rendered or JSON data object)."""
-    sdk = get_sdk(ctx.obj.get_active_context())
-    if config_hash:
-        observed = _get_observed_config_by_hash(sdk, node_id, config_hash)
-    else:
-        observed = _get_latest_observed_config(sdk, node_id)
+# TODO: IMPLEMENT observed
+# TODO: IMPLEMENT observed-list
 
-    if not observed:
-        typer.echo("No observed config found.")
-        return
+####################################################################
 
-    if output == ConfigFormat.json:
-        typer.echo(json.dumps(observed, indent=2, default=str))
-        return
+# NODE CONFIG DIFF COMMANDS
 
-    content = observed.get("content") if isinstance(observed, dict) else None
-    if content is None:
-        typer.echo("Observed config has no content.")
-        return
+# TODO: IMPLEMENT HERE
 
-    decoded = _decode_config_content(content)
-    typer.echo(decoded)
+# acex node config diff {from} {to} 
+
+####################################################################
 
 
-@config_diff_app.command("observed")
-def observed_config_diff(
-    ctx: typer.Context,
-    node_id: str,
-    diff_from: Optional[str] = typer.Option(
-        None, "--from-hash", help="Diff from this backup hash"
-    ),
-    diff_to: Optional[str] = typer.Option(
-        None, "--to-hash", help="Diff to this backup hash"
-    ),
-    diff_from_time: Optional[str] = typer.Option(
-        None,
-        "--from-time",
-        help="Diff from latest backup at or before this timestamp (ISO 8601)",
-    ),
-    diff_to_time: Optional[str] = typer.Option(
-        None,
-        "--to-time",
-        help="Diff to latest backup at or before this timestamp (ISO 8601)",
-    ),
-):
-    """Diff observed (backup) configs between two hashes."""
-    sdk = get_sdk(ctx.obj.get_active_context())
-
-    using_hashes = diff_from is not None and diff_to is not None
-    using_times = diff_from_time is not None and diff_to_time is not None
-
-    if using_hashes and using_times:
-        typer.echo("Use either --from-hash/--to-hash or --from-time/--to-time, not both.")
-        raise typer.Exit(code=2)
-
-    if not using_hashes and not using_times:
-        typer.echo("Provide --from-hash/--to-hash or --from-time/--to-time.")
-        raise typer.Exit(code=2)
-
-    if using_times:
-        left = _get_observed_config_before(sdk, node_id, diff_from_time)
-        right = _get_observed_config_before(sdk, node_id, diff_to_time)
-        left_hash = left.get("hash") if isinstance(left, dict) else None
-        right_hash = right.get("hash") if isinstance(right, dict) else None
-        from_label = (
-            f"{node_id}:observed@{diff_from_time}"
-            f"{f'#{left_hash}' if left_hash else ''}"
-        )
-        to_label = (
-            f"{node_id}:observed@{diff_to_time}"
-            f"{f'#{right_hash}' if right_hash else ''}"
-        )
-    else:
-        left = _get_observed_config_by_hash(sdk, node_id, diff_from)
-        right = _get_observed_config_by_hash(sdk, node_id, diff_to)
-        from_label = f"{node_id}:{diff_from}"
-        to_label = f"{node_id}:{diff_to}"
-
-    if not left or not right:
-        typer.echo("Observed config not found for one or both inputs.")
-        return
-
-    left_content = left.get("content") if isinstance(left, dict) else None
-    right_content = right.get("content") if isinstance(right, dict) else None
-
-    if left_content is None or right_content is None:
-        typer.echo("Observed config content missing for one or both hashes.")
-        return
-
-    left_text = _decode_config_content(left_content).splitlines(keepends=True)
-    right_text = _decode_config_content(right_content).splitlines(keepends=True)
-
-    diff = difflib.unified_diff(
-        left_text,
-        right_text,
-        fromfile=from_label,
-        tofile=to_label,
-    )
-    typer.echo("".join(diff))
 
 
-@config_diff_app.command("desired-observed")
-def desired_observed_diff(
-    ctx: typer.Context,
-    node_id: str,
-    config_hash: Optional[str] = typer.Option(
-        None, "--hash", help="Diff against a specific observed backup hash"
-    ),
-    point_in_time: Optional[str] = typer.Option(
-        None,
-        "--time",
-        help="Diff against latest observed backup at or before this timestamp (ISO 8601)",
-    ),
-):
-    """Diff desired config against observed (backup) config."""
-    sdk = get_sdk(ctx.obj.get_active_context())
-
-    if config_hash and point_in_time:
-        typer.echo("Use either --hash or --time, not both.")
-        raise typer.Exit(code=2)
-
-    desired = _get_rendered_config(sdk, node_id)
-    if config_hash:
-        observed = _get_observed_config_by_hash(sdk, node_id, config_hash)
-        observed_label = f"{node_id}:observed@{config_hash}"
-    elif point_in_time:
-        observed = _get_observed_config_before(sdk, node_id, point_in_time)
-        observed_label = f"{node_id}:observed@{point_in_time}"
-    else:
-        observed = _get_latest_observed_config(sdk, node_id)
-        observed_label = f"{node_id}:observed"
-
-    if not observed:
-        typer.echo("No observed config found.")
-        return
-
-    content = observed.get("content") if isinstance(observed, dict) else None
-    if content is None:
-        typer.echo("Observed config has no content.")
-        return
-
-    observed_text = _decode_config_content(content)
-    diff = difflib.unified_diff(
-        desired.splitlines(keepends=True),
-        observed_text.splitlines(keepends=True),
-        fromfile=f"{node_id}:desired",
-        tofile=observed_label,
-    )
-    typer.echo("".join(diff))
 
 
-@config_app.command("observed-list")
-def observed_config_list(ctx: typer.Context, node_id: str):
-    """List observed config backups for a node instance."""
-    sdk = get_sdk(ctx.obj.get_active_context())
-    backups = _list_observed_config_hashes(sdk, node_id)
-    if not backups:
-        typer.echo("No observed config backups found.")
-        return
 
-    print_list_table(
-        backups,
-        columns=["id", "hash", "created_at", "node_instance_id"],
-        title=f"Observed config backups for node {node_id}",
-    )
+
+
+
+# @config_app.command("observed")
+# def observed_config(
+#     ctx: typer.Context,
+#     node_id: str,
+#     output: ConfigFormat = typer.Option(
+#         ConfigFormat.rendered, "--format", "-f", help="Output format"
+#     ),
+#     config_hash: Optional[str] = typer.Option(
+#         None, "--hash", help="Fetch a specific backup by hash"
+#     ),
+# ):
+#     """Show observed (backup) config (rendered or JSON data object)."""
+#     sdk = get_sdk(ctx.obj.get_active_context())
+#     if config_hash:
+#         observed = _get_observed_config_by_hash(sdk, node_id, config_hash)
+#     else:
+#         observed = _get_latest_observed_config(sdk, node_id)
+
+#     if not observed:
+#         typer.echo("No observed config found.")
+#         return
+
+#     if output == ConfigFormat.json:
+#         typer.echo(json.dumps(observed, indent=2, default=str))
+#         return
+
+#     content = observed.get("content") if isinstance(observed, dict) else None
+#     if content is None:
+#         typer.echo("Observed config has no content.")
+#         return
+
+#     decoded = _decode_config_content(content)
+#     typer.echo(decoded)
+
+
+# @config_diff_app.command("observed")
+# def observed_config_diff(
+#     ctx: typer.Context,
+#     node_id: str,
+#     diff_from: Optional[str] = typer.Option(
+#         None, "--from-hash", help="Diff from this backup hash"
+#     ),
+#     diff_to: Optional[str] = typer.Option(
+#         None, "--to-hash", help="Diff to this backup hash"
+#     ),
+#     diff_from_time: Optional[str] = typer.Option(
+#         None,
+#         "--from-time",
+#         help="Diff from latest backup at or before this timestamp (ISO 8601)",
+#     ),
+#     diff_to_time: Optional[str] = typer.Option(
+#         None,
+#         "--to-time",
+#         help="Diff to latest backup at or before this timestamp (ISO 8601)",
+#     ),
+# ):
+#     """Diff observed (backup) configs between two hashes."""
+#     sdk = get_sdk(ctx.obj.get_active_context())
+
+#     using_hashes = diff_from is not None and diff_to is not None
+#     using_times = diff_from_time is not None and diff_to_time is not None
+
+#     if using_hashes and using_times:
+#         typer.echo("Use either --from-hash/--to-hash or --from-time/--to-time, not both.")
+#         raise typer.Exit(code=2)
+
+#     if not using_hashes and not using_times:
+#         typer.echo("Provide --from-hash/--to-hash or --from-time/--to-time.")
+#         raise typer.Exit(code=2)
+
+#     if using_times:
+#         left = _get_observed_config_before(sdk, node_id, diff_from_time)
+#         right = _get_observed_config_before(sdk, node_id, diff_to_time)
+#         left_hash = left.get("hash") if isinstance(left, dict) else None
+#         right_hash = right.get("hash") if isinstance(right, dict) else None
+#         from_label = (
+#             f"{node_id}:observed@{diff_from_time}"
+#             f"{f'#{left_hash}' if left_hash else ''}"
+#         )
+#         to_label = (
+#             f"{node_id}:observed@{diff_to_time}"
+#             f"{f'#{right_hash}' if right_hash else ''}"
+#         )
+#     else:
+#         left = _get_observed_config_by_hash(sdk, node_id, diff_from)
+#         right = _get_observed_config_by_hash(sdk, node_id, diff_to)
+#         from_label = f"{node_id}:{diff_from}"
+#         to_label = f"{node_id}:{diff_to}"
+
+#     if not left or not right:
+#         typer.echo("Observed config not found for one or both inputs.")
+#         return
+
+#     left_content = left.get("content") if isinstance(left, dict) else None
+#     right_content = right.get("content") if isinstance(right, dict) else None
+
+#     if left_content is None or right_content is None:
+#         typer.echo("Observed config content missing for one or both hashes.")
+#         return
+
+#     left_text = _decode_config_content(left_content).splitlines(keepends=True)
+#     right_text = _decode_config_content(right_content).splitlines(keepends=True)
+
+#     diff = difflib.unified_diff(
+#         left_text,
+#         right_text,
+#         fromfile=from_label,
+#         tofile=to_label,
+#     )
+#     typer.echo("".join(diff))
+
+
+# @config_diff_app.command("desired-observed")
+# def desired_observed_diff(
+#     ctx: typer.Context,
+#     node_id: str,
+#     config_hash: Optional[str] = typer.Option(
+#         None, "--hash", help="Diff against a specific observed backup hash"
+#     ),
+#     point_in_time: Optional[str] = typer.Option(
+#         None,
+#         "--time",
+#         help="Diff against latest observed backup at or before this timestamp (ISO 8601)",
+#     ),
+# ):
+#     """Diff desired config against observed (backup) config."""
+#     sdk = get_sdk(ctx.obj.get_active_context())
+
+#     if config_hash and point_in_time:
+#         typer.echo("Use either --hash or --time, not both.")
+#         raise typer.Exit(code=2)
+
+#     desired = _get_rendered_config(sdk, node_id)
+#     if config_hash:
+#         observed = _get_observed_config_by_hash(sdk, node_id, config_hash)
+#         observed_label = f"{node_id}:observed@{config_hash}"
+#     elif point_in_time:
+#         observed = _get_observed_config_before(sdk, node_id, point_in_time)
+#         observed_label = f"{node_id}:observed@{point_in_time}"
+#     else:
+#         observed = _get_latest_observed_config(sdk, node_id)
+#         observed_label = f"{node_id}:observed"
+
+#     if not observed:
+#         typer.echo("No observed config found.")
+#         return
+
+#     content = observed.get("content") if isinstance(observed, dict) else None
+#     if content is None:
+#         typer.echo("Observed config has no content.")
+#         return
+
+#     observed_text = _decode_config_content(content)
+#     diff = difflib.unified_diff(
+#         desired.splitlines(keepends=True),
+#         observed_text.splitlines(keepends=True),
+#         fromfile=f"{node_id}:desired",
+#         tofile=observed_label,
+#     )
+#     typer.echo("".join(diff))
+
+
+# @config_app.command("observed-list")
+# def observed_config_list(ctx: typer.Context, node_id: str):
+#     """List observed config backups for a node instance."""
+#     sdk = get_sdk(ctx.obj.get_active_context())
+#     backups = _list_observed_config_hashes(sdk, node_id)
+#     if not backups:
+#         typer.echo("No observed config backups found.")
+#         return
+
+#     print_list_table(
+#         backups,
+#         columns=["id", "hash", "created_at", "node_instance_id"],
+#         title=f"Observed config backups for node {node_id}",
+#     )
 
