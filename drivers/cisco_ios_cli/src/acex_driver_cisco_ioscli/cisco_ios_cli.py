@@ -1,5 +1,6 @@
 
 from typing import Any, Dict, Optional
+from acex.models.composed_configuration import ComposedConfiguration
 from acex.plugins.neds.core import NetworkElementDriver, TransportBase
 
 from .renderer import CiscoIOSCLIRenderer
@@ -40,3 +41,6 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         # Call the base class render method
         config = self.renderer.render(logical_node, asset)
         return config
+
+    def parse(self, configuration: str) -> ComposedConfiguration: 
+        return self.parser.parse(configuration)

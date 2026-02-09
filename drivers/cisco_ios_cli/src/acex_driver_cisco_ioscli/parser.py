@@ -1,4 +1,3 @@
-from acex.plugins.neds.core import ParserBase
 from acex.models.composed_configuration import ComposedConfiguration, EthernetCsmacdInterface, L3IpvlanInterface, SoftwareLoopbackInterface, Ieee8023adLagInterface
 from ntc_templates.parse import parse_output
 import os
@@ -26,9 +25,9 @@ def expand_vlans(vlan_str: str) -> list[int]:
     return sorted(vlans)
 
 
-class CiscoIOSCLIParser(ParserBase):
-    def __init__(self, running_config: str):
-        self.running_config = running_config
+class CiscoIOSCLIParser:
+    def __init__(self):
+        self.running_config = None
         self._parsed_config = ComposedConfiguration()
 
     @property
@@ -47,9 +46,11 @@ class CiscoIOSCLIParser(ParserBase):
         """Return the platform name for the parser."""
         return "cisco_ios"
 
-    def parse(self) -> dict:
+    def parse(self, configuration: str) -> dict:
         """Parse the Cisco IOS CLI configuration content."""
-        pass
+        self.running_config = configuration
+        self.parse_system_hostname()
+        return self._parsed_config
 
     def parse_lag_interfaces(self) -> Ieee8023adLagInterface:
         """Parse LAG interfaces."""
