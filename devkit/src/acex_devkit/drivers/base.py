@@ -3,8 +3,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-from acex_devkit.models.logical_node import LogicalNode
-
 
 class ParserBase(ABC):
     """Base class for configuration parsers."""
@@ -98,7 +96,7 @@ class NetworkElementDriver:
         self.parser = self.parser_class()
 
     @abstractmethod
-    def render(self, logical_node: LogicalNode, asset: Any = None) -> Any:
+    def render(self, logical_node: "LogicalNode", asset: Any = None) -> Any:
         """Render logical node to device configuration.
         
         Args:

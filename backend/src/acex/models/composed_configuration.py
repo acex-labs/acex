@@ -15,7 +15,7 @@ from acex.models.logging import (
 )
 from acex.models.spanning_tree import SpanningTree
 
-class MetadataValueType(Enum):
+class MetadataValueType(str, Enum):
     CONCRETE = "concrete"
     EXTERNALVALUE = "externalValue"
     REFERENCE = "reference"

@@ -19,6 +19,7 @@ rich = "^13.0.0"
 click = "8.1.7"
 acex-client = { path = "../client", develop = true } # Changes to real dep. by switch_acex_client_dep for publishing
 acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }
+ntc-templates = "^8.1.0"
 
 [tool.poetry.scripts]
 acex = "acex_cli.main:app"
