@@ -163,10 +163,9 @@ interface {{ intf.name }}
 !
 {%-  endif %}
 {%- endfor %}
-{#
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "l3ipvlan" and intf.vlan_id %}
-interface vlan{{ intf.vlan_id.value }}
+interface vlan{{ intf.vlan_id }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}
@@ -184,7 +183,6 @@ interface vlan{{ intf.vlan_id.value }}
 {%-  endif %}
 !
 {%- endfor %}
-#}
 !
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "ManagementInterface" and intf.name %}
