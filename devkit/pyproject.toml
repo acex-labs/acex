@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "acex-devkit"
+version = "1.0.0"
+description = "ACE-X DevKit - Development kit for building ACE-X drivers and plugins"
+authors = ["Johan Lahti <johan.lahti@acebit.se>"]
+readme = "README.md"
+license = "AGPL-3.0"
+homepage = "https://github.com/acex-labs/acex"
+repository = "https://github.com/acex-labs/acex"
+keywords = ["automation", "devkit", "sdk", "drivers", "plugins"]
+packages = [
+    { include = "acex_devkit", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+pydantic = "^2.12.5"
+typing-extensions = "^4.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
