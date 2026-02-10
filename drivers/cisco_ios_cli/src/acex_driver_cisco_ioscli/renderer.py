@@ -1,5 +1,6 @@
 
 from acex.plugins.neds.core import RendererBase
+from acex.models.composed_configuration import ComposedConfiguration
 from typing import Any, Dict, Optional
 from pathlib import Path
 
@@ -19,17 +20,11 @@ class CiscoIOSCLIRenderer(RendererBase):
         template = env.get_template(template_name)
         return template
 
-    def render(self, logical_node: Dict[str, Any], asset) -> Any:
+    def render(self, configuration: ComposedConfiguration, asset) -> Any:
         """Render the configuration model for Cisco IOS CLI devices."""
-        # logical_node may be a Pydantic/SQLModel instance (LogicalNodeResponse)
-        # which contains a ComposedConfiguration. Convert to dict for Jinja + pre-processing.
-        configuration = getattr(logical_node, "configuration", None)
-        if configuration is None:
-            # If logical_node is already a dict, fall back to dict access
-            configuration = logical_node.get("configuration") if isinstance(logical_node, dict) else None
+
         # Ensure configuration is a plain dict (Pydantic model -> dict)
-        if hasattr(configuration, "model_dump"):
-            configuration = configuration.model_dump()
+        configuration = configuration.model_dump()
 
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)

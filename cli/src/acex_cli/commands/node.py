@@ -144,7 +144,41 @@ def desired_config(
     # typer.echo(json.dumps(config_dump, indent=2, default=str))
 
 
-# TODO: IMPLEMENT observed
+
+@config_app.command("observed")
+def observed_config(
+    ctx: typer.Context,
+    node_id: str,
+    output: ConfigFormat = typer.Option(
+        ConfigFormat.rendered, "--format", "-f", help="Output format"
+    ),
+    config_hash: Optional[str] = typer.Option(
+        None, "--hash", help="Fetch a specific backup by hash"
+    ),
+):
+    """Show observed (backup) config (rendered or JSON data object)."""
+    sdk = get_sdk(ctx.obj.get_active_context())
+    if config_hash:
+        observed = _get_observed_config_by_hash(sdk, node_id, config_hash)
+    else:
+        observed = _get_latest_observed_config(sdk, node_id)
+
+    if not observed:
+        typer.echo("No observed config found.")
+        return
+
+    if output == ConfigFormat.json:
+        typer.echo(json.dumps(observed, indent=2, default=str))
+        return
+
+    content = observed.get("content") if isinstance(observed, dict) else None
+    if content is None:
+        typer.echo("Observed config has no content.")
+        return
+
+    decoded = _decode_config_content(content)
+    typer.echo(decoded)
+
 # TODO: IMPLEMENT observed-list
 
 ####################################################################
@@ -165,40 +199,6 @@ def desired_config(
 
 
 
-
-# @config_app.command("observed")
-# def observed_config(
-#     ctx: typer.Context,
-#     node_id: str,
-#     output: ConfigFormat = typer.Option(
-#         ConfigFormat.rendered, "--format", "-f", help="Output format"
-#     ),
-#     config_hash: Optional[str] = typer.Option(
-#         None, "--hash", help="Fetch a specific backup by hash"
-#     ),
-# ):
-#     """Show observed (backup) config (rendered or JSON data object)."""
-#     sdk = get_sdk(ctx.obj.get_active_context())
-#     if config_hash:
-#         observed = _get_observed_config_by_hash(sdk, node_id, config_hash)
-#     else:
-#         observed = _get_latest_observed_config(sdk, node_id)
-
-#     if not observed:
-#         typer.echo("No observed config found.")
-#         return
-
-#     if output == ConfigFormat.json:
-#         typer.echo(json.dumps(observed, indent=2, default=str))
-#         return
-
-#     content = observed.get("content") if isinstance(observed, dict) else None
-#     if content is None:
-#         typer.echo("Observed config has no content.")
-#         return
-
-#     decoded = _decode_config_content(content)
-#     typer.echo(decoded)
 
 
 # @config_diff_app.command("observed")
