@@ -102,8 +102,6 @@ config_app.add_typer(config_show_app, name="show")
 ####################################################################
 
 # NODE CONFIG SHOW COMMANDS
-
-# TODO: IMPLEMENT desired
 @config_show_app.command("desired")
 def desired_config(
     ctx: typer.Context,
@@ -129,7 +127,6 @@ def desired_config(
         typer.echo("No desired configuration found.")
         return
 
-
     # dump to json
     config_dump = configuration.model_dump()
 
@@ -137,21 +134,20 @@ def desired_config(
     # TODO: implement here.
 
     # If render, use renderer in sdk to render config
-    ned = sdk.neds.get_driver_instance(node_instance.asset.ned_id)
-    
-    rendered = ned.render(logical_node, node_instance.asset)
+    if render:
+        ned = sdk.neds.get_driver_instance(node_instance.asset.ned_id)
+        rendered = ned.render(logical_node, node_instance.asset)
+        typer.echo(rendered)
+    else:
+        typer.echo(json.dumps(config_dump, indent=2, default=str))
 
-    # typer.echo(json.dumps(config_dump, indent=2, default=str))
 
-
-
-@config_app.command("observed")
+@config_show_app.command("observed")
 def observed_config(
     ctx: typer.Context,
     node_id: str,
-    output: ConfigFormat = typer.Option(
-        ConfigFormat.rendered, "--format", "-f", help="Output format"
-    ),
+    # render: bool = False, # TODO: Implement this flag
+    # path: str = None, # TODO: Implement this flag
     config_hash: Optional[str] = typer.Option(
         None, "--hash", help="Fetch a specific backup by hash"
     ),
@@ -165,10 +161,6 @@ def observed_config(
 
     if not observed:
         typer.echo("No observed config found.")
-        return
-
-    if output == ConfigFormat.json:
-        typer.echo(json.dumps(observed, indent=2, default=str))
         return
 
     content = observed.get("content") if isinstance(observed, dict) else None
@@ -186,6 +178,13 @@ def observed_config(
 # NODE CONFIG DIFF COMMANDS
 
 # TODO: IMPLEMENT HERE
+
+@config_diff_app.command("bajs")
+def hej(
+    ctx: typer.Context,
+):
+    sdk = get_sdk(ctx.obj.get_active_context())
+    print("balle")
 
 # acex node config diff {from} {to} 
 

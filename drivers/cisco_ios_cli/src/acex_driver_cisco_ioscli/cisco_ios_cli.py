@@ -3,6 +3,8 @@ from typing import Any, Dict, Optional
 from acex.models.composed_configuration import ComposedConfiguration
 from acex.plugins.neds.core import NetworkElementDriver, TransportBase
 
+from acex_devkit.drivers import NetworkElementDriver
+
 from .renderer import CiscoIOSCLIRenderer
 from .parser import CiscoIOSCLIParser
 
