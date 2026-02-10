@@ -13,9 +13,10 @@ jobs:
       cli-should-publish: ${{ steps.check-cli.outputs.should-publish }}
       client-should-publish: ${{ steps.check-client.outputs.should-publish }}
       mcp-should-publish: ${{ steps.check-mcp.outputs.should-publish }}
+      devkit-should-publish: ${{ steps.check-devkit.outputs.should-publish }}
     strategy:
       matrix:
-        package: [backend, cli, client, mcp]
+        package: [backend, cli, client, mcp, devkit]
         include:
           - package: backend
             pypi-name: acex
@@ -25,6 +26,8 @@ jobs:
             pypi-name: acex-client
           - package: mcp
             pypi-name: acex-mcp-server
+          - package: devkit
+            pypi-name: acex-devkit
     
     steps:
     - name: Checkout code
@@ -84,6 +87,11 @@ jobs:
       id: check-mcp
       if: matrix.package == 'mcp'
       run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
+    
+    - name: Set matrix output
+      id: check-devkit
+      if: matrix.package == 'devkit'
+      run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
 
   build-and-publish:
     name: Build & Publish ${{ matrix.package }}
@@ -96,7 +104,7 @@ jobs:
     strategy:
       fail-fast: false  # Fortsätt med andra paket även om ett failar
       matrix:
-        package: [backend, cli, client, mcp]
+        package: [backend, cli, client, mcp, devkit]
         include:
           - package: backend
             pypi-name: acex
@@ -110,6 +118,9 @@ jobs:
           - package: mcp
             pypi-name: acex-mcp-server
             should-publish-output: mcp-should-publish
+          - package: devkit
+            pypi-name: acex-devkit
+            should-publish-output: devkit-should-publish
     
     steps:
     - name: Check if should publish
