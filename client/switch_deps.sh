@@ -1,8 +1,8 @@
 #!/bin/bash
-# switch_acex_client_dep.sh
+# switch_deps.sh
 # Usage:
-#   ./switch_acex_client_dep.sh dev   # för lokal utveckling
-#   ./switch_acex_client_dep.sh prod  # för publicering
+#   ./switch_deps.sh dev   # för lokal utveckling
+#   ./switch_deps.sh prod  # för publicering
 
 set -e
 
@@ -19,12 +19,12 @@ fi
 
 if [[ "$1" == "dev" ]]; then
     echo "Byter till path-beroenden (lokal utveckling)"
-    sed "${SED_INPLACE[@]}" 's|acex-client = ".*"|acex-client = { path = "../client", develop = true }|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex = ".*"|acex = { path = "../backend", develop = true }|' "$PYPROJECT"
     sed "${SED_INPLACE[@]}" 's|acex-driver-cisco-ioscli = ".*"|acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }|' "$PYPROJECT"
 elif [[ "$1" == "prod" ]]; then
     echo "Byter till versionsberoenden (för publicering)"
     VERSION=$(grep '^version =' "$PYPROJECT" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    sed "${SED_INPLACE[@]}" 's|acex-client = { path = "../client", develop = true }|acex-client = "^'$VERSION'"|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex = { path = "../backend", develop = true }|acex = "^'$VERSION'"|' "$PYPROJECT"
     sed "${SED_INPLACE[@]}" 's|acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }|acex-driver-cisco-ioscli = "^'$VERSION'"|' "$PYPROJECT"
 else
     echo "Använd: $0 dev|prod"
