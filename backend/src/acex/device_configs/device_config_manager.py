@@ -1,10 +1,17 @@
 from datetime import datetime
+import base64
 import hashlib
 from sqlmodel import SQLModel
 from typing import Tuple, Optional
 from fastapi import HTTPException
+from enum import Enum
 
-from acex.models import DeviceConfig, StoredDeviceConfig
+from acex.models import DeviceConfig, StoredDeviceConfig, DeviceConfigResponse
+from acex.plugins.neds.manager import NEDManager
+
+class ConfigOutput(str, Enum):
+    PARSED = "parsed"
+    RENDERED = "rendered"
 
 
 
@@ -14,8 +21,15 @@ class DeviceConfigManager:
     device configurations. 
     """
 
-    def __init__(self, db_manager):
+    def __init__(self, db_manager, inventory=None):
         self.db = db_manager
+        self.inventory = inventory
+        self.neds = NEDManager()
+
+    async def _get_ned(self, node_instance):
+        # Hitta asset baserat på node instance id.
+        return self.neds.get_driver_instance(node_instance.asset.ned_id)
+
 
     def list_config_hashes(
         self, 
@@ -70,17 +84,28 @@ class DeviceConfigManager:
             session.close()
 
 
-    def get_latest_config(
+    async def get_latest_config(
         self,
         node_instance_id:str,
-        ) -> StoredDeviceConfig:
+        output: ConfigOutput = ConfigOutput.RENDERED
+        ) -> DeviceConfigResponse:
 
         session = next(self.db.get_session())
         try:
             existing = session.query(StoredDeviceConfig).filter(
                 StoredDeviceConfig.node_instance_id == node_instance_id
             ).order_by(StoredDeviceConfig.created_at.desc()).first()
-            return existing
+
+
+            if output == ConfigOutput.PARSED:
+                # Get ned from node_instance.asset
+                node_instance = await self.inventory.node_instances.get(node_instance_id)
+                ned = await self._get_ned(node_instance)
+
+                existing.content = ned.parse(base64.b64decode(existing.content).decode('utf-8'))
+                return existing
+            else:
+                return existing
         finally:
             session.close()
 

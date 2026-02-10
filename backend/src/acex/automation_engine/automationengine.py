@@ -30,7 +30,6 @@ class AutomationEngine:
         self.integrations = Integrations(self.plugin_manager)
         self.db = DatabaseManager(db_connection)
         self.config_compiler = ConfigCompiler(self.db)
-        self.device_config_manager = DeviceConfigManager(self.db)
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
         self.cors_settings_default = True
         self.cors_allowed_origins = []
@@ -43,6 +42,7 @@ class AutomationEngine:
             self.plugin_manager.register_type_plugin("logical_nodes", logical_nodes_plugin)
 
 
+        # Create Inventory
         self.inventory = Inventory(
             db_connection = self.db,
             assets_plugin=self.plugin_manager.get_plugin_for_object_type("assets"),
@@ -50,6 +50,10 @@ class AutomationEngine:
             config_compiler=self.config_compiler,
             integrations=self.integrations,
         )
+        
+        # Create DeviceConfigManager
+        self.device_config_manager = DeviceConfigManager(self.db, self.inventory)
+        
         self._create_db_tables()
         
     def _create_db_tables(self):

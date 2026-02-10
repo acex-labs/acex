@@ -36,10 +36,10 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     transport_class = CiscoIOSTransport
     parser_class = CiscoIOSCLIParser
 
-    def render(self, logical_node, asset):
+    def render(self, configuration: ComposedConfiguration, asset):
         """Render the configuration for a Cisco IOS CLI device."""
         # Call the base class render method
-        config = self.renderer.render(logical_node, asset)
+        config = self.renderer.render(configuration, asset)
         return config
 
     def parse(self, configuration: str) -> ComposedConfiguration: 
