@@ -27,6 +27,7 @@ fastmcp = "^2.13.0.2"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
+acex-devkit = { path = "../devkit", develop = true }
 acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }
 
 [build-system]

@@ -2,6 +2,7 @@ import requests
 from acex_client.models.models import ComposedConfiguration
 from acex_client.models.models import LogicalNode, Ned
 from acex_client.restclient.restclient import RestClient
+from acex_devkit.configdiffer.configdiffer import ConfigDiffer
 
 from .resources.assets import Assets
 from .resources.logical_nodes import LogicalNodes
@@ -23,5 +24,6 @@ class Acex:
         self.logical_nodes = LogicalNodes(self.rest)
         self.node_instances = NodeInstances(self.rest)
         self.neds = Neds(self.rest)
+        self.differ = ConfigDiffer()
         
 

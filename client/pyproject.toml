@@ -19,6 +19,7 @@ datamodel-code-generator = "^0.43.1"
 pydantic = "^2.12.5"
 datetime = "^6.0"
 acex = { path = "../backend", develop = true }
+acex-devkit = { path = "../devkit", develop = true }
 acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }
 
 [build-system]

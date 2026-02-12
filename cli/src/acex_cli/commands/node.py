@@ -9,7 +9,7 @@ import typer
 
 from acex_cli.sdk import get_sdk
 from acex_cli.print_utils import print_list_table, print_object
-from acex_client.models.models import Node
+from acex_client.models.models import Node, ComposedConfiguration
 
 
 def _get_ned(asset_name: str):
@@ -30,8 +30,8 @@ def _get_rendered_config(sdk, node_id: str) -> str:
     return response.text
 
 
-def _get_latest_observed_config(sdk, node_id: str) -> dict:
-    response = _request_get(sdk, f"/operations/device_configs/{node_id}/latest")
+def _get_latest_observed_config(sdk, node_id: str, output: str) -> dict:
+    response = _request_get(sdk, f"/operations/device_configs/{node_id}/latest?output={output}")
     return response.json()
 
 
@@ -146,18 +146,20 @@ def desired_config(
 def observed_config(
     ctx: typer.Context,
     node_id: str,
-    # render: bool = False, # TODO: Implement this flag
+    render: bool = False,
     # path: str = None, # TODO: Implement this flag
-    config_hash: Optional[str] = typer.Option(
-        None, "--hash", help="Fetch a specific backup by hash"
-    ),
+    # config_hash: Optional[str] = typer.Option(
+    #     None, "--hash", help="Fetch a specific backup by hash"
+    # ),
 ):
     """Show observed (backup) config (rendered or JSON data object)."""
     sdk = get_sdk(ctx.obj.get_active_context())
-    if config_hash:
-        observed = _get_observed_config_by_hash(sdk, node_id, config_hash)
+
+    if render:
+        outputformat = "rendered"
     else:
-        observed = _get_latest_observed_config(sdk, node_id)
+        outputformat = "parsed"
+    observed = _get_latest_observed_config(sdk, node_id, outputformat)
 
     if not observed:
         typer.echo("No observed config found.")
@@ -168,8 +170,13 @@ def observed_config(
         typer.echo("Observed config has no content.")
         return
 
-    decoded = _decode_config_content(content)
-    typer.echo(decoded)
+    if render:
+        typer.echo(_decode_config_content(content))
+    else:
+        typer.echo(json.dumps(content, indent=2, default=str))
+
+    # decoded = _decode_config_content(content)
+    # typer.echo(decoded)
 
 # TODO: IMPLEMENT observed-list
 
@@ -179,12 +186,39 @@ def observed_config(
 
 # TODO: IMPLEMENT HERE
 
-@config_diff_app.command("bajs")
+@config_diff_app.command("apply")
 def hej(
     ctx: typer.Context,
+    node_id: str,
 ):
     sdk = get_sdk(ctx.obj.get_active_context())
-    print("balle")
+    differ = sdk.differ
+    
+    # Fetch observed config
+    observed_config = _get_latest_observed_config(sdk, node_id, "parsed").get("content")
+    observed_config = ComposedConfiguration(**observed_config)
+
+
+    # Fetch desired config
+    node_instance = sdk.node_instances.get(node_id)
+    if not node_instance:
+        typer.echo("Node instance not found.")
+        return
+
+    logical_node = sdk.logical_nodes.get(node_instance.logical_node_id)
+    if not logical_node:
+        typer.echo("Logical node not found.")
+        return
+
+    desired_config = getattr(logical_node, "configuration", None)
+    if desired_config is None:
+        typer.echo("No desired configuration found.")
+        return
+
+    diff = differ.diff(observed_config=observed_config, desired_config=desired_config)
+
+    print(json.dumps(diff.model_dump(mode="json"), indent=4))
+
 
 # acex node config diff {from} {to} 
 

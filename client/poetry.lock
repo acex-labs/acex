@@ -2,7 +2,7 @@
 
 [[package]]
 name = "acex"
-version = "3.5.4"
+version = "3.5.7"
 description = "ACE-X Backend - Core automation engine and API"
 optional = false
 python-versions = "^3.13"
@@ -26,8 +26,26 @@ type = "directory"
 url = "../backend"
 
 [[package]]
+name = "acex-devkit"
+version = "1.0.0"
+description = "ACE-X DevKit - Development kit for building ACE-X drivers and plugins"
+optional = false
+python-versions = "^3.13"
+groups = ["main"]
+files = []
+develop = true
+
+[package.dependencies]
+pydantic = "^2.12.5"
+typing-extensions = "^4.0.0"
+
+[package.source]
+type = "directory"
+url = "../devkit"
+
+[[package]]
 name = "acex-driver-cisco-ioscli"
-version = "0.0.5"
+version = "0.0.7"
 description = "ACE-X Driver: Cisco IOS CLI SSH"
 optional = false
 python-versions = "^3.13"
@@ -36,6 +54,7 @@ files = []
 develop = true
 
 [package.dependencies]
+acex-devkit = {path = "../../devkit", develop = true}
 ntc-templates = "^8.1.0"
 
 [package.source]
@@ -2650,4 +2669,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "87bbdc49a3abd02339ef78ec6c9053e67586693fbce2ad00d781f58594222b30"
+content-hash = "107ab870d4ccae8d74b06591c0a86af69012df7fdf4e4964fece8c64979b8d86"
