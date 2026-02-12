@@ -5,7 +5,7 @@ import json, hashlib
 from typing import Dict, Any, Type, Union, Optional, get_origin
 from types import NoneType
 from datetime import datetime
-from acex.models import ExternalValue, AttributeValue
+from acex_devkit.models import ExternalValue, AttributeValue
 
 
 class ConfigComponent:

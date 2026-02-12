@@ -1,16 +1,16 @@
 
 from acex.configuration.components.base_component import ConfigComponent
-# from acex.models.interfaces import PhysicalInterface, VirtualInterface, SubInterfaceAttributes
-from acex.models.composed_configuration import (
+from acex_devkit.models.composed_configuration import (
     EthernetCsmacdInterface,
     Ieee8023adLagInterface,
     L3IpvlanInterface,
     SoftwareLoopbackInterface,
     ManagementInterface,
-    SubInterface as SubInterfaceModel
+    SubInterface as SubInterfaceModel,
+    ReferenceFrom, 
+    ReferenceTo
 )
 
-from acex.models.composed_configuration import ReferenceFrom, ReferenceTo
 from typing import Optional
 
 class Interface(ConfigComponent):

@@ -12,7 +12,7 @@ from pathlib import Path
 import inspect
 import json
 
-from acex.models.attribute_value import AttributeValue
+from acex_devkit.models.attribute_value import AttributeValue
 from acex.models import ExternalValue
 
 class ConfigCompiler: 

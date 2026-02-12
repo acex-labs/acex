@@ -1,6 +1,6 @@
 
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models.composed_configuration import Vlan as VlanAttributes
+from acex_devkit.models.composed_configuration import Vlan as VlanAttributes
 
 class Vlan(ConfigComponent): 
     type = "l2vlan"

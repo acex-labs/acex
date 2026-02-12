@@ -4,7 +4,7 @@ from sqlmodel import SQLModel, Field, Column
 from pydantic import BaseModel
 from typing import Literal, Callable, Optional, Any, Union
 from datetime import datetime, timezone
-from acex.models.composed_configuration import ComposedConfiguration
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 
 
 class DeviceConfigBase(SQLModel):

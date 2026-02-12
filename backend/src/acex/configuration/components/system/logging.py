@@ -1,15 +1,15 @@
 from acex.configuration.components.base_component import ConfigComponent
 from acex.configuration.components.interfaces import Interface
-from acex.models.composed_configuration import ReferenceTo
-from acex.models.logging import (
+from acex_devkit.models.composed_configuration import ReferenceTo
+from acex_devkit.models.logging import (
     LoggingConfig as LoggingConfigAttributes,
     Console as ConsoleAttributes,
     RemoteServer as RemoteServerAttributes,
     LoggingEvent as LoggingEventAttributes,
     VtyLine as VtyLineAttributes,
-    FileLogging as FileLoggingAttributes
-)
+    FileLogging as FileLoggingAttributes,
 
+)
 
 class LoggingConfig(ConfigComponent):
     type= 'logging_config'

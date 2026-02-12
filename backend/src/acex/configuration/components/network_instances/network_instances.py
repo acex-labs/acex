@@ -3,7 +3,7 @@ from acex.configuration.components.base_component import ConfigComponent
 from acex.configuration.components.interfaces import Interface
 from acex.configuration.components.vlan import Vlan
 
-from acex.models.composed_configuration import (
+from acex_devkit.models.composed_configuration import (
     NetworkInstance
 )
 

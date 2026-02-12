@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional, Dict
-from acex.models.composed_configuration import ComposedConfiguration
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 
 class LogicalNodeBase(SQLModel):
     hostname: str = Field(default="R1")
