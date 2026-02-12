@@ -1,6 +1,6 @@
 import requests
-from acex_client.models.models import ComposedConfiguration
-from acex_client.models.models import LogicalNode, Ned
+# from acex_client.models.models import ComposedConfiguration
+from acex_client.models.generated_models import LogicalNode, Ned
 from acex_client.restclient.restclient import RestClient
 from acex_devkit.configdiffer.configdiffer import ConfigDiffer
 

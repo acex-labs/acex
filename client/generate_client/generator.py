@@ -34,7 +34,7 @@ class Generator:
     
     def generate_models(self):
         input_path = Path('models_json.json')
-        output_path = Path("src/acex_client/models/models.py")
+        output_path = Path("src/acex_client/models/generated_models.py")
         generate(
             input_=input_path,
             input_file_type=InputFileType.OpenAPI,

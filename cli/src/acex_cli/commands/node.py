@@ -9,7 +9,9 @@ import typer
 
 from acex_cli.sdk import get_sdk
 from acex_cli.print_utils import print_list_table, print_object
-from acex_client.models.models import Node, ComposedConfiguration
+from acex_client.models.generated_models import Node
+
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 
 
 def _get_ned(asset_name: str):

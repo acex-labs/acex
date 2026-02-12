@@ -268,7 +268,7 @@ class SnmpPrivProtocol(str, Enum):
 
 
 class SnmpConfig(BaseModel):
-	enabled: AttributeValue[bool] = False
+	enabled: Optional[AttributeValue[bool]] = None
 	engine_id: Optional[AttributeValue[str]] = None
 	location: Optional[AttributeValue[str]] = None
 	contact: Optional[AttributeValue[str]] = None
@@ -556,7 +556,7 @@ class System(BaseModel):
     logging: Optional[LoggingComponents] = LoggingComponents() # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
-    snmp: Optional[Snmp] = Snmp()
+    snmp: Optional[Snmp] = {}
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
