@@ -1,6 +1,7 @@
 
 from acex.plugins.neds.core import RendererBase
-from acex.models.composed_configuration import ComposedConfiguration
+#from acex.models.composed_configuration import ComposedConfiguration
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 from typing import Any, Dict, Optional
 from pathlib import Path
 
