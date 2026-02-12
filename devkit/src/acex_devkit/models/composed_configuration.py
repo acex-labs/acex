@@ -58,7 +58,7 @@ class LoggingComponents(BaseModel):
     files: Optional[Dict[str, FileLogging]] = {}
 
 class NtpConfig(BaseModel):
-    enabled: AttributeValue[bool] = False
+    enabled: AttributeValue[bool] = AttributeValue(value=False)
 
 class NtpServer(BaseModel):
     address: AttributeValue[str]
@@ -74,7 +74,7 @@ class Ntp(BaseModel):
 
 class SshServer(BaseModel): 
     enable: Optional[AttributeValue[bool]] = None
-    protocol_version: Optional[AttributeValue[int]] = 2
+    protocol_version: Optional[AttributeValue[int]] = AttributeValue(value=2)
     timeout: Optional[AttributeValue[int]] = None
     auth_retries: Optional[AttributeValue[int]] = None
     source_interface: Optional[Reference] = None
@@ -268,7 +268,7 @@ class SnmpPrivProtocol(str, Enum):
 
 
 class SnmpConfig(BaseModel):
-	enabled: AttributeValue[bool] = False
+	enabled: AttributeValue[bool] = AttributeValue(value=False)
 	engine_id: Optional[AttributeValue[str]] = None
 	location: Optional[AttributeValue[str]] = None
 	contact: Optional[AttributeValue[str]] = None
@@ -277,7 +277,7 @@ class SnmpConfig(BaseModel):
 class SnmpCommunity(BaseModel):
     name: AttributeValue[str]
     community: Optional[AttributeValue[str]] = None # Community string
-    access: Optional[AttributeValue[SnmpAccess]] = SnmpAccess.READ_ONLY
+    access: Optional[AttributeValue[SnmpAccess]] = AttributeValue(value=SnmpAccess.READ_ONLY)
     view: Optional[AttributeValue[str]] = None
     ipv4_acl: Optional[AttributeValue[str]] = None # Cisco and "liknande" vendors 
     ipv6_acl: Optional[AttributeValue[str]] = None
@@ -287,7 +287,7 @@ class SnmpCommunity(BaseModel):
 
 class SnmpUser(BaseModel):
 	username: AttributeValue[str]
-	security_level: Optional[AttributeValue[SnmpSecurityLevel]] = SnmpSecurityLevel.NO_AUTH_NO_PRIV
+	security_level: Optional[AttributeValue[SnmpSecurityLevel]] = AttributeValue(value=SnmpSecurityLevel.NO_AUTH_NO_PRIV)
 	auth_protocol: Optional[AttributeValue[SnmpAuthProtocol]] = None
 	auth_password: Optional[AttributeValue[str]] = None
 	priv_protocol: Optional[AttributeValue[SnmpPrivProtocol]] = None
@@ -297,14 +297,14 @@ class SnmpUser(BaseModel):
 class SnmpView(BaseModel):
 	name: AttributeValue[str]
 	oid: AttributeValue[str]
-	included: Optional[AttributeValue[bool]] = True
+	included: Optional[AttributeValue[bool]] = AttributeValue(value=True)
 
 
 class SnmpServer(BaseModel):
     name: str
     address: AttributeValue[str]
-    port: Optional[AttributeValue[int]] = 162
-    enabled: Optional[AttributeValue[bool]] = True
+    port: Optional[AttributeValue[int]] = AttributeValue(value=162)
+    enabled: Optional[AttributeValue[bool]] = AttributeValue(value=True)
     version: Optional[AttributeValue[Literal["v2c", "v3"]]] = None
     community: Optional[AttributeValue[str]] = None
     username: Optional[AttributeValue[str]] = None
@@ -556,7 +556,7 @@ class System(BaseModel):
     logging: Optional[LoggingComponents] = LoggingComponents() # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
-    snmp: Optional[Snmp] = Snmp()
+    snmp: Optional[Snmp] = {}
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[

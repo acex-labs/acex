@@ -1,5 +1,5 @@
 
-from acex_client.models.models import LogicalNode,LogicalNodeResponse
+from acex_client.models.generated_models import LogicalNode,LogicalNodeResponse
 from .resource_base import Resource
 
 

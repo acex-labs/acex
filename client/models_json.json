@@ -2,7 +2,7 @@
     "openapi": "3.1.0",
     "info": {
         "title": "ACE-X - Extendable Automation & Control Ecosystem",
-        "version": "0.2.0"
+        "version": "3.5.7"
     },
     "paths": {
         "/api/v1/operations/device_configs/{node_instance_id}": {
@@ -85,6 +85,15 @@
                             "type": "string",
                             "title": "Node Instance Id"
                         }
+                    },
+                    {
+                        "name": "output",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/ConfigOutput",
+                            "default": "rendered"
+                        }
                     }
                 ],
                 "responses": {
@@ -93,7 +102,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/StoredDeviceConfig"
+                                    "$ref": "#/components/schemas/DeviceConfigResponse"
                                 }
                             }
                         }
@@ -1529,6 +1538,41 @@
                 ],
                 "title": "AttributeValue[List[int]]"
             },
+            "AttributeValue_List_str__": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[List[str]]"
+            },
             "AttributeValue_Literal__access____trunk___": {
                 "properties": {
                     "value": {
@@ -1639,6 +1683,42 @@
                 ],
                 "title": "AttributeValue[Literal['fast', 'slow']]"
             },
+            "AttributeValue_Literal__v2c____v3___": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "v2c",
+                                    "v3"
+                                ]
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[Literal['v2c', 'v3']]"
+            },
             "AttributeValue_LoggingSeverity_": {
                 "properties": {
                     "value": {
@@ -1670,6 +1750,134 @@
                     "value"
                 ],
                 "title": "AttributeValue[LoggingSeverity]"
+            },
+            "AttributeValue_SnmpAccess_": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SnmpAccess"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[SnmpAccess]"
+            },
+            "AttributeValue_SnmpAuthProtocol_": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SnmpAuthProtocol"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[SnmpAuthProtocol]"
+            },
+            "AttributeValue_SnmpPrivProtocol_": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SnmpPrivProtocol"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[SnmpPrivProtocol]"
+            },
+            "AttributeValue_SnmpSecurityLevel_": {
+                "properties": {
+                    "value": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SnmpSecurityLevel"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ExternalValue"
+                            }
+                        ],
+                        "title": "Value"
+                    },
+                    "metadata": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metadata"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "value"
+                ],
+                "title": "AttributeValue[SnmpSecurityLevel]"
             },
             "AttributeValue_Union_int__list_int___": {
                 "properties": {
@@ -1932,23 +2140,66 @@
                         ],
                         "default": {
                             "config": {},
-                            "aaa": {},
-                            "logging": {
-                                "config": {
-                                    "buffer_size": 4096
+                            "aaa": {
+                                "accounting": {
+                                    "config": {},
+                                    "events": {
+                                        "event": [
+                                            {
+                                                "config": {
+                                                    "event-type": "command",
+                                                    "method": [
+                                                        "tacacs_group"
+                                                    ]
+                                                },
+                                                "event-type": "command"
+                                            },
+                                            {
+                                                "config": {
+                                                    "event-type": "system",
+                                                    "method": [
+                                                        "tacacs_group"
+                                                    ]
+                                                },
+                                                "event-type": "system"
+                                            }
+                                        ]
+                                    }
                                 },
+                                "authentication": {
+                                    "admin_user": {},
+                                    "config": {},
+                                    "users": {}
+                                },
+                                "authorization": {
+                                    "config": {},
+                                    "events": {}
+                                },
+                                "radius": {},
+                                "server_groups": {},
+                                "tacacs": {}
+                            },
+                            "logging": {
+                                "config": {},
                                 "files": {},
                                 "remote_servers": {},
                                 "vty": {}
                             },
                             "ntp": {
-                                "config": {
-                                    "enabled": false
-                                },
                                 "servers": {}
                             },
                             "ssh": {
                                 "host_keys": {}
+                            },
+                            "snmp": {
+                                "communities": {},
+                                "config": {
+                                    "enabled": false
+                                },
+                                "trap_events": {},
+                                "trap_servers": {},
+                                "users": {},
+                                "views": {}
                             }
                         }
                     },
@@ -1983,10 +2234,7 @@
                                 "type": "null"
                             }
                         ],
-                        "default": {
-                            "config": {},
-                            "interfaces": {}
-                        }
+                        "default": {}
                     },
                     "interfaces": {
                         "additionalProperties": {
@@ -2045,29 +2293,19 @@
                                 "type": "null"
                             }
                         ],
-                        "default": {
-                            "config": {
-                                "bpdu_filter": false,
-                                "bpdu_guard": false,
-                                "bridge_assurance": false,
-                                "loop_guard": false,
-                                "portfast": false
-                            },
-                            "rstp": {
-                                "config": {}
-                            },
-                            "mstp": {
-                                "config": {},
-                                "mst_instances": {}
-                            },
-                            "rapidpvst": {
-                                "vlan": {}
-                            }
-                        }
+                        "default": {}
                     }
                 },
                 "type": "object",
                 "title": "ComposedConfiguration"
+            },
+            "ConfigOutput": {
+                "type": "string",
+                "enum": [
+                    "parsed",
+                    "rendered"
+                ],
+                "title": "ConfigOutput"
             },
             "ConnectionType": {
                 "type": "string",
@@ -2113,6 +2351,43 @@
                     "content"
                 ],
                 "title": "DeviceConfig"
+            },
+            "DeviceConfigResponse": {
+                "properties": {
+                    "node_instance_id": {
+                        "type": "string",
+                        "title": "Node Instance Id"
+                    },
+                    "content": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ComposedConfiguration"
+                            }
+                        ],
+                        "title": "Content"
+                    },
+                    "hash": {
+                        "type": "string",
+                        "title": "Hash"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Created At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "node_instance_id",
+                    "content",
+                    "hash",
+                    "created_at"
+                ],
+                "title": "DeviceConfigResponse",
+                "description": "Response with either parsed (string) or rendered (ComposedConfiguration) content"
             },
             "EVType": {
                 "type": "string",
@@ -3016,9 +3291,7 @@
                 "properties": {
                     "config": {
                         "$ref": "#/components/schemas/LoggingConfig",
-                        "default": {
-                            "buffer_size": 4096
-                        }
+                        "default": {}
                     },
                     "console": {
                         "anyOf": [
@@ -3119,8 +3392,7 @@
                             {
                                 "type": "null"
                             }
-                        ],
-                        "default": 4096
+                        ]
                     }
                 },
                 "type": "object",
@@ -3299,21 +3571,64 @@
                         "$ref": "#/components/schemas/ComposedConfiguration",
                         "default": {
                             "system": {
-                                "aaa": {},
+                                "aaa": {
+                                    "accounting": {
+                                        "config": {},
+                                        "events": {
+                                            "event": [
+                                                {
+                                                    "config": {
+                                                        "event-type": "command",
+                                                        "method": [
+                                                            "tacacs_group"
+                                                        ]
+                                                    },
+                                                    "event-type": "command"
+                                                },
+                                                {
+                                                    "config": {
+                                                        "event-type": "system",
+                                                        "method": [
+                                                            "tacacs_group"
+                                                        ]
+                                                    },
+                                                    "event-type": "system"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "authentication": {
+                                        "admin_user": {},
+                                        "config": {},
+                                        "users": {}
+                                    },
+                                    "authorization": {
+                                        "config": {},
+                                        "events": {}
+                                    },
+                                    "radius": {},
+                                    "server_groups": {},
+                                    "tacacs": {}
+                                },
                                 "config": {},
                                 "logging": {
-                                    "config": {
-                                        "buffer_size": 4096
-                                    },
+                                    "config": {},
                                     "files": {},
                                     "remote_servers": {},
                                     "vty": {}
                                 },
                                 "ntp": {
+                                    "servers": {}
+                                },
+                                "snmp": {
+                                    "communities": {},
                                     "config": {
                                         "enabled": false
                                     },
-                                    "servers": {}
+                                    "trap_events": {},
+                                    "trap_servers": {},
+                                    "users": {},
+                                    "views": {}
                                 },
                                 "ssh": {
                                     "host_keys": {}
@@ -3321,10 +3636,7 @@
                             },
                             "acl": {},
                             "lldp": {},
-                            "lacp": {
-                                "config": {},
-                                "interfaces": {}
-                            },
+                            "lacp": {},
                             "interfaces": {},
                             "network_instances": {
                                 "global": {
@@ -3340,25 +3652,7 @@
                                     "vlans": {}
                                 }
                             },
-                            "stp": {
-                                "config": {
-                                    "bpdu_filter": false,
-                                    "bpdu_guard": false,
-                                    "bridge_assurance": false,
-                                    "loop_guard": false,
-                                    "portfast": false
-                                },
-                                "mstp": {
-                                    "config": {},
-                                    "mst_instances": {}
-                                },
-                                "rapidpvst": {
-                                    "vlan": {}
-                                },
-                                "rstp": {
-                                    "config": {}
-                                }
-                            }
+                            "stp": {}
                         }
                     },
                     "meta_data": {
@@ -3910,10 +4204,7 @@
                             {
                                 "type": "null"
                             }
-                        ],
-                        "default": {
-                            "enabled": false
-                        }
+                        ]
                     },
                     "servers": {
                         "anyOf": [
@@ -4250,6 +4541,445 @@
                 },
                 "type": "object",
                 "title": "RstpAttributes"
+            },
+            "Snmp": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/SnmpConfig",
+                        "default": {
+                            "enabled": false
+                        }
+                    },
+                    "communities": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/SnmpCommunity"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Communities",
+                        "default": {}
+                    },
+                    "users": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/SnmpUser"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Users",
+                        "default": {}
+                    },
+                    "trap_servers": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/SnmpServer"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Trap Servers",
+                        "default": {}
+                    },
+                    "trap_events": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/TrapEvent"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Trap Events",
+                        "default": {}
+                    },
+                    "views": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/SnmpView"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Views",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "Snmp"
+            },
+            "SnmpAccess": {
+                "type": "string",
+                "enum": [
+                    "READ_ONLY",
+                    "READ_WRITE"
+                ],
+                "title": "SnmpAccess"
+            },
+            "SnmpAuthProtocol": {
+                "type": "string",
+                "enum": [
+                    "MD5",
+                    "SHA",
+                    "SHA-224",
+                    "SHA-256",
+                    "SHA-384",
+                    "SHA-512"
+                ],
+                "title": "SnmpAuthProtocol"
+            },
+            "SnmpCommunity": {
+                "properties": {
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "community": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "access": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_SnmpAccess_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": "READ_ONLY"
+                    },
+                    "view": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ipv4_acl": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "ipv6_acl": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "source_interface": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Reference"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "clients": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_List_str__"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "SnmpCommunity"
+            },
+            "SnmpConfig": {
+                "properties": {
+                    "enabled": {
+                        "$ref": "#/components/schemas/AttributeValue_bool_",
+                        "default": false
+                    },
+                    "engine_id": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "location": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "contact": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "SnmpConfig"
+            },
+            "SnmpPrivProtocol": {
+                "type": "string",
+                "enum": [
+                    "DES",
+                    "3DES",
+                    "AES128",
+                    "AES192",
+                    "AES256"
+                ],
+                "title": "SnmpPrivProtocol"
+            },
+            "SnmpSecurityLevel": {
+                "type": "string",
+                "enum": [
+                    "NO_AUTH_NO_PRIV",
+                    "AUTH_NO_PRIV",
+                    "AUTH_PRIV"
+                ],
+                "title": "SnmpSecurityLevel"
+            },
+            "SnmpServer": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "address": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "port": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_int_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": 162
+                    },
+                    "enabled": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": true
+                    },
+                    "version": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_Literal__v2c____v3___"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "community": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "username": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "security_level": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_SnmpSecurityLevel_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "source_interface": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Reference"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "network_instance": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "address"
+                ],
+                "title": "SnmpServer"
+            },
+            "SnmpUser": {
+                "properties": {
+                    "username": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "security_level": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_SnmpSecurityLevel_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": "NO_AUTH_NO_PRIV"
+                    },
+                    "auth_protocol": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_SnmpAuthProtocol_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "auth_password": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "priv_protocol": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_SnmpPrivProtocol_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "priv_password": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_str_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "username"
+                ],
+                "title": "SnmpUser"
+            },
+            "SnmpView": {
+                "properties": {
+                    "name": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "oid": {
+                        "$ref": "#/components/schemas/AttributeValue_str_"
+                    },
+                    "included": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AttributeValue_bool_"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": true
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "oid"
+                ],
+                "title": "SnmpView"
             },
             "SoftwareLoopbackInterface": {
                 "properties": {
@@ -4661,7 +5391,45 @@
                                 "type": "null"
                             }
                         ],
-                        "default": {}
+                        "default": {
+                            "server_groups": {},
+                            "tacacs": {},
+                            "radius": {},
+                            "authentication": {
+                                "admin_user": {},
+                                "config": {},
+                                "users": {}
+                            },
+                            "authorization": {
+                                "config": {},
+                                "events": {}
+                            },
+                            "accounting": {
+                                "config": {},
+                                "events": {
+                                    "event": [
+                                        {
+                                            "config": {
+                                                "event-type": "command",
+                                                "method": [
+                                                    "tacacs_group"
+                                                ]
+                                            },
+                                            "event-type": "command"
+                                        },
+                                        {
+                                            "config": {
+                                                "event-type": "system",
+                                                "method": [
+                                                    "tacacs_group"
+                                                ]
+                                            },
+                                            "event-type": "system"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
                     },
                     "logging": {
                         "anyOf": [
@@ -4673,9 +5441,7 @@
                             }
                         ],
                         "default": {
-                            "config": {
-                                "buffer_size": 4096
-                            },
+                            "config": {},
                             "remote_servers": {},
                             "vty": {},
                             "files": {}
@@ -4691,9 +5457,6 @@
                             }
                         ],
                         "default": {
-                            "config": {
-                                "enabled": false
-                            },
                             "servers": {}
                         }
                     },
@@ -4708,6 +5471,26 @@
                         ],
                         "default": {
                             "host_keys": {}
+                        }
+                    },
+                    "snmp": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Snmp"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": {
+                            "config": {
+                                "enabled": false
+                            },
+                            "communities": {},
+                            "users": {},
+                            "trap_servers": {},
+                            "trap_events": {},
+                            "views": {}
                         }
                     }
                 },
@@ -4760,8 +5543,229 @@
                 "type": "object",
                 "title": "SystemConfig"
             },
+            "TrapEvent": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "event_name": {
+                        "$ref": "#/components/schemas/TrapEventOptions"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "event_name"
+                ],
+                "title": "TrapEvent"
+            },
+            "TrapEventOptions": {
+                "type": "string",
+                "enum": [
+                    "vrf-up",
+                    "vrf-down",
+                    "vnet-trunk-up",
+                    "vnet-trunk-down",
+                    "all",
+                    "enabled",
+                    "enabled",
+                    "enabled",
+                    "change",
+                    "move",
+                    "threshold",
+                    "authentication",
+                    "linkdown",
+                    "linkup",
+                    "coldstart",
+                    "warmstart",
+                    "trapflowmonevent",
+                    "trapentityperfevent",
+                    "trapcallhomeevent_MESSAGE_SEND_FAIL",
+                    "trapcallhomeevent_SERVER_FAIL",
+                    "trapttyevent",
+                    "trapeigrpevent",
+                    "ospf_state_change",
+                    "ospf_errors",
+                    "ospf_retransmit",
+                    "ospf_lsa",
+                    "ospf_cisco_trans_change",
+                    "ospf_cisco_shamlink_interface",
+                    "ospf_cisco_shamlink_neighbor",
+                    "bfd_event",
+                    "cisco_smart_license_event",
+                    "auth_framework_sec_violation",
+                    "rep_event",
+                    "memory_bufferpeak",
+                    "config_copy",
+                    "config",
+                    "config_ctid",
+                    "energy_wise_event",
+                    "fru_ctrl_event",
+                    "entity_event",
+                    "flash_insertion",
+                    "flash_removal",
+                    "flash_lowspace",
+                    "power_ethernet_police",
+                    "power_ethernet_group_threshold",
+                    "cpu_threshold",
+                    "syslog",
+                    "udld_link_fail_rpt",
+                    "udld_status_change",
+                    "vtp_event",
+                    "vlancreate",
+                    "vlandelete",
+                    "port_security",
+                    "env_mon",
+                    "stackwise",
+                    "mvpn",
+                    "pw_vc",
+                    "ipsla",
+                    "dhcp",
+                    "event_manager",
+                    "ike_policy_add",
+                    "ike_policy_delete",
+                    "ike_tunnel_start",
+                    "ike_tunnel_stop",
+                    "ipsec_cryptomap_add",
+                    "ipsec_cryptomap_delete",
+                    "ipsec_cryptomap_attach",
+                    "ipsec_cryptomap_detach",
+                    "ipsec_tunnel_start",
+                    "ipsec_tunnel_stop",
+                    "ipsec_too_many_sas",
+                    "ospfv3_state_change",
+                    "ospfv3_errors",
+                    "ip_multicast",
+                    "msdp",
+                    "pim_neighbor_change",
+                    "pim_rp_mapping_change",
+                    "invalid_pim_message",
+                    "bridge_newroot",
+                    "bridge_topologychange",
+                    "stpx_inconsistency",
+                    "stpx_root_inconsistency",
+                    "stpx_loop_inconsistency",
+                    "bgp_cbg2",
+                    "hsrp",
+                    "isis",
+                    "cef_resource_failure",
+                    "cef_peer_state_change",
+                    "cef_peer_fib_state_change",
+                    "cef_inconsistency",
+                    "lisp",
+                    "nhrp_nhs",
+                    "nhrp_nhc",
+                    "nhrp_nhp",
+                    "nhrp_quota_exceeded",
+                    "local_auth",
+                    "entity_diag_boot_up_fail",
+                    "entity_diag_hm_test_recover",
+                    "entity_diag_hm_thresh_reached",
+                    "entity_diag_scheduled_test_fail",
+                    "mpls_rfc_ldp",
+                    "mpls_ldp",
+                    "mpls_rfc_traffic_eng",
+                    "mpls_traffic_eng",
+                    "mpls_fast_reroute_protected",
+                    "mpls_vpn",
+                    "mpls_rfc_vpn",
+                    "bulkstat_collection",
+                    "bulkstat_transfer"
+                ],
+                "title": "TrapEventOptions"
+            },
             "TripleA": {
-                "properties": {},
+                "properties": {
+                    "server_groups": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/aaaServerGroupAttributes"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Server Groups",
+                        "default": {}
+                    },
+                    "tacacs": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/aaaTacacsAttributes"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Tacacs",
+                        "default": {}
+                    },
+                    "radius": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/aaaRadiusAttributes"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Radius",
+                        "default": {}
+                    },
+                    "authentication": {
+                        "$ref": "#/components/schemas/aaaAuthentication",
+                        "default": {
+                            "config": {},
+                            "admin_user": {},
+                            "users": {}
+                        }
+                    },
+                    "authorization": {
+                        "$ref": "#/components/schemas/aaaAuthorization",
+                        "default": {
+                            "config": {},
+                            "events": {}
+                        }
+                    },
+                    "accounting": {
+                        "$ref": "#/components/schemas/aaaAccounting",
+                        "default": {
+                            "config": {},
+                            "events": {
+                                "event": [
+                                    {
+                                        "config": {
+                                            "event-type": "command",
+                                            "method": [
+                                                "tacacs_group"
+                                            ]
+                                        },
+                                        "event-type": "command"
+                                    },
+                                    {
+                                        "config": {
+                                            "event-type": "system",
+                                            "method": [
+                                                "tacacs_group"
+                                            ]
+                                        },
+                                        "event-type": "system"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
                 "type": "object",
                 "title": "TripleA"
             },
@@ -4884,6 +5888,645 @@
                 },
                 "type": "object",
                 "title": "VtyLine"
+            },
+            "aaaAccounting": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/aaaAccountingMethods",
+                        "default": {}
+                    },
+                    "events": {
+                        "$ref": "#/components/schemas/aaaAccountingEvents",
+                        "default": {
+                            "event": [
+                                {
+                                    "config": {
+                                        "event-type": "command",
+                                        "method": [
+                                            "tacacs_group"
+                                        ]
+                                    },
+                                    "event-type": "command"
+                                },
+                                {
+                                    "config": {
+                                        "event-type": "system",
+                                        "method": [
+                                            "tacacs_group"
+                                        ]
+                                    },
+                                    "event-type": "system"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "type": "object",
+                "title": "aaaAccounting"
+            },
+            "aaaAccountingEvents": {
+                "properties": {
+                    "event": {
+                        "items": {},
+                        "type": "array",
+                        "title": "Event",
+                        "default": [
+                            {
+                                "event-type": "command",
+                                "config": {
+                                    "event-type": "command",
+                                    "method": [
+                                        "tacacs_group"
+                                    ]
+                                }
+                            },
+                            {
+                                "event-type": "system",
+                                "config": {
+                                    "event-type": "system",
+                                    "method": [
+                                        "tacacs_group"
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "aaaAccountingEvents"
+            },
+            "aaaAccountingMethods": {
+                "properties": {
+                    "method": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Method"
+                    }
+                },
+                "type": "object",
+                "title": "aaaAccountingMethods"
+            },
+            "aaaAuthentication": {
+                "properties": {
+                    "config": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/aaaAuthenticationMethods"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Config",
+                        "default": {}
+                    },
+                    "admin_user": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/aaaAuthenticationAdminUsers"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Admin User",
+                        "default": {}
+                    },
+                    "users": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/aaaAuthenticationUsers"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Users",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "aaaAuthentication"
+            },
+            "aaaAuthenticationAdminUsers": {
+                "properties": {
+                    "config": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/adminUser"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Config",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "aaaAuthenticationAdminUsers"
+            },
+            "aaaAuthenticationMethods": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "method": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Method"
+                    }
+                },
+                "type": "object",
+                "title": "aaaAuthenticationMethods"
+            },
+            "aaaAuthenticationUsers": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "username": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/authenticationUser"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Username",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "aaaAuthenticationUsers"
+            },
+            "aaaAuthorization": {
+                "properties": {
+                    "config": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/aaaAuthorizationMethods"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Config",
+                        "default": {}
+                    },
+                    "events": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/aaaAuthorizationEvents"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Events",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "aaaAuthorization"
+            },
+            "aaaAuthorizationEvent": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "event_type": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Event Type",
+                        "default": {
+                            "event-type": "command",
+                            "method": [
+                                "tacacs_group"
+                            ]
+                        }
+                    }
+                },
+                "type": "object",
+                "title": "aaaAuthorizationEvent"
+            },
+            "aaaAuthorizationEvents": {
+                "properties": {
+                    "event": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/aaaAuthorizationEvent"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Event",
+                        "default": {}
+                    }
+                },
+                "type": "object",
+                "title": "aaaAuthorizationEvents"
+            },
+            "aaaAuthorizationMethods": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "method": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Method"
+                    }
+                },
+                "type": "object",
+                "title": "aaaAuthorizationMethods"
+            },
+            "aaaRadiusAttributes": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "auth_port": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Auth Port",
+                        "default": 1812
+                    },
+                    "acct_port": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Acct Port",
+                        "default": 1813
+                    },
+                    "secret_key": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret Key"
+                    },
+                    "secret_key_hashed": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret Key Hashed"
+                    },
+                    "address": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Address"
+                    },
+                    "timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Timeout",
+                        "default": 30
+                    },
+                    "source_address": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Source Address"
+                    },
+                    "retransmit_attempts": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Retransmit Attempts",
+                        "default": 3
+                    }
+                },
+                "type": "object",
+                "title": "aaaRadiusAttributes"
+            },
+            "aaaServerGroupAttributes": {
+                "properties": {
+                    "enable": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Enable",
+                        "default": false
+                    },
+                    "type": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "tacacs",
+                                    "radius"
+                                ]
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Type"
+                    },
+                    "tacacs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Reference"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "radius": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Reference"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "aaaServerGroupAttributes"
+            },
+            "aaaTacacsAttributes": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "port": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Port",
+                        "default": 49
+                    },
+                    "secret_key": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret Key"
+                    },
+                    "secret_key_hashed": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret Key Hashed"
+                    },
+                    "address": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Address"
+                    },
+                    "timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Timeout",
+                        "default": 30
+                    },
+                    "source_address": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Source Address"
+                    }
+                },
+                "type": "object",
+                "title": "aaaTacacsAttributes"
+            },
+            "adminUser": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "admin_password": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Admin Password"
+                    },
+                    "admin_password_hashed": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Admin Password Hashed"
+                    }
+                },
+                "type": "object",
+                "title": "adminUser"
+            },
+            "authenticationUser": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "username": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Username"
+                    },
+                    "password": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Password"
+                    },
+                    "password_hahsed": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Password Hahsed"
+                    },
+                    "ssh_key": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ssh Key"
+                    },
+                    "role": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Role"
+                    }
+                },
+                "type": "object",
+                "title": "authenticationUser"
             }
         }
     }

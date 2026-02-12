@@ -1,6 +1,6 @@
 from importlib.metadata import entry_points
 import subprocess, sys
-from acex_client.models.models import LogicalNode, Ned
+from acex_client.models.generated_models import LogicalNode, Ned
 from .resource_base import Resource
 
 

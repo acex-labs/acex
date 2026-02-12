@@ -1,7 +1,7 @@
 import typer
 from acex_cli.sdk import get_sdk
 from acex_cli.print_utils import print_list_table, print_object
-from acex_client.models.models import AssetResponse
+from acex_client.models.generated_models import AssetResponse
 
 app = typer.Typer(help="Asset resource commands")
 
