@@ -146,7 +146,7 @@ def desired_config(
     # If render, use renderer in sdk to render config
     if render:
         ned = sdk.neds.get_driver_instance(node_instance.asset.ned_id)
-        rendered = ned.render(logical_node, node_instance.asset)
+        rendered = ned.render(logical_node.configuration, node_instance.asset)
         typer.echo(rendered)
     else:
         typer.echo(json.dumps(config_dump, indent=2, default=str))
@@ -193,9 +193,6 @@ def observed_config(
 ####################################################################
 
 # NODE CONFIG DIFF COMMANDS
-
-# TODO: IMPLEMENT HERE
-
 @config_diff_app.command("plan") 
 def show_diff_plan(
     ctx: typer.Context,
@@ -219,9 +216,6 @@ def show_diff_plan(
     
     # Fetch observed config
     observed_config = _get_latest_observed_config(sdk, node_id, "parsed").get("content")
-
-    print(observed_config)
-    exit()
     observed_config = ComposedConfiguration(**observed_config)
 
 
@@ -260,9 +254,14 @@ def show_diff_plan(
         dfg = observed_config
         d = diff
         ned = sdk.neds.get_driver_instance(node_instance.asset.ned_id)
-        
 
-        commands = ""
+        commands = ned.jusify_diff_commands(observed_config, d, node_instance.asset) 
+
+
+        # fuck 
+
+        # vi behöver styra så ned tar config och inte logical node. 
+        
         print(commands)
     else:
         typer.echo(f"Unknown format: {format}")
