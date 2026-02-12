@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator, field_serializer
 from typing import Union, TypeVar, Generic, Optional, Dict, Any, get_args, get_origin
-from acex.models.external_value import ExternalValue
+from acex_devkit.models import ExternalValue
 
 T = TypeVar('T')
 
