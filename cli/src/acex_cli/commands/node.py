@@ -192,7 +192,27 @@ def observed_config(
 def hej(
     ctx: typer.Context,
     node_id: str,
+    format: str = typer.Option(
+        "tree", "--format", "-f",
+        help="Output format: tree, compact, flat, summary, json"
+    ),
+    max_depth: int = typer.Option(
+        None, "--max-depth", "-d",
+        help="Maximum depth to show in tree view"
+    ),
+    no_values: bool = typer.Option(
+        False, "--no-values",
+        help="Hide values in tree view (show only structure)"
+    ),
 ):
+    """Show diff between desired and observed config."""
+    from acex_cli.diff_formatters import (
+        print_diff_summary,
+        print_diff_tree, 
+        print_diff_compact,
+        print_diff_flat
+    )
+    
     sdk = get_sdk(ctx.obj.get_active_context())
     differ = sdk.differ
     
@@ -219,7 +239,21 @@ def hej(
 
     diff = differ.diff(observed_config=observed_config, desired_config=desired_config)
 
-    print(json.dumps(diff.model_dump(mode="json"), indent=4))
+    # Display diff based on format
+    if format == "json":
+        # Use Python mode to avoid Pydantic serialization warnings with AttributeValue types
+        print(json.dumps(diff.model_dump(mode="python"), indent=4, default=str))
+    elif format == "summary":
+        print_diff_summary(diff)
+    elif format == "tree":
+        print_diff_tree(diff, max_depth=max_depth, show_values=not no_values)
+    elif format == "compact":
+        print_diff_compact(diff)
+    elif format == "flat":
+        print_diff_flat(diff)
+    else:
+        typer.echo(f"Unknown format: {format}")
+        typer.echo("Available formats: tree, compact, flat, summary, json")
 
 
 # acex node config diff {from} {to} 
