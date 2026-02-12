@@ -24,7 +24,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         """Render the configuration model for Cisco IOS CLI devices."""
 
         # Ensure configuration is a plain dict (Pydantic model -> dict)
-        configuration = configuration.model_dump(mode="json").get("configuration")
+        configuration = configuration.model_dump(mode="json")
 
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)
