@@ -243,8 +243,10 @@ For commercial licensing inquiries, contact: **license@acex.dev**
 The AGPL license ensures that improvements to ACE-X benefit the entire community, even when the software is used to provide network services. If you run a modified version of ACE-X as a service, users of that service can request the source code.
 
 ## 👤 Author
-
 Johan Lahti <johan.lahti@acebit.se>
+
+## Co-Authors
+- Jani Naamanka <jani@naacon.se>
 
 ## 🔗 Links
 
