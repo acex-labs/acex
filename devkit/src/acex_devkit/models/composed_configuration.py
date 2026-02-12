@@ -3,9 +3,9 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, List, Literal, ClassVar, Union, Any
 from enum import Enum
 
-from acex.models.external_value import ExternalValue
-from acex.models.attribute_value import AttributeValue
-from acex.models.logging import (
+from acex_devkit.models.external_value import ExternalValue
+from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.logging import (
     LoggingConfig,
     Console,
     RemoteServer,
@@ -13,7 +13,7 @@ from acex.models.logging import (
     FileLogging,
     LoggingEvents
 )
-from acex.models.spanning_tree import SpanningTree
+from acex_devkit.models.spanning_tree import SpanningTree
 
 class MetadataValueType(str, Enum):
     CONCRETE = "concrete"

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from acex.models.attribute_value import AttributeValue
+from acex_devkit.models.attribute_value import AttributeValue
 from enum import Enum
 from typing import Optional, Dict
 
