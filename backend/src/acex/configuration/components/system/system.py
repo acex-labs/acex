@@ -1,6 +1,6 @@
 
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models.attribute_value import AttributeValue
+from acex_devkit.models import AttributeValue
 from pydantic import BaseModel
 
 

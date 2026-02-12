@@ -1,11 +1,10 @@
 from acex.configuration.components.base_component import ConfigComponent
 from acex.configuration.components.interfaces import Interface
-from acex.models.composed_configuration import (
+from acex_devkit.models.composed_configuration import (
     AuthorizedKey, 
     ReferenceTo,
     SshServer as SshServerAttributes
 )
-
 
 class SshServer(ConfigComponent):
     type = "ssh_server"

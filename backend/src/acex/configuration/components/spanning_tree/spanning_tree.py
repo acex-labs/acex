@@ -1,5 +1,5 @@
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models.spanning_tree import SpanningTreeGlobalAttributes, RstpAttributes, MstpAttributes, MstpInstanceAttributes, RapidPVSTAttributes
+from acex_devkit.models.spanning_tree import SpanningTreeGlobalAttributes, RstpAttributes, MstpAttributes, MstpInstanceAttributes, RapidPVSTAttributes
 
 class SpanningTreeGlobal(ConfigComponent): 
     type = "SpanningTreeGlobal"

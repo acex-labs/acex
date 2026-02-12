@@ -1,13 +1,13 @@
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models.composed_configuration import ReferenceTo
 from acex.configuration.components.interfaces import Interface
-from acex.models.composed_configuration import (
+from acex_devkit.models.composed_configuration import (
     aaaTacacsAttributes,
     aaaRadiusAttributes,
     aaaServerGroupAttributes,
     aaaAuthenticationMethods as aaaAuthenticationMethodsAttributes,
     aaaAuthorizationMethods as aaaAuthorizationMethodsAttributes,
-    aaaAccountingMethods as aaaAccountingMethodsAttributes
+    aaaAccountingMethods as aaaAccountingMethodsAttributes,
+    ReferenceTo
 )
 
 class aaaTacacs(ConfigComponent):

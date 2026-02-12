@@ -24,7 +24,7 @@ from acex.configuration.components.system.ssh import SshServer, AuthorizedKey
 from acex.configuration.components.network_instances import NetworkInstance, L3Vrf
 from acex.configuration.components.vlan import Vlan
 from acex.configuration.components.spanning_tree import SpanningTreeGlobal, SpanningTreeRSTP, SpanningTreeMSTP, SpanningTreeMstpInstance, SpanningTreeRapidPVST
-from acex.models.attribute_value import AttributeValue
+from acex_devkit.models import AttributeValue
 from acex.configuration.components.system.snmp import (
     SnmpGlobal,
     SnmpUser,
@@ -42,8 +42,8 @@ from acex.configuration.components.system.aaa import (
     aaaAccountingMethods
 )
 
-from acex.models import ExternalValue
-from acex.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
+from acex_devkit.models import ExternalValue
+from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict
 from typing import Dict
 from string import Template
