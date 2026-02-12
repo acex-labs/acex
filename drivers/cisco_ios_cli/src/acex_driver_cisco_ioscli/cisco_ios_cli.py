@@ -1,6 +1,7 @@
 
 from typing import Any, Dict, Optional
-from acex.models.composed_configuration import ComposedConfiguration
+#from acex.models.composed_configuration import ComposedConfiguration
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex.plugins.neds.core import NetworkElementDriver, TransportBase
 
 from acex_devkit.drivers import NetworkElementDriver
