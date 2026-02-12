@@ -4,6 +4,7 @@ from acex.models.composed_configuration import ComposedConfiguration
 from acex.plugins.neds.core import NetworkElementDriver, TransportBase
 
 from acex_devkit.drivers import NetworkElementDriver
+from acex_devkit.configdiffer import Diff
 
 from .renderer import CiscoIOSCLIRenderer
 from .parser import CiscoIOSCLIParser
@@ -46,3 +47,12 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
 
     def parse(self, configuration: str) -> ComposedConfiguration: 
         return self.parser.parse(configuration)
+
+    def jusify_diff_commands(
+        self, 
+        configuration: ComposedConfiguration, 
+        diff: Diff
+        ):
+        """
+        TODO: Find a good name for this method
+        """ 
