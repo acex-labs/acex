@@ -570,9 +570,9 @@ InterfaceType = Union[
 
 class ComposedConfiguration(BaseModel):
     system: Optional[System] = System()
-    acl: Optional[Acl] = {}
-    lldp: Optional[Lldp] ={}
-    lacp: Optional[Lacp] = {}
+    acl: Optional[Acl] = Acl()
+    lldp: Optional[Lldp] = Lldp()
+    lacp: Optional[Lacp] = Lacp()
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
     stp: Optional[SpanningTree] = {}

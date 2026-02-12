@@ -93,5 +93,6 @@ class CiscoIOSCLIParser:
             command=command,
             data=self.running_config
         )
-        self.parsed_config.system.config.hostname = parsed_data[0].get(
-            "hostname")
+        self.parsed_config.system.config.hostname = {
+            "value": parsed_data[0].get("hostname")
+            }
