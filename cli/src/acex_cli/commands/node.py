@@ -13,9 +13,17 @@ from acex_client.models.generated_models import Node
 
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 
+"""Show diff between desired and observed config."""
+from acex_cli.diff_formatters import (
+    print_diff_summary,
+    print_diff_tree, 
+    print_diff_compact,
+    print_diff_flat
+)
 
-def _get_ned(asset_name: str):
-    print("Fixar nedden")
+def _balle_byt_namn_sen():
+    return ""
+
 
 
 #### REMOVE THESE AND USE SDK WHEN IMPLEMENTED 
@@ -138,7 +146,7 @@ def desired_config(
     # If render, use renderer in sdk to render config
     if render:
         ned = sdk.neds.get_driver_instance(node_instance.asset.ned_id)
-        rendered = ned.render(logical_node, node_instance.asset)
+        rendered = ned.render(logical_node.configuration, node_instance.asset)
         typer.echo(rendered)
     else:
         typer.echo(json.dumps(config_dump, indent=2, default=str))
@@ -185,11 +193,8 @@ def observed_config(
 ####################################################################
 
 # NODE CONFIG DIFF COMMANDS
-
-# TODO: IMPLEMENT HERE
-
-@config_diff_app.command("apply")
-def hej(
+@config_diff_app.command("plan") 
+def show_diff_plan(
     ctx: typer.Context,
     node_id: str,
     format: str = typer.Option(
@@ -205,13 +210,6 @@ def hej(
         help="Hide values in tree view (show only structure)"
     ),
 ):
-    """Show diff between desired and observed config."""
-    from acex_cli.diff_formatters import (
-        print_diff_summary,
-        print_diff_tree, 
-        print_diff_compact,
-        print_diff_flat
-    )
     
     sdk = get_sdk(ctx.obj.get_active_context())
     differ = sdk.differ
@@ -251,9 +249,30 @@ def hej(
         print_diff_compact(diff)
     elif format == "flat":
         print_diff_flat(diff)
+    elif format == "commands":
+
+        dfg = observed_config
+        d = diff
+        ned = sdk.neds.get_driver_instance(node_instance.asset.ned_id)
+        commands = ned.jusify_diff_commands(observed_config, d, node_instance.asset) 
+
+        print(commands)
     else:
         typer.echo(f"Unknown format: {format}")
         typer.echo("Available formats: tree, compact, flat, summary, json")
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # acex node config diff {from} {to} 

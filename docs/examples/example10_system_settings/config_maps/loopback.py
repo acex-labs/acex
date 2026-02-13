@@ -6,7 +6,9 @@ class MPLSLoopback(ConfigMap):
     def compile(self, context):
         port = Loopback(
             name="MPLS_LO",
-            index=0
+            index=0,
+            description = "MPLS Loopback",
+            ipv4 = "192.0.2.3/24"
         )
         context.configuration.add(port)
 

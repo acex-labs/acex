@@ -39,15 +39,14 @@ class NetworkElementDriver:
         self.parser = self.parser_class()
 
     @abstractmethod
-    def render(self, logical_node: "LogicalNode") -> Any:
-        """Tar en LogicalNode och returnerar en konfigurationsrepresentation."""
-        return self.renderer.render(logical_node.model_dump())
+    def render(self, configuration: ComposedConfiguration, asset: "Asset") -> Any:
+        """Render configuration from composedconfig and asset."""
+        pass
 
+    @abstractmethod
+    def parse(self, configuration: str) -> ComposedConfiguration:
+        """
+        Parse observed configuration into a composedconfiguration object.
+        """
 
-    # def apply(self, model: Dict[str, Any]) -> None:
-    #     cfg = self.renderer.render(model)
-    #     self.transport.connect()
-    #     self.transport.send(cfg)
-    #     if not self.transport.verify():
-    #         self.transport.rollback()
-    #         raise RuntimeError("Verification failed – rollback executed")
+    

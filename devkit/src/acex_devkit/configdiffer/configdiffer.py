@@ -178,5 +178,53 @@ class ConfigDiffer:
             
             # Recursively add to children
             self._add_to_result(result[keys[0]].children, keys[1:], node)
-    
+
+    def apply_diff(self, config, diff: Diff):
+        """
+        Apply a diff to a configuration.
+        
+        Args:
+            config: The base configuration (ComposedConfiguration or dict)
+            diff: The diff to apply
+            
+        Returns:
+            A new configuration of the same type with the diff applied
+        """
+        import copy
+        from acex_devkit.models.composed_configuration import ComposedConfiguration
+        
+        # Convert to dict if it's a ComposedConfiguration
+        is_composed = isinstance(config, ComposedConfiguration)
+        config_dict = config.model_dump(mode="python") if is_composed else config
+        
+        # Deep copy to avoid modifying the original
+        result = copy.deepcopy(config_dict)
+        
+        def apply_node(target: dict, node: DiffNode, key: str):
+            """Apply a single diff node to the target dict."""
+            if node.op == DiffOp.ADD:
+                target[key] = node.after
+            elif node.op == DiffOp.REMOVE:
+                if key in target:
+                    del target[key]
+            elif node.op == DiffOp.CHANGE:
+                if node.children:
+                    # Has children - recurse deeper
+                    if key not in target:
+                        target[key] = {}
+                    for child_key, child_node in node.children.items():
+                        apply_node(target[key], child_node, child_key)
+                else:
+                    # Leaf value change
+                    target[key] = node.after
+        
+        # Apply all root-level changes
+        if diff.root.children:
+            for key, node in diff.root.children.items():
+                apply_node(result, node, key)
+        
+        # Return same type as input
+        if is_composed:
+            return ComposedConfiguration(**result)
+        return result
         
