@@ -47,6 +47,7 @@ class NodeService:
         """
         ni = await self.get(id)
         ln = await self.inventory.logical_nodes.get(ni.logical_node_id)
+        composed_config = ln.configuration
 
         asset = None
         if getattr(ni, "asset_ref_type", "asset") == "assetcluster":
@@ -61,7 +62,7 @@ class NodeService:
         if ned is None:
             return "error: NED not found"
         try:
-            config = ned.render(logical_node=ln, asset=asset)
+            config = ned.render(configuration=composed_config, asset=asset)
         except Exception as e:
             print("ERROR: Failed to render configuration.")
             print(e)
