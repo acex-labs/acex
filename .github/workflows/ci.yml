@@ -310,6 +310,11 @@ jobs:
         working-directory: ./drivers/${{ matrix.driver }}
         run: poetry install --no-interaction
 
+      - name: Switch dependencies to version (prod)
+        if: steps.should-publish.outputs.should-publish == 'true' && matrix.driver == 'cisco_ios_cli'
+        working-directory: ./drivers/cisco_ios_cli
+        run: bash switch_deps.sh prod
+
       - name: Build driver package
         if: steps.should-publish.outputs.should-publish == 'true'
         working-directory: ./drivers/${{ matrix.driver }}
