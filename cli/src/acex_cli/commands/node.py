@@ -21,11 +21,6 @@ from acex_cli.diff_formatters import (
     print_diff_flat
 )
 
-def _balle_byt_namn_sen():
-    return ""
-
-
-
 #### REMOVE THESE AND USE SDK WHEN IMPLEMENTED 
 def _request_get(sdk, path: str, params: Optional[dict] = None) -> requests.Response:
     verify = getattr(getattr(sdk, "rest", None), "verify", True)

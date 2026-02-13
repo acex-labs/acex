@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-driver-cisco-ioscli"
-version = "0.0.8"
+version = "0.0.9"
 description = "ACE-X Driver: Cisco IOS CLI SSH"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 license = "AGPL-3.0"
