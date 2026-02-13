@@ -162,6 +162,11 @@ jobs:
       working-directory: ./${{ matrix.package }}
       run: poetry install --no-interaction
 
+    - name: Switch dependencies to version (prod)
+      if: steps.should-publish.outputs.should-publish == 'true' && matrix.package == 'backend'
+      working-directory: ./backend
+      run: bash switch_deps.sh prod
+
     - name: Switch acex-client dependency to version (prod)
       if: steps.should-publish.outputs.should-publish == 'true' && matrix.package == 'cli'
       working-directory: ./cli

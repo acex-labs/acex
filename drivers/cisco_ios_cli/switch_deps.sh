@@ -21,11 +21,13 @@ if [[ "$1" == "dev" ]]; then
     echo "Byter till path-beroenden (lokal utveckling)"
     sed "${SED_INPLACE[@]}" 's|acex = ".*"|acex = { path = "../backend", develop = true }|' "$PYPROJECT"
     sed "${SED_INPLACE[@]}" 's|acex-devkit = ".*"|acex-devkit = { path = "../devkit", develop = true }|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-driver-cisco-ioscli = ".*"|acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }|' "$PYPROJECT"
 elif [[ "$1" == "prod" ]]; then
     echo "Byter till versionsberoenden (för publicering)"
     VERSION=$(grep '^version =' "$PYPROJECT" | head -1 | sed 's/.*"\(.*\)".*/\1/')
     sed "${SED_INPLACE[@]}" 's|acex = { path = "../backend", develop = true }|acex = "^'$VERSION'"|' "$PYPROJECT"
     sed "${SED_INPLACE[@]}" 's|acex-devkit = { path = "../devkit", develop = true }|acex-devkit = "^'$VERSION'"|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }|acex-driver-cisco-ioscli = "^'$VERSION'"|' "$PYPROJECT"
 else
     echo "Använd: $0 dev|prod"
     exit 1
