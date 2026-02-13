@@ -1,2 +1,2 @@
 
-from .configdiffer import Diff, ConfigDiffer
+from .configdiffer import Diff, ConfigDiffer, DiffNode, DiffOp

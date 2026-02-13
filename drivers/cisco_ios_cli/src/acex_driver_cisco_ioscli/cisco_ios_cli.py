@@ -60,12 +60,6 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         """ 
         from acex_devkit.configdiffer import ConfigDiffer
 
-        # TODO:
-        # - [x] create composed with diff
-        # - [x] render full configuration
-        # - [ ] diff as text
-        # - [ ] negate commands with no
-
         # Create a new config by applying the diff
         differ = ConfigDiffer()
         new_config = differ.apply_diff(configuration, diff)

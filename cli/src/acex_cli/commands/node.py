@@ -254,14 +254,8 @@ def show_diff_plan(
         dfg = observed_config
         d = diff
         ned = sdk.neds.get_driver_instance(node_instance.asset.ned_id)
-
         commands = ned.jusify_diff_commands(observed_config, d, node_instance.asset) 
 
-
-        # fuck 
-
-        # vi behöver styra så ned tar config och inte logical node. 
-        
         print(commands)
     else:
         typer.echo(f"Unknown format: {format}")
