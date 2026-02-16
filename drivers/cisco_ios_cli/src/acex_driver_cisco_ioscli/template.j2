@@ -28,11 +28,9 @@ vrf definition {{ ni.name.value }}
 {%- endfor %}
 !
 !
-{%- if configuration.system.aaa.enabled is false -%}
+{%- if configuration.system.aaa.config.enabled is false -%}
 no aaa new-model
 {%- endif -%}
-no process cpu extended history
-no process cpu autoprofile hog
 !
 !
 !
@@ -42,7 +40,7 @@ no process cpu autoprofile hog
 !
 !
 {%- if configuration.system.config.domain_name is defined and configuration.system.config.domain_name %}
-ip domain_name {{ configuration.system.config.domain_name.value }}
+ip domain-name {{ configuration.system.config.domain_name.value }}
 {%- endif %}
 {%- if configuration.cef is not defined or configuration.cef %}
 ip cef
@@ -219,8 +217,14 @@ interface {{ intf.name.value }}
 {%-  endif %}
 {%- endfor %}
 !
+ip default-gateway {{ configuration.system.config.default_gateway }}
+ip forward-protocol nd
+!
+ip http server
+ip http secure-server
+!
 {# 
-{%- if configuration.routing %}
+{%- if configuration.routing -%}
 {%- if configuration.routing.static_routes %}
 {%- for route in configuration.routing.static_routes %}
 ip route {{ route.network }} {{ route.mask }} {{ route.next_hop }}
@@ -239,12 +243,23 @@ router ospf {{ configuration.routing.ospf.process_id | default(1) }}
 {%- endif %}
 {%- endif %}
 #}
-!
-{%- if "spanning_tree" in configuration %}
-spanning-tree mode {{ configuration.spanning_tree.mode | default('pvst') }}
+{% set ssh = configuration.system.ssh.config -%}
+{%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
+{%-   if ssh.get('protocol_version') %}
+ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
+{%-   endif %}
+{%-   if ssh.get('timeout') %}
+ip ssh time-out {{ ssh.get('timeout').value }}
+{%-   endif %}
+{%-   if ssh.get('auth_retries') %}
+ip ssh authentication-retries {{ ssh.get('auth_retries').value }}
+{%-   endif %}
+{%-   if ssh.get('source_interface') %}
+ip ssh source-interface {{ ssh['source_interface'] }}
+{%-   endif %}
 {%- endif %}
 !
-{%- if "lacp" in configuration %}
+{%- if "lacp" in configuration -%}
 {%-   if configuration.lacp.config.system_priority %}
 lacp system-priority {{ configuration.lacp.config.system_priority.value }}
 {%-   endif %}
@@ -265,7 +280,7 @@ port-channel load-balance {{ alg }}
 {%-   endif %}
 {%- endif %}
 !
-{%- if "snmp" in configuration %}
+{%- if "snmp" in configuration -%}
 {%- if configuration.snmp.community %}
 snmp-server community {{ configuration.snmp.community }} {{ configuration.snmp.access | default('RO') }}
 {%- endif %}
@@ -277,7 +292,7 @@ snmp-server contact {{ configuration.snmp.contact }}
 {%- endif %}
 {%- endif %}
 !
-{%- if configuration.system.ntp %}
+{%- if configuration.system.ntp -%}
 {%- for server in configuration.system.ntp.servers.values() %}
 {%-   if server.prefer %}
 ntp server {{ server.address.value }} prefer
@@ -287,7 +302,7 @@ ntp server {{ server.address.value }}
 {%- endfor %}
 {%- endif %}
 !
-{%- if configuration.system.logging %}
+{%- if configuration.system.logging -%}
 {%-   if configuration.system.logging.config and configuration.system.logging.config.get('buffer_size') %}
 logging buffered {{ configuration.system.logging.config['buffer_size'].value | default(4096) }}
 {%-   endif %}
@@ -308,21 +323,5 @@ line con 0
  exec-timeout 0 0
 line vty 0 4
  transport input ssh
-!
-{% set ssh = configuration.system.ssh.config %}
-{%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
-{%-   if ssh.get('protocol_version') %}
-ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
-{%-   endif %}
-{%-   if ssh.get('timeout') %}
-ip ssh time-out {{ ssh.get('timeout').value }}
-{%-   endif %}
-{%-   if ssh.get('auth_retries') %}
-ip ssh authentication-retries {{ ssh.get('auth_retries').value }}
-{%-   endif %}
-{%-   if ssh.get('source_interface') %}
-ip ssh source-interface {{ ssh['source_interface'] }}
-{%-   endif %}
-{%- endif %}
 !
 end
