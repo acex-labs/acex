@@ -11,9 +11,12 @@ from .filters import cidr_to_addrmask
 
 class CiscoIOSCLIRenderer(RendererBase):
 
-    def _load_template_file(self) -> str:
+    def _load_template_file(self, asset) -> str:
         """Load a Jinja2 template file."""
-        template_name = "template.j2"
+        if asset.hardware_model == "vios_l2":
+            template_name = "template_virtual.j2"
+        else:
+            template_name = "template.j2"
         path = Path(__file__).parent
         env = Environment(loader=FileSystemLoader(path),undefined=StrictUndefined) # StrictUndefined to catch undefined variables, testing
         #env = Environment(loader=FileSystemLoader(path), trim_blocks=True, lstrip_blocks=True) # För att slippa ha "-" i "{%-"
@@ -24,12 +27,16 @@ class CiscoIOSCLIRenderer(RendererBase):
     def render(self, configuration: ComposedConfiguration, asset) -> Any:
         """Render the configuration model for Cisco IOS CLI devices."""
 
+        if isinstance(configuration, ComposedConfiguration):
+            configuration = configuration.model_dump(mode="json")
+        else:
+            raise ValueError("Configuration must be a ComposedConfiguration instance.")
         # Ensure configuration is a plain dict (Pydantic model -> dict)
-        configuration = configuration.model_dump(mode="json")
+        #configuration = configuration.model_dump(mode="json")
 
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)
-        template = self._load_template_file()
+        template = self._load_template_file(asset)
         return template.render(configuration=processed_config)
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
