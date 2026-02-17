@@ -104,18 +104,17 @@ interface {{ intf.name }}
 {%-      endif %}
 {%-    endif %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
- switchport mode trunk
+{%-      if intf.trunk_allowed_vlans %}
+ switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
+{%-      endif %}
 {%-      if intf.native_vlan %}
  switchport trunk native vlan {{ intf.native_vlan.value }}
 {%-      endif %}
-{%-      if intf.trunk_allowed_vlans %}
-    switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
-{%-      endif %}
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
 {%-    endif %}
 {%-  endif %}
-{%-  if intf.enabled and intf.enabled.value %}
- no shutdown
-{%-    else %}
+{%-  if intf.enabled and not intf.enabled.value %}
  shutdown
 {%-   endif %}
 {%-  endif %}
@@ -146,13 +145,14 @@ interface {{ intf.name }}
 {%-      endif %}
 {%-    endif %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
- switchport mode trunk
-{%-      if intf.native_vlan %}
- switchport trunk native vlan {{ intf.native_vlan.value }}
-{%-      endif %}
 {%-      if intf.trunk_allowed_vlans %}
  switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
 {%-      endif %}
+{%-      if intf.native_vlan %}
+ switchport trunk native vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
 {%-  endif %}
 {%-  if intf.lacp_enabled %}
  channel-group {{ intf.aggregate_id.value }} mode {{ intf.lacp_mode.value | default('active') }}
@@ -164,9 +164,7 @@ interface {{ intf.name }}
 {%-    endif %}
 {%-  endif %}
 {%-  endif %}
-{%-  if intf.enabled and intf.enabled.value %}
- no shutdown
-{%-    else %}
+{%-  if intf.enabled and not intf.enabled.value %}
  shutdown
 {%-   endif %}
 {%-  endif %}
@@ -186,9 +184,7 @@ interface vlan{{ intf.vlan_id }}
 {%-    if intf.ipv4 %}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
-{%-    if intf.enabled and intf.enabled.value %}
- no shutdown
-{%- else %}
+{%-    if intf.enabled and not intf.enabled.value %}
  shutdown
 {%-     endif %}
 {%-  endif %}
@@ -207,9 +203,7 @@ interface {{ intf.name.value }}
 {%-    if intf.ipv4 %}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
-{%-    if intf.enabled and intf.enabled.value %}
- no shutdown
-{%- else %}
+{%-    if intf.enabled and not intf.enabled.value %}
  shutdown
 {%-     endif %}
 {%-  endif %}
