@@ -64,9 +64,19 @@ class NodeService:
         try:
             config = ned.render(configuration=composed_config, asset=asset)
         except Exception as e:
-            print("ERROR: Failed to render configuration.")
-            print(e)
-            # TODO: Printa hela tb
+            # Skriver ut felmeddelandet
+            print("Fel:", e)
+            # Skriver ut hela tracebacken
+            import traceback
+            traceback.print_exc()
+            # Todo, printa ut mer info från vilken render och vad som pajjat
+            # Fel: render trasig
+            # Render XYZ trasig
+            # Node ID X triggade fel
+            # På den här filen kommer tracen
+            # Här kommer traceback mannen:
+            # tracen
+            
             config = ""
         return config
     
