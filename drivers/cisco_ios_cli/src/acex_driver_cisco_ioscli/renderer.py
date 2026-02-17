@@ -202,9 +202,9 @@ class CiscoIOSCLIRenderer(RendererBase):
                     suffix_string = f"{stack_index}/{module_index}/{index+1}"
             else:
                 if module_index is not None:
-                    suffix_string = f"{module_index}/{index+1}"
+                    suffix_string = f"{module_index}/{index}"
                 else:
-                    suffix_string = f"0/{index+1}"
+                    suffix_string = f"0/{index}"
         elif index > max_index:
             if stack_index is not None:
                 suffix_string = f"{stack_index}/1/{index - max_index + 1}"
@@ -212,7 +212,7 @@ class CiscoIOSCLIRenderer(RendererBase):
                     suffix_string = f"{stack_index}/{module_index}/{index+1}"
             else:
                 if module_index is not None:
-                    suffix_string = f"{module_index}/{index+1}"
+                    suffix_string = f"{module_index}/{index}"
                 else:
                     suffix_string = f"0/{index - max_index + 1}"
         return suffix_string
