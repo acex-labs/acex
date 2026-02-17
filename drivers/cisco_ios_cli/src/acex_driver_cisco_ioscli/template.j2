@@ -1,3 +1,4 @@
+template.j2
 {%- if configuration.asset.version -%}
 version {{ configuration.asset.version | default('15.2') }}
 {%- endif %}
@@ -28,9 +29,11 @@ vrf definition {{ ni.name.value }}
 {%- endfor %}
 !
 !
-{%- if configuration.system.aaa.config.enabled is false -%}
+{%- if configuration.system.aaa.config is defined and configuration.system.aaa.config.enabled %}
+aaa new-model
+{%- else %}
 no aaa new-model
-{%- endif -%}
+{%- endif %}
 !
 !
 !
@@ -217,14 +220,17 @@ interface {{ intf.name.value }}
 {%-  endif %}
 {%- endfor %}
 !
+{%- if configuration.system.config.default_gateway is defined and configuration.system.config.default_gateway %}
 ip default-gateway {{ configuration.system.config.default_gateway }}
+{%- endif %}
 ip forward-protocol nd
 !
 ip http server
 ip http secure-server
 !
 {# 
-{%- if configuration.routing -%}
+{%- if configuration.routing
+ -%}
 {%- if configuration.routing.static_routes %}
 {%- for route in configuration.routing.static_routes %}
 ip route {{ route.network }} {{ route.mask }} {{ route.next_hop }}
