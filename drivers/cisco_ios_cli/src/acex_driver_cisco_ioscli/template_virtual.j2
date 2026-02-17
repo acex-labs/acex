@@ -29,6 +29,7 @@ vrf definition {{ ni.name.value }}
 {%- endfor %}
 !
 !
+!
 {%- if configuration.system.aaa.config is defined and configuration.system.aaa.config.enabled %}
 aaa new-model
 {%- else %}
@@ -54,8 +55,6 @@ no ipv6 cef
 !
 spanning-tree mode pvst
 spanning-tree extend system-id
-!
-!
 !
 !
 !
