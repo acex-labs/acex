@@ -1,0 +1,333 @@
+template_virtual.j2
+{%- if configuration.asset.version -%}
+version {{ configuration.asset.version | default('15.2') }}
+{%- endif %}
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+service compress-config
+!
+{%- if configuration.system.config.hostname %}
+hostname {{ configuration.system.config.hostname.value }}
+{%- endif %}
+!
+boot-start-marker
+boot-end-marker
+!
+!
+{%- for ni in configuration.network_instances.values() %}
+{%-   if ni.name.value != "global" %}
+vrf definition {{ ni.name.value }}
+ !
+ address-family ipv4
+ exit-address-family
+ !
+ address-family ipv6
+ exit-address-family
+!
+{%-   endif %}
+{%- endfor %}
+!
+!
+{%- if configuration.system.aaa.config is defined and configuration.system.aaa.config.enabled %}
+aaa new-model
+{%- else %}
+no aaa new-model
+{%- endif %}
+!
+!
+!
+!
+!
+!
+!
+!
+{%- if configuration.system.config.domain_name is defined and configuration.system.config.domain_name %}
+ip domain-name {{ configuration.system.config.domain_name.value }}
+{%- endif %}
+{%- if configuration.cef is not defined or configuration.cef %}
+ip cef
+{%- endif %}
+no ipv6 cef
+!
+!
+!
+spanning-tree mode pvst
+spanning-tree extend system-id
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.metadata.type == "softwareLoopback" %}
+interface Loopback{{ intf.index.value }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
+{%-    endif %}
+{%- if 'vrf' in intf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
+{%-     endif %}
+{%-  endif %}
+{%- endfor %}
+!
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.metadata.type == "ieee8023adLag" %}
+interface {{ intf.name }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
+{%-    endif %}
+{%- if 'vrf' in intf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
+{%- if 'ipv4' in intf %}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
+{%-     endif %}
+{%- endif %}
+{%-  if intf.switchport and intf.switchport.value %}
+{%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
+ switchport mode access
+{%-      if intf.native_vlan %}
+ switchport access vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+{%-    endif %}
+{%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
+ switchport mode trunk
+{%-      if intf.native_vlan %}
+ switchport trunk native vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+{%-      if intf.trunk_allowed_vlans %}
+    switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
+{%-      endif %}
+{%-    endif %}
+{%-  endif %}
+{%-  if intf.enabled and intf.enabled.value %}
+ no shutdown
+{%-    else %}
+ shutdown
+{%-   endif %}
+{%-  endif %}
+{%-  if intf.metadata.type == "ieee8023adLag" %}
+!
+{%-  endif %}
+{%- endfor %}
+!
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.metadata.type == "ethernetCsmacd" %}
+interface {{ intf.name }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
+{%-    endif %}
+{%- if 'vrf' in intf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
+{%- if 'ipv4' in intf %}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
+{%-     endif %}
+{%- endif %}
+{%-  if intf.switchport and intf.switchport.value %}
+{%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
+ switchport mode access
+{%-      if intf.native_vlan %}
+ switchport access vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+{%-    endif %}
+{%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
+ switchport mode trunk
+{%-      if intf.native_vlan %}
+ switchport trunk native vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+{%-      if intf.trunk_allowed_vlans %}
+    switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
+{%-      endif %}
+{%-  endif %}
+{%-  if intf.lacp_enabled %}
+ channel-group {{ intf.aggregate_id.value }} mode {{ intf.lacp_mode.value | default('active') }}
+{%-    if intf.lacp_port_priority %}
+ lacp port-priority {{ intf.lacp_port_priority.value }}
+{%-    endif %}
+{%-    if intf.lacp_interval %}
+ lacp rate {{ intf.lacp_interval.value }}
+{%-    endif %}
+{%-  endif %}
+{%-  endif %}
+{%-  if intf.enabled and intf.enabled.value %}
+ no shutdown
+{%-    else %}
+ shutdown
+{%-   endif %}
+{%-  endif %}
+{%-  if intf.metadata.type == "ethernetCsmacd" %}
+!
+{%-  endif %}
+{%- endfor %}
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.metadata.type == "l3ipvlan" and intf.vlan_id %}
+interface vlan{{ intf.vlan_id }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
+{%-    endif %}
+{%- if 'vrf' in intf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
+{%-     endif %}
+{%-    if intf.enabled and intf.enabled.value %}
+ no shutdown
+{%- else %}
+ shutdown
+{%-     endif %}
+{%-  endif %}
+!
+{%- endfor %}
+!
+{%- for _, intf in configuration.interfaces.items() %}
+{%-  if intf.metadata.type == "ManagementInterface" and intf.name %}
+interface {{ intf.name.value }}
+{%-    if intf.description %}
+ description {{ intf.description.value }}
+{%-    endif %}
+{%- if 'vrf' in intf %}
+ vrf forwarding {{ intf.vrf}}
+{%- endif %}
+{%-    if intf.ipv4 %}
+ ip address {{ intf.ipv4.value|cidr_to_addrmask }}
+{%-     endif %}
+{%-    if intf.enabled and intf.enabled.value %}
+ no shutdown
+{%- else %}
+ shutdown
+{%-     endif %}
+{%-  endif %}
+{%-  if intf.metadata.type == "ManagementInterface" and intf.name %}
+!
+{%-  endif %}
+{%- endfor %}
+!
+{%- if configuration.system.config.default_gateway is defined and configuration.system.config.default_gateway %}
+ip default-gateway {{ configuration.system.config.default_gateway }}
+{%- endif %}
+ip forward-protocol nd
+!
+ip http server
+ip http secure-server
+!
+{# 
+{%- if configuration.routing
+ -%}
+{%- if configuration.routing.static_routes %}
+{%- for route in configuration.routing.static_routes %}
+ip route {{ route.network }} {{ route.mask }} {{ route.next_hop }}
+{%- endfor %}
+{%- endif %}
+{%- if configuration.routing.ospf %}
+router ospf {{ configuration.routing.ospf.process_id | default(1) }}
+{%- if configuration.routing.ospf.router_id %}
+ router-id {{ configuration.routing.ospf.router_id }}
+{%- endif %}
+{%- if configuration.routing.ospf.networks %}
+{%- for network in configuration.routing.ospf.networks %}
+ network {{ network.address }} {{ network.wildcard }} area {{ network.area }}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+{%- endif %}
+#}
+{% set ssh = configuration.system.ssh.config -%}
+{%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
+{%-   if ssh.get('protocol_version') %}
+ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
+{%-   endif %}
+{%-   if ssh.get('timeout') %}
+ip ssh time-out {{ ssh.get('timeout').value }}
+{%-   endif %}
+{%-   if ssh.get('auth_retries') %}
+ip ssh authentication-retries {{ ssh.get('auth_retries').value }}
+{%-   endif %}
+{%-   if ssh.get('source_interface') %}
+ip ssh source-interface {{ ssh['source_interface'] }}
+{%-   endif %}
+{%- endif %}
+!
+{%- if "lacp" in configuration -%}
+{%-   if configuration.lacp.config.system_priority %}
+lacp system-priority {{ configuration.lacp.config.system_priority.value }}
+{%-   endif %}
+{%-   if configuration.lacp.config.system_id_mac %}
+lacp system-id mac {{ configuration.lacp.config.system_id_mac.value }}
+{%-   endif %}
+{%-   if configuration.lacp.config.load_balance_algorithm %}
+{%-     set alg = configuration.lacp.config.load_balance_algorithm.value %}
+{%-     if alg is string %}
+port-channel load-balance {{ alg }}
+{%-     elif alg is sequence and alg | length >= 2 %}
+port-channel load-balance extended {{ alg | join(' ') }}
+{%-     elif alg is sequence and alg | length == 1 %}
+port-channel load-balance {{ alg[0] }}
+{%-     else %}
+port-channel load-balance {{ alg }}
+{%-     endif %}
+{%-   endif %}
+{%- endif %}
+!
+{%- if "snmp" in configuration -%}
+{%- if configuration.snmp.community %}
+snmp-server community {{ configuration.snmp.community }} {{ configuration.snmp.access | default('RO') }}
+{%- endif %}
+{%- if configuration.snmp.location %}
+snmp-server location {{ configuration.snmp.location }}
+{%- endif %}
+{%- if configuration.snmp.contact %}
+snmp-server contact {{ configuration.snmp.contact }}
+{%- endif %}
+{%- endif %}
+!
+{%- if configuration.system.ntp -%}
+{%- for server in configuration.system.ntp.servers.values() %}
+{%-   if server.prefer %}
+ntp server {{ server.address.value }} prefer
+{%-   else %}
+ntp server {{ server.address.value }}
+{%-   endif %}
+{%- endfor %}
+{%- endif %}
+!
+{%- if configuration.system.logging -%}
+{%-   if configuration.system.logging.config and configuration.system.logging.config.get('buffer_size') %}
+logging buffered {{ configuration.system.logging.config['buffer_size'].value | default(4096) }}
+{%-   endif %}
+{%-   if configuration.system.logging.get('remote_servers') %}
+{%-     for server in configuration.system.logging.get('remote_servers').values() %}
+{%-       if server.host %}
+logging host {{ server.host }}
+{%-         if server.source_address %}
+logging source-interface {{ server.source_address.value }}
+{%-         endif %}
+{%-       endif %}
+{%-     endfor %}
+{%-   endif %}
+{%- endif %}
+!
+line con 0
+ logging synchronous
+ exec-timeout 0 0
+line vty 0 4
+ transport input ssh
+!
+end
