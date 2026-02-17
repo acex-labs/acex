@@ -151,6 +151,7 @@ class EthernetCsmacdInterface(Interface):
     vlan_id: Optional[AttributeValue[int]] = None
     voice_vlan: Optional[AttributeValue[int]] = None
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
+    negotiation: Optional[AttributeValue[bool]] = None
 
     # LACP relaterade attribut
     aggregate_id: Optional[AttributeValue[int]] = None
