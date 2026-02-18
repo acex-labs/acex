@@ -30,7 +30,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         if isinstance(configuration, ComposedConfiguration):
             configuration = configuration.model_dump(mode="json")
         else:
-            raise ValueError("Configuration must be a ComposedConfiguration instance.")
+            raise ValueError(f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}")
         # Ensure configuration is a plain dict (Pydantic model -> dict)
         #configuration = configuration.model_dump(mode="json")
 

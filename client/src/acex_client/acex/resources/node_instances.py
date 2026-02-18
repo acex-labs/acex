@@ -1,7 +1,7 @@
 
-from acex_client.models.generated_models import Node, NodeResponse, Ned
+from acex_client.models.generated_models import Node, Ned
+from acex_devkit.models import NodeResponse
 from .resource_base import Resource
-
 
 class NodeInstances(Resource):
 
