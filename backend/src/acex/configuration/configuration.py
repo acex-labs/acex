@@ -42,6 +42,8 @@ from acex.configuration.components.system.aaa import (
     aaaAccountingMethods
 )
 
+from acex.configuration.components.routing import StaticRoute, StaticRouteNextHop
+
 from acex_devkit.models import ExternalValue
 from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict
@@ -88,6 +90,8 @@ class Configuration:
         NetworkInstance: "network_instances",
         L3Vrf: "network_instances",
         Vlan: Template("network_instances.${network_instance}.vlans"),
+        StaticRoute: Template("network_instances.${network_instance}.protocols.static_routes"),
+        StaticRouteNextHop: Template("network_instances.${network_instance}.protocols.static_routes.${static_route}.next_hops"),
         Svi: Template("interfaces"),
         NtpServer: "system.ntp.servers",
         SshServer: "system.ssh.config",
