@@ -31,10 +31,6 @@ class StaticRouteNextHop(Routing):
     def pre_init(self):
         if "static_route" in self.kwargs:
             static_route = self.kwargs.pop("static_route")
-            #print('='*100)
-            #print("static_route:", static_route.__dict__)
-            #print('static_route.model.network_instance.value:', static_route.model.network_instance.value)
-            #print('='*100)
             self.kwargs["static_route"] = static_route.name
         if self.kwargs.get('network_instance') is None:
             self.kwargs["network_instance"] = "global"
