@@ -104,18 +104,17 @@ interface {{ intf.name }}
 {%-      endif %}
 {%-    endif %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
- switchport mode trunk
+{%-      if intf.trunk_allowed_vlans %}
+ switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
+{%-      endif %}
 {%-      if intf.native_vlan %}
  switchport trunk native vlan {{ intf.native_vlan.value }}
 {%-      endif %}
-{%-      if intf.trunk_allowed_vlans %}
-    switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
-{%-      endif %}
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
 {%-    endif %}
 {%-  endif %}
-{%-  if intf.enabled and intf.enabled.value %}
- no shutdown
-{%-    else %}
+{%-  if intf.enabled and not intf.enabled.value %}
  shutdown
 {%-   endif %}
 {%-  endif %}
@@ -146,13 +145,14 @@ interface {{ intf.name }}
 {%-      endif %}
 {%-    endif %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
- switchport mode trunk
-{%-      if intf.native_vlan %}
- switchport trunk native vlan {{ intf.native_vlan.value }}
-{%-      endif %}
 {%-      if intf.trunk_allowed_vlans %}
  switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
 {%-      endif %}
+{%-      if intf.native_vlan %}
+ switchport trunk native vlan {{ intf.native_vlan.value }}
+{%-      endif %}
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
 {%-  endif %}
 {%-  if intf.lacp_enabled %}
  channel-group {{ intf.aggregate_id.value }} mode {{ intf.lacp_mode.value | default('active') }}
@@ -164,19 +164,20 @@ interface {{ intf.name }}
 {%-    endif %}
 {%-  endif %}
 {%-  endif %}
-{%-  if intf.enabled and intf.enabled.value %}
- no shutdown
-{%-    else %}
+{%-  if intf.enabled and not intf.enabled.value %}
  shutdown
 {%-   endif %}
 {%-  endif %}
+{%- if 'negotiation' in intf and intf.negotiation and intf.negotiation.value %}
+ negotiation auto
+{%- endif %}
 {%-  if intf.metadata.type == "ethernetCsmacd" %}
 !
 {%-  endif %}
 {%- endfor %}
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "l3ipvlan" and intf.vlan_id %}
-interface vlan{{ intf.vlan_id }}
+interface Vlan{{ intf.vlan_id }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}
@@ -186,15 +187,14 @@ interface vlan{{ intf.vlan_id }}
 {%-    if intf.ipv4 %}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
-{%-    if intf.enabled and intf.enabled.value %}
- no shutdown
-{%- else %}
+{%-    if intf.enabled and not intf.enabled.value %}
  shutdown
 {%-     endif %}
 {%-  endif %}
+{%-  if intf.metadata.type == "l3ipvlan" %}
 !
+{%-  endif %}
 {%- endfor %}
-!
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.metadata.type == "ManagementInterface" and intf.name %}
 interface {{ intf.name.value }}
@@ -207,9 +207,7 @@ interface {{ intf.name.value }}
 {%-    if intf.ipv4 %}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
-{%-    if intf.enabled and intf.enabled.value %}
- no shutdown
-{%- else %}
+{%-    if intf.enabled and not intf.enabled.value %}
  shutdown
 {%-     endif %}
 {%-  endif %}
@@ -217,7 +215,6 @@ interface {{ intf.name.value }}
 !
 {%-  endif %}
 {%- endfor %}
-!
 {%- if configuration.system.config.default_gateway is defined and configuration.system.config.default_gateway %}
 ip default-gateway {{ configuration.system.config.default_gateway }}
 {%- endif %}
@@ -226,28 +223,30 @@ ip forward-protocol nd
 ip http server
 ip http secure-server
 !
-{# 
-{%- if configuration.routing
- -%}
-{%- if configuration.routing.static_routes %}
-{%- for route in configuration.routing.static_routes %}
-ip route {{ route.network }} {{ route.mask }} {{ route.next_hop }}
+{%- for _,ni in configuration.network_instances.items() %}
+{%-   if ni.protocols.static_routes is not none %}
+{%-      for _,route in ni.protocols.static_routes.items() %}
+{%-        if route.network_instance.value != "global" %}
+{%-          for _,next_hop in route.next_hops.items() %}
+{%-            if next_hop.metric.value is defined %}
+ip route vrf {{ route.network_instance.value }} {{ route.prefix.value }} {{ next_hop.next_hop.value }} metric {{ next_hop.metric.value }}
+{%-            else %}
+ip route vrf {{ route.network_instance.value }} {{ route.prefix.value }} {{ next_hop.next_hop.value }}
+{%-            endif %}
+{%-          endfor %}
+{%-        else %}
+{%-          for _,next_hop in route.next_hops.items() %}
+{%-            if next_hop.metric.value is defined %}
+ip route {{ route.prefix.value }} {{ next_hop.next_hop.value }} metric {{ next_hop.metric.value }}
+{%-            else %}
+ip route {{ route.prefix.value }} {{ next_hop.next_hop.value }}
+{%-            endif %}
+{%-          endfor %}
+{%-        endif %}
+{%-      endfor %}
+{%-   endif %}
 {%- endfor %}
-{%- endif %}
-{%- if configuration.routing.ospf %}
-router ospf {{ configuration.routing.ospf.process_id | default(1) }}
-{%- if configuration.routing.ospf.router_id %}
- router-id {{ configuration.routing.ospf.router_id }}
-{%- endif %}
-{%- if configuration.routing.ospf.networks %}
-{%- for network in configuration.routing.ospf.networks %}
- network {{ network.address }} {{ network.wildcard }} area {{ network.area }}
-{%- endfor %}
-{%- endif %}
-{%- endif %}
-{%- endif %}
-#}
-{% set ssh = configuration.system.ssh.config -%}
+{%- set ssh = configuration.system.ssh.config -%}
 {%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
 {%-   if ssh.get('protocol_version') %}
 ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
@@ -262,6 +261,8 @@ ip ssh authentication-retries {{ ssh.get('auth_retries').value }}
 ip ssh source-interface {{ ssh['source_interface'] }}
 {%-   endif %}
 {%- endif %}
+ip ssh server algorithm encryption aes128-ctr aes192-ctr aes256-ctr
+ip ssh client algorithm encryption aes128-ctr aes192-ctr aes256-ctr
 !
 {%- if "lacp" in configuration -%}
 {%-   if configuration.lacp.config.system_priority %}
@@ -322,10 +323,37 @@ logging source-interface {{ server.source_address.value }}
 {%-   endif %}
 {%- endif %}
 !
+!
+control-plane
+!
+banner exec ^C
+IOSv - Cisco Systems Confidential -
+Supplemental End User License Restrictions
+This IOSv software is provided AS-IS without warranty of any kind. Under no circumstances may this software be used separate from the Cisco Modeling Labs Software that this software was provided with, or deployed or used as part of a production environment.
+By using the software, you agree to abide by the terms and conditions of the Cisco End User License Agreement at http://www.cisco.com/go/eula. Unauthorized use or distribution of this software is expressly prohibited.
+^C
+banner incoming ^C
+IOSv - Cisco Systems Confidential -
+Supplemental End User License Restrictions
+This IOSv software is provided AS-IS without warranty of any kind. Under no circumstances may this software be used separate from the Cisco Modeling Labs Software that this software was provided with, or deployed or used as part of a production environment.
+By using the software, you agree to abide by the terms and conditions of the Cisco End User License Agreement at http://www.cisco.com/go/eula. Unauthorized use or distribution of this software is expressly prohibited.
+^C
+{%- if configuration.system.config.login_banner is defined and configuration.system.config.login_banner.value %}
+banner login ^C
+{{ configuration.system.config.login_banner.value }}
+^C
+{%- endif %}
+{%- if configuration.system.config.motd_banner is not none and configuration.system.config.motd_banner.value %}
+banner motd ^C
+{{ configuration.system.config.motd_banner.value  }}
+^C
+{%- endif %}
+!
 line con 0
- logging synchronous
- exec-timeout 0 0
+line aux 0
 line vty 0 4
+ login local
  transport input ssh
+!
 !
 end
