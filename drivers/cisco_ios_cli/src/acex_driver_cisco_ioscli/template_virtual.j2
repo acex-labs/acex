@@ -316,6 +316,13 @@ logging source-interface {{ server.source_address.value }}
 {%-   endif %}
 {%- endif %}
 !
+{%- if configuration.system.config.login_banner is defined and configuration.system.config.login_banner.value %}
+banner login {{ configuration.system.config.login_banner.value }}
+{%- endif %}
+{%- if configuration.system.config.motd_banner is defined and configuration.system.config.motd_banner.value %}
+banner motd {{ configuration.system.config.motd_banner.value  }}
+{%- endif %}
+!
 line con 0
  logging synchronous
  exec-timeout 0 0
