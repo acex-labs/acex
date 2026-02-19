@@ -213,6 +213,24 @@ class ManagementInterface(Interface):
     # Mgmt har inte vlan
     vlan_id: Optional[int] = None
 
+class StaticRouteNextHop(BaseModel):
+    index: Optional[AttributeValue[int]] = None
+    next_hop: AttributeValue[str] # can be an IP address or an interface. Reference will be handled in config component
+    metric: Optional[AttributeValue[int]] = None
+    static_route: Optional[AttributeValue[str]] = None # Reference to parent static route, used for easier access in config component
+    network_instance: Optional[AttributeValue[str]] = None
+
+
+class StaticRoute(BaseModel):
+    route_name: Optional[AttributeValue[str]] = None
+    prefix: AttributeValue[str]
+    next_hops: Optional[Dict[str, StaticRouteNextHop]] = {}
+    network_instance: Optional[AttributeValue[str]] = None
+
+class Protocols(BaseModel):
+    static_routes: Optional[Dict[str, StaticRoute]] = {}
+    # OSPF, BGP, etc. can be added here as needed
+
 class RouteTarget(BaseModel):
     value: str # TODO: Add constraints and validators... 
 
@@ -229,6 +247,7 @@ class NetworkInstance(BaseModel):
     vlans: Optional[Dict[str, Vlan]] = {}
     interfaces: Optional[Dict[str, Reference]] = {}
     inter_instance_policies: Optional[Dict[str, InterInstancePolicy]] = {}
+    protocols: Optional[Protocols] = Protocols()
 
 class LacpConfig(BaseModel):
     system_priority: Optional[AttributeValue[int]] = None
