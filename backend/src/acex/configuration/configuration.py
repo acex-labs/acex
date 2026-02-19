@@ -14,7 +14,9 @@ from acex.configuration.components.system import (
     HostName,
     Contact,
     Location,
-    DomainName
+    DomainName,
+    LoginBanner,
+    MotdBanner
 )
 
 from acex.configuration.components.system.logging import RemoteServer, Console, VtyLine, LoggingConfig, FileLogging
@@ -62,6 +64,8 @@ class Configuration:
         Contact: "system.config.contact",
         Location: "system.config.location",
         DomainName: "system.config.domain_name",
+        LoginBanner: "system.config.login_banner",
+        MotdBanner: "system.config.motd_banner",
         RemoteServer: "system.logging.remote_servers",
         Console: "system.logging.console",
         VtyLine: "system.logging.vty",
@@ -108,6 +112,8 @@ class Configuration:
         "contact": "system.config.contact",
         "location": "system.config.location",
         "domain_name": "system.config.domain_name",
+        "login_banner": "system.config.login_banner",
+        "motd_banner": "system.config.motd_banner",
     }
     
     def __init__(self, logical_node_id):
