@@ -45,6 +45,8 @@ class SystemConfig(BaseModel):
     domain_name: Optional[AttributeValue[str]] = None
     hostname: Optional[AttributeValue[str]] = None
     location: Optional[AttributeValue[str]] = None
+    login_banner: Optional[AttributeValue[str]] = None
+    motd_banner: Optional[AttributeValue[str]] = None
 
 class TripleA(BaseModel): ...
 

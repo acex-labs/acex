@@ -24,5 +24,10 @@ class DomainName(ConfigComponent):
     type = "domain-name"
     model_cls = SingleAttributeString
 
+class LoginBanner(ConfigComponent):
+    type = "login-banner"
+    model_cls = SingleAttributeString
 
-
+class MotdBanner(ConfigComponent):
+    type = "motd-banner"
+    model_cls = SingleAttributeString
