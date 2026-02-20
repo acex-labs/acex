@@ -34,6 +34,8 @@ aaa new-model
 {%- else %}
 no aaa new-model
 {%- endif %}
+no process cpu extended history
+no process cpu autoprofile hog
 !
 !
 !
@@ -98,10 +100,10 @@ interface {{ intf.name }}
 {%- endif %}
 {%-  if intf.switchport and intf.switchport.value %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
- switchport mode access
 {%-      if intf.native_vlan %}
  switchport access vlan {{ intf.native_vlan.value }}
 {%-      endif %}
+ switchport mode access
 {%-    endif %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
 {%-      if intf.trunk_allowed_vlans %}
@@ -139,10 +141,10 @@ interface {{ intf.name }}
 {%- endif %}
 {%-  if intf.switchport and intf.switchport.value %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
- switchport mode access
 {%-      if intf.native_vlan %}
  switchport access vlan {{ intf.native_vlan.value }}
-{%-      endif %}
+{%-      endif %} 
+ switchport mode access
 {%-    endif %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
 {%-      if intf.trunk_allowed_vlans %}
@@ -326,26 +328,13 @@ logging source-interface {{ server.source_address.value }}
 !
 control-plane
 !
-banner exec ^C
-IOSv - Cisco Systems Confidential -
-Supplemental End User License Restrictions
-This IOSv software is provided AS-IS without warranty of any kind. Under no circumstances may this software be used separate from the Cisco Modeling Labs Software that this software was provided with, or deployed or used as part of a production environment.
-By using the software, you agree to abide by the terms and conditions of the Cisco End User License Agreement at http://www.cisco.com/go/eula. Unauthorized use or distribution of this software is expressly prohibited.
-^C
-banner incoming ^C
-IOSv - Cisco Systems Confidential -
-Supplemental End User License Restrictions
-This IOSv software is provided AS-IS without warranty of any kind. Under no circumstances may this software be used separate from the Cisco Modeling Labs Software that this software was provided with, or deployed or used as part of a production environment.
-By using the software, you agree to abide by the terms and conditions of the Cisco End User License Agreement at http://www.cisco.com/go/eula. Unauthorized use or distribution of this software is expressly prohibited.
-^C
-{%- if configuration.system.config.login_banner is defined and configuration.system.config.login_banner.value %}
+{%- if configuration.system.config.login_banner is not none and configuration.system.config.login_banner.value %}
 banner login ^C
 {{ configuration.system.config.login_banner.value }}
 ^C
 {%- endif %}
 {%- if configuration.system.config.motd_banner is not none and configuration.system.config.motd_banner.value %}
-banner motd ^C
-{{ configuration.system.config.motd_banner.value  }}
+banner motd ^C{{ configuration.system.config.motd_banner.value  }}
 ^C
 {%- endif %}
 !
