@@ -44,7 +44,6 @@ class Resource:
 
         if data != {}:
             resource = self.single_model(**data)
-            print(f"m: {self.__class__.RESPONSE_MODEL_SINGLE}")
             return resource    
 
     def get_all(self):
