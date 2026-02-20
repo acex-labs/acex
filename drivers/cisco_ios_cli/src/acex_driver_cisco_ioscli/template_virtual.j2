@@ -34,6 +34,8 @@ aaa new-model
 {%- else %}
 no aaa new-model
 {%- endif %}
+no process cpu extended history
+no process cpu autoprofile hog
 !
 !
 !
@@ -98,10 +100,10 @@ interface {{ intf.name }}
 {%- endif %}
 {%-  if intf.switchport and intf.switchport.value %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
- switchport mode access
 {%-      if intf.native_vlan %}
  switchport access vlan {{ intf.native_vlan.value }}
 {%-      endif %}
+ switchport mode access
 {%-    endif %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
 {%-      if intf.trunk_allowed_vlans %}
@@ -139,10 +141,10 @@ interface {{ intf.name }}
 {%- endif %}
 {%-  if intf.switchport and intf.switchport.value %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
- switchport mode access
 {%-      if intf.native_vlan %}
  switchport access vlan {{ intf.native_vlan.value }}
-{%-      endif %}
+{%-      endif %} 
+ switchport mode access
 {%-    endif %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
 {%-      if intf.trunk_allowed_vlans %}
