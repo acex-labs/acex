@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-devkit"
-version = "1.0.4"
+version = "1.0.5"
 description = "ACE-X DevKit - Development kit for building ACE-X drivers and plugins"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
