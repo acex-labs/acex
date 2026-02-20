@@ -115,7 +115,7 @@ class CiscoIOSCLIRenderer(RendererBase):
                 if vlan_id is None:
                     return
 
-                ssh_interface = f"vlan{vlan_id}"
+                ssh_interface = f"Vlan{vlan_id}"
                 # Store resolved interface for template use if needed
                 ssh['config']['source_interface'] = ssh_interface
 

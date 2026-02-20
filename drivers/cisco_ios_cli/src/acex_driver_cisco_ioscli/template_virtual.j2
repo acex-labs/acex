@@ -14,6 +14,11 @@ boot-start-marker
 boot-end-marker
 !
 !
+{%- if configuration.system.logging -%}
+{%-   if configuration.system.logging.config and configuration.system.logging.config.get('buffer_size') %}
+logging buffered {{ configuration.system.logging.config['buffer_size'].value | default(4096) }}
+{%-   endif %}
+{%- endif %}
 {%- for ni in configuration.network_instances.values() %}
 {%-   if ni.name.value != "global" %}
 vrf definition {{ ni.name.value }}
@@ -250,6 +255,9 @@ ip route {{ route.prefix.value }} {{ next_hop.next_hop.value }}
 {%- endfor %}
 {%- set ssh = configuration.system.ssh.config -%}
 {%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
+{%-   if ssh.get('source_interface') %}
+ip ssh source-interface {{ ssh['source_interface'] }}
+{%-   endif %}
 {%-   if ssh.get('protocol_version') %}
 ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
 {%-   endif %}
@@ -258,9 +266,6 @@ ip ssh time-out {{ ssh.get('timeout').value }}
 {%-   endif %}
 {%-   if ssh.get('auth_retries') %}
 ip ssh authentication-retries {{ ssh.get('auth_retries').value }}
-{%-   endif %}
-{%-   if ssh.get('source_interface') %}
-ip ssh source-interface {{ ssh['source_interface'] }}
 {%-   endif %}
 {%- endif %}
 ip ssh server algorithm encryption aes128-ctr aes192-ctr aes256-ctr
@@ -298,32 +303,20 @@ snmp-server location {{ configuration.snmp.location }}
 snmp-server contact {{ configuration.snmp.contact }}
 {%- endif %}
 {%- endif %}
-!
-{%- if configuration.system.ntp -%}
-{%- for server in configuration.system.ntp.servers.values() %}
-{%-   if server.prefer %}
-ntp server {{ server.address.value }} prefer
-{%-   else %}
-ntp server {{ server.address.value }}
-{%-   endif %}
-{%- endfor %}
-{%- endif %}
-!
 {%- if configuration.system.logging -%}
-{%-   if configuration.system.logging.config and configuration.system.logging.config.get('buffer_size') %}
-logging buffered {{ configuration.system.logging.config['buffer_size'].value | default(4096) }}
-{%-   endif %}
 {%-   if configuration.system.logging.get('remote_servers') %}
 {%-     for server in configuration.system.logging.get('remote_servers').values() %}
 {%-       if server.host %}
-logging host {{ server.host }}
 {%-         if server.source_address %}
 logging source-interface {{ server.source_address.value }}
 {%-         endif %}
+logging host {{ server.host }}
 {%-       endif %}
 {%-     endfor %}
 {%-   endif %}
 {%- endif %}
+!
+!
 !
 !
 control-plane
@@ -344,5 +337,14 @@ line vty 0 4
  login local
  transport input ssh
 !
+{%- if configuration.system.ntp -%}
+{%- for server in configuration.system.ntp.servers.values() %}
+{%-   if server.prefer %}
+ntp server {{ server.address.value }} prefer
+{%-   else %}
+ntp server {{ server.address.value }}
+{%-   endif %}
+{%- endfor %}
+{%- endif %}
 !
 end
