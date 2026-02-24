@@ -7,7 +7,17 @@ from rich.console import Console
 
 console = Console()
 
+from pydantic import BaseModel
 from acex_devkit.configdiffer import Diff, ComponentDiffOp
+
+
+def _as_dict(obj) -> dict:
+    """Convert a Pydantic model or dict to a plain dict for iteration."""
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+    if isinstance(obj, dict):
+        return obj
+    return {}
 
 
 def print_diff_summary(diff):
@@ -133,8 +143,8 @@ def print_diff_tree(diff, max_depth: int = None, show_values: bool = True):
                     
                     if show_values:
                         # Show attributes for ADD operations
-                        if change.op == ComponentDiffOp.ADD and change.after:
-                            for attr_name, attr_value in change.after.items():
+                        if change.op == ComponentDiffOp.ADD and change.after_dict:
+                            for attr_name, attr_value in change.after_dict.items():
                                 # Skip metadata and type fields
                                 if attr_name in ['metadata', 'type']:
                                     continue
@@ -147,8 +157,8 @@ def print_diff_tree(diff, max_depth: int = None, show_values: bool = True):
                                 comp_node.add(attr_label)
                         
                         # Show attributes for REMOVE operations
-                        elif change.op == ComponentDiffOp.REMOVE and change.before:
-                            for attr_name, attr_value in change.before.items():
+                        elif change.op == ComponentDiffOp.REMOVE and change.before_dict:
+                            for attr_name, attr_value in change.before_dict.items():
                                 # Skip metadata and type fields
                                 if attr_name in ['metadata', 'type']:
                                     continue
@@ -206,18 +216,18 @@ def print_diff_compact(diff, show_unchanged: bool = False):
         console.print("\n[bold green]✚ Added:[/bold green]")
         for change in diff.added:
             path = change.get_path_str()
-            console.print(f"  [green]+ {change.component_type}:[/green] {change.component_name}")
+            console.print(f"  [green]+ {change.component_type_name_name}:[/green] {change.component_name}")
     
     if diff.removed:
         console.print("\n[bold red]✖ Removed:[/bold red]")
         for change in diff.removed:
             path = change.get_path_str()
-            console.print(f"  [red]- {change.component_type}:[/red] {change.component_name}")
+            console.print(f"  [red]- {change.component_type_name_name}:[/red] {change.component_name}")
     
     if diff.changed:
         console.print("\n[bold yellow]⚡ Modified:[/bold yellow]")
         for change in diff.changed:
-            console.print(f"  [yellow]~ {change.component_type}:[/yellow] {change.component_name}")
+            console.print(f"  [yellow]~ {change.component_type_name_name}:[/yellow] {change.component_name}")
             if change.changed_attributes:
                 for attr in change.changed_attributes:
                     before_str = _format_value(attr.before, max_length=40)
@@ -255,7 +265,7 @@ def print_diff_flat(diff):
     for change in diff.added:
         table.add_row(
             "[green]+[/green]",
-            change.component_type,
+            change.component_type_name_name,
             change.component_name,
             "[dim]--[/dim]",
             "",
@@ -265,7 +275,7 @@ def print_diff_flat(diff):
     for change in diff.removed:
         table.add_row(
             "[red]-[/red]",
-            change.component_type,
+            change.component_type_name_name,
             change.component_name,
             "[dim]--[/dim]",
             "[dim]component deleted[/dim]",
@@ -277,7 +287,7 @@ def print_diff_flat(diff):
             for i, attr in enumerate(change.changed_attributes):
                 table.add_row(
                     "[yellow]~[/yellow]" if i == 0 else "",
-                    change.component_type if i == 0 else "",
+                    change.component_type_name_name if i == 0 else "",
                     change.component_name if i == 0 else "",
                     attr.attribute_name,
                     _format_value(attr.before, max_length=30),
@@ -286,7 +296,7 @@ def print_diff_flat(diff):
         else:
             table.add_row(
                 "[yellow]~[/yellow]",
-                change.component_type,
+                change.component_type_name_name,
                 change.component_name,
                 "[dim]--[/dim]",
                 "[dim]changed[/dim]",
@@ -302,11 +312,13 @@ def _format_value(value, max_length: int = 100) -> str:
     if value is None:
         return "null"
     
-    # Check if this is an AttributeValue dict (has 'value' and 'metadata' keys)
-    if isinstance(value, dict) and 'value' in value and 'metadata' in value:
-        # Extract just the value field
+    # Check if this is an AttributeValue (Pydantic model or dict with 'value' key)
+    if isinstance(value, BaseModel) and hasattr(value, 'value'):
+        value = value.value
+        if value is None:
+            return "null"
+    elif isinstance(value, dict) and 'value' in value:
         value = value['value']
-        # Re-check for None after extraction
         if value is None:
             return "null"
     

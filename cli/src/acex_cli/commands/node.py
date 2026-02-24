@@ -230,11 +230,19 @@ def show_diff_plan(
         typer.echo("No desired configuration found.")
         return
 
+
+    # print(observed_config.model_dump()["interfaces"])
+
+    # exit()
+
+
     diff = differ.diff(observed_config=observed_config, desired_config=desired_config)
 
 
+    # print(diff)
 
-    exit()
+    # exit()
+
     # print(diff.summary())
 
     # for c in diff.changed:

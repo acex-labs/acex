@@ -46,6 +46,10 @@ class ComponentChange(BaseModel):
     # Actual ConfigComponent objects
     before: Optional[Any] = None
     after: Optional[Any] = None
+
+    # Raw dict representations (for formatters and generic processing)
+    before_dict: Optional[Dict[str, Any]] = None
+    after_dict: Optional[Dict[str, Any]] = None
     
     # For CHANGE operations: list of changed attributes
     changed_attributes: List[AttributeChange] = Field(default_factory=list)
