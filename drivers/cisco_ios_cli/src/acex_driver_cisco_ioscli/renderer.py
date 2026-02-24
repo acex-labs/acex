@@ -1,12 +1,35 @@
-
+from typing import Any, Dict, Optional, Callable, List
+from acex_devkit.configdiffer import Diff
+from acex_devkit.configdiffer.command import Command, Context
 from acex.plugins.neds.core import RendererBase
-#from acex.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.composed_configuration import ComposedConfiguration
-from typing import Any, Dict, Optional
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from .filters import cidr_to_addrmask
+
+
+class GeneratorRegistry:
+    def __init__(self):
+        self._patterns: list[tuple[tuple, Callable]] = []
+
+    def register(self, pattern: tuple, generator: Callable):
+        self._patterns.append((pattern, generator))
+
+    def resolve(self, path: tuple):
+        for pattern, generator in self._patterns:
+            if self._match(path, pattern):
+                return generator
+        return None
+
+    def _match(self, path, pattern):
+        if len(path) < len(pattern):
+            return False
+
+        for p, pat in zip(path, pattern):
+            if pat != "*" and p != pat:
+                return False
+        return True
 
 
 class CiscoIOSCLIRenderer(RendererBase):
@@ -24,6 +47,76 @@ class CiscoIOSCLIRenderer(RendererBase):
         template = env.get_template(template_name)
         return template
 
+
+    def _register(self):
+        """
+        Registers patterns/generators to registry.
+
+        for specific command generators, register them each and 
+        map them to a pattern in the generator-registry
+        """
+        self.registry.register(('system', 'config'), self._generate_system_config_commands)
+        # self.registry.register(('interfaces', '*'), self._generate_interface_config_commands)
+
+    def flatten(self, commands):
+        output = []
+        current_ctx = ()
+
+        for cmd in commands:
+            target_ctx = cmd.context.path
+
+            # Om vi byter context
+            if target_ctx != current_ctx:
+
+                # Gå upp tills common prefix
+                while not target_ctx[:len(current_ctx)] == current_ctx:
+                    output.append("exit")
+                    current_ctx = current_ctx[:-1]
+
+                # Gå ner i nytt context
+                for part in target_ctx[len(current_ctx):]:
+                    output.append(part)
+                    current_ctx += (part,)
+
+            output.append(f" {cmd.command}")
+
+        # Stäng alla contexts
+        while current_ctx:
+            output.append("exit")
+            current_ctx = current_ctx[:-1]
+
+        return output
+
+
+    # Render config patches from diff below, move to better place laterz
+    def render_patch(self, diff: Diff, node_instance: "NodeInstance"): 
+        """
+        Render specific commands for patching based on a diff.
+        """
+        # Create GeneratorRegistry and register patterns
+        self.registry = GeneratorRegistry()
+        self._register()
+
+        commands = []
+        for change in diff.get_all_changes():
+            generator = self.registry.resolve(tuple(change.path))
+            if generator is None:
+                continue
+            cmds = generator(change, node_instance)
+            commands.extend(cmds)
+
+        # TODO: Ordering
+
+        # TODO: render context
+
+        flat_commands = self.flatten(commands)
+        cli_text = "!\r\n"
+        for line in flat_commands:
+            cli_text += line+"\r\n"
+        cli_text += "!"
+        return cli_text
+
+
     def render(self, configuration: ComposedConfiguration, asset) -> Any:
         """Render the configuration model for Cisco IOS CLI devices."""
 
@@ -39,6 +132,46 @@ class CiscoIOSCLIRenderer(RendererBase):
         template = self._load_template_file(asset)
         return template.render(configuration=processed_config)
 
+
+    def _generate_system_config_commands(self, component_change, node_instance) -> List[Command]:
+        """
+        Generate config related to system config.
+        """
+        ctx = Context(path=[]) # tom eftersom dessa körs i rootnivå
+        commands = []
+
+        for attr in component_change.changed_attributes:
+            if attr.attribute_name == "hostname":
+                if component_change.op in ("add", "change"):
+                    cmd_txt = f"hostname {attr.after.value}"
+                elif component_change.op == "remove":
+                    cmd_txt = "no hostname"
+
+                commands.append(Command(context=ctx, command=cmd_txt))
+        return commands
+
+
+    def _generate_interface_config_commands(self, component_change, node_instance) -> List[Command]:
+        """
+        Generate config related to interface config.
+        """
+        ctx = Context(path=component_change.path)
+        commands = []
+        cmd = Command(context=ctx, command="desc hyvvää hirvi")
+
+        commands.append(cmd)
+        return commands
+
+
+
+
+
+
+
+
+
+
+
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
         configuration = self.physical_interface_names(configuration, asset)
@@ -50,45 +183,6 @@ class CiscoIOSCLIRenderer(RendererBase):
         }
         return configuration
 
-    #def handle_vty_lines(self, configuration):
-    #    """Process VTY line configurations if needed."""
-    #    vtys = configuration['vty']
-    #    vty_lines = None
-#
-    #    if vtys is None:
-    #        return
-    #    for vty in vtys.values():
-    #        vty_lines.append(vty['line_number']['value'])
-    #    
-    #    vtys['lines'] = vty_lines
-    #    return configuration
-
-    #def lacp_load_balancing(self, configuration):
-    #    """Process LACP load balancing configurations if needed."""
-    #    lacp = configuration.get('lacp')
-    #    print('lacp: ', lacp)
-    #    if not lacp:
-    #        return
-#
-    #    load_balance_algorithm = lacp.get('config', {}).get('load_balance_algorithm')
-    #    if not load_balance_algorithm:
-    #        return
-#
-    #    print("load_balance_algorithm: ", load_balance_algorithm)
-    #    # Regular handling for single algorithm
-    #    if len(load_balance_algorithm) == 1:
-    #        algorithm_str = load_balance_algorithm['value'][0]
-    #        lacp['config']['load_balance_algorithm'] = algorithm_str+','
-    #        return
-#
-    #    # Extended handling for Cisco IOS load balancing algorithms
-    #    if len(load_balance_algorithm) >= 2:
-    #    # Cisco IOS expects a comma-separated string of algorithms
-    #    # Convert list to comma-separated string for template use
-    #        algorithm_str = ','.join(load_balance_algorithm['value'])
-    #        print("algorithm_str: ", algorithm_str)
-    #        lacp['config']['load_balance_algorithm'] = algorithm_str
-    #        return
 
     def ssh_interface(self, configuration):
         """Process SSH interface configurations if needed."""
