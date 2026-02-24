@@ -51,7 +51,20 @@ class CiscoIOSCLIParser:
         """Parse the Cisco IOS CLI configuration content."""
         self.running_config = configuration
         self.parse_system_hostname()
+        self.parse_interfaces()
         return self._parsed_config
+
+
+    def parse_interfaces(self):
+        command = "show running phys interfaces"
+
+        parsed_data = parse_output(
+            platform=self.platform,
+            template_dir=self.custom_templates_dir,
+            command=command,
+            data=self.running_config
+        )
+
 
     def parse_lag_interfaces(self) -> Ieee8023adLagInterface:
         """Parse LAG interfaces."""
