@@ -58,7 +58,7 @@ class RapidPVSTConfig(BaseModel):
     vlan: Optional[Dict[str, RapidPVSTAttributes]] = {}
 
 class SpanningTree(BaseModel):
-    config: SpanningTreeGlobalAttributes = SpanningTreeGlobalAttributes()
-    rstp: RSTPConfig = RSTPConfig()
-    mstp: MSTPConfig = MSTPConfig()
-    rapidpvst: RapidPVSTConfig = RapidPVSTConfig()
+    config: Optional[Dict[str, SpanningTreeGlobalAttributes]] = {}#SpanningTreeGlobalAttributes()
+    rstp: Optional[Dict[str, RSTPConfig]] = {}#RSTPConfig()
+    mstp: Optional[Dict[str, MSTPConfig]] = {}#MSTPConfig()
+    rapidpvst: Optional[Dict[str, RapidPVSTConfig]] = {}#RapidPVSTConfig()

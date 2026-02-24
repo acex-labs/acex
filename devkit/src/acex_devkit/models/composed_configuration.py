@@ -597,4 +597,4 @@ class ComposedConfiguration(BaseModel):
     lacp: Optional[Lacp] = Lacp()
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
-    stp: Optional[SpanningTree] = {}
+    stp: Optional[Dict[str, SpanningTree]] = {}
