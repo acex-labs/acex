@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Optional, Type
 from enum import Enum
 
+from acex_devkit.models.attribute_value import AttributeValue
+
 
 class ComponentDiffOp(str, Enum):
     """Operation type for a component change"""
@@ -21,8 +23,8 @@ class ComponentDiffOp(str, Enum):
 class AttributeChange(BaseModel):
     """Represents a change to a single attribute within a component"""
     attribute_name: str
-    before: Optional[Any] = None
-    after: Optional[Any] = None
+    before: Optional[AttributeValue[Any]] = None
+    after: Optional[AttributeValue[Any]] = None
 
 
 class ComponentChange(BaseModel):

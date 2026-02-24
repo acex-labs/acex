@@ -1,5 +1,5 @@
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Callable
 #from acex.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex.plugins.neds.core import NetworkElementDriver, TransportBase
@@ -51,84 +51,9 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         return self.parser.parse(configuration)
 
 
-
-
-    # Render config patches from diff below, move to better place laterz
-
-
     def render_patch(self, diff: Diff, node_instance: "NodeInstance"): 
-
-        # Specific renders
-        def render_interface_config(obj, diff):
-            cmd = "no desc"
-            ctx = Context(path=["interfaces", "gi0/1"])
-
-            return Command(command=cmd, context=ctx)
-
-        commands = []
-        for dn in diff.iter_all_nodes():
-            print(dn.path, type(dn.obj).__name__)
-
-
-
-
-
-
-
-
-
-
-
-
-    # def jusify_diff_commands(
-    #     self, 
-    #     configuration: ComposedConfiguration, 
-    #     diff: Diff,
-    #     asset: "Asset"
-    #     ):
-    #     """
-    #     TODO: Find a good name for this method
-    #     """ 
-    #     from acex_devkit.configdiffer import ConfigDiffer
-
-    #     # Create a new config by applying the diff
-    #     differ = ConfigDiffer()
-    #     new_config = differ.apply_diff(configuration, diff)
-
-    #     # Render both: 
-    #     original_config = self.render(configuration, asset)
-    #     new_config = self.render(new_config, asset)
-
-    #     # diff
-    #     old_lines = original_config.splitlines()
-    #     new_lines = new_config.splitlines()
-        
-    #     differ = difflib.Differ()
-    #     diff = list(differ.compare(old_lines, new_lines))
-        
-    #     # Convert diff to CLI commands
-    #     commands = self._diff_to_cli_commands(diff)
-        
-    #     return "\n".join(commands)
-    
-    def _diff_to_cli_commands(self, diff_lines: list[str]) -> list[str]:
         """
-        Convert diff output to Cisco CLI commands.
-        Lines starting with '- ' become 'no <command>'
-        Lines starting with '+ ' become '<command>'
+        Render specific commands for patching based on a diff.
         """
-        commands = []
-        
-        for line in diff_lines:
-            if line.startswith('- '):
-                # Removed line - add 'no' prefix
-                cmd = line[2:].strip()
-                if cmd and not cmd.startswith('!'):  # Skip empty lines and comments
-                    commands.append(f"no {cmd}")
-            elif line.startswith('+ '):
-                # Added line - use as-is
-                cmd = line[2:].strip()
-                if cmd and not cmd.startswith('!'):  # Skip empty lines and comments
-                    commands.append(cmd)
-        
-        return commands
+        return self.renderer.render_patch(diff, node_instance)
+
