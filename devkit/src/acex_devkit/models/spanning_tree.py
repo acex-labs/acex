@@ -23,7 +23,8 @@ class SpanningTreeModeConfig(BaseModel):
 class RstpAttributes(SpanningTreeModeConfig): ...
 
 class RSTPConfig(BaseModel):
-    config: RstpAttributes = RstpAttributes()
+    #config: RstpAttributes = RstpAttributes()
+    config: Optional[Dict[str, RstpAttributes]] = {}
 
 ### MSTP
 class MstpInstanceAttributes(SpanningTreeModeConfig):
@@ -36,7 +37,8 @@ class MstpAttributes(SpanningTreeModeConfig):
     max_hop: Optional[AttributeValue[int]] = None # Range 1..255
 
 class MSTPConfig(BaseModel):
-    config: MstpAttributes = MstpAttributes()
+    #config: MstpAttributes = MstpAttributes()
+    config: Optional[Dict[str, MstpAttributes]] = {}
     mst_instances: Optional[Dict[str, MstpInstanceAttributes]] = {}
 
 ### Rapid PVST
@@ -59,6 +61,6 @@ class RapidPVSTConfig(BaseModel):
 
 class SpanningTree(BaseModel):
     config: Optional[Dict[str, SpanningTreeGlobalAttributes]] = {}#SpanningTreeGlobalAttributes()
-    rstp: Optional[Dict[str, RSTPConfig]] = {}#RSTPConfig()
-    mstp: Optional[Dict[str, MSTPConfig]] = {}#MSTPConfig()
-    rapidpvst: Optional[Dict[str, RapidPVSTConfig]] = {}#RapidPVSTConfig()
+    rstp: Optional[RSTPConfig] = RSTPConfig()
+    mstp: Optional[MSTPConfig] = MSTPConfig()
+    rapidpvst: Optional[RapidPVSTConfig] = RapidPVSTConfig()
