@@ -1,5 +1,5 @@
 """Formatters for displaying configuration diffs in CLI."""
-
+import json
 from rich.tree import Tree
 from rich.text import Text
 from rich.table import Table
@@ -7,10 +7,11 @@ from rich.console import Console
 
 console = Console()
 
+from acex_devkit.configdiffer import Diff, ComponentDiffOp
+
 
 def print_diff_summary(diff):
     """Print a summary of the diff statistics."""
-    from acex_devkit.configdiffer.configdiffer import Diff
     
     if not isinstance(diff, Diff):
         console.print("[red]Invalid diff object[/red]")
@@ -26,12 +27,12 @@ def print_diff_summary(diff):
     table.add_column("Operation", style="bold")
     table.add_column("Count", style="cyan", justify="right")
     
-    if summary.get("add", 0) > 0:
-        table.add_row("Added", f"[green]{summary['add']}[/green]")
-    if summary.get("remove", 0) > 0:
-        table.add_row("Removed", f"[red]{summary['remove']}[/red]")
-    if summary.get("change", 0) > 0:
-        table.add_row("Changed", f"[yellow]{summary['change']}[/yellow]")
+    if summary.get("added", 0) > 0:
+        table.add_row("Added", f"[green]{summary['added']}[/green]")
+    if summary.get("removed", 0) > 0:
+        table.add_row("Removed", f"[red]{summary['removed']}[/red]")
+    if summary.get("changed", 0) > 0:
+        table.add_row("Changed", f"[yellow]{summary['changed']}[/yellow]")
     
     console.print(table)
 
@@ -45,7 +46,6 @@ def print_diff_tree(diff, max_depth: int = None, show_values: bool = True):
         max_depth: Maximum depth to show (None for unlimited)
         show_values: Whether to show before/after values
     """
-    from acex_devkit.configdiffer.configdiffer import Diff, DiffNode, DiffOp
     
     if not isinstance(diff, Diff):
         console.print("[red]Invalid diff object[/red]")
@@ -61,12 +61,12 @@ def print_diff_tree(diff, max_depth: int = None, show_values: bool = True):
     title.append("(", style="dim")
     
     parts = []
-    if summary.get("add", 0) > 0:
-        parts.append((f"+{summary['add']}", "green"))
-    if summary.get("remove", 0) > 0:
-        parts.append((f"-{summary['remove']}", "red"))
-    if summary.get("change", 0) > 0:
-        parts.append((f"~{summary['change']}", "yellow"))
+    if summary.get("added", 0) > 0:
+        parts.append((f"+{summary['added']}", "green"))
+    if summary.get("removed", 0) > 0:
+        parts.append((f"-{summary['removed']}", "red"))
+    if summary.get("changed", 0) > 0:
+        parts.append((f"~{summary['changed']}", "yellow"))
     
     for i, (text, color) in enumerate(parts):
         if i > 0:
@@ -77,50 +77,110 @@ def print_diff_tree(diff, max_depth: int = None, show_values: bool = True):
     
     tree = Tree(title)
     
-    def add_node(parent_tree, node: DiffNode, key: str, depth: int = 0):
-        """Recursively add nodes to the tree."""
-        if max_depth is not None and depth > max_depth:
-            return
-        
-        # Format the node based on operation
-        if node.op == DiffOp.ADD:
-            style = "green"
-            prefix = "+ "
-            value_str = f" = {_format_value(node.after)}" if show_values and node.after is not None else ""
-        elif node.op == DiffOp.REMOVE:
-            style = "red"
-            prefix = "- "
-            value_str = f" = {_format_value(node.before)}" if show_values and node.before is not None else ""
-        elif node.op == DiffOp.CHANGE:
-            style = "yellow"
-            prefix = "~ "
-            if show_values and node.children is None:
-                # Leaf node with changed value
-                value_str = f" {_format_value(node.before)} → {_format_value(node.after)}"
-            else:
-                value_str = ""
-        else:
-            style = "white"
-            prefix = "  "
-            value_str = ""
-        
-        # Create the tree node
-        label = Text()
-        label.append(prefix, style=f"bold {style}")
-        label.append(key, style=style)
-        label.append(value_str, style=style)
-        
-        branch = parent_tree.add(label)
-        
-        # Add children if they exist
-        if node.children:
-            for child_key, child_node in sorted(node.children.items()):
-                add_node(branch, child_node, child_key, depth + 1)
+    # Build a hierarchical tree structure based on component paths
+    # We'll use a dict to track nodes: path_tuple -> tree_node
+    path_nodes = {}
     
-    # Start with root's children
-    if diff.root.children:
-        for key, node in sorted(diff.root.children.items()):
-            add_node(tree, node, key, depth=0)
+    # Group changes by top-level section first to get counts
+    sections = {}
+    for change in diff.get_all_changes():
+        section = change.path[0] if change.path else "root"
+        if section not in sections:
+            sections[section] = []
+        sections[section].append(change)
+    
+    # Process each change and build nested structure
+    for section_name in sorted(sections.keys()):
+        section_changes = sections[section_name]
+        
+        # Create section node
+        section_label = Text()
+        section_label.append(section_name, style="bold cyan")
+        section_label.append(f" ({len(section_changes)} changes)", style="dim")
+        section_node = tree.add(section_label)
+        path_nodes[(section_name,)] = section_node
+        
+        # Add each change, building nested path structure
+        for change in section_changes:
+            # Build path incrementally
+            path = tuple(change.path)
+            
+            # Find or create parent nodes for nested path
+            parent_node = section_node
+            for i in range(1, len(path)):
+                partial_path = path[:i+1]
+                
+                # Check if this is the final component or an intermediate path
+                if i == len(path) - 1:
+                    # This is the actual component with the change
+                    if change.op == ComponentDiffOp.ADD:
+                        style = "green"
+                        prefix = "+ "
+                    elif change.op == ComponentDiffOp.REMOVE:
+                        style = "red"
+                        prefix = "- "
+                    else:  # CHANGE
+                        style = "yellow"
+                        prefix = "~ "
+                    
+                    # Component label
+                    comp_label = Text()
+                    comp_label.append(prefix, style=f"bold {style}")
+                    comp_label.append(f"{change.component_type}: ", style=f"dim {style}")
+                    comp_label.append(change.component_name, style=style)
+                    
+                    comp_node = parent_node.add(comp_label)
+                    
+                    if show_values:
+                        # Show attributes for ADD operations
+                        if change.op == ComponentDiffOp.ADD and change.after:
+                            for attr_name, attr_value in change.after.items():
+                                # Skip metadata and type fields
+                                if attr_name in ['metadata', 'type']:
+                                    continue
+                                attr_label = Text()
+                                attr_label.append("  ", style="dim")
+                                attr_label.append(attr_name, style="cyan")
+                                attr_label.append(": ", style="dim")
+                                formatted_val = _format_value(attr_value)
+                                attr_label.append(formatted_val, style="dim green" if formatted_val == "null" else "green")
+                                comp_node.add(attr_label)
+                        
+                        # Show attributes for REMOVE operations
+                        elif change.op == ComponentDiffOp.REMOVE and change.before:
+                            for attr_name, attr_value in change.before.items():
+                                # Skip metadata and type fields
+                                if attr_name in ['metadata', 'type']:
+                                    continue
+                                attr_label = Text()
+                                attr_label.append("  ", style="dim")
+                                attr_label.append(attr_name, style="cyan")
+                                attr_label.append(": ", style="dim")
+                                formatted_val = _format_value(attr_value)
+                                attr_label.append(formatted_val, style="dim red" if formatted_val == "null" else "red")
+                                comp_node.add(attr_label)
+                        
+                        # Show changed attributes for CHANGE operations
+                        elif change.op == ComponentDiffOp.CHANGE and change.changed_attributes:
+                            for attr in change.changed_attributes:
+                                attr_label = Text()
+                                attr_label.append("  ", style="dim")
+                                attr_label.append(attr.attribute_name, style="cyan")
+                                attr_label.append(": ", style="dim")
+                                before_val = _format_value(attr.before)
+                                attr_label.append(before_val, style="dim red" if before_val == "null" else "red")
+                                attr_label.append(" → ", style="dim")
+                                after_val = _format_value(attr.after)
+                                attr_label.append(after_val, style="dim green" if after_val == "null" else "green")
+                                comp_node.add(attr_label)
+                else:
+                    # Intermediate path element - create if doesn't exist
+                    if partial_path not in path_nodes:
+                        path_label = Text()
+                        path_label.append(path[i], style="dim cyan")
+                        path_node = parent_node.add(path_label)
+                        path_nodes[partial_path] = path_node
+                    parent_node = path_nodes[partial_path]
     
     console.print(tree)
 
@@ -133,7 +193,6 @@ def print_diff_compact(diff, show_unchanged: bool = False):
         diff: Diff object from configdiffer
         show_unchanged: Whether to show unchanged paths
     """
-    from acex_devkit.configdiffer.configdiffer import Diff, DiffNode, DiffOp
     
     if not isinstance(diff, Diff):
         console.print("[red]Invalid diff object[/red]")
@@ -143,45 +202,29 @@ def print_diff_compact(diff, show_unchanged: bool = False):
         console.print("[green]✓ No changes detected[/green]")
         return
     
-    changes = []
-    
-    def collect_changes(node: DiffNode, path: str = ""):
-        """Recursively collect all changes with their paths."""
-        if node.children:
-            for key, child in sorted(node.children.items()):
-                new_path = f"{path}.{key}" if path else key
-                collect_changes(child, new_path)
-        else:
-            # Leaf node
-            changes.append((path, node))
-    
-    collect_changes(diff.root)
-    
-    # Group by operation type
-    adds = [(p, n) for p, n in changes if n.op == DiffOp.ADD]
-    removes = [(p, n) for p, n in changes if n.op == DiffOp.REMOVE]
-    modifications = [(p, n) for p, n in changes if n.op == DiffOp.CHANGE]
-    
-    if adds:
+    if diff.added:
         console.print("\n[bold green]✚ Added:[/bold green]")
-        for path, node in adds:
-            value_str = _format_value(node.after, max_length=60)
-            console.print(f"  [green]+ {path}[/green] = {value_str}")
+        for change in diff.added:
+            path = change.get_path_str()
+            console.print(f"  [green]+ {change.component_type}:[/green] {change.component_name}")
     
-    if removes:
+    if diff.removed:
         console.print("\n[bold red]✖ Removed:[/bold red]")
-        for path, node in removes:
-            value_str = _format_value(node.before, max_length=60)
-            console.print(f"  [red]- {path}[/red] = {value_str}")
+        for change in diff.removed:
+            path = change.get_path_str()
+            console.print(f"  [red]- {change.component_type}:[/red] {change.component_name}")
     
-    if modifications:
+    if diff.changed:
         console.print("\n[bold yellow]⚡ Modified:[/bold yellow]")
-        for path, node in modifications:
-            before_str = _format_value(node.before, max_length=40)
-            after_str = _format_value(node.after, max_length=40)
-            console.print(f"  [yellow]~ {path}[/yellow]")
-            console.print(f"    [red]- {before_str}[/red]")
-            console.print(f"    [green]+ {after_str}[/green]")
+        for change in diff.changed:
+            console.print(f"  [yellow]~ {change.component_type}:[/yellow] {change.component_name}")
+            if change.changed_attributes:
+                for attr in change.changed_attributes:
+                    before_str = _format_value(attr.before, max_length=40)
+                    after_str = _format_value(attr.after, max_length=40)
+                    console.print(f"    {attr.attribute_name}:")
+                    console.print(f"      [red]- {before_str}[/red]")
+                    console.print(f"      [green]+ {after_str}[/green]")
 
 
 def print_diff_flat(diff):
@@ -191,7 +234,6 @@ def print_diff_flat(diff):
     Args:
         diff: Diff object from configdiffer
     """
-    from acex_devkit.configdiffer.configdiffer import Diff, DiffNode, DiffOp
     
     if not isinstance(diff, Diff):
         console.print("[red]Invalid diff object[/red]")
@@ -201,52 +243,72 @@ def print_diff_flat(diff):
         console.print("[green]✓ No changes detected[/green]")
         return
     
-    changes = []
-    
-    def collect_changes(node: DiffNode, path: str = ""):
-        """Recursively collect all changes with their paths."""
-        if node.children:
-            for key, child in sorted(node.children.items()):
-                new_path = f"{path}.{key}" if path else key
-                collect_changes(child, new_path)
-        else:
-            # Leaf node
-            changes.append((path, node))
-    
-    collect_changes(diff.root)
-    
     # Create table
     table = Table(title="Configuration Changes", show_lines=True)
     table.add_column("Op", style="bold", width=3)
-    table.add_column("Path", style="cyan")
-    table.add_column("Before", style="red", max_width=40)
-    table.add_column("After", style="green", max_width=40)
+    table.add_column("Type", style="cyan")
+    table.add_column("Component", style="bold")
+    table.add_column("Attribute", style="magenta")
+    table.add_column("Before", style="red", max_width=30)
+    table.add_column("After", style="green", max_width=30)
     
-    for path, node in changes:
-        if node.op == DiffOp.ADD:
-            op_symbol = "[green]+[/green]"
-            before = ""
-            after = _format_value(node.after, max_length=40)
-        elif node.op == DiffOp.REMOVE:
-            op_symbol = "[red]-[/red]"
-            before = _format_value(node.before, max_length=40)
-            after = ""
-        else:  # CHANGE
-            op_symbol = "[yellow]~[/yellow]"
-            before = _format_value(node.before, max_length=40)
-            after = _format_value(node.after, max_length=40)
-        
-        table.add_row(op_symbol, path, before, after)
+    for change in diff.added:
+        table.add_row(
+            "[green]+[/green]",
+            change.component_type,
+            change.component_name,
+            "[dim]--[/dim]",
+            "",
+            "[dim]new component[/dim]"
+        )
+    
+    for change in diff.removed:
+        table.add_row(
+            "[red]-[/red]",
+            change.component_type,
+            change.component_name,
+            "[dim]--[/dim]",
+            "[dim]component deleted[/dim]",
+            ""
+        )
+    
+    for change in diff.changed:
+        if change.changed_attributes:
+            for i, attr in enumerate(change.changed_attributes):
+                table.add_row(
+                    "[yellow]~[/yellow]" if i == 0 else "",
+                    change.component_type if i == 0 else "",
+                    change.component_name if i == 0 else "",
+                    attr.attribute_name,
+                    _format_value(attr.before, max_length=30),
+                    _format_value(attr.after, max_length=30)
+                )
+        else:
+            table.add_row(
+                "[yellow]~[/yellow]",
+                change.component_type,
+                change.component_name,
+                "[dim]--[/dim]",
+                "[dim]changed[/dim]",
+                "[dim]changed[/dim]"
+            )
     
     console.print(table)
 
 
 def _format_value(value, max_length: int = 100) -> str:
     """Format a value for display, truncating if necessary."""
-    import json
     
     if value is None:
-        return "[dim]null[/dim]"
+        return "null"
+    
+    # Check if this is an AttributeValue dict (has 'value' and 'metadata' keys)
+    if isinstance(value, dict) and 'value' in value and 'metadata' in value:
+        # Extract just the value field
+        value = value['value']
+        # Re-check for None after extraction
+        if value is None:
+            return "null"
     
     if isinstance(value, (dict, list)):
         # For complex objects, show compact JSON

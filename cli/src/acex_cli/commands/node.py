@@ -232,6 +232,26 @@ def show_diff_plan(
 
     diff = differ.diff(observed_config=observed_config, desired_config=desired_config)
 
+
+
+    exit()
+    # print(diff.summary())
+
+    # for c in diff.changed:
+    #     print(c)
+    
+
+    # print("Added: ")
+    # for add in diff.added:
+    #     print(add.component_type)
+    #     print("-" * 25)
+
+    # print("Removed: ")
+    # for add in diff.removed:
+    #     print(add.component_type)
+    #     print("-" * 25)
+
+
     # Display diff based on format
     if format == "json":
         # Use Python mode to avoid Pydantic serialization warnings with AttributeValue types
@@ -249,7 +269,8 @@ def show_diff_plan(
         dfg = observed_config
         d = diff
         ned = sdk.neds.get_driver_instance(node_instance.asset.ned_id)
-        commands = ned.jusify_diff_commands(observed_config, d, node_instance.asset) 
+        # commands = ned.jusify_diff_commands(observed_config, d, node_instance.asset) 
+        commands = ned.render_patch(d, node_instance) 
 
         print(commands)
     else:

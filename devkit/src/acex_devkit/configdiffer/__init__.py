@@ -1,2 +1,3 @@
 
-from .configdiffer import Diff, ConfigDiffer, DiffNode, DiffOp
+from .configdiffer import ConfigDiffer
+from .diff import Diff, ComponentChange, ComponentDiffOp, AttributeChange

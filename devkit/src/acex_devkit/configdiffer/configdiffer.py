@@ -1,230 +1,77 @@
-from enum import Enum
-from typing import Any, Dict, Optional
-from pydantic import BaseModel, model_validator
-from deepdiff import DeepDiff
+from pydantic import BaseModel
+from typing import Any, Dict, List, Iterator, Tuple
 
+from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, Metadata
+from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.configdiffer.diff import Diff, ComponentChange, AttributeChange, ComponentDiffOp
 
-class DiffOp(str, Enum):
-    ADD = "add"
-    REMOVE = "remove"
-    CHANGE = "change"
-
-
-class DiffNode(BaseModel):
-    op: DiffOp
-    before: Optional[Any] = None
-    after: Optional[Any] = None
-    children: Optional[Dict[str, "DiffNode"]] = None
-
-    @model_validator(mode="after")
-    def validate_invariants(self):
-        if self.op == DiffOp.ADD:
-            assert self.before is None and self.after is not None
-        elif self.op == DiffOp.REMOVE:
-            assert self.before is not None and self.after is None
-        elif self.op == DiffOp.CHANGE:
-            assert self.before is not None and self.after is not None
-        return self
-
-
-class Diff(BaseModel):
-    root: DiffNode
-
-    def is_empty(self) -> bool:
-        return not bool(self.root.children)
-
-    def summary(self) -> dict[str, int]:
-        stats = {"add": 0, "remove": 0, "change": 0}
-
-        def walk(node: DiffNode):
-            stats[node.op.value] += 1
-            if node.children:
-                for child in node.children.values():
-                    walk(child)
-
-        walk(self.root)
-        return stats
-
+import json
 
 
 class ConfigDiffer:
 
-    def diff(self, *, desired_config: dict, observed_config: dict) -> Diff:
-        children = self._diff_dicts(
-            desired=desired_config,
-            observed=observed_config,
-        )
+    IGNORED_KEYS = ["metadata"]
 
-        root = DiffNode(
-            op=DiffOp.CHANGE,
-            before=observed_config,
-            after=desired_config,
-            children=children or None,
-        )
-
-        return Diff(root=root)
-
-    def _remove_keys(self, obj: dict, keys_to_remove: list[str]) -> dict:
+    def _clean_metadata(self, obj: dict) -> dict:
+        """
+        Recursively ignored keys.
+        """
+        if not isinstance(obj, dict):
+            return obj
+        
         cleaned = {}
-
         for k, v in obj.items():
-            if k in keys_to_remove:
+            if k == "metadata":
+                # Keep only component_class from metadata
+                if isinstance(v, dict) and "component_class" in v:
+                    cleaned["component_class"] = v["component_class"]
                 continue
-
+            
             if isinstance(v, dict):
-                cleaned[k] = self._remove_keys(v, keys_to_remove)
+                cleaned[k] = self._clean_metadata(v)
+            elif isinstance(v, list):
+                cleaned[k] = [self._clean_metadata(item) if isinstance(item, dict) else item for item in v]
             else:
                 cleaned[k] = v
-
+        
         return cleaned
 
-    def _diff_dicts(
-        self,
-        *,
-        desired: dict,
-        observed: dict,
-    ) -> Dict[str, DiffNode]:
+
+    def _dump_to_dicts(self, config: ComposedConfiguration) -> dict:
         """
-        Diff two dicts by traversing down to 'value' attributes and comparing them.
-        Returns a hierarchical structure of DiffNodes.
+        Dumps to dict, removes unnecessary keys except component_class. 
         """
+        # Remove most metadata, but keep component_class for type identification
+        config_dict = config.model_dump(exclude_unset=True)
+        return self._clean_metadata(config_dict)
+    
 
-        # Remove metadata:
-        ignored_keys = ["metadata"]
-        observed = self._remove_keys(observed.model_dump(), ignored_keys)
-        desired = self._remove_keys(desired.model_dump(), ignored_keys)
-
-        # Diff
-        diff = DeepDiff(
-            observed,
-            desired
-        )
-
-        result: Dict[str, DiffNode] = {}
-
-        # Handle added items
-        items_added = diff.get("dictionary_item_added", set())
-        for path in items_added:
-            keys = self._parse_path(path)
-            if keys:
-                value = self._get_nested_value(desired, keys)
-                self._add_to_result(result, keys, DiffNode(
-                    op=DiffOp.ADD,
-                    after=value
-                ))
-
-        # Handle removed items
-        items_removed = diff.get("dictionary_item_removed", set())
-        for path in items_removed:
-            keys = self._parse_path(path)
-            if keys:
-                value = self._get_nested_value(observed, keys)
-                self._add_to_result(result, keys, DiffNode(
-                    op=DiffOp.REMOVE,
-                    before=value
-                ))
-
-        # Handle changed values
-        values_changed = diff.get("values_changed", {})
-        for path, change in values_changed.items():
-            keys = self._parse_path(path)
-            if keys:
-                self._add_to_result(result, keys, DiffNode(
-                    op=DiffOp.CHANGE,
-                    before=change["old_value"],
-                    after=change["new_value"]
-                ))
-
-        return result
-
-    def _parse_path(self, path: str) -> list[str]:
-        """Parse DeepDiff path like "root['key1']['key2']" into ['key1', 'key2']"""
-        import re
-        matches = re.findall(r"\['([^']+)'\]|\[\"([^\"]+)\"\]", path)
-        return [m[0] or m[1] for m in matches]
-
-    def _get_nested_value(self, obj: dict, keys: list[str]) -> Any:
-        """Get value from nested dict using list of keys"""
-        current = obj
-        for key in keys:
-            if isinstance(current, dict):
-                current = current.get(key)
-            else:
-                return None
-        return current
-
-    def _add_to_result(self, result: Dict[str, DiffNode], keys: list[str], node: DiffNode):
-        """Add a DiffNode to the result dict at the appropriate nested location"""
-        if not keys:
-            return
-
-        if len(keys) == 1:
-            # Leaf node
-            result[keys[0]] = node
-        else:
-            # Need to create intermediate nodes
-            if keys[0] not in result:
-                # Create a CHANGE node as intermediate
-                result[keys[0]] = DiffNode(
-                    op=DiffOp.CHANGE,
-                    before={},
-                    after={},
-                    children={}
-                )
-            
-            # Ensure it has children dict
-            if result[keys[0]].children is None:
-                result[keys[0]].children = {}
-            
-            # Recursively add to children
-            self._add_to_result(result[keys[0]].children, keys[1:], node)
-
-    def apply_diff(self, config, diff: Diff):
+    def diff(self, *, desired_config: ComposedConfiguration, observed_config: ComposedConfiguration) -> Diff:
         """
-        Apply a diff to a configuration.
-        
+        Compare two ComposedConfiguration objects and return a component-based diff.
+
+        Walks both configs using Pydantic model structure (not heuristics) to find
+        all named components inside Dict[str, Model] containers. Components are
+        identified by their full path, e.g. ('interfaces', 'GigabitEthernet0/0/1').
+
         Args:
-            config: The base configuration (ComposedConfiguration or dict)
-            diff: The diff to apply
-            
+            desired_config: The target configuration we want to achieve.
+            observed_config: The current configuration as observed on the device.
+
         Returns:
-            A new configuration of the same type with the diff applied
+            Diff: A structured diff showing added, removed, and changed components.
         """
-        import copy
-        from acex_devkit.models.composed_configuration import ComposedConfiguration
-        
-        # Convert to dict if it's a ComposedConfiguration
-        is_composed = isinstance(config, ComposedConfiguration)
-        config_dict = config.model_dump(mode="python") if is_composed else config
-        
-        # Deep copy to avoid modifying the original
-        result = copy.deepcopy(config_dict)
-        
-        def apply_node(target: dict, node: DiffNode, key: str):
-            """Apply a single diff node to the target dict."""
-            if node.op == DiffOp.ADD:
-                target[key] = node.after
-            elif node.op == DiffOp.REMOVE:
-                if key in target:
-                    del target[key]
-            elif node.op == DiffOp.CHANGE:
-                if node.children:
-                    # Has children - recurse deeper
-                    if key not in target:
-                        target[key] = {}
-                    for child_key, child_node in node.children.items():
-                        apply_node(target[key], child_node, child_key)
-                else:
-                    # Leaf value change
-                    target[key] = node.after
-        
-        # Apply all root-level changes
-        if diff.root.children:
-            for key, node in diff.root.children.items():
-                apply_node(result, node, key)
-        
-        # Return same type as input
-        if is_composed:
-            return ComposedConfiguration(**result)
-        return result
-        
+
+        observed_dict = self._dump_to_dicts(observed_config)
+        desired_dict = self._dump_to_dicts(desired_config)
+
+        # print(json.dumps(observed_dict["system"]["config"]["hostname"], indent=4))
+        # print(json.dumps(desired_dict["system"]["config"]["hostname"], indent=4))
+
+        print(json.dumps(desired_dict, indent=4))
+
+
+
+
+
+    

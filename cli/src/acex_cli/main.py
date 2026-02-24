@@ -10,7 +10,9 @@ app = typer.Typer(
     name="acex",
     help="ACE-X - Automation & Control Ecosystem CLI",
     add_completion=True,
+    pretty_exceptions_enable=False
 )
+
 
 # Dynamiskt importera och lägg till alla Typer-appar från commands-mappen
 commands_path = pathlib.Path(__file__).parent / "commands"

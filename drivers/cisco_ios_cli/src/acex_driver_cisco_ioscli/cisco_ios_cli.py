@@ -50,36 +50,66 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     def parse(self, configuration: str) -> ComposedConfiguration: 
         return self.parser.parse(configuration)
 
-    def jusify_diff_commands(
-        self, 
-        configuration: ComposedConfiguration, 
-        diff: Diff,
-        asset: "Asset"
-        ):
-        """
-        TODO: Find a good name for this method
-        """ 
-        from acex_devkit.configdiffer import ConfigDiffer
 
-        # Create a new config by applying the diff
-        differ = ConfigDiffer()
-        new_config = differ.apply_diff(configuration, diff)
 
-        # Render both: 
-        original_config = self.render(configuration, asset)
-        new_config = self.render(new_config, asset)
 
-        # diff
-        old_lines = original_config.splitlines()
-        new_lines = new_config.splitlines()
+    # Render config patches from diff below, move to better place laterz
+
+
+    def render_patch(self, diff: Diff, node_instance: "NodeInstance"): 
+
+        # Specific renders
+        def render_interface_config(obj, diff):
+            cmd = "no desc"
+            ctx = Context(path=["interfaces", "gi0/1"])
+
+            return Command(command=cmd, context=ctx)
+
+        commands = []
+        for dn in diff.iter_all_nodes():
+            print(dn.path, type(dn.obj).__name__)
+
+
+
+
+
+
+
+
+
+
+
+
+    # def jusify_diff_commands(
+    #     self, 
+    #     configuration: ComposedConfiguration, 
+    #     diff: Diff,
+    #     asset: "Asset"
+    #     ):
+    #     """
+    #     TODO: Find a good name for this method
+    #     """ 
+    #     from acex_devkit.configdiffer import ConfigDiffer
+
+    #     # Create a new config by applying the diff
+    #     differ = ConfigDiffer()
+    #     new_config = differ.apply_diff(configuration, diff)
+
+    #     # Render both: 
+    #     original_config = self.render(configuration, asset)
+    #     new_config = self.render(new_config, asset)
+
+    #     # diff
+    #     old_lines = original_config.splitlines()
+    #     new_lines = new_config.splitlines()
         
-        differ = difflib.Differ()
-        diff = list(differ.compare(old_lines, new_lines))
+    #     differ = difflib.Differ()
+    #     diff = list(differ.compare(old_lines, new_lines))
         
-        # Convert diff to CLI commands
-        commands = self._diff_to_cli_commands(diff)
+    #     # Convert diff to CLI commands
+    #     commands = self._diff_to_cli_commands(diff)
         
-        return "\n".join(commands)
+    #     return "\n".join(commands)
     
     def _diff_to_cli_commands(self, diff_lines: list[str]) -> list[str]:
         """
