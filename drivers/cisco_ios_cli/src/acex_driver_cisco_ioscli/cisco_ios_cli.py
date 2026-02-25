@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Callable
 #from acex.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex.plugins.neds.core import NetworkElementDriver, TransportBase
-import difflib
+from netmiko import ConnectHandler
 
 from acex_devkit.drivers import NetworkElementDriver
 from acex_devkit.configdiffer import Diff
@@ -57,3 +57,32 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         """
         return self.renderer.render_patch(diff, node_instance)
 
+
+    def apply_patch(self, diff: Diff, node_instance, connection):
+        """
+        Takes a diff and applies config to device
+        """
+        commands = self.render_patch(diff, node_instance=node_instance)
+
+        # commands = commands.splitlines()
+        commands = [c.lstrip() for c in commands.splitlines() if c.strip() != "!"]
+
+        cisco_device = {
+            "device_type": "cisco_ios",
+            "host": connection,
+            "username": "admin",
+            "password": "polly123",
+            # "secret": "enablepassword",  # enable password
+        }
+
+        # Skapa anslutning
+        connection = ConnectHandler(**cisco_device)
+
+        # Gå in i enable mode
+        connection.enable()
+
+        # Skicka konfig
+        output = connection.send_config_set(commands)
+
+        # Stäng anslutning
+        connection.disconnect()
