@@ -10,7 +10,7 @@ import json
 
 class ConfigDiffer:
 
-    IGNORED_KEYS = ["metadata", "logging", "ssh", "snmp", "network_instances", "ntp", "domain_name", "location", "contact", "motd_banner"]
+    IGNORED_KEYS = ["metadata", "logging", "ssh", "snmp", "network_instances", "interfaces", "ntp", "domain_name", "location", "contact", "motd_banner"]
 
     def _clean_metadata(self, obj: dict) -> dict:
         """
