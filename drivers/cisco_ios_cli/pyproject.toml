@@ -14,6 +14,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.13"
 ntc-templates = "^8.1.0"
+netmiko = "^4.6.0"
 acex-devkit = { path = "../../devkit", develop = true }
 
 [build-system]
