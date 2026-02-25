@@ -51,7 +51,7 @@ class CiscoIOSCLIParser:
         """Parse the Cisco IOS CLI configuration content."""
         self.running_config = configuration
         self.parse_system_hostname()
-        self.parse_interfaces()
+        # self.parse_interfaces()
         return self._parsed_config
 
 

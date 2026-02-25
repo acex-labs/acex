@@ -56,7 +56,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         map them to a pattern in the generator-registry
         """
         self.registry.register(('system', 'config'), self._generate_system_config_commands)
-        # self.registry.register(('interfaces', '*'), self._generate_interface_config_commands)
+        self.registry.register(('interfaces', '*'), self._generate_interface_config_commands)
 
     def flatten(self, commands):
         output = []
