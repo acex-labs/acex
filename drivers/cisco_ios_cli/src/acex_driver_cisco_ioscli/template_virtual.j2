@@ -148,7 +148,7 @@ interface {{ intf.name }}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
 {%-      if intf.native_vlan %}
  switchport access vlan {{ intf.native_vlan.value }}
-{%-      endif %} 
+{%-      endif %}
  switchport mode access
 {%-    endif %}
 {%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
