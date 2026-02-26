@@ -36,6 +36,7 @@ from acex.configuration.components.system.snmp import (
 )
 
 from acex.configuration.components.system.aaa import (
+    aaaGlobal,
     aaaServerGroup,
     aaaTacacs,
     aaaRadius,
@@ -78,6 +79,7 @@ class Configuration:
         SnmpServer: "system.snmp.trap_servers",
         SnmpCommunity: "system.snmp.communities",
         SnmpTrap: "system.snmp.trap_events",
+        aaaGlobal: "system.aaa.config",
         aaaServerGroup: "system.aaa.server_groups",
         aaaTacacs: Template("system.aaa.server_groups.${server_group}.tacacs"),
         aaaRadius: Template("system.aaa.server_groups.${server_group}.radius"),

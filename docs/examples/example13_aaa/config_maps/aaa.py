@@ -1,5 +1,6 @@
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.system.aaa import (
+    aaaGlobal,
     aaaServerGroup,
     aaaTacacs,
     aaaRadius,
@@ -12,6 +13,14 @@ from acex.configuration.components.system.aaa import (
 
 from acex.configuration.components.interfaces import Svi
 from acex.configuration.components.network_instances import Vlan
+
+class aaaGlobalConfig(ConfigMap):
+    def compile(self, context):
+        aaa_global = aaaGlobal(
+            name = 'AAA_GLOBAL',
+            enabled = True
+        )
+        context.configuration.add(aaa_global)
 
 class TacacsConfig(ConfigMap):
     def compile(self, context):
@@ -155,6 +164,9 @@ class aaaConfig(ConfigMap):
         #    events = ['send','cstop-record','authentication']
         #)
         #context.configuration.add(aaa_accounting_events)
+
+global_config = aaaGlobalConfig()
+global_config.filters = FilterAttribute("site").eq("/.*/")
 
 tacacs_config = TacacsConfig()
 tacacs_config.filters = FilterAttribute("site").eq("/.*/")

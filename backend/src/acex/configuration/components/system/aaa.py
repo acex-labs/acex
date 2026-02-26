@@ -5,12 +5,17 @@ from acex_devkit.models.composed_configuration import (
     aaaTacacsAttributes,
     aaaRadiusAttributes,
     aaaServerGroupAttributes,
+    aaaGlobalAttributes,
     aaaAuthenticationMethods as aaaAuthenticationMethodsAttributes,
     aaaAuthorizationMethods as aaaAuthorizationMethodsAttributes,
     aaaAuthorizationEvents as aaaAuthorizationEventsAttributes,
     aaaAccountingMethods as aaaAccountingMethodsAttributes,
     aaaAccountingEvents as aaaAccountingEventsAttributes
 )
+
+class aaaGlobal(ConfigComponent):
+    type = "aaaGlobal"
+    model_cls = aaaGlobalAttributes
 
 class aaaTacacs(ConfigComponent):
     type = "aaaTacacs"

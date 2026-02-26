@@ -619,8 +619,11 @@ class aaaAccounting(BaseModel):
     #events: aaaAccountingEvents = aaaAccountingEvents()
     events: Optional[Dict[str, aaaAccountingEvents]] = {}
 
+class aaaGlobalAttributes(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = False # default False
+
 class TripleA(BaseModel):
-    #config: dict = None
+    config: aaaGlobalAttributes = aaaGlobalAttributes()
     server_groups: Optional[Dict[str, aaaServerGroupAttributes]] = {}
     tacacs: Optional[Dict[str, aaaTacacsAttributes]] = {}
     radius: Optional[Dict[str, aaaRadiusAttributes]] = {}
