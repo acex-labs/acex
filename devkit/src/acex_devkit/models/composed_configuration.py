@@ -625,8 +625,6 @@ class aaaGlobalAttributes(BaseModel):
 class TripleA(BaseModel):
     config: aaaGlobalAttributes = aaaGlobalAttributes()
     server_groups: Optional[Dict[str, aaaServerGroupAttributes]] = {}
-    tacacs: Optional[Dict[str, aaaTacacsAttributes]] = {}
-    radius: Optional[Dict[str, aaaRadiusAttributes]] = {}
     authentication: aaaAuthentication = aaaAuthentication()
     authorization: aaaAuthorization = aaaAuthorization()
     accounting: aaaAccounting = aaaAccounting()
