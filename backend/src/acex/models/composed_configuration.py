@@ -445,70 +445,36 @@ class Snmp(BaseModel):
 class aaaBaseClass(BaseModel):
     name: str = None
 
-class aaaTacacsAttributes(BaseModel):
+class aaaTacacsAttributes(aaaBaseClass):
     port: Optional[int] = 49
     secret_key: Optional[str] = None
     secret_key_hashed: Optional[str] = None
     address: Optional[str] = None
     timeout: Optional[int] = 30
-    source_interface: Optional[Reference] = None #Optional[Reference] = None # should be reference
-    server_group: Optional[AttributeValue[str]] = None
+    source_address: Optional[str] = None #Optional[Reference] = None # should be reference
 
-class aaaRadiusAttributes(BaseModel):
+class aaaRadiusAttributes(aaaBaseClass):
     auth_port: Optional[int] = 1812
     acct_port: Optional[int] = 1813
     secret_key: Optional[str] = None
     secret_key_hashed: Optional[str] = None
     address: Optional[str] = None
     timeout: Optional[int] = 30
-    source_interface: Optional[Reference] = None #Optional[Reference] = None # should be reference
+    source_address: Optional[str] = None #Optional[Reference] = None # should be reference
     retransmit_attempts: Optional[int] = 3
-    server_group: Optional[AttributeValue[str]] = None
 
 class aaaServerGroupAttributes(BaseModel):
-    """
-    Define a AAA server group that can contain multiple TACACS+ and/or RADIUS servers.
-
-    Type is used to tell future renderers what kind of server group this is.
-    Example:
-    type = 'tacacs' or type = 'radius'
-    
-    The tacacs and radius attributes expect a reference to the aaaTacacs and aaaRadius models respectively.
-
-    Example in config map:
-    enable = True
-    type = 'tacacs'
-    tacacs = [tacacs_server1, tacacs_server2] 
-    radius = radius_server1
-
-    Cisco example:
-    aaa group server tacacs+ TACACS-GROUP
-     server name tacacs_server1
-     server name tacacs_server2
-    """
     enable: Optional[bool] = False
     type: Optional[Literal['tacacs','radius']] = None
-    tacacs: Optional[Dict[str, aaaTacacsAttributes]] = {} #Optional[Dict[str, Reference]] = None
-    radius: Optional[Dict[str, aaaRadiusAttributes]] = {} #Optional[Dict[str, Reference]] = None
+    #servers: Optional[list] = None 
+    #address: Optional[str] = None 
+    #timeout: Optional[int] = 30
+    tacacs: Optional[Reference] = None
+    radius: Optional[Reference] = None
 
 # Authentication Models
 class aaaAuthenticationMethods(aaaBaseClass):
-    """
-    Define the authentiation methods used by AAA. If you define a server group using the "aaaServerGroup" model, 
-    you can reference it here by its name, but only as a string.
-
-    Example in config map:
-    method = ['TACACS_GROUP','LOCAL']
-
-    Cisco example:
-    aaa authentication login default group TACACS-GROUP-NEW local
-    """
-    method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL', 'default', 'enable'] - TACACS_GROUP is reference to server group
-    # Method could handle a reference to a server group in the future. For now we only use strings. Important for users to know this.
-
-    # Cisco example:
-    # aaa authentication login default group TACACS-GROUP-NEW local
-    # aaa authentication enable default group TACACS-GROUP-NEW enable
+    method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL'], TACACS_GROUP is reference to server group
 
 class authenticationUser(aaaBaseClass):
     username: Optional[str] = None
@@ -534,27 +500,16 @@ class aaaAuthentication(BaseModel):
 
 # Authorization Models
 class aaaAuthorizationMethods(aaaBaseClass):
-    """
-    Define the authorization methods used by AAA. If you define a server group using the "aaaServerGroup" model, 
-    you can reference it here by its name, but only as a string.
-
-    Example in config map:
-    method = ['TACACS_GROUP','LOCAL']
-
-    Cisco example:
-    aaa authorization login default group TACACS-GROUP-NEW local
-    """
     method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
 
-class aaaAuthorizationEvents(aaaBaseClass):
-    """
-    Define authorization events. 
+class aaaAuthorizationEvent(aaaBaseClass):
+    event_type: dict = {
+        'event-type':'command',
+        'method':['tacacs_group']
+    }
 
-    Cisco example:
-    aaa authorization config-commands
-    aaa authorization console
-    """
-    events: Optional[List[str]] = Field(default_factory=list) # Ex. ['config-commands','console']
+class aaaAuthorizationEvents(BaseModel):
+    event: Optional[Dict[str, aaaAuthorizationEvent]] = {}
 
 class aaaAuthorization(BaseModel):
     config: Optional[Dict[str, aaaAuthorizationMethods]] = {}
@@ -562,33 +517,35 @@ class aaaAuthorization(BaseModel):
 
 # Accounting Models
 class aaaAccountingMethods(BaseModel):
-    """
-    Define the accounting methods used by AAA. If you define a server group using the "aaaServerGroup" model, 
-    you can reference it here by its name, but only as a string.
-
-    Example in config map:
-    method = ['TACACS_GROUP','LOCAL']
-
-    Cisco example:
-    aaa accounting login default group TACACS-GROUP-NEW local
-    """
     method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
 
 class aaaAccountingEvents(BaseModel):
-    """
-    Define accounting events.
-    
-    Cisco example:
-    aaa accounting send stop-record authentication failure
-    """
-    events: Optional[List[str]] = Field(default_factory=list) # Ex. ['send','stop-record','authentication', 'failure']
+    event: list = [
+        {
+        'event-type': 'command',
+        'config': {
+            'event-type': 'command',
+            'method': ['tacacs_group']
+            }
+        },
+        {
+        'event-type': 'system',
+        'config': {
+            'event-type': 'system',
+            'method': ['tacacs_group']
+            }
+        }
+    ]
 
 class aaaAccounting(BaseModel):
     config: aaaAccountingMethods = aaaAccountingMethods()
     events: aaaAccountingEvents = aaaAccountingEvents()
 
 class TripleA(BaseModel):
+    #config: dict = None
     server_groups: Optional[Dict[str, aaaServerGroupAttributes]] = {}
+    tacacs: Optional[Dict[str, aaaTacacsAttributes]] = {}
+    radius: Optional[Dict[str, aaaRadiusAttributes]] = {}
     authentication: aaaAuthentication = aaaAuthentication()
     authorization: aaaAuthorization = aaaAuthorization()
     accounting: aaaAccounting = aaaAccounting()
