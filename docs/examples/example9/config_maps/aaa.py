@@ -5,7 +5,9 @@ from acex.configuration.components.system.aaa import (
     aaaRadius,
     aaaAuthenticationMethods,
     aaaAuthorizationMethods,
-    aaaAccountingMethods
+    aaaAuthorizationEvents,
+    aaaAccountingMethods,
+    aaaAccountingEvents
 )
 
 from acex.configuration.components.interfaces import Svi
@@ -13,6 +15,13 @@ from acex.configuration.components.network_instances import Vlan
 
 class TacacsConfig(ConfigMap):
     def compile(self, context):
+        aaa_server_group = aaaServerGroup(
+            name = 'TACACS_GROUP',
+            enable = True,
+            type = 'tacacs',
+        )
+        context.configuration.add(aaa_server_group)
+        
         vlan = Vlan(
             name = 'vlan_1337', # You are allowed to change these stats. If ID changes, change name to "vlan_{ID}"
             vlan_id = 1337, # You are allowed to change these stats.
@@ -34,19 +43,41 @@ class TacacsConfig(ConfigMap):
             port = 49,
             secret_key = 'MySecretKey',
             address = '10.10.10.1',
-            source_interface = svi1337
+            source_interface = svi1337, # Could be a reference to an interface, or just an IP.
+            server_group = aaa_server_group
         )
         context.configuration.add(tacacs)
 
-        server_group = aaaServerGroup(
-            name = 'TACACS_GROUP',
-            enable = True,
-            type = 'tacacs',
-            tacacs = tacacs,
-            radius = 'hej'
-            #servers = ['10.10.10.1,172.16.23.1']
+        tacacs2 = aaaTacacs(
+            name = "tacacs_server_2",
+            port = 49,
+            secret_key = 'MySecretKey',
+            address = '10.123.132.1',
+            source_interface = svi1337, # Could be a reference to an interface, or just an IP.
+            server_group = aaa_server_group
         )
-        context.configuration.add(server_group)
+        context.configuration.add(tacacs2)
+
+        radius = aaaRadius(
+            name = "radius_server_1",
+            port = 49,
+            secret_key = 'radiusSomeSecretKey',
+            address = '172.16.23.54',
+            source_interface = svi1337, # Could be a reference to an interface, or just an IP.
+            server_group = aaa_server_group
+
+        )
+        context.configuration.add(radius)
+
+        radius2 = aaaRadius(
+            name = "radius_server_2",
+            port = 49,
+            secret_key = 'radiusSecretKey',
+            address = '172.16.12.123',
+            source_interface = svi1337, # Could be a reference to an interface, or just an IP.
+            server_group = aaa_server_group
+        )
+        context.configuration.add(radius2)
 
 class aaaConfig(ConfigMap):
     def compile(self, context):
@@ -62,11 +93,23 @@ class aaaConfig(ConfigMap):
         )
         context.configuration.add(aaa_authorization_methods)
 
+        aaa_authorization_events = aaaAuthorizationEvents(
+            name = 'AAA_AUTHOR_EVENTS',
+            events = ['config-commands','console','interactive-commands']
+        )
+        context.configuration.add(aaa_authorization_events)
+
         aaa_accounting_methods = aaaAccountingMethods(
             name = 'AAA_ACCOUNT_METHODS',
             method = ['TACACS_GROUP','LOCAL']
         )
         context.configuration.add(aaa_accounting_methods)
+
+        aaa_accounting_events = aaaAccountingEvents(
+            name = 'AAA_ACCOUNT_EVENTS',
+            events = ['send','cstop-record','authentication']
+        )
+        context.configuration.add(aaa_accounting_events)
 
 tacacs_config = TacacsConfig()
 tacacs_config.filters = FilterAttribute("site").eq("/.*/")
