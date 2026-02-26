@@ -83,8 +83,6 @@ class Configuration:
         aaaServerGroup: "system.aaa.server_groups",
         aaaTacacs: Template("system.aaa.server_groups.${server_group}.tacacs"),
         aaaRadius: Template("system.aaa.server_groups.${server_group}.radius"),
-        #aaaTacacs: "system.aaa.tacacs",
-        #aaaRadius: "system.aaa.radius",
         aaaAuthenticationMethods: "system.aaa.authentication.config",
         aaaAuthorizationMethods: "system.aaa.authorization.config",
         aaaAuthorizationEvents: "system.aaa.authorization.events",
