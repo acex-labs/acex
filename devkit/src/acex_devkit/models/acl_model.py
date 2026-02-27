@@ -25,7 +25,7 @@ class Ipv4AclEntryAttributes(IpAclOptions):
     '''
     Docstring for AclIpv4
 
-    * description: Description of the ACL entry. Renark in Cisco language.
+    * description: Description of the ACL entry. Remark in Cisco language.
     * sequence_id: Sequence number of the ACL entry.
     * log: Enable logging for matching packets.
     * source_port: Source port or port range.
@@ -43,9 +43,9 @@ class Ipv4AclEntryAttributes(IpAclOptions):
 
 class Ipv6AclEntryAttributes(IpAclOptions):
     '''
-    Docstring for AclIpv4
+    Docstring for AclIpv6
 
-    * description: Description of the ACL entry. Renark in Cisco language.
+    * description: Description of the ACL entry. Remark in Cisco language.
     * sequence_id: Sequence number of the ACL entry.
     * log: Enable logging for matching packets.
     * source_port: Source port or port range.
