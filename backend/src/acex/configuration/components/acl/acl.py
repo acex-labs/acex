@@ -1,5 +1,5 @@
 from acex.configuration.components.base_component import ConfigComponent
-from acex.models.acl_model import (
+from acex_devkit.models.acl_model import (
     Ipv4AclEntryAttributes,
     Ipv6AclEntryAttributes,
     Ipv4AclAttributes,
