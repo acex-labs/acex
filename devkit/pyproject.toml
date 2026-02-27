@@ -17,6 +17,7 @@ python = "^3.13"
 pydantic = "^2.12.5"
 typing-extensions = "^4.0.0"
 deepdiff = "^8.6.1"
+ipaddress = "^1.0.23"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
