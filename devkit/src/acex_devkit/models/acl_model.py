@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from ipaddress import IPv4Network, IPv6Network
-from acex.models.attribute_value import AttributeValue
+from acex_devkit.models.attribute_value import AttributeValue
 from enum import Enum
 from typing import Optional, Dict, Literal
 
