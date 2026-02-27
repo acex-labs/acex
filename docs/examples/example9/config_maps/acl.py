@@ -22,6 +22,7 @@ class Ipv4AclConfig(ConfigMap):
             destination_address = '192.168.1.0/24',
             protocol = 'tcp',
             destination_port = '443',
+            action = 'permit',
             ipv4_acl = ipv4_acl,
         )
 
@@ -35,6 +36,7 @@ class Ipv4AclConfig(ConfigMap):
             destination_address = '192.168.1.0/24',
             protocol = 'tcp',
             destination_port = '80',
+            action = 'permit',
             ipv4_acl = ipv4_acl,
         )
 
@@ -56,6 +58,7 @@ class Ipv6AclConfig(ConfigMap):
             destination_address = '2001:db8:2::/64',
             protocol = 'tcp',
             destination_port = '443',
+            action = 'permit',
             ipv6_acl = ipv6_acl,
         )
 
@@ -69,6 +72,7 @@ class Ipv6AclConfig(ConfigMap):
             destination_address = '5000:db8:2::/64',
             protocol = 'tcp',
             destination_port = '80',
+            action = 'permit',
             ipv6_acl = ipv6_acl,
         )
 
