@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex"
-version = "4.1.8"
+version = "4.2.0"
 description = "ACE-X Backend - Core automation engine and API"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -23,6 +23,7 @@ jinja2 = "^3.1.6"
 openai = "^1.54.0"
 mcp = "^1.20.0"
 fastmcp = "^2.13.0.2"
+ipaddress = "^1.0.23"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
