@@ -20,6 +20,7 @@ class IpAclOptions(BaseModel):
     sequence_id: Optional[AttributeValue[int]] = None
     log: Optional[AttributeValue[bool]] = None # Enable logging for matching packets.
     dscp: Optional[AttributeValue[int]] = None # Value of diffserv codepoint.
+    action: Optional[AttributeValue[str]] = None # e.g., "permit" or "deny" in Cisco or ACCEPT, DROP in Juniper
 
 class Ipv4AclEntryAttributes(IpAclOptions):
     '''
@@ -33,6 +34,7 @@ class Ipv4AclEntryAttributes(IpAclOptions):
     * source_address: Source IPv4 address or prefix.
     * destination_address: Destination IPv4 address or prefix.
     * dscp: Value of diffserv codepoint.
+    * action: Action to be taken for matching packets. e.g., "permit" or "deny" in Cisco or ACCEPT, DROP in Juniper
     * ipv4acl: Reference to the ACL this entry belongs to.
     
     * protocol: tcp, udp, icmp, ospf, ip, any # The protocol carried in the IP packet, expressed either as its IP protocol number, or by a defined identity.
@@ -53,6 +55,7 @@ class Ipv6AclEntryAttributes(IpAclOptions):
     * source: Source IPv6 address or prefix.
     * destination: Destination IPv6 address or prefix.
     * dscp: Value of diffserv codepoint.
+    * action: Action to be taken for matching packets. e.g., "permit" or "deny" in Cisco or ACCEPT, DROP in Juniper
     * ipv6acl: Reference to the ACL this entry belongs to.
     
     * protocol: tcp, udp, icmp, ospf, ip, any # The protocol carried in the IP packet, expressed either as its IP protocol number, or by a defined identity.
@@ -74,4 +77,3 @@ class Ipv6AclAttributes(BaseModel):
 class Acl(BaseModel):
     ipv4_acls: Optional[Dict[str, Ipv4AclAttributes]] = {}
     ipv6_acls: Optional[Dict[str, Ipv6AclAttributes]] = {}
-
