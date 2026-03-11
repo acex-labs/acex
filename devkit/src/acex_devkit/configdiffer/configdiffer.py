@@ -167,6 +167,12 @@ class ConfigDiffer:
                     changed_attributes=self._attribute_changes(observed_comp, desired_comp),
                 ))
 
-        return Diff(added=added, removed=removed, changed=changed)
+        return Diff(
+            added=added,
+            removed=removed,
+            changed=changed,
+            total_desired=len(desired_paths),
+            total_observed=len(observed_paths),
+        )
 
     

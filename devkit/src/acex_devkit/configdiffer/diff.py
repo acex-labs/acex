@@ -6,7 +6,7 @@ added, removed, or changed when comparing two configurations. This enables drive
 to render device-specific command patches based on the component changes.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer, computed_field
 from typing import Any, Dict, List, Optional, Type
 from enum import Enum
 
@@ -58,6 +58,15 @@ class ComponentChange(BaseModel):
     
     model_config = {"arbitrary_types_allowed": True}
 
+    @field_serializer("component_type")
+    def serialize_component_type(self, v: Type[Any]) -> str:
+        return v.__name__
+
+    @property
+    def component_type_name(self) -> str:
+        """Return the class name of the component type, e.g., 'FrontpanelPort'"""
+        return self.component_type.__name__
+
     def get_path_str(self, separator: str = "/") -> str:
         """Return the component path as a string, e.g., 'interfaces/GigabitEthernet0-0-1'"""
         return separator.join(self.path) if self.path else ""
@@ -74,17 +83,46 @@ class Diff(BaseModel):
     removed: List[ComponentChange] = Field(default_factory=list)
     changed: List[ComponentChange] = Field(default_factory=list)
 
+    # Total number of config points in desired/observed configs — populated by ConfigDiffer
+    total_desired: int = 0
+    total_observed: int = 0
+
+    @computed_field
+    @property
+    def compliant_count(self) -> int:
+        """
+        Number of desired config points that are fully compliant (present and
+        identical on the device). Equals total desired minus points that are
+        missing (added) or incorrect (changed).
+        """
+        return max(0, self.total_desired - len(self.added) - len(self.changed))
+
+    @computed_field
+    @property
+    def compliance_percentage(self) -> float:
+        """
+        Percentage of desired config points that are compliant.
+        Returns 100.0 when there are no desired config points.
+        """
+        if self.total_desired == 0:
+            return 100.0
+        return round(self.compliant_count / self.total_desired * 100, 2)
+
     def is_empty(self) -> bool:
         """Check if there are no changes"""
         return not (self.added or self.removed or self.changed)
 
-    def summary(self) -> Dict[str, int]:
-        """Get a summary of changes"""
+    def summary(self) -> Dict[str, Any]:
+        """Get a summary of changes and compliance metadata"""
         return {
             "added": len(self.added),
             "removed": len(self.removed),
             "changed": len(self.changed),
-            "total": len(self.added) + len(self.removed) + len(self.changed)
+            "total_changes": len(self.added) + len(self.removed) + len(self.changed),
+            "total_desired": self.total_desired,
+            "total_observed": self.total_observed,
+            "compliant_count": self.compliant_count,
+            "compliance_percentage": self.compliance_percentage,
         }
 
     def get_all_changes(self) -> List[ComponentChange]:
@@ -95,7 +133,7 @@ class Diff(BaseModel):
         """Get all changes for a specific component type (e.g., 'Loopback')"""
         return [
             change for change in self.get_all_changes()
-            if change.component_type == component_type
+            if change.component_type.__name__ == component_type
         ]
 
     def get_changes_by_path_prefix(self, path_prefix: List[str]) -> List[ComponentChange]:
