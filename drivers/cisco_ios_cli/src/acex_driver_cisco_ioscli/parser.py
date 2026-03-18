@@ -52,6 +52,7 @@ class CiscoIOSCLIParser:
         self.running_config = configuration
         self.parse_system_hostname()
         self.parse_ntp()
+        self.parse_ssh()
         # self.parse_interfaces()
         return self._parsed_config
 
@@ -156,3 +157,66 @@ class CiscoIOSCLIParser:
             "enabled": {"value": bool(ntp_servers)}
         }
         self.parsed_config.system.ntp.servers = ntp_servers
+
+    def parse_ssh(self) -> str:
+        """Parse SSH configuration."""
+        command = "show running ssh"
+
+        print(self.running_config)
+
+        parsed_data = parse_output(
+            platform=self.platform,
+            template_dir=self.custom_templates_dir,
+            command=command,
+            data=self.running_config
+        )
+    
+        ssh_values_dict = dict()
+        print(f"Parsed SSH data: {parsed_data}")
+        for entry in parsed_data:
+            print(f"Parsing SSH entry: {entry}")
+            ssh_version = None
+            if entry.get("protocol_version"):
+                ssh_version = {"value": entry.get("protocol_version")}
+                ssh_values_dict['enabled'] = {"value": bool(ssh_version)}
+                ssh_values_dict['protocol_version'] = ssh_version
+
+            ssh_timeout = None
+            if entry.get("timeout"):
+                ssh_timeout = {"value": entry.get("timeout")}
+                ssh_values_dict['timeout'] = ssh_timeout
+
+            ssh_auth_retries = None
+            if entry.get("authentication_retries"):
+                ssh_auth_retries = {"value": entry.get("authentication_retries")}
+                ssh_values_dict['authentication_retries'] = ssh_auth_retries
+
+            ssh_source_interface = None
+            if entry.get("source_interface"):
+                ssh_source_interface = {"value": entry.get("source_interface")}
+                ssh_values_dict['source_interface'] = ssh_source_interface
+
+            #ssh_values_dict = {
+            #    "enabled": {"value": bool(ssh_version)},
+            #    "protocol_version": ssh_version,
+            #    "timeout": ssh_timeout,
+            #    "authentication_retries": ssh_auth_retries,
+            #    "source_interface": ssh_source_interface
+            #}
+
+            print(f"SSH values dict: {ssh_values_dict}")
+
+            #self.parsed_config.system.ssh.config = {
+            #    "enabled": {"value": bool(ssh_version)},
+            #    "protocol_version": ssh_version,
+            #    "timeout": ssh_timeout,
+            #    "authentication_retries": ssh_auth_retries,
+            #    "source_interface": ssh_source_interface
+            #}
+        self.parsed_config.system.ssh.config = ssh_values_dict
+
+        algorithm_list = []
+        self.parsed_config.system.ssh.host_keys = {
+            "algorithms": algorithm_list,
+            "public_keys": {}
+        }
