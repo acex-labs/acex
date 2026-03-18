@@ -13,3 +13,4 @@ Template, Hostname, Platform, Command
 cisco_ios.show_running_phys_interfaces.textfsm, .*, cisco_ios, show running physical interfaces
 cisco_ios.show_running_hostname.textfsm, .*, cisco_ios, show running hostname
 cisco_ios.show_running_lag_interfaces.textfsm, .*, cisco_ios, show running lag interfaces
+cisco_ios.show_running_ntp.textfsm, .*, cisco_ios, show running ntp

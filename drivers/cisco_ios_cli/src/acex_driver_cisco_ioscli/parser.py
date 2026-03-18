@@ -51,6 +51,7 @@ class CiscoIOSCLIParser:
         """Parse the Cisco IOS CLI configuration content."""
         self.running_config = configuration
         self.parse_system_hostname()
+        self.parse_ntp()
         # self.parse_interfaces()
         return self._parsed_config
 
@@ -110,3 +111,50 @@ class CiscoIOSCLIParser:
         self.parsed_config.system.config.hostname = {
             "value": parsed_data[0].get("hostname")
             }
+
+    def parse_ntp(self) -> str:
+        """Parse NTP configuration."""
+        command = "show running ntp"
+
+        parsed_data = parse_output(
+            platform=self.platform,
+            template_dir=self.custom_templates_dir,
+            command=command,
+            data=self.running_config
+        )
+
+        ntp_servers = {}
+        print('self.parsed_config', self.parsed_config)
+        print('parsed data', parsed_data)
+        for entry in parsed_data:
+            server = entry.get("server")
+            if not server:
+                continue
+
+            ntp_server = {
+                "address": {"value": server}
+            }
+
+            version = entry.get("version")
+            if version:
+                ntp_server["version"] = {"value": int(version)}
+
+            # Not used in Cisco IOS, but included for completeness
+            #port = entry.get("port")
+            #if port:
+            #    ntp_server["port"] = {"value": int(port)}
+
+            prefer = entry.get("prefer")
+            if prefer:
+                ntp_server["prefer"] = {"value": True}
+
+            source_interface = entry.get("source_interface")
+            if source_interface:
+                ntp_server["source_interface"] = {"value": source_interface}
+
+            ntp_servers[server] = ntp_server
+
+        self.parsed_config.system.ntp.config = {
+            "enabled": {"value": bool(ntp_servers)}
+        }
+        self.parsed_config.system.ntp.servers = ntp_servers

@@ -1,0 +1,7 @@
+Value SERVER (\S+)
+Value PREFER (prefer)
+Value SOURCE_INTERFACE (\S+)
+Value VERSION (\S+)
+
+Start
+  ^ntp\s+server\s+${SERVER}(?:\s+${VERSION}\s\d)?(?:\s+${PREFER})?(?:\s+source\s+${SOURCE_INTERFACE})?\s*$$ -> Record
