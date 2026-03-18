@@ -124,8 +124,6 @@ class CiscoIOSCLIParser:
         )
 
         ntp_servers = {}
-        print('self.parsed_config', self.parsed_config)
-        print('parsed data', parsed_data)
         for entry in parsed_data:
             server = entry.get("server")
             if not server:
