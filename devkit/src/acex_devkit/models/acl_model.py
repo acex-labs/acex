@@ -67,13 +67,13 @@ class Ipv6AclEntryAttributes(IpAclOptions):
 class Ipv4AclAttributes(BaseModel):
     name: AttributeValue[str]
     type: AttributeValue[str] = "ipv4_acl"
-    acl_entries: Optional[Dict[str, Ipv4AclEntryAttributes]] = {}
+    acl_entries: Optional[Dict[str, Ipv4AclEntryAttributes]] = None
 
 class Ipv6AclAttributes(BaseModel):
     name: AttributeValue[str]
     type: AttributeValue[str] = "ipv6_acl"
-    acl_entries: Optional[Dict[str, Ipv6AclEntryAttributes]] = {}
+    acl_entries: Optional[Dict[str, Ipv6AclEntryAttributes]] = None
     
 class Acl(BaseModel):
-    ipv4_acls: Optional[Dict[str, Ipv4AclAttributes]] = {}
-    ipv6_acls: Optional[Dict[str, Ipv6AclAttributes]] = {}
+    ipv4_acls: Optional[Dict[str, Ipv4AclAttributes]] = None
+    ipv6_acls: Optional[Dict[str, Ipv6AclAttributes]] = None

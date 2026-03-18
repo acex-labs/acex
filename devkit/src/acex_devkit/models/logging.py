@@ -42,36 +42,36 @@ class LoggingConfig(BaseModel):
     buffer_size: Optional[AttributeValue[int]] = None
 
 class Console(BaseModel):
-    name: str = None
-    line_number: int = None
-    logging_synchronous: bool = True
+    name: Optional[AttributeValue[str]] = None
+    line_number: Optional[AttributeValue[int]] = None
+    logging_synchronous: Optional[AttributeValue[bool]] = None
 
 class RemoteServer(BaseModel):
-    name: str = None
-    host: str = None
-    port: Optional[int] = 514
-    transfer: Optional[str] = 'udp'
+    name: Optional[AttributeValue[str]] = None
+    host: Optional[AttributeValue[str]] = None
+    port: Optional[AttributeValue[int]] = None
+    transfer: Optional[AttributeValue[str]] = None
     source_address: Optional[AttributeValue[str]] = None # Can be an IP address or an interface reference
 
 class VtyLine(BaseModel):
-    name: str = None
-    line_number: int = None
-    logging_synchronous: bool = True
-    transport_input: Optional[str] = 'ssh' # default is SSH. Mostly used by Cisco.
+    name: Optional[AttributeValue[str]] = None
+    line_number: Optional[AttributeValue[int]] = None
+    logging_synchronous: Optional[AttributeValue[bool]] = None
+    transport_input: Optional[AttributeValue[str]] = None # default is SSH. Mostly used by Cisco.
 
 class FileLogging(BaseModel):
-    name: str = None # object name
-    filename: str = None # name of the file
-    rotate: Optional[int] = None # How many versions to keep. Juniper specific. 
-    max_size: Optional[int] = None # Max size in bytes. Used both for Cisco and Juniper. 
-    min_size: Optional[int] = None # Min size in bytes. Only used for Cisco.
-    facility: LoggingFacility # Type of log
-    severity: LoggingSeverity # Severity level
+    name: Optional[AttributeValue[str]] = None # object name
+    filename: Optional[AttributeValue[str]] = None # name of the file
+    rotate: Optional[AttributeValue[int]] = None # How many versions to keep. Juniper specific.
+    max_size: Optional[AttributeValue[int]] = None # Max size in bytes. Used both for Cisco and Juniper.
+    min_size: Optional[AttributeValue[int]] = None # Min size in bytes. Only used for Cisco.
+    facility: Optional[AttributeValue[LoggingFacility]] = None # Type of log
+    severity: Optional[AttributeValue[LoggingSeverity]] = None # Severity level
 
 class LoggingEvent(BaseModel):
-    enabled: bool
-    severity: LoggingSeverity
+    enabled: Optional[AttributeValue[bool]] = None
+    severity: Optional[AttributeValue[LoggingSeverity]] = None
 
 
 class LoggingEvents(BaseModel):
-    events: Optional[Dict[str, LoggingEvent]] = {}
+    events: Optional[Dict[str, LoggingEvent]] = None

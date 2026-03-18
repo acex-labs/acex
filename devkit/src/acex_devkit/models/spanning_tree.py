@@ -4,27 +4,27 @@ from enum import Enum
 from typing import Optional, Dict
 
 class SpanningTreeGlobalAttributes(BaseModel):
-    mode: Optional[str] = None # Needs to be defined by user. Default for Cisco is RAPID-PVST and for Juniper it's just RSTP
-    bpdu_filter: Optional[bool] = False # Disabled by default
-    bpdu_guard: Optional[bool] = False # Disabled by default
-    loop_guard: Optional[bool] = False # Disabled by default
-    portfast: Optional[bool] = False # Disabled by default. Global setting for access ports.
-    bridge_assurance: Optional[bool] = False # Disabled by default. Only supported by MST and PVRST+
-    #interfaces: Optional[Dict[str, Reference]] = {}
+    mode: Optional[AttributeValue[str]] = None # Needs to be defined by user. Default for Cisco is RAPID-PVST and for Juniper it's just RSTP
+    bpdu_filter: Optional[AttributeValue[bool]] = None # Disabled by default
+    bpdu_guard: Optional[AttributeValue[bool]] = None # Disabled by default
+    loop_guard: Optional[AttributeValue[bool]] = None # Disabled by default
+    portfast: Optional[AttributeValue[bool]] = None # Disabled by default. Global setting for access ports.
+    bridge_assurance: Optional[AttributeValue[bool]] = None # Disabled by default. Only supported by MST and PVRST+
+    #interfaces: Optional[Dict[str, Reference]] = None
 
 class SpanningTreeModeConfig(BaseModel):
-    hello_time: Optional[int] = None
-    max_age: Optional[int] = None
-    forward_delay: Optional[int] = None
-    bridge_priority: Optional[int] = None
-    hold_count: Optional[int] = None # Range 1..10
+    hello_time: Optional[AttributeValue[int]] = None
+    max_age: Optional[AttributeValue[int]] = None
+    forward_delay: Optional[AttributeValue[int]] = None
+    bridge_priority: Optional[AttributeValue[int]] = None
+    hold_count: Optional[AttributeValue[int]] = None # Range 1..10
 
 ## RSTP
 class RstpAttributes(SpanningTreeModeConfig): ...
 
 class RSTPConfig(BaseModel):
     #config: RstpAttributes = RstpAttributes()
-    config: Optional[Dict[str, RstpAttributes]] = {}
+    config: Optional[Dict[str, RstpAttributes]] = None
 
 ### MSTP
 class MstpInstanceAttributes(SpanningTreeModeConfig):
@@ -38,8 +38,8 @@ class MstpAttributes(SpanningTreeModeConfig):
 
 class MSTPConfig(BaseModel):
     #config: MstpAttributes = MstpAttributes()
-    config: Optional[Dict[str, MstpAttributes]] = {}
-    mst_instances: Optional[Dict[str, MstpInstanceAttributes]] = {}
+    config: Optional[Dict[str, MstpAttributes]] = None
+    mst_instances: Optional[Dict[str, MstpInstanceAttributes]] = None
 
 ### Rapid PVST
 class RapidPVSTAttributes(SpanningTreeModeConfig):
@@ -57,10 +57,10 @@ class RapidPVSTAttributes(SpanningTreeModeConfig):
     vlan: Optional[AttributeValue[int | list[int]]] = None  # Single VLAN ID or list of VLANs using Rapid PVST+
 
 class RapidPVSTConfig(BaseModel):
-    vlan: Optional[Dict[str, RapidPVSTAttributes]] = {}
+    vlan: Optional[Dict[str, RapidPVSTAttributes]] = None
 
 class SpanningTree(BaseModel):
-    config: Optional[Dict[str, SpanningTreeGlobalAttributes]] = {}#SpanningTreeGlobalAttributes()
+    config: Optional[Dict[str, SpanningTreeGlobalAttributes]] = None#SpanningTreeGlobalAttributes()
     rstp: Optional[RSTPConfig] = RSTPConfig()
     mstp: Optional[MSTPConfig] = MSTPConfig()
     rapidpvst: Optional[RapidPVSTConfig] = RapidPVSTConfig()

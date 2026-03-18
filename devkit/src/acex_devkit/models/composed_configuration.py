@@ -55,10 +55,10 @@ class SystemConfig(BaseModel):
 class LoggingComponents(BaseModel): 
     config: LoggingConfig = LoggingConfig()
     console: Optional[Console] = None
-    remote_servers: Optional[Dict[str, RemoteServer]] = {}
+    remote_servers: Optional[Dict[str, RemoteServer]] = None
     events: Optional[LoggingEvents] = None
-    vty: Optional[Dict[str, VtyLine]] = {}
-    files: Optional[Dict[str, FileLogging]] = {}
+    vty: Optional[Dict[str, VtyLine]] = None
+    files: Optional[Dict[str, FileLogging]] = None
 
 class NtpConfig(BaseModel):
     enabled: AttributeValue[bool] = AttributeValue(value=False)
@@ -73,7 +73,7 @@ class NtpServer(BaseModel):
 
 class Ntp(BaseModel): 
     config: Optional[NtpConfig] = None
-    servers: Optional[Dict[str, NtpServer]] = {}
+    servers: Optional[Dict[str, NtpServer]] = None
 
 class SshServer(BaseModel): 
     enable: Optional[AttributeValue[bool]] = None
@@ -100,7 +100,7 @@ class AuthorizedKey(BaseModel):
 
 class Ssh(BaseModel): 
     config: Optional[SshServer] = None
-    host_keys: Optional[Dict[str, AuthorizedKey]] = {}
+    host_keys: Optional[Dict[str, AuthorizedKey]] = None
 
 class Lldp(BaseModel): ...
 
@@ -164,23 +164,22 @@ class EthernetCsmacdInterface(Interface):
     lacp_interval: Optional[AttributeValue[Literal["fast", "slow"]]] = None
 
     # Spanning-tree relaterade attribut
-    stp_port_priority: Optional[int] = None
-    stp_cost: Optional[int] = None
-    stp_edge_port: Optional[bool] = False # Disabled by default
-    stp_bpdu_filter: Optional[bool] = False # Disabled by default
-    stp_bpdu_guard: Optional[bool] = False # Disabled by default
-    stp_loop_guard: Optional[bool] = False # Disabled by default
-    stp_root_guard: Optional[bool] = False # Disabled by default
-    stp_portfast: Optional[bool] = False # Disabled by default
-    stp_link_type: Optional[Literal["point-to-point", "shared"]] = None  # e.g., "point-to-point", "shared"
+    stp_port_priority: Optional[AttributeValue[int]] = None
+    stp_cost: Optional[AttributeValue[int]] = None
+    stp_edge_port: Optional[AttributeValue[bool]] = None
+    stp_bpdu_filter: Optional[AttributeValue[bool]] = None
+    stp_bpdu_guard: Optional[AttributeValue[bool]] = None
+    stp_loop_guard: Optional[AttributeValue[bool]] = None
+    stp_root_guard: Optional[AttributeValue[bool]] = None
+    stp_portfast: Optional[AttributeValue[bool]] = None
+    stp_link_type: Optional[AttributeValue[Literal["point-to-point", "shared"]]] = None
 
 
 class Ieee8023adLagInterface(Interface):
     "LAG Interface"
     type: Literal["ieee8023adLag"] = "ieee8023adLag"
-    #aggregate_id: AttributeValue[int] = None
-    aggregate_id: int = None
-    members: list[str] = Field(default_factory=list)
+    aggregate_id: Optional[AttributeValue[int]] = None
+    members: Optional[AttributeValue[List[str]]] = None
     max_ports: Optional[AttributeValue[int]] = None
     switchport: Optional[AttributeValue[bool]] = None
     switchport_mode: Optional[AttributeValue[Literal["access", "trunk"]]] = None
@@ -226,15 +225,15 @@ class StaticRouteNextHop(BaseModel):
 class StaticRoute(BaseModel):
     route_name: Optional[AttributeValue[str]] = None
     prefix: AttributeValue[str]
-    next_hops: Optional[Dict[str, StaticRouteNextHop]] = {}
+    next_hops: Optional[Dict[str, StaticRouteNextHop]] = None
     network_instance: Optional[AttributeValue[str]] = None
 
 class Protocols(BaseModel):
-    static_routes: Optional[Dict[str, StaticRoute]] = {}
+    static_routes: Optional[Dict[str, StaticRoute]] = None
     # OSPF, BGP, etc. can be added here as needed
 
 class RouteTarget(BaseModel):
-    value: str # TODO: Add constraints and validators... 
+    value: Optional[AttributeValue[str]] = None
 
 class ImportExportPolicy(BaseModel):
     export_route_target: Optional[List[RouteTarget]] = None
@@ -246,9 +245,9 @@ class InterInstancePolicy(BaseModel):
 class NetworkInstance(BaseModel): 
     name: AttributeValue[str]
     description: Optional[AttributeValue[str]] = None
-    vlans: Optional[Dict[str, Vlan]] = {}
+    vlans: Optional[Dict[str, Vlan]] = None
     interfaces: Optional[Dict[str, Reference]] = {}
-    inter_instance_policies: Optional[Dict[str, InterInstancePolicy]] = {}
+    inter_instance_policies: Optional[Dict[str, InterInstancePolicy]] = None
     protocols: Optional[Protocols] = Protocols()
 
 class LacpConfig(BaseModel):
@@ -258,7 +257,7 @@ class LacpConfig(BaseModel):
 
 class Lacp(BaseModel):
     config: Optional[LacpConfig] = LacpConfig()
-    interfaces: Optional[Dict[str, Interface]] = {}
+    interfaces: Optional[Dict[str, Interface]] = None
 
 # SNMP
 class SnmpAccess(str, Enum):
@@ -323,7 +322,7 @@ class SnmpView(BaseModel):
 
 
 class SnmpServer(BaseModel):
-    name: str
+    name: Optional[AttributeValue[str]] = None
     address: AttributeValue[str]
     port: Optional[AttributeValue[int]] = AttributeValue(value=162)
     enabled: Optional[AttributeValue[bool]] = AttributeValue(value=True)
@@ -450,41 +449,41 @@ class TrapEventOptions(str, Enum):
 	BULKSTAT_TRANSFER = "bulkstat_transfer"
 
 class TrapEvent(BaseModel):
-    name: str
-    event_name: TrapEventOptions
+    name: Optional[AttributeValue[str]] = None
+    event_name: Optional[AttributeValue[TrapEventOptions]] = None
 
 #class SnmpTrap(BaseModel): ...
 
 class Snmp(BaseModel):
-    config: Optional[Dict[str, SnmpConfig]] = {}
-    communities: Optional[Dict[str, SnmpCommunity]] = {}
-    users: Optional[Dict[str, SnmpUser]] = {}
-    trap_servers: Optional[Dict[str, SnmpServer]] = {}
-    trap_events: Optional[Dict[str, TrapEvent]] = {}
-    views: Optional[Dict[str, SnmpView]] = {}
+    config: Optional[Dict[str, SnmpConfig]] = None
+    communities: Optional[Dict[str, SnmpCommunity]] = None
+    users: Optional[Dict[str, SnmpUser]] = None
+    trap_servers: Optional[Dict[str, SnmpServer]] = None
+    trap_events: Optional[Dict[str, TrapEvent]] = None
+    views: Optional[Dict[str, SnmpView]] = None
 
 # AAA
 class aaaBaseClass(BaseModel):
-    name: str = None
+    name: Optional[AttributeValue[str]] = None
 
 class aaaTacacsAttributes(BaseModel):
-    port: Optional[int] = 49
-    secret_key: Optional[str] = None
-    secret_key_hashed: Optional[str] = None
-    address: Optional[str] = None
-    timeout: Optional[int] = 30
-    source_interface: Optional[Reference] = None #Optional[Reference] = None # should be reference
+    port: Optional[AttributeValue[int]] = None
+    secret_key: Optional[AttributeValue[str]] = None
+    secret_key_hashed: Optional[AttributeValue[str]] = None
+    address: Optional[AttributeValue[str]] = None
+    timeout: Optional[AttributeValue[int]] = None
+    source_interface: Optional[Reference] = None
     server_group: Optional[AttributeValue[str]] = None
 
 class aaaRadiusAttributes(BaseModel):
-    auth_port: Optional[int] = 1812
-    acct_port: Optional[int] = 1813
-    secret_key: Optional[str] = None
-    secret_key_hashed: Optional[str] = None
-    address: Optional[str] = None
-    timeout: Optional[int] = 30
-    source_interface: Optional[Reference] = None #Optional[Reference] = None # should be reference
-    retransmit_attempts: Optional[int] = 3
+    auth_port: Optional[AttributeValue[int]] = None
+    acct_port: Optional[AttributeValue[int]] = None
+    secret_key: Optional[AttributeValue[str]] = None
+    secret_key_hashed: Optional[AttributeValue[str]] = None
+    address: Optional[AttributeValue[str]] = None
+    timeout: Optional[AttributeValue[int]] = None
+    source_interface: Optional[Reference] = None
+    retransmit_attempts: Optional[AttributeValue[int]] = None
     server_group: Optional[AttributeValue[str]] = None
 
 class aaaServerGroupAttributes(BaseModel):
@@ -494,13 +493,13 @@ class aaaServerGroupAttributes(BaseModel):
     Type is used to tell future renderers what kind of server group this is.
     Example:
     type = 'tacacs' or type = 'radius'
-    
+
     The tacacs and radius attributes expect a reference to the aaaTacacs and aaaRadius models respectively.
 
     Example in config map:
     enable = True
     type = 'tacacs'
-    tacacs = [tacacs_server1, tacacs_server2] 
+    tacacs = [tacacs_server1, tacacs_server2]
     radius = radius_server1
 
     Cisco example:
@@ -508,10 +507,10 @@ class aaaServerGroupAttributes(BaseModel):
      server name tacacs_server1
      server name tacacs_server2
     """
-    enable: Optional[bool] = False
-    type: Optional[Literal['tacacs','radius']] = None
-    tacacs: Optional[Dict[str, aaaTacacsAttributes]] = {} #Optional[Dict[str, Reference]] = None
-    radius: Optional[Dict[str, aaaRadiusAttributes]] = {} #Optional[Dict[str, Reference]] = None
+    enable: Optional[AttributeValue[bool]] = None
+    type: Optional[AttributeValue[Literal['tacacs','radius']]] = None
+    tacacs: Optional[Dict[str, aaaTacacsAttributes]] = None
+    radius: Optional[Dict[str, aaaRadiusAttributes]] = None
 
 # Authentication Models
 class aaaAuthenticationMethods(aaaBaseClass):
@@ -534,26 +533,26 @@ class aaaAuthenticationMethods(aaaBaseClass):
     # aaa authentication enable default group TACACS-GROUP-NEW enable
 
 class authenticationUser(aaaBaseClass):
-    username: Optional[str] = None
-    password: Optional[str] = None
-    password_hahsed: Optional[str] = None
-    ssh_key: Optional[str] = None
-    role: Optional[str] = None
+    username: Optional[AttributeValue[str]] = None
+    password: Optional[AttributeValue[str]] = None
+    password_hahsed: Optional[AttributeValue[str]] = None
+    ssh_key: Optional[AttributeValue[str]] = None
+    role: Optional[AttributeValue[str]] = None
 
 class aaaAuthenticationUsers(aaaBaseClass):
-    username: Optional[Dict[str, authenticationUser]] = {}
+    username: Optional[Dict[str, authenticationUser]] = None
 
-class adminUser(aaaBaseClass): # when to use this?
-    admin_password: Optional[str] = None
-    admin_password_hashed: Optional[str] = None
+class adminUser(aaaBaseClass):
+    admin_password: Optional[AttributeValue[str]] = None
+    admin_password_hashed: Optional[AttributeValue[str]] = None
 
 class aaaAuthenticationAdminUsers(BaseModel):
-    config: Optional[Dict[str, adminUser]] = {}
+    config: Optional[Dict[str, adminUser]] = None
 
 class aaaAuthentication(BaseModel):
-    config: Optional[Dict[str, aaaAuthenticationMethods]] = {}
-    admin_user: Optional[Dict[str, aaaAuthenticationAdminUsers]] = {}
-    users: Optional[Dict[str, aaaAuthenticationUsers]] = {}
+    config: Optional[Dict[str, aaaAuthenticationMethods]] = None
+    admin_user: Optional[Dict[str, aaaAuthenticationAdminUsers]] = None
+    users: Optional[Dict[str, aaaAuthenticationUsers]] = None
 
 # Authorization Models
 class aaaAuthorizationMethods(aaaBaseClass):
@@ -583,10 +582,8 @@ class aaaAuthorizationEvents(aaaBaseClass):
     event: Optional[AttributeValue[str]] = None
 
 class aaaAuthorization(BaseModel):
-    #config: Optional[Dict[str, aaaAuthorizationMethods]] = {}
-    config: Optional[Dict[str, aaaAuthorizationMethods]] = {}
-    #events: Optional[Dict[str, aaaAuthorizationEvents]] = {}
-    events: Optional[Dict[str, aaaAuthorizationEvents]] = {}
+    config: Optional[Dict[str, aaaAuthorizationMethods]] = None
+    events: Optional[Dict[str, aaaAuthorizationEvents]] = None
 
 # Accounting Models
 class aaaAccountingMethods(BaseModel):
@@ -614,17 +611,15 @@ class aaaAccountingEvents(BaseModel):
     event: Optional[AttributeValue[str]] = None
 
 class aaaAccounting(BaseModel):
-    #config: aaaAccountingMethods = aaaAccountingMethods()
-    config: Optional[Dict[str, aaaAccountingMethods]] = {}
-    #events: aaaAccountingEvents = aaaAccountingEvents()
-    events: Optional[Dict[str, aaaAccountingEvents]] = {}
+    config: Optional[Dict[str, aaaAccountingMethods]] = None
+    events: Optional[Dict[str, aaaAccountingEvents]] = None
 
 class aaaGlobalAttributes(BaseModel):
     enabled: Optional[AttributeValue[bool]] = False # default False
 
 class TripleA(BaseModel):
     config: aaaGlobalAttributes = aaaGlobalAttributes()
-    server_groups: Optional[Dict[str, aaaServerGroupAttributes]] = {}
+    server_groups: Optional[Dict[str, aaaServerGroupAttributes]] = None
     authentication: aaaAuthentication = aaaAuthentication()
     authorization: aaaAuthorization = aaaAuthorization()
     accounting: aaaAccounting = aaaAccounting()
@@ -655,3 +650,13 @@ class ComposedConfiguration(BaseModel):
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
     stp: Optional[SpanningTree] = SpanningTree()
+
+
+""" 
+GUIDELINES FOR COMPOSED CONFIGURATION:
+
+1. All values must always be typed as AttributeValue.
+2. Containers must always be defined as hierarchical pydantic types, no dicts as placeholders.
+3. Component collections are always Dict[str, BaseModel] — the key identifies the component
+4. Default values for Optional is always None.
+"""
