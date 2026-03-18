@@ -322,9 +322,19 @@ def _format_value(value, max_length: int = 100) -> str:
         if value is None:
             return "null"
     
-    if isinstance(value, (dict, list)):
-        # For complex objects, show compact JSON
-        value_str = json.dumps(value, separators=(',', ':'))
+    if isinstance(value, BaseModel):
+        value_str = json.dumps(value.model_dump(), separators=(',', ':'))
+    elif isinstance(value, (dict, list)):
+        # Convert any nested BaseModel instances before serializing
+        def _to_serializable(obj):
+            if isinstance(obj, BaseModel):
+                return obj.model_dump()
+            if isinstance(obj, dict):
+                return {k: _to_serializable(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_to_serializable(i) for i in obj]
+            return obj
+        value_str = json.dumps(_to_serializable(value), separators=(',', ':'))
     else:
         value_str = str(value)
     

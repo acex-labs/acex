@@ -1,130 +1,114 @@
 from pydantic import BaseModel
-from typing import Any, Dict, List, Iterator, Tuple
+from typing import Any, Dict, List, Optional, get_origin, get_args
 
-from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, Metadata
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.configdiffer.diff import Diff, ComponentChange, AttributeChange, ComponentDiffOp
-
-import json
 
 
 class ConfigDiffer:
 
-    IGNORED_KEYS = ["metadata", "logging", "ssh", "snmp", "network_instances", "interfaces", "ntp", "domain_name", "location", "contact", "motd_banner"]
+    def _is_dict_of_models(self, annotation) -> bool:
+        """Check if a type annotation is Dict[str, SomeBaseModel]."""
+        origin = get_origin(annotation)
+        if origin is dict:
+            args = get_args(annotation)
+            if len(args) == 2 and isinstance(args[1], type) and issubclass(args[1], BaseModel):
+                return True
+        return False
 
-    def _clean_metadata(self, obj: dict) -> dict:
+    def _is_base_model(self, annotation) -> bool:
+        """Check if a type annotation is a BaseModel subclass (not Dict, not AttributeValue)."""
+        return (
+            isinstance(annotation, type)
+            and issubclass(annotation, BaseModel)
+            and not issubclass(annotation, AttributeValue)
+        )
+
+    def _unwrap_optional(self, annotation):
+        """Unwrap Optional[X] to X. Returns the annotation unchanged if not Optional."""
+        origin = get_origin(annotation)
+        if origin is type(None):
+            return annotation
+        args = get_args(annotation)
+        if args:
+            # Optional[X] is Union[X, None]
+            non_none = [a for a in args if a is not type(None)]
+            if len(non_none) == 1:
+                return non_none[0]
+        return annotation
+
+    def _flatten(self, model: BaseModel, path: tuple = ()) -> Dict[tuple, BaseModel]:
         """
-        Recursively ignored keys.
-        """
-        if not isinstance(obj, dict):
-            return obj
-        cleaned = {}
-        for k, v in obj.items():
-            if k in self.__class__.IGNORED_KEYS:
-                continue
-            if isinstance(v, dict):
-                cleaned[k] = self._clean_metadata(v)
-            elif isinstance(v, list):
-                cleaned[k] = [self._clean_metadata(item) if isinstance(item, dict) else item for item in v]
-            else:
-                cleaned[k] = v
-        return cleaned
+        Recursively walk a Pydantic model using type annotations to find
+        all components. Returns a flat mapping of path → model instance.
 
-
-    def _dump_to_dicts(self, config: ComposedConfiguration) -> dict:
-        """
-        Dumps to dict, removes unnecessary keys except component_class. 
-        """
-        # Remove most metadata, but keep component_class for type identification
-        config_dict = config.model_dump(exclude_unset=True)
-        return self._clean_metadata(config_dict)
-
-
-    def _flatten(self, d: dict, path: tuple = ()) -> Dict[tuple, dict]:
-        """
-        Recursively walk the tree and collect every component (dict with
-        'component_class') into a flat mapping of path → component_dict.
-
-        Example result:
-            {
-                ('interfaces', 'GigabitEthernet0/0/1'): {...},
-                ('network_instances', 'default', 'vlans', '100'): {...},
-            }
+        Rules:
+        - Dict[str, BaseModel] → component collection, each entry is a leaf
+        - BaseModel (not in Dict) → container, recurse deeper
+        - AttributeValue / primitives / None → skip (attributes, not components)
         """
         result = {}
-        for key, value in d.items():
-            current_path = path + (key,)
-            if not isinstance(value, dict):
+
+        for field_name, field_info in model.model_fields.items():
+            annotation = self._unwrap_optional(field_info.annotation)
+            value = getattr(model, field_name)
+
+            if value is None:
                 continue
-            # Try to find deeper components first
-            deeper = self._flatten(value, current_path)
-            if deeper:
-                # Sub-components found — use those (don't emit current level)
-                result.update(deeper)
-            elif any(isinstance(v, dict) and 'value' in v for v in value.values()):
-                # No sub-components, but this dict has AttributeValue fields → it's a leaf
-                result[current_path] = value
+
+            if self._is_dict_of_models(annotation):
+                # Component collection: each entry is a diffable component
+                for key, component in value.items():
+                    component_path = path + (field_name, key)
+                    result[component_path] = component
+
+            elif self._is_base_model(annotation):
+                # Recurse deeper — if nothing found, this model itself is a leaf component
+                child_path = path + (field_name,)
+                deeper = self._flatten(value, child_path)
+                if deeper:
+                    result.update(deeper)
+                else:
+                    result[child_path] = value
+
         return result
 
-
-
-    def _get_by_path(self, config: ComposedConfiguration, path: tuple) -> Any:
+    def _attribute_changes(self, before: BaseModel, after: BaseModel) -> List[AttributeChange]:
         """
-        Traverse the ComposedConfiguration object using a path tuple and return
-        the actual Pydantic model instance (or primitive) at that location.
-
-        Example:
-            path = ('interfaces', 'GigabitEthernet0/0/1')
-            → returns the actual SoftwareLoopbackInterface / EthernetCsmacdInterface etc.
-        """
-        obj = config
-        for key in path:
-            if isinstance(obj, dict):
-                obj = obj[key]
-            else:
-                obj = getattr(obj, key)
-        return obj
-
-    def _attribute_changes(self, before: dict, after: dict) -> List[AttributeChange]:
-        """
-        Compare two component dicts and return a list of changed attributes.
+        Compare two component model instances and return a list of changed attributes.
         """
         changes = []
-        for key in set(before.keys()) | set(after.keys()):
-            b = before.get(key)
-            a = after.get(key)
+        all_fields = set(before.model_fields.keys()) | set(after.model_fields.keys())
+
+        for field_name in all_fields:
+            b = getattr(before, field_name, None)
+            a = getattr(after, field_name, None)
             if b != a:
-                changes.append(AttributeChange(attribute_name=key, before=b, after=a))
+                changes.append(AttributeChange(attribute_name=field_name, before=b, after=a))
+
         return changes
 
     def diff(self, *, desired_config: ComposedConfiguration, observed_config: ComposedConfiguration) -> Diff:
         """
         Compare two ComposedConfiguration objects and return a component-based diff.
 
-        Walks both configs using Pydantic model structure (not heuristics) to find
-        all named components inside Dict[str, Model] containers. Components are
-        identified by their full path, e.g. ('interfaces', 'GigabitEthernet0/0/1').
-
-        Args:
-            desired_config: The target configuration we want to achieve.
-            observed_config: The current configuration as observed on the device.
-
-        Returns:
-            Diff: A structured diff showing added, removed, and changed components.
+        Uses Pydantic model introspection to find all components (entries in
+        Dict[str, BaseModel] fields). Components are identified by their full
+        path, e.g. ('interfaces', 'GigabitEthernet0/0/1').
         """
-        flat_observed = self._flatten(self._dump_to_dicts(observed_config))
-        flat_desired = self._flatten(self._dump_to_dicts(desired_config))
+        flat_desired = self._flatten(desired_config)
+        flat_observed = self._flatten(observed_config)
 
-        observed_paths = set(flat_observed.keys())
         desired_paths = set(flat_desired.keys())
-
+        observed_paths = set(flat_observed.keys())
 
         added = []
         removed = []
         changed = []
 
         for path in desired_paths - observed_paths:
-            obj = self._get_by_path(desired_config, path)
+            obj = flat_desired[path]
             added.append(ComponentChange(
                 op=ComponentDiffOp.ADD,
                 path=list(path),
@@ -133,11 +117,11 @@ class ConfigDiffer:
                 before=None,
                 after=obj,
                 before_dict=None,
-                after_dict=flat_desired[path],
+                after_dict=obj.model_dump(),
             ))
 
         for path in observed_paths - desired_paths:
-            obj = self._get_by_path(observed_config, path)
+            obj = flat_observed[path]
             removed.append(ComponentChange(
                 op=ComponentDiffOp.REMOVE,
                 path=list(path),
@@ -145,16 +129,14 @@ class ConfigDiffer:
                 component_name=path[-1],
                 before=obj,
                 after=None,
-                before_dict=flat_observed[path],
+                before_dict=obj.model_dump(),
                 after_dict=None,
             ))
 
         for path in desired_paths & observed_paths:
-            desired_comp = flat_desired[path]
-            observed_comp = flat_observed[path]
-            if desired_comp != observed_comp:
-                desired_obj = self._get_by_path(desired_config, path)
-                observed_obj = self._get_by_path(observed_config, path)
+            desired_obj = flat_desired[path]
+            observed_obj = flat_observed[path]
+            if desired_obj != observed_obj:
                 changed.append(ComponentChange(
                     op=ComponentDiffOp.CHANGE,
                     path=list(path),
@@ -162,9 +144,9 @@ class ConfigDiffer:
                     component_name=path[-1],
                     before=observed_obj,
                     after=desired_obj,
-                    before_dict=observed_comp,
-                    after_dict=desired_comp,
-                    changed_attributes=self._attribute_changes(observed_comp, desired_comp),
+                    before_dict=observed_obj.model_dump(),
+                    after_dict=desired_obj.model_dump(),
+                    changed_attributes=self._attribute_changes(observed_obj, desired_obj),
                 ))
 
         return Diff(
@@ -174,5 +156,3 @@ class ConfigDiffer:
             total_desired=len(desired_paths),
             total_observed=len(observed_paths),
         )
-
-    
