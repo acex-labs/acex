@@ -22,9 +22,11 @@ class ComponentDiffOp(str, Enum):
 
 class AttributeChange(BaseModel):
     """Represents a change to a single attribute within a component"""
+    model_config = {"arbitrary_types_allowed": True}
+
     attribute_name: str
-    before: Optional[AttributeValue[Any]] = None
-    after: Optional[AttributeValue[Any]] = None
+    before: Optional[Any] = None
+    after: Optional[Any] = None
 
 
 class ComponentChange(BaseModel):
