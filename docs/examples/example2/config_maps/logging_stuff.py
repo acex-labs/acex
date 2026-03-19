@@ -75,6 +75,9 @@ class FileLoggingConfig(ConfigMap):
     
         context.configuration.add(file_logging)
 
+globalconfig = GlobalConfig()
+globalconfig.filters = FilterAttribute("hostname").eq("/.*/")
+
 remoteserverconfig = RemoteServerConfig()
 remoteserverconfig.filters = FilterAttribute("hostname").eq("/.*/")
 
@@ -83,9 +86,6 @@ consoleconfig.filters = FilterAttribute("hostname").eq("/.*/")
 
 vtyconfig = VtyConfig()
 vtyconfig.filters = FilterAttribute("hostname").eq("/.*/")
-
-globalconfig = GlobalConfig()
-globalconfig.filters = FilterAttribute("hostname").eq("/.*/")
 
 fileloggingconfig = FileLoggingConfig()
 fileloggingconfig.filters = FilterAttribute("hostname").eq("/.*/")

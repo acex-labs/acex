@@ -311,11 +311,11 @@ ntp server {{ server.address.value }}
 {%-   if configuration.system.logging.config and configuration.system.logging.config.get('buffer_size') %}
 logging buffered {{ configuration.system.logging.config['buffer_size'].value | default(4096) }}
 {%-   endif %}
-{%-   if configuration.system.logging.get('remote_servers') %}
-{%-     for server in configuration.system.logging.get('remote_servers').values() %}
-{%-       if server.host %}
-logging host {{ server.host }}
-{%-         if server.source_address %}
+{%-   if configuration.system.logging.get('remote_servers', {}).get('servers') %}
+{%-     for server in configuration.system.logging.get('remote_servers').get('servers').values() %}
+{%-       if server.get('host') %}
+logging host {{ server.host.value }}
+{%-         if server.get('source_address') %}
 logging source-interface {{ server.source_address.value }}
 {%-         endif %}
 {%-       endif %}

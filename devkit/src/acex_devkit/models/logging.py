@@ -50,7 +50,7 @@ class RemoteServer(BaseModel):
     name: Optional[AttributeValue[str]] = None
     host: Optional[AttributeValue[str]] = None
     port: Optional[AttributeValue[int]] = None
-    transfer: Optional[AttributeValue[str]] = None
+    transport: Optional[AttributeValue[str]] = None
     source_address: Optional[AttributeValue[str]] = None # Can be an IP address or an interface reference
 
 class VtyLine(BaseModel):
