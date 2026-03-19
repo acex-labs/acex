@@ -1,0 +1,14 @@
+Value NAME (Vlan\S+)
+Value DESCRIPTION (.+)
+Value ENABLED (shutdown|no shutdown)
+Value IPV4_ADDRESS (\S+)
+
+Start
+  ^interface\s+${NAME} -> Interface
+
+Interface
+  ^\s+description ${DESCRIPTION}
+  ^\s+${ENABLED}
+  ^\s+ip address ${IPV4_ADDRESS}
+  ^! -> Record Start
+  ^interface\s+${NAME} -> Record Interface

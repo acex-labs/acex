@@ -54,10 +54,36 @@ class CiscoIOSCLIParser:
         self.parse_ntp()
         self.parse_ssh()
         self.parse_interfaces()
+        self.parse_l3_interfaces()
         return self._parsed_config
 
+    def parse_l3_interfaces(self):
+        """Parse L3 interfaces."""
+        command = "show running svi interfaces"
+    
+        parsed_data = parse_output(
+            platform=self.platform,
+            template_dir=self.custom_templates_dir,
+            command=command,
+            data=self.running_config
+        )
+
+        for intf in parsed_data:
+            intf["enabled"] = map_enabled(intf.get("ENABLED", ""))
+            intf['description'] = intf.get('description') or None
+            intf['ipv4'] = intf.get('ipv4_address') or None
+            #intf['ipv6_address'] = intf.get('ipv6_address') or None
+            intf['vlan_id'] = int(intf['name'].replace('Vlan',''))
+
+        interfaces_dict = {
+            intf['name']: L3IpvlanInterface(index=index, **intf)
+            for index, intf in enumerate(parsed_data)
+        }
+
+        self.parsed_config.interfaces.update(interfaces_dict)
 
     def parse_interfaces(self):
+        """Parse physical interfaces."""
         command = "show running physical interfaces"
 
         parsed_data = parse_output(
@@ -196,7 +222,7 @@ class CiscoIOSCLIParser:
         command = "show running ssh"
 
         #print(self.running_config)
-        print("parsed_config: ",self._parsed_config)
+        #print("parsed_config: ",self._parsed_config)
 
         parsed_data = parse_output(
             platform=self.platform,
@@ -206,9 +232,9 @@ class CiscoIOSCLIParser:
         )
     
         ssh_values_dict = dict()
-        print(f"Parsed SSH data: {parsed_data}")
+        #print(f"Parsed SSH data: {parsed_data}")
         for entry in parsed_data:
-            print(f"Parsing SSH entry: {entry}")
+            #print(f"Parsing SSH entry: {entry}")
             ssh_version = None
             if entry.get("protocol_version"):
                 ssh_version = {"value": entry.get("protocol_version")}
@@ -249,7 +275,7 @@ class CiscoIOSCLIParser:
             #    "source_interface": ssh_source_interface
             #}
 
-            print(f"SSH values dict: {ssh_values_dict}")
+            #print(f"SSH values dict: {ssh_values_dict}")
 
             #self.parsed_config.system.ssh.config = {
             #    "enabled": {"value": bool(ssh_version)},
