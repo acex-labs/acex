@@ -297,7 +297,7 @@ snmp-server contact {{ configuration.snmp.contact }}
 {%- endif %}
 {%- endif %}
 !
-{%- if configuration.system.ntp -%}
+{%- if configuration.system.ntp.servers -%}
 {%- for server in configuration.system.ntp.servers.values() %}
 {%-   if server.prefer %}
 ntp server {{ server.address.value }} prefer
