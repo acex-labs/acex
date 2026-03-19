@@ -183,7 +183,7 @@ class CiscoIOSCLIParser:
             source_interface = entry.get("source_interface")
             if source_interface:
                 ntp_server["source_interface"] = {"value": source_interface}
-
+                
             ntp_servers[server] = ntp_server
 
         self.parsed_config.system.ntp.config = {
@@ -195,7 +195,8 @@ class CiscoIOSCLIParser:
         """Parse SSH configuration."""
         command = "show running ssh"
 
-        print(self.running_config)
+        #print(self.running_config)
+        print("parsed_config: ",self._parsed_config)
 
         parsed_data = parse_output(
             platform=self.platform,
@@ -226,7 +227,18 @@ class CiscoIOSCLIParser:
 
             ssh_source_interface = None
             if entry.get("source_interface"):
-                ssh_source_interface = {"value": entry.get("source_interface")}
+                for intf_name, intf in self.parsed_config.interfaces.items():
+                    if intf_name.value == entry.get("source_interface"):
+                        ssh_source_interface = {"pointer": intf}
+                        break
+                #ssh_source_interface = {"value": entry.get("source_interface")}
+                ptr_src_int = ''
+                # Här i parsed interfaces finns det source_interface jag letar efter
+                # Sedan behöver en referens göras som säger "interfaces.x.y.vlan2" där finns all info om interfacet
+                #if config.interfaces.interface1.index == 2:
+                #    nånting med vlan2 här
+                # parsed_config.interfaces.interface1.name = "Vlan2"
+                ssh_source_interface = {"pointer" : ptr_src_int} #vlan2
                 ssh_values_dict['source_interface'] = ssh_source_interface
 
             #ssh_values_dict = {
