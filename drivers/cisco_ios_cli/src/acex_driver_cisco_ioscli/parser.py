@@ -53,12 +53,12 @@ class CiscoIOSCLIParser:
         self.parse_system_hostname()
         self.parse_ntp()
         self.parse_ssh()
-        # self.parse_interfaces()
+        self.parse_interfaces()
         return self._parsed_config
 
 
     def parse_interfaces(self):
-        command = "show running phys interfaces"
+        command = "show running physical interfaces"
 
         parsed_data = parse_output(
             platform=self.platform,
@@ -67,6 +67,39 @@ class CiscoIOSCLIParser:
             data=self.running_config
         )
 
+        for intf in parsed_data:
+            intf["enabled"] = map_enabled(intf.get("ENABLED", ""))
+            if intf["switchport_mode"] == "trunk":
+                if not intf["trunk_allowed_vlans"]:
+                    #vlans = [i for i in range(1, 4095)]
+                    vlans = list()
+                else:
+                    vlans = expand_vlans(intf["trunk_allowed_vlans"])
+                intf["trunk_allowed_vlans"] = vlans
+            else:
+                intf["trunk_allowed_vlans"] = None
+
+            intf['native_vlan'] = int(intf['native_vlan']) if intf.get('native_vlan') else None
+            intf['access_vlan'] = int(intf['access_vlan']) if intf.get('access_vlan') else None
+            intf['voice_vlan'] = int(intf['voice_vlan']) if intf.get('voice_vlan') else None
+
+            if intf["switchport_mode"]:
+                switchport = True
+                switchport_mode = intf["switchport_mode"]
+            else:
+                switchport = False
+                switchport_mode = 'access'
+            intf["switchport"] = switchport
+            intf["switchport_mode"] = switchport_mode
+
+            intf['description'] = intf.get('description') or None
+            intf['negotiation'] = True if intf.get('negotiation') else False
+
+        interfaces_dict = {
+            intf['name']: EthernetCsmacdInterface(index=index, **intf)
+            for index, intf in enumerate(parsed_data)
+        }
+        self.parsed_config.interfaces.update(interfaces_dict)
 
     def parse_lag_interfaces(self) -> Ieee8023adLagInterface:
         """Parse LAG interfaces."""
