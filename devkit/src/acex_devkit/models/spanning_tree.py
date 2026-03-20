@@ -1,9 +1,11 @@
 from pydantic import BaseModel
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.container_model import ContainerModel
 from enum import Enum
-from typing import Optional, Dict
+from typing import ClassVar, Optional, Dict
 
-class SpanningTreeGlobalAttributes(BaseModel):
+class SpanningTreeGlobalAttributes(ContainerModel, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ()
     mode: Optional[AttributeValue[str]] = None # Needs to be defined by user. Default for Cisco is RAPID-PVST and for Juniper it's just RSTP
     bpdu_filter: Optional[AttributeValue[bool]] = None # Disabled by default
     bpdu_guard: Optional[AttributeValue[bool]] = None # Disabled by default
@@ -20,19 +22,22 @@ class SpanningTreeModeConfig(BaseModel):
     hold_count: Optional[AttributeValue[int]] = None # Range 1..10
 
 ## RSTP
-class RstpAttributes(SpanningTreeModeConfig): ...
+class RstpAttributes(ContainerModel, SpanningTreeModeConfig):
+    identity_fields: ClassVar[tuple[str, ...]] = ()
 
 class RSTPConfig(BaseModel):
     #config: RstpAttributes = RstpAttributes()
     config: Optional[Dict[str, RstpAttributes]] = None
 
 ### MSTP
-class MstpInstanceAttributes(SpanningTreeModeConfig):
+class MstpInstanceAttributes(ContainerModel, SpanningTreeModeConfig):
+    identity_fields: ClassVar[tuple[str, ...]] = ("instance_id",)
     instance_id: AttributeValue[int] # range: 1..4094
     name: Optional[AttributeValue[str]] = None
     vlan: Optional[AttributeValue[list[int]]] = None # List of VLANs mapped to the MST instance
 
-class MstpAttributes(SpanningTreeModeConfig):
+class MstpAttributes(ContainerModel, SpanningTreeModeConfig):
+    identity_fields: ClassVar[tuple[str, ...]] = ()
     revision: Optional[AttributeValue[int]] = None
     max_hop: Optional[AttributeValue[int]] = None # Range 1..255
 
@@ -42,7 +47,8 @@ class MSTPConfig(BaseModel):
     mst_instances: Optional[Dict[str, MstpInstanceAttributes]] = None
 
 ### Rapid PVST
-class RapidPVSTAttributes(SpanningTreeModeConfig):
+class RapidPVSTAttributes(ContainerModel, SpanningTreeModeConfig):
+    identity_fields: ClassVar[tuple[str, ...]] = ("vlan",)
     """
     Docstring for RapidPVSTAttributes
     vlan can be a string or list. Depending on how NED is built it will check wether it's a single VLAN or multiple VLANs and then format the data to the correct format
