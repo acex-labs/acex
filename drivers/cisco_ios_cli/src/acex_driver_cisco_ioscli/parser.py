@@ -1,5 +1,12 @@
 #from acex.models.composed_configuration import ComposedConfiguration, EthernetCsmacdInterface, L3IpvlanInterface, SoftwareLoopbackInterface, Ieee8023adLagInterface
-from acex_devkit.models.composed_configuration import ComposedConfiguration, EthernetCsmacdInterface, L3IpvlanInterface, SoftwareLoopbackInterface, Ieee8023adLagInterface
+from acex_devkit.models.composed_configuration import (
+    ComposedConfiguration,
+    EthernetCsmacdInterface,
+    L3IpvlanInterface,
+    SoftwareLoopbackInterface,
+    Ieee8023adLagInterface,
+    ReferenceTo
+)
 from ntc_templates.parse import parse_output
 import os
 
@@ -47,14 +54,41 @@ class CiscoIOSCLIParser:
         """Return the platform name for the parser."""
         return "cisco_ios"
 
+    def removekey(self, d, key):
+        r = dict(d)
+        #print('r: ', r)
+        #for k, v in r.items():
+            #print('k: ', k, 'v: ', v)
+            #print('k type: ', type(k), 'v type: ', type(v))
+        #for k, v in r.items():
+        #    if isinstance(v, dict):
+        #        r[k] = self.removekey(v, key)
+        if key in r:
+            del r[key]
+        return r
+
+    def gen_dict_extract(self, key, var):
+        if hasattr(var,'items'): # hasattr(var,'items') for python 3
+            for k, v in var.items(): # var.items() for python 3
+                if k == key:
+                    yield v
+                if isinstance(v, dict):
+                    for result in self.gen_dict_extract(key, v):
+                        yield result
+                elif isinstance(v, list):
+                    for d in v:
+                        for result in self.gen_dict_extract(key, d):
+                            yield result
+
     def parse(self, configuration: str) -> dict:
         """Parse the Cisco IOS CLI configuration content."""
         self.running_config = configuration
         self.parse_system_hostname()
-        self.parse_ntp()
-        self.parse_ssh()
         self.parse_interfaces()
         self.parse_l3_interfaces()
+        self.parse_ntp()
+        self.parse_ssh()
+
         return self._parsed_config
 
     def parse_l3_interfaces(self):
@@ -76,7 +110,7 @@ class CiscoIOSCLIParser:
             intf['vlan_id'] = int(intf['name'].replace('Vlan',''))
 
         interfaces_dict = {
-            intf['name']: L3IpvlanInterface(index=index, **intf)
+            intf['name']: self.removekey(L3IpvlanInterface(index=index, **intf), 'metadata')
             for index, intf in enumerate(parsed_data)
         }
 
@@ -254,18 +288,21 @@ class CiscoIOSCLIParser:
             ssh_source_interface = None
             if entry.get("source_interface"):
                 for intf_name, intf in self.parsed_config.interfaces.items():
-                    if intf_name.value == entry.get("source_interface"):
-                        ssh_source_interface = {"pointer": intf}
+                    intf_type = intf.get('type') if isinstance(intf, dict) else getattr(intf, 'type', None)
+                    intf_vlan_id = intf.get('vlan_id') if isinstance(intf, dict) else getattr(intf, 'vlan_id', None)
+                    if intf_type == 'l3ipvlan' and intf_vlan_id == int(entry.get("source_interface").replace('Vlan','')):
+                        intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
                         break
                 #ssh_source_interface = {"value": entry.get("source_interface")}
-                ptr_src_int = ''
+                #ptr_src_int = ''
                 # Här i parsed interfaces finns det source_interface jag letar efter
                 # Sedan behöver en referens göras som säger "interfaces.x.y.vlan2" där finns all info om interfacet
                 #if config.interfaces.interface1.index == 2:
                 #    nånting med vlan2 här
+                #   använd ReferenceTo klassen här när du skpar source interface referensen till ex. vlan2
                 # parsed_config.interfaces.interface1.name = "Vlan2"
-                ssh_source_interface = {"pointer" : ptr_src_int} #vlan2
-                ssh_values_dict['source_interface'] = ssh_source_interface
+                #ssh_source_interface = {"pointer" : ptr_src_int} #vlan2
+                ssh_values_dict['source_interface'] = intf_ref
 
             #ssh_values_dict = {
             #    "enabled": {"value": bool(ssh_version)},
@@ -291,3 +328,7 @@ class CiscoIOSCLIParser:
             "algorithms": algorithm_list,
             "public_keys": {}
         }
+
+        #print('='*100)
+        #print("Final parsed SSH config: ", self.parsed_config.system.ssh.config)
+        #print('='*100)
