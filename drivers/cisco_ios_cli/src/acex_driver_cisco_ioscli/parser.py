@@ -56,35 +56,29 @@ class CiscoIOSCLIParser:
         """Return the platform name for the parser."""
         return "cisco_ios"
 
+    # Mostly used to remove metadata key, which contains non-serializable data and is not needed in the final output, but can be used to remove any key if needed in the future
     def removekey(self, d, key):
         if hasattr(d, 'model_dump'): # Pydantic v2
             r = d.model_dump()
+            print('model_dump: ', r)
         elif hasattr(d, 'dict'): # Pydantic v1
             r = d.dict()
+            print('dict: ', r)
         else:
             r = dict(d) # Fallback for regular dicts or other types
+            print('dict fallback: ', r)
 
         def _remove(obj):
             if isinstance(obj, dict):
+                print('removing key from dict: ', obj)
                 return {k: _remove(v) for k, v in obj.items() if k != key}
-            elif isinstance(obj, list):
+            elif isinstance(obj, list): # supporting in case we use lists of dicts in the future
+                print('removing key from list: ', obj)
                 return [_remove(item) for item in obj]
+            print('returning obj: ', obj)
             return obj
 
         return _remove(r)
-
-    def gen_dict_extract(self, key, var):
-        if hasattr(var,'items'): # hasattr(var,'items') for python 3
-            for k, v in var.items(): # var.items() for python 3
-                if k == key:
-                    yield v
-                if isinstance(v, dict):
-                    for result in self.gen_dict_extract(key, v):
-                        yield result
-                elif isinstance(v, list):
-                    for d in v:
-                        for result in self.gen_dict_extract(key, d):
-                            yield result
 
     def parse(self, configuration: str) -> dict:
         """Parse the Cisco IOS CLI configuration content."""
@@ -122,7 +116,7 @@ class CiscoIOSCLIParser:
 
         self.parsed_config.interfaces.update(interfaces_dict)
 
-    def parse_interfaces(self):
+    def parse_interfaces(self) -> None:
         """Parse physical interfaces."""
         command = "show running physical interfaces"
 
@@ -162,12 +156,12 @@ class CiscoIOSCLIParser:
             intf['negotiation'] = True if intf.get('negotiation') else False
 
         interfaces_dict = {
-            intf['name']: EthernetCsmacdInterface(index=index, **intf)
+            intf['name']: self.removekey(EthernetCsmacdInterface(index=index, **intf), 'metadata')
             for index, intf in enumerate(parsed_data)
         }
         self.parsed_config.interfaces.update(interfaces_dict)
 
-    def parse_lag_interfaces(self) -> Ieee8023adLagInterface:
+    def parse_lag_interfaces(self) -> None:
         """Parse LAG interfaces."""
         command = "show running lag interfaces"
 
@@ -193,12 +187,12 @@ class CiscoIOSCLIParser:
             intf["switchport"] = switchport
 
         interfaces_dict = {
-            intf['name']: Ieee8023adLagInterface(index=index, **intf)
+            intf['name']: self.removekey(Ieee8023adLagInterface(index=index, **intf), 'metadata')
             for index, intf in enumerate(parsed_data)
         }
         self.parsed_config.interfaces.update(interfaces_dict)
 
-    def parse_system_hostname(self) -> str:
+    def parse_system_hostname(self) -> None:
         """Parse the system hostname from the configuration content."""
         command = "show running hostname"
 
@@ -212,7 +206,7 @@ class CiscoIOSCLIParser:
             "value": parsed_data[0].get("hostname")
             }
 
-    def parse_ntp(self) -> NtpServer:
+    def parse_ntp(self) -> None:
         """Parse NTP configuration."""
         command = "show running ntp"
 
@@ -250,11 +244,11 @@ class CiscoIOSCLIParser:
                         intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
                         break
                 ntp_server['source_interface'] = intf_ref
-            ntp_servers[ntp_server['address']] = NtpServer(**ntp_server)
+            ntp_servers[ntp_server['address']] = self.removekey(NtpServer(**ntp_server), 'metadata')
 
         self.parsed_config.system.ntp.servers = ntp_servers
 
-    def parse_ssh(self) -> SshServer:
+    def parse_ssh(self) -> None:
         """Parse SSH configuration."""
         command = "show running ssh"
 
@@ -292,7 +286,7 @@ class CiscoIOSCLIParser:
                         break
                 ssh_values_dict['source_interface'] = intf_ref
 
-        self.parsed_config.system.ssh.config = SshServer(**ssh_values_dict)
+        self.parsed_config.system.ssh.config = self.removekey(SshServer(**ssh_values_dict), 'metadata')
         algorithm_list = []
         self.parsed_config.system.ssh.host_keys = {
             "algorithms": algorithm_list,
