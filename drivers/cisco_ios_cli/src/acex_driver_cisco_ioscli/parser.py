@@ -7,6 +7,7 @@ from acex_devkit.models.composed_configuration import (
     Ieee8023adLagInterface,
     SshServer,
     NtpServer,
+    SystemConfig,
     ReferenceTo,
 )
 from ntc_templates.parse import parse_output
@@ -60,22 +61,22 @@ class CiscoIOSCLIParser:
     def removekey(self, d, key):
         if hasattr(d, 'model_dump'): # Pydantic v2
             r = d.model_dump()
-            print('model_dump: ', r)
+            #print('model_dump: ', r)
         elif hasattr(d, 'dict'): # Pydantic v1
             r = d.dict()
-            print('dict: ', r)
+            #print('dict: ', r)
         else:
             r = dict(d) # Fallback for regular dicts or other types
-            print('dict fallback: ', r)
+            #print('dict fallback: ', r)
 
         def _remove(obj):
             if isinstance(obj, dict):
-                print('removing key from dict: ', obj)
+                #print('removing key from dict: ', obj)
                 return {k: _remove(v) for k, v in obj.items() if k != key}
             elif isinstance(obj, list): # supporting in case we use lists of dicts in the future
-                print('removing key from list: ', obj)
+                #print('removing key from list: ', obj)
                 return [_remove(item) for item in obj]
-            print('returning obj: ', obj)
+            #print('returning obj: ', obj)
             return obj
 
         return _remove(r)
@@ -83,7 +84,7 @@ class CiscoIOSCLIParser:
     def parse(self, configuration: str) -> dict:
         """Parse the Cisco IOS CLI configuration content."""
         self.running_config = configuration
-        self.parse_system_hostname()
+        self.parse_system_settings()
         self.parse_interfaces()
         self.parse_l3_interfaces()
         self.parse_ntp()
@@ -192,9 +193,9 @@ class CiscoIOSCLIParser:
         }
         self.parsed_config.interfaces.update(interfaces_dict)
 
-    def parse_system_hostname(self) -> None:
+    def parse_system_settings(self) -> None:
         """Parse the system hostname from the configuration content."""
-        command = "show running hostname"
+        command = "show running system"
 
         parsed_data = parse_output(
             platform=self.platform,
@@ -202,9 +203,25 @@ class CiscoIOSCLIParser:
             command=command,
             data=self.running_config
         )
-        self.parsed_config.system.config.hostname = {
-            "value": parsed_data[0].get("hostname")
-            }
+
+        system_settings = {}
+
+        #hostname
+        system_settings['hostname'] = parsed_data[0].get("hostname") if parsed_data[0].get("hostname") else None
+        #banner motd
+        system_settings['motd_banner'] = ' '.join(parsed_data[0].get("banner_motd")) if parsed_data[0].get("banner_motd") else None
+        
+        #banner login
+        system_settings['login_banner'] = ' '.join(parsed_data[0].get("banner_login")) if parsed_data[0].get("banner_login") else None
+        
+        #domain_name
+        system_settings['domain_name'] = parsed_data[0].get("domain_name") if parsed_data[0].get("domain_name") else None
+        #location (from snmp)
+        system_settings['location'] = parsed_data[0].get("location") if parsed_data[0].get("location") else None
+        #contact (from snmp)
+        system_settings['contact'] = parsed_data[0].get("contact") if parsed_data[0].get("contact") else None
+
+        self.parsed_config.system.config = self.removekey(SystemConfig(**system_settings), 'metadata')
 
     def parse_ntp(self) -> None:
         """Parse NTP configuration."""
