@@ -5,7 +5,9 @@ from acex_devkit.models.composed_configuration import (
     L3IpvlanInterface,
     SoftwareLoopbackInterface,
     Ieee8023adLagInterface,
-    ReferenceTo
+    SshServer,
+    NtpServer,
+    ReferenceTo,
 )
 from ntc_templates.parse import parse_output
 import os
@@ -55,17 +57,21 @@ class CiscoIOSCLIParser:
         return "cisco_ios"
 
     def removekey(self, d, key):
-        r = dict(d)
-        #print('r: ', r)
-        #for k, v in r.items():
-            #print('k: ', k, 'v: ', v)
-            #print('k type: ', type(k), 'v type: ', type(v))
-        #for k, v in r.items():
-        #    if isinstance(v, dict):
-        #        r[k] = self.removekey(v, key)
-        if key in r:
-            del r[key]
-        return r
+        if hasattr(d, 'model_dump'): # Pydantic v2
+            r = d.model_dump()
+        elif hasattr(d, 'dict'): # Pydantic v1
+            r = d.dict()
+        else:
+            r = dict(d) # Fallback for regular dicts or other types
+
+        def _remove(obj):
+            if isinstance(obj, dict):
+                return {k: _remove(v) for k, v in obj.items() if k != key}
+            elif isinstance(obj, list):
+                return [_remove(item) for item in obj]
+            return obj
+
+        return _remove(r)
 
     def gen_dict_extract(self, key, var):
         if hasattr(var,'items'): # hasattr(var,'items') for python 3
@@ -206,7 +212,7 @@ class CiscoIOSCLIParser:
             "value": parsed_data[0].get("hostname")
             }
 
-    def parse_ntp(self) -> str:
+    def parse_ntp(self) -> NtpServer:
         """Parse NTP configuration."""
         command = "show running ntp"
 
@@ -218,45 +224,39 @@ class CiscoIOSCLIParser:
         )
 
         ntp_servers = {}
-        for entry in parsed_data:
-            server = entry.get("server")
-            if not server:
+        for ntp_server in parsed_data:
+            if not ntp_server.get("address"):
                 continue
+            else:
+                ntp_server['address'] = str(ntp_server.get("address"))
 
-            ntp_server = {
-                "address": {"value": server}
-            }
+            ntp_server['version'] = int(ntp_server['version']) if ntp_server.get('version') else None
 
-            version = entry.get("version")
-            if version:
-                ntp_server["version"] = {"value": int(version)}
+            ## Not used in Cisco IOS, but included for completeness
+            ##port = entry.get("port")
+            ##if port:
+            ##    ntp_server["port"] = {"value": int(port)}
 
-            # Not used in Cisco IOS, but included for completeness
-            #port = entry.get("port")
-            #if port:
-            #    ntp_server["port"] = {"value": int(port)}
+            if ntp_server.get("prefer"):
+                ntp_server["prefer"] = True
+            else:
+                ntp_server["prefer"] = False
 
-            prefer = entry.get("prefer")
-            if prefer:
-                ntp_server["prefer"] = {"value": True}
+            if ntp_server.get("source_interface"):
+                for intf_name, intf in self.parsed_config.interfaces.items():
+                    intf_type = intf.get('type') if isinstance(intf, dict) else getattr(intf, 'type', None)
+                    intf_vlan_id = intf.get('vlan_id') if isinstance(intf, dict) else getattr(intf, 'vlan_id', None)
+                    if intf_type == 'l3ipvlan' and intf_vlan_id == int(ntp_server.get("source_interface").replace('Vlan','')):
+                        intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
+                        break
+                ntp_server['source_interface'] = intf_ref
+            ntp_servers[ntp_server['address']] = NtpServer(**ntp_server)
 
-            source_interface = entry.get("source_interface")
-            if source_interface:
-                ntp_server["source_interface"] = {"value": source_interface}
-                
-            ntp_servers[server] = ntp_server
-
-        self.parsed_config.system.ntp.config = {
-            "enabled": {"value": bool(ntp_servers)}
-        }
         self.parsed_config.system.ntp.servers = ntp_servers
 
-    def parse_ssh(self) -> str:
+    def parse_ssh(self) -> SshServer:
         """Parse SSH configuration."""
         command = "show running ssh"
-
-        #print(self.running_config)
-        #print("parsed_config: ",self._parsed_config)
 
         parsed_data = parse_output(
             platform=self.platform,
@@ -266,13 +266,11 @@ class CiscoIOSCLIParser:
         )
     
         ssh_values_dict = dict()
-        #print(f"Parsed SSH data: {parsed_data}")
         for entry in parsed_data:
-            #print(f"Parsing SSH entry: {entry}")
             ssh_version = None
             if entry.get("protocol_version"):
                 ssh_version = {"value": entry.get("protocol_version")}
-                ssh_values_dict['enabled'] = {"value": bool(ssh_version)}
+                ssh_values_dict['enable'] = {"value": bool(ssh_version)}
                 ssh_values_dict['protocol_version'] = ssh_version
 
             ssh_timeout = None
@@ -285,7 +283,6 @@ class CiscoIOSCLIParser:
                 ssh_auth_retries = {"value": entry.get("authentication_retries")}
                 ssh_values_dict['authentication_retries'] = ssh_auth_retries
 
-            ssh_source_interface = None
             if entry.get("source_interface"):
                 for intf_name, intf in self.parsed_config.interfaces.items():
                     intf_type = intf.get('type') if isinstance(intf, dict) else getattr(intf, 'type', None)
@@ -293,42 +290,11 @@ class CiscoIOSCLIParser:
                     if intf_type == 'l3ipvlan' and intf_vlan_id == int(entry.get("source_interface").replace('Vlan','')):
                         intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
                         break
-                #ssh_source_interface = {"value": entry.get("source_interface")}
-                #ptr_src_int = ''
-                # Här i parsed interfaces finns det source_interface jag letar efter
-                # Sedan behöver en referens göras som säger "interfaces.x.y.vlan2" där finns all info om interfacet
-                #if config.interfaces.interface1.index == 2:
-                #    nånting med vlan2 här
-                #   använd ReferenceTo klassen här när du skpar source interface referensen till ex. vlan2
-                # parsed_config.interfaces.interface1.name = "Vlan2"
-                #ssh_source_interface = {"pointer" : ptr_src_int} #vlan2
                 ssh_values_dict['source_interface'] = intf_ref
 
-            #ssh_values_dict = {
-            #    "enabled": {"value": bool(ssh_version)},
-            #    "protocol_version": ssh_version,
-            #    "timeout": ssh_timeout,
-            #    "authentication_retries": ssh_auth_retries,
-            #    "source_interface": ssh_source_interface
-            #}
-
-            #print(f"SSH values dict: {ssh_values_dict}")
-
-            #self.parsed_config.system.ssh.config = {
-            #    "enabled": {"value": bool(ssh_version)},
-            #    "protocol_version": ssh_version,
-            #    "timeout": ssh_timeout,
-            #    "authentication_retries": ssh_auth_retries,
-            #    "source_interface": ssh_source_interface
-            #}
-        self.parsed_config.system.ssh.config = ssh_values_dict
-
+        self.parsed_config.system.ssh.config = SshServer(**ssh_values_dict)
         algorithm_list = []
         self.parsed_config.system.ssh.host_keys = {
             "algorithms": algorithm_list,
             "public_keys": {}
         }
-
-        #print('='*100)
-        #print("Final parsed SSH config: ", self.parsed_config.system.ssh.config)
-        #print('='*100)
