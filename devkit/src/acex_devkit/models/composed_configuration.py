@@ -105,10 +105,10 @@ class AuthorizedKeyAlgorithms(str, Enum):
 
 class AuthorizedKey(ContainerModel, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("public_key",)
-    algorithm: AuthorizedKeyAlgorithms
-    public_key: str
+    algorithm: Optional[AttributeValue[AuthorizedKeyAlgorithms]] = None
+    public_key: Optional[AttributeValue[str]] = None
 
-class Ssh(BaseModel): 
+class Ssh(BaseModel):
     config: Optional[SshServer] = None
     host_keys: Optional[Dict[str, AuthorizedKey]] = {}
 
@@ -202,21 +202,21 @@ class Ieee8023adLagInterface(Interface):
 class L3IpvlanInterface(Interface):
     "SVI Interface"
     type: Literal["l3ipvlan"] = "l3ipvlan"
-    vlan_id: Optional[int] = None
+    vlan_id: Optional[AttributeValue[int]] = None
 
 class SoftwareLoopbackInterface(Interface):
     "Loopback Interface"
     type: Literal["softwareLoopback"] = "softwareLoopback"
 
     # Loopback har varken vlan, duplex eller speed
-    vlan_id: Optional[int] = None
+    vlan_id: Optional[AttributeValue[int]] = None
     ipv4: Optional[AttributeValue[str]] = None
 
 class SubInterface(Interface):
     "Subinterface"
     type: Literal["subinterface"] = "subinterface"
 
-    vlan_id: Optional[int] = None
+    vlan_id: Optional[AttributeValue[int]] = None
     ipv4: Optional[AttributeValue[str]] = None
 
 class ManagementInterface(Interface):
@@ -224,7 +224,7 @@ class ManagementInterface(Interface):
     type: Literal["managementInterface"] = "managementInterface"
 
     # Mgmt har inte vlan
-    vlan_id: Optional[int] = None
+    vlan_id: Optional[AttributeValue[int]] = None
 
 class StaticRouteNextHop(ContainerModel, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("next_hop",)
