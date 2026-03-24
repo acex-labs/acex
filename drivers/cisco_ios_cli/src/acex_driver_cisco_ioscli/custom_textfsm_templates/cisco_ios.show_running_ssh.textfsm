@@ -1,0 +1,7 @@
+Value PROTOCOL_VERSION (\d)
+Value TIMEOUT (\d+)
+Value AUTHENTICATION_RETRIES (\d)
+Value SOURCE_INTERFACE (.+)
+
+Start
+  ^ip\s+ssh\s+(?:version\s${PROTOCOL_VERSION})?(?:time-out\s+${TIMEOUT}\d)?(?:authentication-retries\s+${AUTHENTICATION_RETRIES}\d)?(?:source-interface\s+${SOURCE_INTERFACE})?\s*$$ -> Record

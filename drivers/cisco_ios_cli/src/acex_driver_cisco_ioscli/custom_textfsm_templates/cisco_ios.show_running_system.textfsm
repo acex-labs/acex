@@ -1,0 +1,24 @@
+Value HOSTNAME (\S+)
+Value DOMAIN_NAME (\S+)
+Value LOCATION (.+)
+Value CONTACT (.+)
+Value MOTD_DELIM (\S)
+Value LOGIN_DELIM (\S)
+Value List BANNER_MOTD (.*)
+Value List BANNER_LOGIN (.*)
+
+Start
+  ^hostname\s+${HOSTNAME}
+  ^ip domain-name\s+${DOMAIN_NAME}
+  ^snmp-server location\s+${LOCATION}
+  ^snmp-server contact\s+${CONTACT}
+  ^banner motd\s+${MOTD_DELIM}\s* -> Motd
+  ^banner login\s+${LOGIN_DELIM}\s* -> Login
+
+Motd
+  ^${MOTD_DELIM}\s* -> Start
+  ^${BANNER_MOTD} -> Continue
+
+Login
+  ^${LOGIN_DELIM}\s* -> Start
+  ^${BANNER_LOGIN} -> Continue
