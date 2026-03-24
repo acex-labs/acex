@@ -10,35 +10,11 @@ from acex_devkit.configdiffer.diff import Diff, ComponentChange, AttributeChange
 
 class ConfigDiffer:
 
-    def _is_dict_of_containers(self, annotation) -> bool:
-        """Check if a type annotation is Dict[str, ContainerModel] or Dict[str, Union[ContainerModel, ...]]."""
-        if get_origin(annotation) is not dict:
-            return False
-        args = get_args(annotation)
-        if len(args) != 2:
-            return False
-        val_type = args[1]
-
-        # Dict[str, SomeContainerModel]
-        if isinstance(val_type, type) and issubclass(val_type, ContainerModel):
-            return True
-
-        # Dict[str, Union[ContainerA, ContainerB, ...]]  (e.g. interfaces field)
-        if get_origin(val_type) is Union:
-            union_args = [a for a in get_args(val_type) if a is not type(None)]
-            return bool(union_args) and all(
-                isinstance(a, type) and issubclass(a, ContainerModel)
-                for a in union_args
-            )
-
-        return False
-
-    def _is_base_model(self, annotation) -> bool:
+    def _is_container(self, annotation) -> bool:
         """Check if a type annotation is a plain BaseModel subclass (not ContainerModel, not AttributeValue)."""
         return (
             isinstance(annotation, type)
             and issubclass(annotation, BaseModel)
-            and not issubclass(annotation, ContainerModel)
             and not issubclass(annotation, AttributeValue)
         )
 
@@ -54,118 +30,49 @@ class ConfigDiffer:
                 return non_none[0]
         return annotation
 
+    def _is_leaf(self, model: BaseModel) -> bool:
+        """A model is a leaf if it has at least one direct AttributeValue field."""
+        for field_info in model.model_fields.values():
+            if get_origin(field_info.annotation) is AttributeValue:
+                return True
+            args = get_args(field_info.annotation)
+            if any(get_origin(a) is AttributeValue for a in args):
+                return True
+        return False
+
     def _flatten(self, model: BaseModel, path: tuple = ()) -> Dict[tuple, BaseModel]:
         """
-        Recursively walk a Pydantic model to find all container components.
-        Returns a flat mapping of path → component instance.
-
-        Rules:
-        - Dict[str, ContainerModel] (or Union variant) → container collection,
-          each entry becomes a leaf at path (field_name, key)
-        - Plain BaseModel (not ContainerModel, not AttributeValue) → structural
-          container, recurse deeper
-        - AttributeValue / primitives / None → skip
+        Recursively walk a model tree, collecting leaf nodes.
+        A leaf is any BaseModel that has direct AttributeValue fields.
+        Returns a flat mapping of path → leaf instance.
         """
         result = {}
 
-        for field_name, field_info in model.model_fields.items():
-            annotation = self._unwrap_optional(field_info.annotation)
-            value = getattr(model, field_name)
-
-            if value is None:
+        for field_name in model.model_fields:
+            value = getattr(model, field_name, None)
+            if value is None or isinstance(value, AttributeValue):
                 continue
 
-            if self._is_dict_of_containers(annotation):
-                for key, component in value.items():
-                    result[path + (field_name, key)] = component
+            field_path = path + (field_name,)
 
-            elif self._is_base_model(annotation):
-                child_path = path + (field_name,)
-                deeper = self._flatten(value, child_path)
-                if deeper:
-                    result.update(deeper)
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    if not isinstance(item, BaseModel):
+                        continue
+                    item_path = field_path + (key,)
+                    if self._is_leaf(item):
+                        result[item_path] = item
+                    else:
+                        result.update(self._flatten(item, item_path))
+
+            elif isinstance(value, BaseModel):
+                if self._is_leaf(value):
+                    result[field_path] = value
                 else:
-                    result[child_path] = value
+                    result.update(self._flatten(value, field_path))
 
         return result
 
-    def _identity_key(self, component: ContainerModel) -> Optional[tuple]:
-        """
-        Extract the identity tuple from a component's identity_fields.
-        Returns None if identity_fields is empty (key-based matching).
-        Unwraps AttributeValue wrappers to compare raw values.
-        """
-        fields = type(component).identity_fields
-        if not fields:
-            return None
-        values = []
-        for field_name in fields:
-            v = getattr(component, field_name, None)
-            if isinstance(v, AttributeValue):
-                v = v.value
-            values.append(v)
-        return tuple(values)
-
-    def _match_by_identity(
-        self,
-        desired: Dict[str, ContainerModel],
-        observed: Dict[str, ContainerModel],
-    ) -> Tuple[List[Tuple[str, str, Any, Any]], Dict[str, Any], Dict[str, Any]]:
-        """
-        Match desired and observed components by identity_fields values.
-
-        For components with non-empty identity_fields: match pairs that share the
-        same identity values regardless of dict key.
-        For components with empty identity_fields: match by dict key (current behaviour).
-
-        Returns:
-            matched      — list of (desired_key, observed_key, desired_obj, observed_obj)
-            unmatched_d  — desired components with no observed counterpart → ADD
-            unmatched_o  — observed components with no desired counterpart → REMOVE
-        """
-        if not desired and not observed:
-            return [], {}, {}
-
-        # Determine matching strategy from a sample component
-        sample = next(iter(desired.values()), next(iter(observed.values()), None))
-        use_key_matching = sample is None or not type(sample).identity_fields
-
-        if use_key_matching:
-            # Key-based: identical to original behaviour
-            matched = []
-            unmatched_d = {}
-            unmatched_o = {}
-            d_keys = set(desired)
-            o_keys = set(observed)
-            for key in d_keys & o_keys:
-                matched.append((key, key, desired[key], observed[key]))
-            for key in d_keys - o_keys:
-                unmatched_d[key] = desired[key]
-            for key in o_keys - d_keys:
-                unmatched_o[key] = observed[key]
-            return matched, unmatched_d, unmatched_o
-
-        # Identity-based matching
-        remaining_d = dict(desired)
-        remaining_o = dict(observed)
-        matched = []
-
-        # Build a lookup: identity_key → (dict_key, component) for observed
-        o_by_identity: Dict[tuple, Tuple[str, Any]] = {}
-        for o_key, o_obj in remaining_o.items():
-            ik = self._identity_key(o_obj)
-            if ik is not None:
-                o_by_identity[ik] = (o_key, o_obj)
-
-        for d_key, d_obj in list(remaining_d.items()):
-            ik = self._identity_key(d_obj)
-            if ik is not None and ik in o_by_identity:
-                o_key, o_obj = o_by_identity.pop(ik)
-                matched.append((d_key, o_key, d_obj, o_obj))
-                del remaining_d[d_key]
-                del remaining_o[o_key]
-
-        return matched, remaining_d, remaining_o
 
     def _attribute_changes(self, before: BaseModel, after: BaseModel) -> List[AttributeChange]:
         """Compare two component instances and return a list of changed attributes."""
@@ -189,6 +96,10 @@ class ConfigDiffer:
         Components with identity_fields = () fall back to key-based matching.
         """
         flat_desired = self._flatten(desired_config)
+        print(desired_config)
+        print(flat_desired)
+
+        exit()
         flat_observed = self._flatten(observed_config)
 
         # Group components by their container path (parent path = all but last element)
