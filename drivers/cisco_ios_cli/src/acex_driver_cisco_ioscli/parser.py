@@ -132,8 +132,7 @@ class CiscoIOSCLIParser:
             intf["enabled"] = map_enabled(intf.get("ENABLED", ""))
             if intf["switchport_mode"] == "trunk":
                 if not intf["trunk_allowed_vlans"]:
-                    #vlans = [i for i in range(1, 4095)]
-                    vlans = list()
+                    vlans = None
                 else:
                     vlans = expand_vlans(intf["trunk_allowed_vlans"])
                 intf["trunk_allowed_vlans"] = vlans
@@ -176,16 +175,26 @@ class CiscoIOSCLIParser:
             intf["enabled"] = map_enabled(intf.get("ENABLED", ""))
             if intf["switchport_mode"] == "trunk":
                 if not intf["trunk_allowed_vlans"]:
-                    vlans = [i for i in range(1, 4095)]
+                    vlans = None
                 else:
                     vlans = expand_vlans(intf["trunk_allowed_vlans"])
                 intf["trunk_allowed_vlans"] = vlans
+            else:
+                intf["trunk_allowed_vlans"] = None
+
+            intf['native_vlan'] = int(intf['native_vlan']) if intf.get('native_vlan') else None
+            intf['access_vlan'] = int(intf['access_vlan']) if intf.get('access_vlan') else None
 
             if intf["switchport_mode"]:
                 switchport = True
+                switchport_mode = intf["switchport_mode"]
             else:
                 switchport = False
+                switchport_mode = 'access'
             intf["switchport"] = switchport
+            intf["switchport_mode"] = switchport_mode
+
+            intf['description'] = intf.get('description') or None
 
         interfaces_dict = {
             intf['name']: self.removekey(Ieee8023adLagInterface(index=index, **intf), 'metadata')
