@@ -1,13 +1,16 @@
 #from acex.models.composed_configuration import ComposedConfiguration, EthernetCsmacdInterface, L3IpvlanInterface, SoftwareLoopbackInterface, Ieee8023adLagInterface
 from acex_devkit.models.composed_configuration import (
+    AuthorizedKey,
+    AuthorizedKeyAlgorithms,
     ComposedConfiguration,
-    EthernetCsmacdInterface,
+    EthernetCsmacdInterface, 
     L3IpvlanInterface,
     SoftwareLoopbackInterface,
     Ieee8023adLagInterface,
     SshServer,
     NtpServer,
     SystemConfig,
+    Ssh,
     ReferenceTo,
 )
 from ntc_templates.parse import parse_output
@@ -313,8 +316,7 @@ class CiscoIOSCLIParser:
                 ssh_values_dict['source_interface'] = intf_ref
 
         self.parsed_config.system.ssh.config = self.removekey(SshServer(**ssh_values_dict), 'metadata')
-        algorithm_list = []
-        self.parsed_config.system.ssh.host_keys = {
-            "algorithms": algorithm_list,
-            "public_keys": {}
-        }
+
+        # system.ssh.host_keys: 
+        #TODO: add parsing for host_keys as AuthorizedKey.
+        self.parsed_config.system.ssh.host_keys = {}
