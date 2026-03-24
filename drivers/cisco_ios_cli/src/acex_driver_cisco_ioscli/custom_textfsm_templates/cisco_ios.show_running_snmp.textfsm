@@ -1,0 +1,8 @@
+Value HOST (\S+)
+Value VRF (\S+)
+Value VERSION (\S+)
+Value AUTH (auth\s+|noauth\s+|priv\s+)
+Value COMMUNITY_STRING ((?:\S+))
+
+Start  
+  ^snmp-server\s+host\s+(?:${HOST})?(?:\s+vrf\s+${VRF})?(?:\s+version\s+${VERSION})?(?:\s+(?:${AUTH})?(?:${COMMUNITY_STRING}))?\s*$$ -> Record
