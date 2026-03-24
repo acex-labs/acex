@@ -96,7 +96,6 @@ class ConfigDiffer:
         Components with identity_fields = () fall back to key-based matching.
         """
         flat_desired = self._flatten(desired_config)
-        print(desired_config)
         print(flat_desired)
 
         exit()
