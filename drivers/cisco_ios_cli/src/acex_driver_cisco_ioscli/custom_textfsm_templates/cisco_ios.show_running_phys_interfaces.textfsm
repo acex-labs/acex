@@ -6,6 +6,7 @@ Value VOICE_VLAN (\d+)
 Value DESCRIPTION (.+)
 Value TRUNK_ALLOWED_VLANS (\S+)
 Value ENABLED (shutdown|no shutdown)
+Value NEGOTIATION (\S+)
 
 Start
   ^interface\s+${NAME} -> Interface
@@ -18,5 +19,6 @@ Interface
   ^\s+switchport access vlan ${ACCESS_VLAN}
   ^\s+switchport voice vlan ${VOICE_VLAN}
   ^\s+${ENABLED}
+  ^\s+negotiation ${NEGOTIATION}
   ^! -> Record Start
   ^interface\s+${NAME} -> Record Interface
