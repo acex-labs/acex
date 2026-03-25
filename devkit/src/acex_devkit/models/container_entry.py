@@ -1,7 +1,7 @@
 from typing import ClassVar
 
 
-class ContainerModel:
+class ContainerEntry:
     """
     Mixin for Pydantic models that are used as values in Dict[str, X] container fields.
 
@@ -14,12 +14,12 @@ class ContainerModel:
         field inside the object acts as a natural identifier.
 
     Example:
-        class NtpServer(ContainerModel, BaseModel):
+        class NtpServer(ContainerEntry, BaseModel):
             identity_fields: ClassVar[tuple[str, ...]] = ("address",)
             address: AttributeValue[str]
             ...
 
-        class SpanningTreeGlobalConfig(ContainerModel, BaseModel):
+        class SpanningTreeGlobalConfig(ContainerEntry, BaseModel):
             identity_fields: ClassVar[tuple[str, ...]] = ()  # key is identity
             mode: Optional[AttributeValue[str]] = None
             ...
@@ -32,7 +32,7 @@ class ContainerModel:
         has_identity_fields = any(
             "identity_fields" in c.__dict__
             for c in cls.__mro__
-            if c is not ContainerModel
+            if c is not ContainerEntry
         )
         if not has_identity_fields:
             raise TypeError(

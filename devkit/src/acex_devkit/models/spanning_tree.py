@@ -1,10 +1,10 @@
 from pydantic import BaseModel
 from acex_devkit.models.attribute_value import AttributeValue
-from acex_devkit.models.container_model import ContainerModel
+from acex_devkit.models.container_entry import ContainerEntry
 from enum import Enum
 from typing import ClassVar, Optional, Dict
 
-class SpanningTreeGlobalAttributes(ContainerModel, BaseModel):
+class SpanningTreeGlobalAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ()
     mode: Optional[AttributeValue[str]] = None # Needs to be defined by user. Default for Cisco is RAPID-PVST and for Juniper it's just RSTP
     bpdu_filter: Optional[AttributeValue[bool]] = None # Disabled by default
@@ -22,7 +22,7 @@ class SpanningTreeModeConfig(BaseModel):
     hold_count: Optional[AttributeValue[int]] = None # Range 1..10
 
 ## RSTP
-class RstpAttributes(ContainerModel, SpanningTreeModeConfig):
+class RstpAttributes(ContainerEntry, SpanningTreeModeConfig):
     identity_fields: ClassVar[tuple[str, ...]] = ()
 
 class RSTPConfig(BaseModel):
@@ -30,13 +30,13 @@ class RSTPConfig(BaseModel):
     config: Optional[Dict[str, RstpAttributes]] = None
 
 ### MSTP
-class MstpInstanceAttributes(ContainerModel, SpanningTreeModeConfig):
+class MstpInstanceAttributes(ContainerEntry, SpanningTreeModeConfig):
     identity_fields: ClassVar[tuple[str, ...]] = ("instance_id",)
     instance_id: AttributeValue[int] # range: 1..4094
     name: Optional[AttributeValue[str]] = None
     vlan: Optional[AttributeValue[list[int]]] = None # List of VLANs mapped to the MST instance
 
-class MstpAttributes(ContainerModel, SpanningTreeModeConfig):
+class MstpAttributes(ContainerEntry, SpanningTreeModeConfig):
     identity_fields: ClassVar[tuple[str, ...]] = ()
     revision: Optional[AttributeValue[int]] = None
     max_hop: Optional[AttributeValue[int]] = None # Range 1..255
@@ -47,7 +47,7 @@ class MSTPConfig(BaseModel):
     mst_instances: Optional[Dict[str, MstpInstanceAttributes]] = None
 
 ### Rapid PVST
-class RapidPVSTAttributes(ContainerModel, SpanningTreeModeConfig):
+class RapidPVSTAttributes(ContainerEntry, SpanningTreeModeConfig):
     identity_fields: ClassVar[tuple[str, ...]] = ("vlan",)
     """
     Docstring for RapidPVSTAttributes

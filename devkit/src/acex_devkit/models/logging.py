@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from acex_devkit.models.attribute_value import AttributeValue
-from acex_devkit.models.container_model import ContainerModel
+from acex_devkit.models.container_entry import ContainerEntry
 from enum import Enum
 from typing import ClassVar, Optional, Dict
 
@@ -47,7 +47,7 @@ class Console(BaseModel):
     line_number: Optional[AttributeValue[int]] = None
     logging_synchronous: Optional[AttributeValue[bool]] = None
 
-class RemoteServer(ContainerModel, BaseModel):
+class RemoteServer(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("host",)
     name: Optional[AttributeValue[str]] = None
     host: Optional[AttributeValue[str]] = None
@@ -58,14 +58,14 @@ class RemoteServer(ContainerModel, BaseModel):
 class RemoteServers(BaseModel):
     servers: Dict[str, RemoteServer] = {}
 
-class VtyLine(ContainerModel, BaseModel):
+class VtyLine(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("line_number",)
     name: Optional[AttributeValue[str]] = None
     line_number: Optional[AttributeValue[int]] = None
     logging_synchronous: Optional[AttributeValue[bool]] = None
     transport_input: Optional[AttributeValue[str]] = None # default is SSH. Mostly used by Cisco.
 
-class FileLogging(ContainerModel, BaseModel):
+class FileLogging(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("filename",)
     name: Optional[AttributeValue[str]] = None # object name
     filename: Optional[AttributeValue[str]] = None # name of the file

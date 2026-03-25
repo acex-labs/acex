@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from ipaddress import IPv4Network, IPv6Network
 from acex_devkit.models.attribute_value import AttributeValue
-from acex_devkit.models.container_model import ContainerModel
+from acex_devkit.models.container_entry import ContainerEntry
 from enum import Enum
 from typing import ClassVar, Optional, Dict, Literal
 
@@ -13,7 +13,7 @@ class AclProtoclOptions(str, Enum):
     IP = 'ip'
     ANY = 'any'
 
-class IpAclOptions(ContainerModel, BaseModel):
+class IpAclOptions(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("sequence_id",)
     description: Optional[AttributeValue[str]] = None
     source_port: Optional[AttributeValue[str]] = None # e.g., "100-200"
@@ -66,13 +66,13 @@ class Ipv6AclEntryAttributes(IpAclOptions):
     destination_address: Optional[AttributeValue[IPv6Network | Literal['any']]] = None # Destination IPv6 address prefix.
     ipv6_acl: Optional[AttributeValue[str]] = None # Reference to the ACL Set this entry belongs to.
 
-class Ipv4AclAttributes(ContainerModel, BaseModel):
+class Ipv4AclAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     type: AttributeValue[str] = "ipv4_acl"
     acl_entries: Optional[Dict[str, Ipv4AclEntryAttributes]] = None
 
-class Ipv6AclAttributes(ContainerModel, BaseModel):
+class Ipv6AclAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     type: AttributeValue[str] = "ipv6_acl"
