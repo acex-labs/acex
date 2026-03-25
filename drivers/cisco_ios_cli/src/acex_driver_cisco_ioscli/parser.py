@@ -274,7 +274,7 @@ class CiscoIOSCLIParser:
             if ntp_server.get("source_interface"):
                 for intf_name, intf in self.parsed_config.interfaces.items():
                     intf_type = intf.get('type') if isinstance(intf, dict) else getattr(intf, 'type', None)
-                    intf_vlan_id = intf.get('vlan_id') if isinstance(intf, dict) else getattr(intf, 'vlan_id', None)
+                    intf_vlan_id = intf['vlan_id'].get('value') if isinstance(intf, dict) and intf.get('vlan_id') else getattr(intf, 'vlan_id', None)
                     if intf_type == 'l3ipvlan' and intf_vlan_id == int(ntp_server.get("source_interface").replace('Vlan','')):
                         intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
                         break
@@ -315,7 +315,7 @@ class CiscoIOSCLIParser:
             if entry.get("source_interface"):
                 for intf_name, intf in self.parsed_config.interfaces.items():
                     intf_type = intf.get('type') if isinstance(intf, dict) else getattr(intf, 'type', None)
-                    intf_vlan_id = intf.get('vlan_id') if isinstance(intf, dict) else getattr(intf, 'vlan_id', None)
+                    intf_vlan_id = intf['vlan_id'].get('value') if isinstance(intf, dict) and intf.get('vlan_id') else getattr(intf, 'vlan_id', None)
                     if intf_type == 'l3ipvlan' and intf_vlan_id == int(entry.get("source_interface").replace('Vlan','')):
                         intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
                         break
