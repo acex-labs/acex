@@ -5,10 +5,11 @@ from enum import Enum
 
 from acex_devkit.models.external_value import ExternalValue
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.container_entry import ContainerEntry
 from acex_devkit.models.logging import (
     LoggingConfig,
     Console,
-    RemoteServer,
+    RemoteServers,
     VtyLine,
     FileLogging,
     LoggingEvents
@@ -25,7 +26,8 @@ class Metadata(BaseModel):
     type: Optional[str] = "str"
     value_source: MetadataValueType = MetadataValueType.CONCRETE 
 
-class Reference(BaseModel): 
+class Reference(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("pointer",)
     pointer: str
     metadata: Metadata = Metadata(type="str", value_source="reference")
 
@@ -50,10 +52,7 @@ class SystemConfig(BaseModel):
     motd_banner: Optional[AttributeValue[str]] = None
 
 #class TripleA(BaseModel): ...
-
 # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
-class RemoteServers(BaseModel):
-    servers: Dict[str, RemoteServer] = {}
 
 class VtyLines(BaseModel):
     lines: Dict[str, VtyLine] = {}
@@ -72,7 +71,8 @@ class LoggingComponents(BaseModel):
 class NtpConfig(BaseModel):
     enabled: AttributeValue[bool] = AttributeValue(value=False)
 
-class NtpServer(BaseModel):
+class NtpServer(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     address: AttributeValue[str]
     port: Optional[AttributeValue[int]] = None
     version: Optional[AttributeValue[int]] = None
@@ -103,25 +103,28 @@ class AuthorizedKeyAlgorithms(str, Enum):
     SSH_RSA = "ssh-rsa"
     SSH_DSS = "ssh-dss"
 
-class AuthorizedKey(BaseModel):
-    algorithm: AuthorizedKeyAlgorithms
-    public_key: str
+class AuthorizedKey(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("public_key",)
+    algorithm: Optional[AttributeValue[AuthorizedKeyAlgorithms]] = None
+    public_key: Optional[AttributeValue[str]] = None
 
-class Ssh(BaseModel): 
+class Ssh(BaseModel):
     config: Optional[SshServer] = None
     host_keys: Optional[Dict[str, AuthorizedKey]] = {}
 
 class Lldp(BaseModel): ...
 
-class Vlan(BaseModel):
+class Vlan(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("vlan_id",)
     name: AttributeValue[str]
     vlan_id: Optional[AttributeValue[int]] = None
     vlan_name: Optional[AttributeValue[str]] = None
     network_instance: Optional[AttributeValue[str]] = None
     metadata: Optional[Metadata] = Metadata()
 
-class Interface(BaseModel): 
+class Interface(ContainerEntry, BaseModel):
     "Base class for all interfaces"
+    identity_fields: ClassVar[tuple[str, ...]] = ("index", "type")
     index: AttributeValue[int]
     name: AttributeValue[str]
 
@@ -199,21 +202,21 @@ class Ieee8023adLagInterface(Interface):
 class L3IpvlanInterface(Interface):
     "SVI Interface"
     type: Literal["l3ipvlan"] = "l3ipvlan"
-    vlan_id: Optional[int] = None
+    vlan_id: Optional[AttributeValue[int]] = None
 
 class SoftwareLoopbackInterface(Interface):
     "Loopback Interface"
     type: Literal["softwareLoopback"] = "softwareLoopback"
 
     # Loopback har varken vlan, duplex eller speed
-    vlan_id: Optional[int] = None
+    vlan_id: Optional[AttributeValue[int]] = None
     ipv4: Optional[AttributeValue[str]] = None
 
 class SubInterface(Interface):
     "Subinterface"
     type: Literal["subinterface"] = "subinterface"
 
-    vlan_id: Optional[int] = None
+    vlan_id: Optional[AttributeValue[int]] = None
     ipv4: Optional[AttributeValue[str]] = None
 
 class ManagementInterface(Interface):
@@ -221,9 +224,10 @@ class ManagementInterface(Interface):
     type: Literal["managementInterface"] = "managementInterface"
 
     # Mgmt har inte vlan
-    vlan_id: Optional[int] = None
+    vlan_id: Optional[AttributeValue[int]] = None
 
-class StaticRouteNextHop(BaseModel):
+class StaticRouteNextHop(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("next_hop",)
     index: Optional[AttributeValue[int]] = None
     next_hop: AttributeValue[str] # can be an IP address or an interface. Reference will be handled in config component
     metric: Optional[AttributeValue[int]] = None
@@ -231,7 +235,8 @@ class StaticRouteNextHop(BaseModel):
     network_instance: Optional[AttributeValue[str]] = None
 
 
-class StaticRoute(BaseModel):
+class StaticRoute(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("prefix",)
     route_name: Optional[AttributeValue[str]] = None
     prefix: AttributeValue[str]
     next_hops: Optional[Dict[str, StaticRouteNextHop]] = {}
@@ -248,10 +253,12 @@ class ImportExportPolicy(BaseModel):
     export_route_target: Optional[List[RouteTarget]] = None
     import_route_target: Optional[List[RouteTarget]] = None
 
-class InterInstancePolicy(BaseModel):
+class InterInstancePolicy(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ()
     import_export_policy: ImportExportPolicy
 
-class NetworkInstance(BaseModel): 
+class NetworkInstance(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     description: Optional[AttributeValue[str]] = None
     vlans: Optional[Dict[str, Vlan]] = {}
@@ -297,14 +304,16 @@ class SnmpPrivProtocol(str, Enum):
 	AES256 = "AES256"
 
 
-class SnmpConfig(BaseModel):
-	enabled: AttributeValue[bool] = AttributeValue(value=False)
-	engine_id: Optional[AttributeValue[str]] = None
-	location: Optional[AttributeValue[str]] = None
-	contact: Optional[AttributeValue[str]] = None
+class SnmpConfig(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ()
+    enabled: AttributeValue[bool] = AttributeValue(value=False)
+    engine_id: Optional[AttributeValue[str]] = None
+    location: Optional[AttributeValue[str]] = None
+    contact: Optional[AttributeValue[str]] = None
 
 
-class SnmpCommunity(BaseModel):
+class SnmpCommunity(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     community: Optional[AttributeValue[str]] = None # Community string
     access: Optional[AttributeValue[SnmpAccess]] = AttributeValue(value=SnmpAccess.READ_ONLY)
@@ -315,22 +324,25 @@ class SnmpCommunity(BaseModel):
     clients: Optional[AttributeValue[List[str]]] = None # Juniper specific
 
 
-class SnmpUser(BaseModel):
-	username: AttributeValue[str]
-	security_level: Optional[AttributeValue[SnmpSecurityLevel]] = AttributeValue(value=SnmpSecurityLevel.NO_AUTH_NO_PRIV)
-	auth_protocol: Optional[AttributeValue[SnmpAuthProtocol]] = None
-	auth_password: Optional[AttributeValue[str]] = None
-	priv_protocol: Optional[AttributeValue[SnmpPrivProtocol]] = None
-	priv_password: Optional[AttributeValue[str]] = None
+class SnmpUser(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("username",)
+    username: AttributeValue[str]
+    security_level: Optional[AttributeValue[SnmpSecurityLevel]] = AttributeValue(value=SnmpSecurityLevel.NO_AUTH_NO_PRIV)
+    auth_protocol: Optional[AttributeValue[SnmpAuthProtocol]] = None
+    auth_password: Optional[AttributeValue[str]] = None
+    priv_protocol: Optional[AttributeValue[SnmpPrivProtocol]] = None
+    priv_password: Optional[AttributeValue[str]] = None
 
 
-class SnmpView(BaseModel):
-	name: AttributeValue[str]
-	oid: AttributeValue[str]
-	included: Optional[AttributeValue[bool]] = AttributeValue(value=True)
+class SnmpView(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
+    oid: AttributeValue[str]
+    included: Optional[AttributeValue[bool]] = AttributeValue(value=True)
 
 
-class SnmpServer(BaseModel):
+class SnmpServer(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     name: Optional[AttributeValue[str]] = None
     address: AttributeValue[str]
     port: Optional[AttributeValue[int]] = AttributeValue(value=162)
@@ -457,7 +469,8 @@ class TrapEventOptions(str, Enum):
 	BULKSTAT_COLLECTION = "bulkstat_collection"
 	BULKSTAT_TRANSFER = "bulkstat_transfer"
 
-class TrapEvent(BaseModel):
+class TrapEvent(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("event_name",)
     name: Optional[AttributeValue[str]] = None
     event_name: Optional[AttributeValue[TrapEventOptions]] = None
 
@@ -472,10 +485,12 @@ class Snmp(BaseModel):
     views: Optional[Dict[str, SnmpView]] = {}
 
 # AAA
-class aaaBaseClass(BaseModel):
+class aaaBaseClass(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ()  # key is identity (e.g. "default", "console")
     name: Optional[AttributeValue[str]] = None
 
-class aaaTacacsAttributes(BaseModel):
+class aaaTacacsAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     port: Optional[AttributeValue[int]] = None
     secret_key: Optional[AttributeValue[str]] = None
     secret_key_hashed: Optional[AttributeValue[str]] = None
@@ -484,7 +499,8 @@ class aaaTacacsAttributes(BaseModel):
     source_interface: Optional[Reference] = None
     server_group: Optional[AttributeValue[str]] = None
 
-class aaaRadiusAttributes(BaseModel):
+class aaaRadiusAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     auth_port: Optional[AttributeValue[int]] = None
     acct_port: Optional[AttributeValue[int]] = None
     secret_key: Optional[AttributeValue[str]] = None
@@ -495,7 +511,8 @@ class aaaRadiusAttributes(BaseModel):
     retransmit_attempts: Optional[AttributeValue[int]] = None
     server_group: Optional[AttributeValue[str]] = None
 
-class aaaServerGroupAttributes(BaseModel):
+class aaaServerGroupAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ()  # key is the group name
     """
     Define a AAA server group that can contain multiple TACACS+ and/or RADIUS servers.
 
@@ -542,6 +559,7 @@ class aaaAuthenticationMethods(aaaBaseClass):
     # aaa authentication enable default group TACACS-GROUP-NEW enable
 
 class authenticationUser(aaaBaseClass):
+    identity_fields: ClassVar[tuple[str, ...]] = ("username",)
     username: Optional[AttributeValue[str]] = None
     password: Optional[AttributeValue[str]] = None
     password_hahsed: Optional[AttributeValue[str]] = None
@@ -555,7 +573,8 @@ class adminUser(aaaBaseClass):
     admin_password: Optional[AttributeValue[str]] = None
     admin_password_hashed: Optional[AttributeValue[str]] = None
 
-class aaaAuthenticationAdminUsers(BaseModel):
+class aaaAuthenticationAdminUsers(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ()
     config: Optional[Dict[str, adminUser]] = {}
 
 class aaaAuthentication(BaseModel):
@@ -595,9 +614,10 @@ class aaaAuthorization(BaseModel):
     events: Optional[Dict[str, aaaAuthorizationEvents]] = {}
 
 # Accounting Models
-class aaaAccountingMethods(BaseModel):
+class aaaAccountingMethods(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ()
     """
-    Define the accounting methods used by AAA. If you define a server group using the "aaaServerGroup" model, 
+    Define the accounting methods used by AAA. If you define a server group using the "aaaServerGroup" model,
     you can reference it here by its name, but only as a string.
 
     Example in config map:
@@ -609,10 +629,11 @@ class aaaAccountingMethods(BaseModel):
     #method: Optional[List[str]] = None # Ex. ['TACACS_GROUP','LOCAL']
     method: Optional[AttributeValue[str]] = None
 
-class aaaAccountingEvents(BaseModel):
+class aaaAccountingEvents(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ()
     """
     Define accounting events.
-    
+
     Cisco example:
     aaa accounting send stop-record authentication failure
     """

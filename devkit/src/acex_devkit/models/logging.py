@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.container_entry import ContainerEntry
 from enum import Enum
-from typing import Optional, Dict
+from typing import ClassVar, Optional, Dict
 
 
 class LoggingServerBase(BaseModel): ...
@@ -46,20 +47,26 @@ class Console(BaseModel):
     line_number: Optional[AttributeValue[int]] = None
     logging_synchronous: Optional[AttributeValue[bool]] = None
 
-class RemoteServer(BaseModel):
+class RemoteServer(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("host",)
     name: Optional[AttributeValue[str]] = None
     host: Optional[AttributeValue[str]] = None
     port: Optional[AttributeValue[int]] = None
     transport: Optional[AttributeValue[str]] = None
     source_address: Optional[AttributeValue[str]] = None # Can be an IP address or an interface reference
 
-class VtyLine(BaseModel):
+class RemoteServers(BaseModel):
+    servers: Dict[str, RemoteServer] = {}
+
+class VtyLine(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("line_number",)
     name: Optional[AttributeValue[str]] = None
     line_number: Optional[AttributeValue[int]] = None
     logging_synchronous: Optional[AttributeValue[bool]] = None
     transport_input: Optional[AttributeValue[str]] = None # default is SSH. Mostly used by Cisco.
 
-class FileLogging(BaseModel):
+class FileLogging(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("filename",)
     name: Optional[AttributeValue[str]] = None # object name
     filename: Optional[AttributeValue[str]] = None # name of the file
     rotate: Optional[AttributeValue[int]] = None # How many versions to keep. Juniper specific.
