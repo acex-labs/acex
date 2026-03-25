@@ -327,6 +327,12 @@ class CiscoIOSCLIParser:
             "algorithms": algorithm_list,
             "public_keys": {}
         }
+
+    # Only used for local testing with static config file
+    def load_running_config(self, filepath: str) -> str:
+        with open(filepath, 'r') as f:
+            return f.read()
+    
     def parse_snmp(self) -> None:
         """Parse SNMP configuration."""
         command = "show running snmp"
@@ -336,9 +342,10 @@ class CiscoIOSCLIParser:
             template_dir=self.custom_templates_dir,
             command=command,
             data=self.running_config
+            #data=self.load_running_config("/Users/jani/scripts/acex/docs/examples/test_run/sample_running.txt") # Using this for testing with a static config file, replace with self.running_config for actual use
         )
 
-        print('Running: ', self.running_config)
+        #print('Running: ', self.running_config)
         print('Parsed SNMP data: ', parsed_data)
 
         # SNMP parsing logic would go here, similar to NTP and SSH parsing
@@ -353,16 +360,17 @@ class CiscoIOSCLIParser:
         for entry in parsed_data:
             print('SNMP entry: ', entry)
             # Config values
-            if entry.get():
-                snmp_config_values_dict['enable'] = True
+            if entry.get('host'):
+                snmp_config_values_dict['enabled'] = True
             snmp_config_values_dict['location'] = entry.get("location") if entry.get("location") else None
             snmp_config_values_dict['contact'] = entry.get("contact") if entry.get("contact") else None
             snmp_config_values_dict['engine_id'] = entry.get("engine_id") if entry.get("engine_id") else None
 
-            #snmp_config = self.removekey(SnmpConfig(**snmp_config_values_dict), 'metadata')
+            snmp_config = self.removekey(SnmpConfig(**snmp_config_values_dict), 'metadata')
             
             # Community values
             snmp_community_values_dict = {}
+            snmp_community_values_dict['name'] = 'test'
             snmp_community_values_dict['community'] = entry.get("community_string") if entry.get("community_string") else None
             snmp_community_values_dict['access'] = entry.get("access") if entry.get("access") else None
             snmp_community_values_dict['view'] = entry.get("view") if entry.get("view") else None
@@ -378,7 +386,7 @@ class CiscoIOSCLIParser:
                 entry['source_interface'] = intf_ref
                 snmp_community_values_dict['source_interface'] = intf_ref
             
-            #snmp_communities_dict['test'] = self.removekey(SnmpCommunity(**snmp_community_values_dict), 'metadata')
+            snmp_communities_dict['test'] = self.removekey(SnmpCommunity(**snmp_community_values_dict), 'metadata')
 
             # User values
             snmp_user_values_dict = {}
@@ -401,17 +409,26 @@ class CiscoIOSCLIParser:
 
             # Server values
             snmp_server_values_dict = {}
-            snmp_server_values_dict['address'] = entry.get("server_address") if entry.get("server_address") else None
+            snmp_server_values_dict['address'] = entry.get("host") 
+            if entry.get("host"):
+                snmp_server_values_dict['address'] = str(entry.get("host"))
+                snmp_server_values_dict['enabled'] = True
+            else:
+                snmp_server_values_dict['address'] = None
+                snmp_server_values_dict['enabled'] = False
             snmp_server_values_dict['port'] = int(entry.get("server_port")) if entry.get("server_port") else None
             snmp_server_values_dict['enabled'] = True if entry.get("server_enabled") else False
-            snmp_server_values_dict['version'] = entry.get("server_version") if entry.get("server_version") else None
-            snmp_server_values_dict['community'] = entry.get("server_community") if entry.get("server_community") else None
+            if entry.get("version"):
+                version = 'v3' if entry.get("version") == '3' else 'v2c' if entry.get("version") == '2c' else None
+                snmp_server_values_dict['version'] = version
+            #snmp_server_values_dict['version'] = entry.get("version") if entry.get("version") else None
+            snmp_server_values_dict['community'] = entry.get("community_string") if entry.get("community_string") else None
             snmp_server_values_dict['username'] = entry.get("server_user") if entry.get("server_user") else None
             snmp_server_values_dict['security_level'] = entry.get("server_security_level") if entry.get("server_security_level") else None
-            snmp_server_values_dict['source_interface'] = entry.get("server_source_interface") if entry.get("server_source_interface") else None
+            snmp_server_values_dict['source_interface'] = entry.get("source_interface") if entry.get("source_interface") else None
             snmp_server_values_dict['network_instance'] = entry.get("vrf") if entry.get("vrf") else None
 
-            #snmp_servers_dict[entry.get('server_address')] = self.removekey(SnmpServer(**snmp_server_values_dict), 'metadata')
+            snmp_servers_dict[entry.get('host')] = self.removekey(SnmpServer(**snmp_server_values_dict), 'metadata')
 
             # Trap events
             snmp_trap_values_dict = {}
@@ -421,11 +438,11 @@ class CiscoIOSCLIParser:
             #snmp_traps_dict[entry.get('trap_event_name')] = self.removekey(TrapEvent(**snmp_trap_values_dict), 'metadata')
 
 
-        #snmp_dict['config'] = snmp_config
-        #snmp_dict['communities'] = snmp_communities_dict
+        snmp_dict['config'] = snmp_config
+        snmp_dict['communities'] = snmp_communities_dict
         #snmp_dict['users'] = snmp_users_dict
         #snmp_dict['views'] = snmp_views_dict
-        #snmp_dict['trap_events'] = snmp_traps_dict
-        #snmp_dict['trap_servers'] = snmp_servers_dict
+        snmp_dict['trap_events'] = snmp_traps_dict
+        snmp_dict['trap_servers'] = snmp_servers_dict
 #
-        #self.parsed_config.system.snmp = snmp_dict
+        self.parsed_config.system.snmp = snmp_dict
