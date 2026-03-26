@@ -39,11 +39,14 @@ class DatabasePlugin(IntegrationPluginBase):
         finally:
             session.close()
 
-    def query(self, filters: dict | None = None) -> list:
+    def query(self, filters: dict | None = None, options: list = None) -> list:
         session_gen = self.db.get_session()
         session = next(session_gen)
         try:
             query = session.query(self.table)
+            if options:
+                for opt in options:
+                    query = query.options(opt)
             if filters:
                 for key, value in filters.items():
                     query = query.filter(getattr(self.table, key) == value)

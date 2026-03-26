@@ -1,5 +1,5 @@
 import inspect
-from acex.models import Node, NodeResponse
+from acex.models import Node, NodeResponse, NodeListResponse
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from acex.models.asset import Asset
 from typing import List
@@ -89,9 +89,16 @@ class NodeService:
         result = await self._enrich_data(result)
         return result
 
-    async def query(self) -> List[Node]:
+    async def query(self) -> List[NodeListResponse]:
         result = await self._call_method(self.adapter.query)
-        return result
+        return [
+            NodeListResponse(
+                **node.model_dump(),
+                hostname=node.logical_node.hostname if node.logical_node else None,
+                site=node.logical_node.site if node.logical_node else None
+            )
+            for node in result
+        ]
 
     async def update(self, id: str, logical_node: Node):
         result = await self._call_method(self.adapter.update, id, logical_node)
