@@ -113,6 +113,14 @@ class AttributeValue(BaseModel, Generic[T]):
             return str(value)
         return value
 
+    def __eq__(self, other):
+        if not isinstance(other, AttributeValue):
+            return NotImplemented
+        return self.value == other.value
+
+    def __hash__(self):
+        return hash(self.value)
+
     # Convenience helpers
     def is_external(self) -> bool:
         return isinstance(self.value, ExternalValue)
