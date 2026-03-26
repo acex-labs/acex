@@ -120,7 +120,6 @@ class Vlan(ContainerEntry, BaseModel):
     vlan_id: Optional[AttributeValue[int]] = None
     vlan_name: Optional[AttributeValue[str]] = None
     network_instance: Optional[AttributeValue[str]] = None
-    metadata: Optional[Metadata] = Metadata()
 
 class Interface(ContainerEntry, BaseModel):
     "Base class for all interfaces"
@@ -132,7 +131,6 @@ class Interface(ContainerEntry, BaseModel):
     enabled: Optional[AttributeValue[bool]] = None
     ipv4: Optional[AttributeValue[str]] = None
     
-    metadata: Optional[Metadata] = Metadata()
     type: Literal[
         "ethernetCsmacd",
         "ieee8023adLag",
