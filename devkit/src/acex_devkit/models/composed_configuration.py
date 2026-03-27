@@ -342,7 +342,7 @@ class SnmpView(ContainerEntry, BaseModel):
 class SnmpServer(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     name: Optional[AttributeValue[str]] = None
-    address: AttributeValue[str]
+    address: Optional[AttributeValue[str]] = None
     port: Optional[AttributeValue[int]] = AttributeValue(value=162)
     enabled: Optional[AttributeValue[bool]] = AttributeValue(value=True)
     version: Optional[AttributeValue[Literal["v2c", "v3"]]] = None
