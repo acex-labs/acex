@@ -235,7 +235,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         """Assign physical interface names based on asset data."""
 
         for _,intf in configuration.get("interfaces", {}).items():
-            if intf["metadata"]["type"] == "ethernetCsmacd":
+            if intf["type"] == "ethernetCsmacd":
                 index = intf["index"]["value"]
                 stack_index = (intf.get("stack_index") or {}).get("value")
                 module_index = (intf.get("module_index") or {}).get("value")
@@ -243,7 +243,7 @@ class CiscoIOSCLIRenderer(RendererBase):
                 intf_prefix = self.get_port_prefix(asset.os, speed)
                 intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index, module_index)
                 intf["name"] = f"{intf_prefix}{intf_suffix}"
-            if intf['metadata']['type'] == "ieee8023adLag":
+            if intf['type'] == "ieee8023adLag":
                 # Handle LAG interface names here
                 index = intf["index"]["value"]
                 intf["name"] = f"Port-channel{index}"

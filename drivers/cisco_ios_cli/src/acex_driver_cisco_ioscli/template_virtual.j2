@@ -75,7 +75,7 @@ spanning-tree extend system-id
 !
 !
 {%- for _, intf in configuration.interfaces.items() %}
-{%-  if intf.metadata.type == "softwareLoopback" %}
+{%-  if intf.type == "softwareLoopback" %}
 interface Loopback{{ intf.index.value }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
@@ -90,7 +90,7 @@ interface Loopback{{ intf.index.value }}
 {%- endfor %}
 !
 {%- for _, intf in configuration.interfaces.items() %}
-{%-  if intf.metadata.type == "ieee8023adLag" %}
+{%-  if intf.type == "ieee8023adLag" %}
 interface {{ intf.name }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
@@ -125,13 +125,13 @@ interface {{ intf.name }}
  shutdown
 {%-   endif %}
 {%-  endif %}
-{%-  if intf.metadata.type == "ieee8023adLag" %}
+{%-  if intf.type == "ieee8023adLag" %}
 !
 {%-  endif %}
 {%- endfor %}
 !
 {%- for _, intf in configuration.interfaces.items() %}
-{%-  if intf.metadata.type == "ethernetCsmacd" %}
+{%-  if intf.type == "ethernetCsmacd" %}
 interface {{ intf.name }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
@@ -178,12 +178,12 @@ interface {{ intf.name }}
 {%- if 'negotiation' in intf and intf.negotiation and intf.negotiation.value %}
  negotiation auto
 {%- endif %}
-{%-  if intf.metadata.type == "ethernetCsmacd" %}
+{%-  if intf.type == "ethernetCsmacd" %}
 !
 {%-  endif %}
 {%- endfor %}
 {%- for _, intf in configuration.interfaces.items() %}
-{%-  if intf.metadata.type == "l3ipvlan" and intf.vlan_id %}
+{%-  if intf.type == "l3ipvlan" and intf.vlan_id %}
 interface Vlan{{ intf.vlan_id }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
@@ -198,12 +198,12 @@ interface Vlan{{ intf.vlan_id }}
  shutdown
 {%-     endif %}
 {%-  endif %}
-{%-  if intf.metadata.type == "l3ipvlan" %}
+{%-  if intf.type == "l3ipvlan" %}
 !
 {%-  endif %}
 {%- endfor %}
 {%- for _, intf in configuration.interfaces.items() %}
-{%-  if intf.metadata.type == "ManagementInterface" and intf.name %}
+{%-  if intf.type == "ManagementInterface" and intf.name %}
 interface {{ intf.name.value }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
@@ -218,7 +218,7 @@ interface {{ intf.name.value }}
  shutdown
 {%-     endif %}
 {%-  endif %}
-{%-  if intf.metadata.type == "ManagementInterface" and intf.name %}
+{%-  if intf.type == "ManagementInterface" and intf.name %}
 !
 {%-  endif %}
 {%- endfor %}
@@ -305,13 +305,15 @@ snmp-server contact {{ configuration.snmp.contact }}
 {%- endif %}
 {%- if configuration.system.logging -%}
 {%-   if configuration.system.logging.get('remote_servers') %}
-{%-     for server in configuration.system.logging.get('remote_servers').values() %}
-{%-       if server.host %}
-{%-         if server.source_address %}
+{%-     for server_group in configuration.system.logging.get('remote_servers').values() %}
+{%-       for _, server in server_group.items() %}
+{%-         if server.host and server.host.value %}
+{%-           if server.source_address and server.source_address.value %}
 logging source-interface {{ server.source_address.value }}
+{%-           endif %}
+logging host {{ server.host.value }}
 {%-         endif %}
-logging host {{ server.host }}
-{%-       endif %}
+{%-       endfor %}
 {%-     endfor %}
 {%-   endif %}
 {%- endif %}
