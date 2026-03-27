@@ -1,0 +1,8 @@
+Value LOCATION (.+)
+Value CONTACT (.+)
+Value SOURCE_INTERFACE (\S+)
+
+Start  
+  ^snmp-server\s+trap-source\s+(?:${SOURCE_INTERFACE})?\s*$$
+  ^snmp-server location\s+${LOCATION}
+  ^snmp-server contact\s+${CONTACT}

@@ -1,0 +1,6 @@
+Value VIEW_NAME (\S+)
+Value VIEW_OID (\S+)
+Value VIEW_STATUS (included|excluded)
+
+Start
+  ^snmp-server\s+view\s+${VIEW_NAME}\s+${VIEW_OID}\s+${VIEW_STATUS}\s*$$ -> Record
