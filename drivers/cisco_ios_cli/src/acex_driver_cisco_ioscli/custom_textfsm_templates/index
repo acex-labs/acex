@@ -12,12 +12,13 @@
 Template, Hostname, Platform, Command
 cisco_ios.show_running_phys_interfaces.textfsm, .*, cisco_ios, show running physical interfaces
 cisco_ios.show_running_l3_interfaces.textfsm, .*, cisco_ios, show running svi interfaces
-<<<<<<< HEAD
 cisco_ios.show_running_system.textfsm, .*, cisco_ios, show running system
-=======
-cisco_ios.show_running_hostname.textfsm, .*, cisco_ios, show running hostname
->>>>>>> 8ca8a16 (Add support for l3 parsing)
 cisco_ios.show_running_lag_interfaces.textfsm, .*, cisco_ios, show running lag interfaces
 cisco_ios.show_running_ntp.textfsm, .*, cisco_ios, show running ntp
 cisco_ios.show_running_ssh.textfsm, .*, cisco_ios, show running ssh
-cisco_ios.show_running_snmp.textfsm, .*, cisco_ios, show running snmp
+cisco_ios.show_running_snmp.textfsm, .*, cisco_ios, ^show running snmp$
+cisco_ios.show_running_snmp_servers.textfsm, .*, cisco_ios, ^show running snmp servers$
+cisco_ios.show_running_snmp_traps.textfsm, .*, cisco_ios, ^show running snmp traps$
+cisco_ios.show_running_snmp_views.textfsm, .*, cisco_ios, ^show running snmp views$
+cisco_ios.show_running_snmp_communities.textfsm, .*, cisco_ios, ^show running snmp communities$
+cisco_ios.show_running_snmp_users.textfsm, .*, cisco_ios, ^show running snmp users$

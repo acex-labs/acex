@@ -1,0 +1,4 @@
+Value List TRAPS (\S.*)
+
+Start  
+  ^snmp-server\s+enable\s+traps\s+${TRAPS}

@@ -1,12 +1,8 @@
-Value HOST (\S+)
-Value VRF (\S+)
-Value VERSION (\S+)
-Value AUTH (auth\s+|noauth\s+|priv\s+)
-Value COMMUNITY_STRING ((?:\S+))
+Value LOCATION (.+)
+Value CONTACT (.+)
 Value SOURCE_INTERFACE (\S+)
-Value TRAP (\S.*)
 
 Start  
-  ^snmp-server\s+host\s+(?:${HOST})?(?:\s+vrf\s+${VRF})?(?:\s+version\s+${VERSION})?(?:\s+(?:${AUTH})?(?:${COMMUNITY_STRING}))?\s*$$
-  ^snmp-server\s+trap-source\s+(?:{SOURCE_INTERFACE})?\s*$$
-  ^snmp-server\s+enable\s+traps\s+{TRAP} -> Record
+  ^snmp-server\s+trap-source\s+(?:${SOURCE_INTERFACE})?\s*$$
+  ^snmp-server location\s+${LOCATION}
+  ^snmp-server contact\s+${CONTACT}

@@ -1,0 +1,8 @@
+Value USER (\S+)
+Value VERSION (\S+)
+Value AUTH (\S+)
+Value SEC_LEVEL (\S+)
+Value ACCESS (\S+)
+
+Start  
+  ^snmp-server\s+group\s+(?:${USER})?(?:\s+${VERSION})?(?:\s+auth\s+${AUTH})?(?:\s+${SEC_LEVEL})?(?:\s+${ACCESS})?\s*$$ -> Record
