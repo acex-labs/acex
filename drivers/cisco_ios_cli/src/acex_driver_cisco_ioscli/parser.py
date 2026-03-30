@@ -512,8 +512,8 @@ class CiscoIOSCLIParser:
         )
 
         # SNMP parsing logic would go here, similar to NTP and SSH parsing
+        snmp_config = {}
         snmp_config_values_dict = {}
-
         for entry in parsed_data:
             if entry.get('host'):
                 snmp_config_values_dict['enabled'] = True
