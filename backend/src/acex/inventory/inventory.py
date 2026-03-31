@@ -1,6 +1,7 @@
 from acex.plugins.adaptors import AssetAdapter, LogicalNodeAdapter, NodeAdapter
 from acex.plugins.integrations import IntegrationPluginBase, DatabasePlugin
 from acex.models import Asset, LogicalNode, Node
+from acex.inventory.asset_service import AssetService
 from acex.inventory.logical_node_service import LogicalNodeService
 from acex.inventory.node_service import NodeService
 from acex.inventory.asset_cluster_manager import AssetClusterManager
@@ -23,11 +24,13 @@ class Inventory:
         # monterar datasources som datastores med specifika adaptrar
         print(f"asset plugin: {assets_plugin}")
         if assets_plugin:
-            self.assets = AssetAdapter(assets_plugin)
+            assets_adapter = AssetAdapter(assets_plugin)
         else:
             print("No assets plugin, using database")
             default_assets_plugin = DatabasePlugin(db_connection, Asset)
-            self.assets = AssetAdapter(default_assets_plugin)
+            assets_adapter = AssetAdapter(default_assets_plugin)
+
+        self.assets = AssetService(assets_adapter)
 
         # Logical Nodes - skapa adapter och wrappa i service layer
         if logical_nodes_plugin:

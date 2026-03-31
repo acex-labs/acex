@@ -1,5 +1,6 @@
 import inspect
 from acex.models import LogicalNode, LogicalNodeResponse
+from typing import List
 
 
 class LogicalNodeService:
@@ -39,8 +40,24 @@ class LogicalNodeService:
         ln = await self._apply_compilation(ln, resolve=resolve)
         return ln
     
-    async def query(self):
-        result = await self._call_method(self.adapter.query)
+    async def query(
+        self,
+        role: str = None,
+        site: str = None,
+        sequence: int = None,
+        hostname: str = None
+    )-> List[LogicalNode]:
+
+        query_filters = {
+            k: v for k, v in {
+                "role": role,
+                "site": site,
+                "sequence": sequence,
+                "hostname": hostname,
+            }.items() if v is not None
+        }
+
+        result = await self._call_method(self.adapter.query, filters=query_filters)
         return result
     
     async def update(self, id: str, logical_node: LogicalNode):
