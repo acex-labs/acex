@@ -48,8 +48,20 @@ class DatabasePlugin(IntegrationPluginBase):
                 for opt in options:
                     query = query.options(opt)
             if filters:
+                joined_tables = set()
                 for key, value in filters.items():
-                    query = query.filter(getattr(self.table, key) == value)
+                    if "." in key:
+                        rel_name, col_name = key.split(".", 1)
+                        rel_prop = getattr(self.table, rel_name).property
+                        related_table = rel_prop.mapper.class_
+                        if related_table not in joined_tables:
+                            query = query.join(related_table)
+                            joined_tables.add(related_table)
+                        col = getattr(related_table, col_name)
+                        query = query.filter(col.ilike(value) if isinstance(value, str) else col == value)
+                    else:
+                        col = getattr(self.table, key)
+                        query = query.filter(col.ilike(value) if isinstance(value, str) else col == value)
             return query.all()
         finally:
             session.close()
