@@ -89,8 +89,23 @@ class NodeService:
         result = await self._enrich_data(result)
         return result
 
-    async def query(self) -> List[NodeListResponse]:
-        result = await self._call_method(self.adapter.query)
+    async def query(
+        self, 
+        site: str = None,
+        hostname:str = None,
+        logical_node_id: int = None,
+        asset_ref_id: int = None
+    ) -> List[NodeListResponse]:
+
+        query_filters = {
+            k: v for k, v in {
+                "logical_node.site": site,
+                "logical_node.hostname": hostname,
+                "logical_node_id": logical_node_id,
+                "asset_ref_id": asset_ref_id,
+            }.items() if v is not None
+        }
+        result = await self._call_method(self.adapter.query, filters=query_filters)
         return [
             NodeListResponse(
                 **node.model_dump(),
