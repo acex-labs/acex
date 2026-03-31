@@ -58,10 +58,10 @@ class DatabasePlugin(IntegrationPluginBase):
                             query = query.join(related_table)
                             joined_tables.add(related_table)
                         col = getattr(related_table, col_name)
-                        query = query.filter(col.ilike(value) if isinstance(value, str) else col == value)
+                        query = query.filter(col.ilike(f"{value}%") if isinstance(value, str) else col == value)
                     else:
                         col = getattr(self.table, key)
-                        query = query.filter(col.ilike(value) if isinstance(value, str) else col == value)
+                        query = query.filter(col.ilike(f"{value}%") if isinstance(value, str) else col == value)
             return query.all()
         finally:
             session.close()
