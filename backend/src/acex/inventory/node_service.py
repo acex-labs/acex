@@ -30,7 +30,7 @@ class NodeService:
         if node.get("asset_ref_type") == "assetcluster":
             asset = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"])
         else:
-            asset = self.inventory.assets.get(node["asset_ref_id"])
+            asset = await self.inventory.assets.get(node["asset_ref_id"])
         if isinstance(asset, Asset):
             node["asset"] = asset.model_dump()
         else:
@@ -53,7 +53,7 @@ class NodeService:
         if getattr(ni, "asset_ref_type", "asset") == "assetcluster":
             asset = self.inventory.assetclusters.get(ni.asset_ref_id)
         else:
-            asset = self.inventory.assets.get(ni.asset_ref_id)
+            asset = await self.inventory.assets.get(ni.asset_ref_id)
 
         print(f"fetch ned: {asset.ned_id}")
         ned_manager = NEDManager()
