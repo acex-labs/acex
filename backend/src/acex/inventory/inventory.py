@@ -1,18 +1,23 @@
-from acex.plugins.adaptors import AssetAdapter, LogicalNodeAdapter, NodeAdapter
+from acex.plugins.adaptors import AssetAdapter, LogicalNodeAdapter, NodeAdapter, SiteAdapter, ContactAdapter
 from acex.plugins.integrations import IntegrationPluginBase, DatabasePlugin
-from acex.models import Asset, LogicalNode, Node
+from acex.models import Asset, LogicalNode, Node, Site, Contact
 from acex.inventory.asset_service import AssetService
 from acex.inventory.logical_node_service import LogicalNodeService
 from acex.inventory.node_service import NodeService
+from acex.inventory.site_service import SiteService
+from acex.inventory.contact_service import ContactService
 from acex.inventory.asset_cluster_manager import AssetClusterManager
+from acex.inventory.contact_assignment_manager import ContactAssignmentManager
 
-class Inventory: 
+class Inventory:
 
     def __init__(
-            self, 
+            self,
             db_connection = None,
             assets_plugin = None,
             logical_nodes_plugin = None,
+            sites_plugin = None,
+            contacts_plugin = None,
             config_compiler = None,
             integrations = None,
         ):
@@ -40,7 +45,7 @@ class Inventory:
             print("No logical nodes plugin, using database")
             default_logical_nodes_plugin = DatabasePlugin(db_connection, LogicalNode)
             logical_nodes_adapter = LogicalNodeAdapter(default_logical_nodes_plugin)
-        
+
         self.logical_nodes = LogicalNodeService(logical_nodes_adapter, config_compiler, integrations)
 
         # Node instances
@@ -49,3 +54,21 @@ class Inventory:
         self.node_instances = NodeService(node_instances_adapter, self)
         self.asset_cluster_manager = AssetClusterManager(db_connection)
 
+        # Contacts
+        if contacts_plugin:
+            contact_adapter = ContactAdapter(contacts_plugin)
+        else:
+            default_contacts_plugin = DatabasePlugin(db_connection, Contact)
+            contact_adapter = ContactAdapter(default_contacts_plugin)
+        self.contacts = ContactService(contact_adapter)
+
+        # Contact assignments (alltid databasbackad - limmet mellan contacts och sites)
+        self.contact_assignment_manager = ContactAssignmentManager(db_connection, self)
+
+        # Sites
+        if sites_plugin:
+            site_adapter = SiteAdapter(sites_plugin)
+        else:
+            default_sites_plugin = DatabasePlugin(db_connection, Site)
+            site_adapter = SiteAdapter(default_sites_plugin)
+        self.sites = SiteService(site_adapter, inventory=self)
