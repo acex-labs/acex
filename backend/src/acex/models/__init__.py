@@ -7,5 +7,7 @@ from .node import Node, NodeResponse, NodeListResponse
 from acex_devkit.models import ExternalValue, AttributeValue
 from .device_config import StoredDeviceConfig, DeviceConfig, DeviceConfigResponse
 from .management_connections import ManagementConnection, ManagementConnectionResponse, ManagementConnectionBase
+from .sites import Site, SiteResponse
+from .contacts import Contact, ContactResponse, ContactAssignment
 
-system_models = [Asset, Ned, LogicalNode, Node]
+system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment]

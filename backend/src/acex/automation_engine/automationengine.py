@@ -13,7 +13,9 @@ class AutomationEngine:
             self,
             db_connection:"Connection|None" = None,
             assets_plugin:"IntegrationPluginBase|None" = None,
-            logical_nodes_plugin:"IntegrationPluginBase|None" = None
+            logical_nodes_plugin:"IntegrationPluginBase|None" = None,
+            sites_plugin:"IntegrationPluginBase|None" = None,
+            contacts_plugin:"IntegrationPluginBase|None" = None
         ):
         # Lazy imports - only load when AutomationEngine is instantiated
         from acex.api.api import Api
@@ -41,12 +43,19 @@ class AutomationEngine:
         if logical_nodes_plugin is not None:
             self.plugin_manager.register_type_plugin("logical_nodes", logical_nodes_plugin)
 
+        if sites_plugin is not None:
+            self.plugin_manager.register_type_plugin("sites", sites_plugin)
+
+        if contacts_plugin is not None:
+            self.plugin_manager.register_type_plugin("contacts", contacts_plugin)
 
         # Create Inventory
         self.inventory = Inventory(
             db_connection = self.db,
             assets_plugin=self.plugin_manager.get_plugin_for_object_type("assets"),
             logical_nodes_plugin=self.plugin_manager.get_plugin_for_object_type("logical_nodes"),
+            sites_plugin=self.plugin_manager.get_plugin_for_object_type("sites"),
+            contacts_plugin=self.plugin_manager.get_plugin_for_object_type("contacts"),
             config_compiler=self.config_compiler,
             integrations=self.integrations,
         )
