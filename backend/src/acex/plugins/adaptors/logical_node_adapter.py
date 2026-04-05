@@ -13,9 +13,9 @@ class LogicalNodeAdapter(AdapterBase):
         if hasattr(self.plugin, "get"):
             return getattr(self.plugin, "get")(identitet)
 
-    def query(self, filters: dict = None) -> list[LogicalNodeListResponse]:
+    def query(self, filters: dict = None, limit: int = 100, offset: int = 0) -> list[LogicalNodeListResponse]:
         if hasattr(self.plugin, "query"):
-            return getattr(self.plugin, "query")(filters)
+            return getattr(self.plugin, "query")(filters, limit=limit, offset=offset)
 
     def update(self, id: str, logical_node: LogicalNode): 
         if hasattr(self.plugin, "update"):
