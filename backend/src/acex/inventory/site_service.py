@@ -1,5 +1,6 @@
 import inspect
 from acex.models.sites import Site, SiteBase, SiteResponse
+from acex.models.pagination import PaginatedResponse
 from typing import List
 
 
@@ -27,8 +28,8 @@ class SiteService:
             assignments = self.inventory.contact_assignment_manager.list_assignments(site_name=site.name)
             for a in assignments:
                 result = await self.inventory.contacts.query(name=a.contact_name)
-                if result:
-                    contacts.append(result[0])
+                if result.items:
+                    contacts.append(result.items[0])
         data["contacts"] = contacts
         return SiteResponse(**data)
 
@@ -46,7 +47,9 @@ class SiteService:
         display_name: str = None,
         city: str = None,
         country: str = None,
-    ) -> List[SiteResponse]:
+        limit: int = 100,
+        offset: int = 0,
+    ) -> PaginatedResponse[SiteResponse]:
 
         query_filters = {
             k: v for k, v in {
@@ -57,8 +60,9 @@ class SiteService:
             }.items() if v is not None
         }
 
-        result = await self._call_method(self.adapter.query, filters=query_filters)
-        return [await self._enrich_data(s) for s in result]
+        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
+        items = [await self._enrich_data(s) for s in result["items"]]
+        return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, site: Site):
         result = await self._call_method(self.adapter.update, id, site)
