@@ -1,5 +1,5 @@
 import inspect
-from acex.models import LogicalNode, LogicalNodeResponse
+from acex.models import LogicalNode, LogicalNodeResponse, PaginatedResponse
 from typing import List
 
 
@@ -48,7 +48,7 @@ class LogicalNodeService:
         hostname: str = None,
         limit: int = 100,
         offset: int = 0,
-    )-> List[LogicalNode]:
+    )-> PaginatedResponse[LogicalNode]:
 
         query_filters = {
             k: v for k, v in {
@@ -60,7 +60,7 @@ class LogicalNodeService:
         }
 
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
-        return result
+        return PaginatedResponse(items=result["items"], total=result["total"], limit=limit, offset=offset)
     
     async def update(self, id: str, logical_node: LogicalNode):
         result = await self._call_method(self.adapter.update, id, logical_node)

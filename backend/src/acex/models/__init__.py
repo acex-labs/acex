@@ -9,5 +9,6 @@ from .device_config import StoredDeviceConfig, DeviceConfig, DeviceConfigRespons
 from .management_connections import ManagementConnection, ManagementConnectionResponse, ManagementConnectionBase
 from .sites import Site, SiteResponse
 from .contacts import Contact, ContactResponse, ContactAssignment
+from .pagination import PaginatedResponse
 
 system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment]
