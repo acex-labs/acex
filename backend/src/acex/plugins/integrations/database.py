@@ -39,7 +39,7 @@ class DatabasePlugin(IntegrationPluginBase):
         finally:
             session.close()
 
-    def query(self, filters: dict | None = None, options: list = None) -> list:
+    def query(self, filters: dict | None = None, options: list = None, limit: int = 100, offset: int = 0) -> list:
         session_gen = self.db.get_session()
         session = next(session_gen)
         try:
@@ -62,7 +62,7 @@ class DatabasePlugin(IntegrationPluginBase):
                     else:
                         col = getattr(self.table, key)
                         query = query.filter(col.ilike(f"{value}%") if isinstance(value, str) else col == value)
-            return query.all()
+            return query.offset(offset).limit(limit).all()
         finally:
             session.close()
 

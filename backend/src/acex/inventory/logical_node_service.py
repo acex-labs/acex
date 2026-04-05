@@ -45,7 +45,9 @@ class LogicalNodeService:
         role: str = None,
         site: str = None,
         sequence: int = None,
-        hostname: str = None
+        hostname: str = None,
+        limit: int = 100,
+        offset: int = 0,
     )-> List[LogicalNode]:
 
         query_filters = {
@@ -57,7 +59,7 @@ class LogicalNodeService:
             }.items() if v is not None
         }
 
-        result = await self._call_method(self.adapter.query, filters=query_filters)
+        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
         return result
     
     async def update(self, id: str, logical_node: LogicalNode):

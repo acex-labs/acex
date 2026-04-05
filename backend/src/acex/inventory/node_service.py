@@ -90,11 +90,13 @@ class NodeService:
         return result
 
     async def query(
-        self, 
+        self,
         site: str = None,
         hostname:str = None,
         logical_node_id: int = None,
-        asset_ref_id: int = None
+        asset_ref_id: int = None,
+        limit: int = 100,
+        offset: int = 0,
     ) -> List[NodeListResponse]:
 
         query_filters = {
@@ -105,7 +107,7 @@ class NodeService:
                 "asset_ref_id": asset_ref_id,
             }.items() if v is not None
         }
-        result = await self._call_method(self.adapter.query, filters=query_filters)
+        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
         return [
             NodeListResponse(
                 **node.model_dump(),

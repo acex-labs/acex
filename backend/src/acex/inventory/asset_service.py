@@ -30,6 +30,8 @@ class AssetService:
         os: str = None,
         hardware_model: str = None,
         ned_id: str = None,
+        limit: int = 100,
+        offset: int = 0,
     ) -> List[AssetResponse]:
 
         query_filters = {
@@ -41,7 +43,7 @@ class AssetService:
             }.items() if v is not None
         }
 
-        result = await self._call_method(self.adapter.query, filters=query_filters)
+        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
         return result
 
     async def update(self, id: str, asset: Asset):

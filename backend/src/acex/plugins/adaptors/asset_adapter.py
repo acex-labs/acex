@@ -13,9 +13,9 @@ class AssetAdapter(AdapterBase):
         if hasattr(self.plugin, "get"):
             return getattr(self.plugin, "get")(id)
 
-    def query(self, filters: dict = None) -> list[AssetResponse]: 
+    def query(self, filters: dict = None, limit: int = 100, offset: int = 0) -> list[AssetResponse]:
         if hasattr(self.plugin, "query"):
-            return getattr(self.plugin, "query")(filters)
+            return getattr(self.plugin, "query")(filters, limit=limit, offset=offset)
 
     def update(self, id: str, asset: Asset): 
         if hasattr(self.plugin, "update"):
