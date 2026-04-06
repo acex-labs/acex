@@ -62,7 +62,9 @@ class DatabasePlugin(IntegrationPluginBase):
                     else:
                         col = getattr(self.table, key)
                         query = query.filter(col.ilike(f"{value}%") if isinstance(value, str) else col == value)
-            return query.offset(offset).limit(limit).all()
+            total = query.count()
+            items = query.offset(offset).limit(limit).all()
+            return {"items": items, "total": total}
         finally:
             session.close()
 

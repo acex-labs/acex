@@ -1,5 +1,5 @@
 import inspect
-from acex.models import Asset, AssetResponse
+from acex.models import Asset, AssetResponse, PaginatedResponse
 from typing import List
 
 
@@ -32,7 +32,7 @@ class AssetService:
         ned_id: str = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[AssetResponse]:
+    ) -> PaginatedResponse[AssetResponse]:
 
         query_filters = {
             k: v for k, v in {
@@ -44,7 +44,7 @@ class AssetService:
         }
 
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
-        return result
+        return PaginatedResponse(items=result["items"], total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, asset: Asset):
         result = await self._call_method(self.adapter.update, id, asset)

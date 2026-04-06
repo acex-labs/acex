@@ -47,7 +47,7 @@ class DiffLogicalNode:
         total_observed = 0
         total_compliant = 0
 
-        for node in nodes:
+        for node in nodes.items:
             compliance = await self.compliance_check_node_instance(str(node.id))
             response["nodes"][node.id] = compliance
             total_desired += compliance["total_desired"]

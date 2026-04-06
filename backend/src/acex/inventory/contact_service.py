@@ -1,5 +1,6 @@
 import inspect
 from acex.models.contacts import Contact, ContactBase, ContactResponse
+from acex.models.pagination import PaginatedResponse
 from typing import List
 
 
@@ -32,7 +33,9 @@ class ContactService:
         family_name: str = None,
         email: str = None,
         role: str = None,
-    ) -> List[ContactResponse]:
+        limit: int = 100,
+        offset: int = 0,
+    ) -> PaginatedResponse[ContactResponse]:
 
         query_filters = {
             k: v for k, v in {
@@ -45,8 +48,8 @@ class ContactService:
             }.items() if v is not None
         }
 
-        result = await self._call_method(self.adapter.query, filters=query_filters)
-        return result
+        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
+        return PaginatedResponse(items=result["items"], total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, contact: Contact):
         result = await self._call_method(self.adapter.update, id, contact)

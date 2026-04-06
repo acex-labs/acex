@@ -1,5 +1,5 @@
 import inspect
-from acex.models import Node, NodeResponse, NodeListResponse
+from acex.models import Node, NodeResponse, NodeListResponse, PaginatedResponse
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from acex.models.asset import Asset
 from typing import List
@@ -97,7 +97,7 @@ class NodeService:
         asset_ref_id: int = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[NodeListResponse]:
+    ) -> PaginatedResponse[NodeListResponse]:
 
         query_filters = {
             k: v for k, v in {
@@ -108,14 +108,15 @@ class NodeService:
             }.items() if v is not None
         }
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
-        return [
+        items = [
             NodeListResponse(
                 **node.model_dump(),
                 hostname=node.logical_node.hostname if node.logical_node else None,
                 site=node.logical_node.site if node.logical_node else None
             )
-            for node in result
+            for node in result["items"]
         ]
+        return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, logical_node: Node):
         result = await self._call_method(self.adapter.update, id, logical_node)
