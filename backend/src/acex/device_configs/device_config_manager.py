@@ -102,7 +102,10 @@ class DeviceConfigManager:
                 node_instance = await self.inventory.node_instances.get(node_instance_id)
                 ned = await self._get_ned(node_instance)
 
-                existing.content = ned.parse(base64.b64decode(existing.content).decode('utf-8'))
+                if ned is not None:
+                    existing.content = ned.parse(base64.b64decode(existing.content).decode('utf-8'))
+                else:
+                    existing.content = ""
                 return existing
             else:
                 return existing
