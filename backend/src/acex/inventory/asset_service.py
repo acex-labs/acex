@@ -30,6 +30,7 @@ class AssetService:
         os: str = None,
         hardware_model: str = None,
         ned_id: str = None,
+        serial_number: str = None,
         limit: int = 100,
         offset: int = 0,
     ) -> PaginatedResponse[AssetResponse]:
@@ -39,6 +40,7 @@ class AssetService:
                 "vendor": vendor,
                 "os": os,
                 "hardware_model": hardware_model,
+                "serial_number": serial_number,
                 "ned_id": ned_id,
             }.items() if v is not None
         }
