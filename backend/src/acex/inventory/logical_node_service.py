@@ -1,6 +1,10 @@
 import inspect
+from typing import List, Optional
+
+from sqlalchemy import select
+
 from acex.models import LogicalNode, LogicalNodeResponse, PaginatedResponse
-from typing import List
+from acex.models.node import Node
 
 
 class LogicalNodeService:
@@ -46,6 +50,7 @@ class LogicalNodeService:
         site: str = None,
         sequence: int = None,
         hostname: str = None,
+        assigned: Optional[bool] = None,
         limit: int = 100,
         offset: int = 0,
     )-> PaginatedResponse[LogicalNode]:
@@ -59,7 +64,15 @@ class LogicalNodeService:
             }.items() if v is not None
         }
 
-        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
+        extra_filters = []
+        if assigned is not None:
+            assigned_ids = select(Node.logical_node_id)
+            if assigned:
+                extra_filters.append(LogicalNode.id.in_(assigned_ids))
+            else:
+                extra_filters.append(~LogicalNode.id.in_(assigned_ids))
+
+        result = await self._call_method(self.adapter.query, filters=query_filters, extra_filters=extra_filters or None, limit=limit, offset=offset)
         return PaginatedResponse(items=result["items"], total=result["total"], limit=limit, offset=offset)
     
     async def update(self, id: str, logical_node: LogicalNode):
