@@ -184,7 +184,7 @@ interface {{ intf.name }}
 {%- endfor %}
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.type == "l3ipvlan" and intf.vlan_id %}
-interface Vlan{{ intf.vlan_id }}
+interface Vlan{{ intf.vlan_id.value }}
 {%-    if intf.description %}
  description {{ intf.description.value }}
 {%-    endif %}

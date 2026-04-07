@@ -1,6 +1,10 @@
 import inspect
+from typing import List, Optional
+
+from sqlalchemy import select
+
 from acex.models import Asset, AssetResponse, PaginatedResponse
-from typing import List
+from acex.models.node import Node, AssetRefType
 
 
 class AssetService:
@@ -31,6 +35,7 @@ class AssetService:
         hardware_model: str = None,
         ned_id: str = None,
         serial_number: str = None,
+        assigned: Optional[bool] = None,
         limit: int = 100,
         offset: int = 0,
     ) -> PaginatedResponse[AssetResponse]:
@@ -45,7 +50,19 @@ class AssetService:
             }.items() if v is not None
         }
 
-        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
+        extra_filters = []
+        if assigned is not None:
+            assigned_ids = select(Node.asset_ref_id).where(
+                Node.asset_ref_type == AssetRefType.asset
+            )
+            if assigned:
+                extra_filters.append(Asset.id.in_(assigned_ids))
+            else:
+                extra_filters.append(~Asset.id.in_(assigned_ids))
+
+        result = await self._call_method(
+            self.adapter.query, filters=query_filters, extra_filters=extra_filters or None, limit=limit, offset=offset
+        )
         return PaginatedResponse(items=result["items"], total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, asset: Asset):

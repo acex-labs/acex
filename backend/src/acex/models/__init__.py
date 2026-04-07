@@ -1,7 +1,7 @@
 
 from .asset import Asset, AssetCluster, AssetClusterLink, AssetResponse, Ned
 from .logical_node import LogicalNode, LogicalNodeResponse, LogicalNodeListResponse
-from .node import Node, NodeResponse, NodeListResponse
+from .node import Node, NodeResponse, NodeListResponse, NodeStatus
 #from .external_value import ExternalValue
 #from .attribute_value import AttributeValue
 from acex_devkit.models import ExternalValue, AttributeValue
