@@ -288,13 +288,19 @@ class Configuration:
             else:
                 value = getattr(ptr, attribute_name)
             
+            # Unwrap single-attribute wrapper models (e.g. SingleAttributeString → AttributeValue)
+            model_value = component.model
+            model_fields = component.model.model_fields
+            if len(model_fields) == 1 and 'value' in model_fields and isinstance(getattr(component.model, 'value'), AttributeValue):
+                model_value = component.model.value
+
             # If the value of the ptr is a dict, the item has to be keyed
             if isinstance(value, dict):
-                value[component.name] = component.model
+                value[component.name] = model_value
             else:
                 # Cant set value directly, since NoneType is a singleton.
                 # Instead we use setattr using the pointer and attribute name.
-                setattr(ptr, attribute_name, component.model)
+                setattr(ptr, attribute_name, model_value)
 
         # Add and resolve references:
         for reference in self._references:
