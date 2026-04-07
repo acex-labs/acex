@@ -1,8 +1,10 @@
 import inspect
+from datetime import datetime
 from acex.models import Node, NodeResponse, NodeListResponse, PaginatedResponse
+from acex.models.node import NodeStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from acex.models.asset import Asset
-from typing import List
+from typing import List, Optional
 
 class NodeService:
     """Service layer för Node business logik."""
@@ -92,9 +94,10 @@ class NodeService:
     async def query(
         self,
         site: str = None,
-        hostname:str = None,
+        hostname: str = None,
         logical_node_id: int = None,
         asset_ref_id: int = None,
+        status: Optional[NodeStatus] = None,
         limit: int = 100,
         offset: int = 0,
     ) -> PaginatedResponse[NodeListResponse]:
@@ -105,6 +108,7 @@ class NodeService:
                 "logical_node.hostname": hostname,
                 "logical_node_id": logical_node_id,
                 "asset_ref_id": asset_ref_id,
+                "status": status,
             }.items() if v is not None
         }
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
@@ -119,6 +123,7 @@ class NodeService:
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, logical_node: Node):
+        logical_node.updated_at = datetime.utcnow()
         result = await self._call_method(self.adapter.update, id, logical_node)
         return result
     
