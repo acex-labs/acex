@@ -54,7 +54,6 @@ class NodeService:
         asset = None
         if getattr(ni, "asset_ref_type", "asset") == "asset_cluster":
             asset = self.inventory.asset_cluster_manager.get_cluster(ni.asset_ref_id)
-            print(asset)
         else:
             asset = await self.inventory.assets.get(ni.asset_ref_id)
 
