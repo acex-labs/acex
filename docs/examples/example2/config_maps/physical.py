@@ -1,11 +1,11 @@
 from acex.config_map import ConfigMap, FilterAttribute
-from acex.configuration.components.interfaces import Physical
+from acex.configuration.components.interfaces import FrontpanelPort
 
 
 class PhysicalPort(ConfigMap):
     def compile(self, context):
 
-        if0 = Physical(
+        if0 = FrontpanelPort(
             index=0,
             name="if0",
             speed=1000000,
@@ -15,4 +15,4 @@ class PhysicalPort(ConfigMap):
         context.configuration.add(if0)
 
 intf = PhysicalPort()
-intf.filters = FilterAttribute("hostname").eq("R1")
+intf.filters = FilterAttribute("hostname").eq("/.*/")

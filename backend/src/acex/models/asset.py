@@ -52,15 +52,9 @@ class AssetCluster(AssetClusterBase, table=True):
     )
 
 
-class AssetClusterAssetResponse(SQLModel):
-    id: int
-    vendor: str
-    serial_number: str
-    os: str
-    os_version: str
-    hardware_model: str
-    ned_id: Optional[str] = None
+class AssetClusterAssetResponse(AssetBase):
     cluster_index: Optional[int] = None
+
 
 class AssetClusterResponse(AssetClusterBase):
     id: int
@@ -69,4 +63,3 @@ class AssetClusterResponse(AssetClusterBase):
 
 class AssetResponse(AssetBase):
     type: str = "asset"
-    meta_data: Dict = Field(default_factory=dict)

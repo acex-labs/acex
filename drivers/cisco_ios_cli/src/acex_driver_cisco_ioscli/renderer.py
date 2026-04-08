@@ -36,10 +36,19 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def _load_template_file(self, asset) -> str:
         """Load a Jinja2 template file."""
-        if asset.hardware_model == "vios_l2":
+        # handle cluster and single assets.
+        if hasattr(asset, "assets"):
+            first_asset = asset.assets[0]
+        else:
+            first_asset = asset
+
+
+        if first_asset.hardware_model == "vios_l2":
             template_name = "template_virtual.j2"
         else:
             template_name = "template.j2"
+
+
         path = Path(__file__).parent
         env = Environment(loader=FileSystemLoader(path),undefined=StrictUndefined) # StrictUndefined to catch undefined variables, testing
         #env = Environment(loader=FileSystemLoader(path), trim_blocks=True, lstrip_blocks=True) # För att slippa ha "-" i "{%-"
@@ -122,7 +131,6 @@ class CiscoIOSCLIRenderer(RendererBase):
 
 
         """ TODO:
-        - Hantera cluster vs single node? 
         - Interface preprocess
         - os och os version? ta från första noden? 
 
@@ -132,18 +140,9 @@ class CiscoIOSCLIRenderer(RendererBase):
         else:
             raise ValueError(f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}")
 
-        # Cluster or single device?
-        # TODO: cluster or single?
-
         # Give the NED a chance to pre-process the config before rendering
-        # TODO: pre-process
-
-
-
-        return "snart..."
-
-
         processed_config = self.pre_process(configuration, asset)
+
         template = self._load_template_file(asset)
         return template.render(configuration=processed_config)
 
@@ -179,18 +178,90 @@ class CiscoIOSCLIRenderer(RendererBase):
 
 
 
-
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
-        configuration = self.physical_interface_names(configuration, asset)
-        self.add_vrf_to_intefaces(configuration)
-        self.ssh_interface(configuration)
+
+        configuration = self._physical_interface_names(configuration, asset)
+        # self.add_vrf_to_intefaces(configuration)
+        # self.ssh_interface(configuration)
         #self.lacp_load_balancing(configuration)
 
+        if hasattr(asset, "assets"):
+            os_version = asset.assets[0].os_version
+        else:
+            os_version = asset.os_version
+
         configuration['asset'] = {
-            'version': asset.os_version,
+            'version': os_version
         }
         return configuration
+
+
+    def _physical_interface_names(self, config, asset):
+        """
+        Resolve physical interface names. 
+
+        For stacks, use asset.stack_index to determine stack 
+        position in if-name. Otherwise always use 1. 
+        """
+
+        if hasattr(asset, "assets"):
+            os = asset.assets[0].os
+        else:
+            os = asset.os
+
+        # TODO: Prefix
+        for _,intf in config.get("interfaces", {}).items():
+            if intf["type"] == "ethernetCsmacd":
+
+                index = intf["index"]["value"]
+                stack_index = (intf.get("stack_index") or {}).get("value")
+                module_index = (intf.get("module_index") or {}).get("value")
+                speed = (intf.get("speed") or {}).get("value") or 1000000 # Default to gig
+
+                intf_prefix = self._get_port_prefix(os, speed)
+                intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index, module_index)
+                
+                intf["name"] = f"{intf_prefix}{intf_suffix}"
+            if intf['type'] == "ieee8023adLag":
+                # Handle LAG interface names here
+                index = intf["index"]["value"]
+                intf["name"] = f"Port-channel{index}"
+
+
+        # TODO: stacknumber
+        # TODO: module number 
+        # TODO: if-number
+
+        return config
+
+
+    def _get_port_prefix(self, os:str, speed:int) -> Optional[str]:
+        PREFIX_MAP = {
+            "cisco_ios": {
+                1000000: "GigabitEthernet",
+                10000000: "TenGigabitEthernet",
+
+            },
+            "cisco_iosxe": {
+                1000000: "GigabitEthernet",
+                10000000: "TenGigabitEthernet",
+                25000000: "TwentyFiveGigE",
+                40000000: "FortyGigabitEthernet",
+                100000000: "HundredGigE",
+            },
+            "cisco_iosxr": {
+                1000000: "GigabitEthernet",
+            },
+            "cisco_nxos": {
+                1000000: "Ethernet",
+            },
+        }
+        return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
+
+
+
+
 
 
     def ssh_interface(self, configuration):
@@ -240,85 +311,87 @@ class CiscoIOSCLIRenderer(RendererBase):
                         intf = config["interfaces"][ref_path.split('.')[1]]
                         intf["vrf"] = vrf["name"]["value"]
 
-    def physical_interface_names(self, configuration, asset) -> None:
-        """Assign physical interface names based on asset data."""
+    # def physical_interface_names(self, configuration, asset) -> None:
+    #     """Assign physical interface names based on asset data."""
 
-        for _,intf in configuration.get("interfaces", {}).items():
-            if intf["type"] == "ethernetCsmacd":
-                index = intf["index"]["value"]
-                stack_index = (intf.get("stack_index") or {}).get("value")
-                module_index = (intf.get("module_index") or {}).get("value")
-                speed = (intf.get("speed") or {}).get("value") or 1000000 # Default to gig
-                intf_prefix = self.get_port_prefix(asset.os, speed)
-                intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index, module_index)
-                intf["name"] = f"{intf_prefix}{intf_suffix}"
-            if intf['type'] == "ieee8023adLag":
-                # Handle LAG interface names here
-                index = intf["index"]["value"]
-                intf["name"] = f"Port-channel{index}"
-        return configuration
+    #     for _,intf in configuration.get("interfaces", {}).items():
+    #         if intf["type"] == "ethernetCsmacd":
+    #             index = intf["index"]["value"]
+    #             stack_index = (intf.get("stack_index") or {}).get("value")
+    #             module_index = (intf.get("module_index") or {}).get("value")
+    #             speed = (intf.get("speed") or {}).get("value") or 1000000 # Default to gig
 
-    def get_port_prefix(self, os:str, speed:int) -> Optional[str]:
-        PREFIX_MAP = {
-            "cisco_ios": {
-                1000000: "GigabitEthernet",
-                10000000: "TenGigabitEthernet",
+    #             intf_prefix = self.get_port_prefix(asset.os, speed)
+    #             intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index, module_index)
+                
+    #             intf["name"] = f"{intf_prefix}{intf_suffix}"
+    #         if intf['type'] == "ieee8023adLag":
+    #             # Handle LAG interface names here
+    #             index = intf["index"]["value"]
+    #             intf["name"] = f"Port-channel{index}"
+    #     return configuration
 
-            },
-            "cisco_iosxe": {
-                1000000: "GigabitEthernet",
-                10000000: "TenGigabitEthernet",
-                25000000: "TwentyFiveGigE",
-                40000000: "FortyGigabitEthernet",
-                100000000: "HundredGigE",
-            },
-            "cisco_iosxr": {
-                1000000: "GigabitEthernet",
-            },
-            "cisco_nxos": {
-                1000000: "Ethernet",
-            },
-        }
-        return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
+    # def get_port_prefix(self, os:str, speed:int) -> Optional[str]:
+    #     PREFIX_MAP = {
+    #         "cisco_ios": {
+    #             1000000: "GigabitEthernet",
+    #             10000000: "TenGigabitEthernet",
+
+    #         },
+    #         "cisco_iosxe": {
+    #             1000000: "GigabitEthernet",
+    #             10000000: "TenGigabitEthernet",
+    #             25000000: "TwentyFiveGigE",
+    #             40000000: "FortyGigabitEthernet",
+    #             100000000: "HundredGigE",
+    #         },
+    #         "cisco_iosxr": {
+    #             1000000: "GigabitEthernet",
+    #         },
+    #         "cisco_nxos": {
+    #             1000000: "Ethernet",
+    #         },
+    #     }
+    #     return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
 
 
-    def get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
-        max_index = 0
-        suffix_string = ""
+    # def get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
+    #     max_index = 0
+    #     suffix_string = ""
 
-        # TODO: Utöka med fler modeller
-        match hardware_model:
-            case "C9300-48":
-                max_index = 48
-            case "C9300-48P":
-                max_index = 52
-            case "C9500-48Y4C":
-                max_index = 52
+    #     # TODO: Utöka med fler modeller
+    #     match hardware_model:
+    #         case "C9300-48":
+    #             max_index = 48
+    #         case "C9300-48P":
+    #             max_index = 52
+    #         case "C9500-48Y4C":
+    #             max_index = 52
 
-        # TODO: Fungerar upp till max port, förutsätter sen att man är 
-        # på en modul, stöd för en modul eftersom vi inte vet maxportar på
-        # tilläggsmodulen.
-        if index <= max_index:
-            if stack_index is not None:
-                suffix_string = f"{stack_index}/0/{index+1}"
-                if module_index is not None:
-                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
-            else:
-                if module_index is not None:
-                    suffix_string = f"{module_index}/{index}"
-                else:
-                    suffix_string = f"0/{index}"
-        elif index > max_index:
-            if stack_index is not None:
-                suffix_string = f"{stack_index}/1/{index - max_index + 1}"
-                if module_index is not None:
-                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
-            else:
-                if module_index is not None:
-                    suffix_string = f"{module_index}/{index}"
-                else:
-                    suffix_string = f"0/{index - max_index + 1}"
-        return suffix_string
+    #     # TODO: Fungerar upp till max port, förutsätter sen att man är 
+    #     # på en modul, stöd för en modul eftersom vi inte vet maxportar på
+    #     # tilläggsmodulen.
+    #     if index <= max_index:
+    #         if stack_index is not None:
+    #             suffix_string = f"{stack_index}/0/{index+1}"
+    #             if module_index is not None:
+    #                 suffix_string = f"{stack_index}/{module_index}/{index+1}"
+    #         else:
+    #             if module_index is not None:
+    #                 suffix_string = f"{module_index}/{index}"
+    #             else:
+    #                 suffix_string = f"0/{index}"
+    #     elif index > max_index:
+    #         if stack_index is not None:
+    #             suffix_string = f"{stack_index}/1/{index - max_index + 1}"
+    #             if module_index is not None:
+    #                 suffix_string = f"{stack_index}/{module_index}/{index+1}"
+    #         else:
+    #             if module_index is not None:
+    #                 suffix_string = f"{module_index}/{index}"
+    #             else:
+    #                 suffix_string = f"0/{index - max_index + 1}"
+    #     return suffix_string
     
     # Create functions to handle ref paths
 
