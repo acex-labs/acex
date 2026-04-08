@@ -29,7 +29,7 @@ class NodeService:
 
         node = node.model_dump()
         asset = None
-        if node.get("asset_ref_type") == "assetcluster":
+        if node.get("asset_ref_type") == "asset_cluster":
             asset = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"])
         else:
             asset = await self.inventory.assets.get(node["asset_ref_id"])
@@ -52,7 +52,7 @@ class NodeService:
         composed_config = ln.configuration
 
         asset = None
-        if getattr(ni, "asset_ref_type", "asset") == "assetcluster":
+        if getattr(ni, "asset_ref_type", "asset") == "asset_cluster":
             asset = self.inventory.assetclusters.get(ni.asset_ref_id)
         else:
             asset = await self.inventory.assets.get(ni.asset_ref_id)
