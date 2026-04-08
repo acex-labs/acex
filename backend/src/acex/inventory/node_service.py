@@ -57,7 +57,6 @@ class NodeService:
         else:
             asset = await self.inventory.assets.get(ni.asset_ref_id)
 
-        print(f"fetch ned: {asset.ned_id}")
         ned_manager = NEDManager()
         ned = ned_manager.get_driver_instance(asset.ned_id)
 
