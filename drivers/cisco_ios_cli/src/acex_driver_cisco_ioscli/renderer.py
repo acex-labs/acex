@@ -120,14 +120,29 @@ class CiscoIOSCLIRenderer(RendererBase):
     def render(self, configuration: ComposedConfiguration, asset) -> Any:
         """Render the configuration model for Cisco IOS CLI devices."""
 
+
+        """ TODO:
+        - Hantera cluster vs single node? 
+        - Interface preprocess
+        - os och os version? ta från första noden? 
+
+        """
         if isinstance(configuration, ComposedConfiguration):
             configuration = configuration.model_dump(mode="json")
         else:
             raise ValueError(f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}")
-        # Ensure configuration is a plain dict (Pydantic model -> dict)
-        #configuration = configuration.model_dump(mode="json")
+
+        # Cluster or single device?
+        # TODO: cluster or single?
 
         # Give the NED a chance to pre-process the config before rendering
+        # TODO: pre-process
+
+
+
+        return "snart..."
+
+
         processed_config = self.pre_process(configuration, asset)
         template = self._load_template_file(asset)
         return template.render(configuration=processed_config)
