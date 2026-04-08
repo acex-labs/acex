@@ -165,19 +165,13 @@ class CiscoIOSCLIRenderer(RendererBase):
 
 
 
-
-
-
-
-
-
-
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
         configuration = self.physical_interface_names(configuration, asset)
         self.add_vrf_to_intefaces(configuration)
         self.ssh_interface(configuration)
         #self.lacp_load_balancing(configuration)
+
         configuration['asset'] = {
             'version': asset.os_version,
         }
