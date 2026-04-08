@@ -6,17 +6,19 @@ from .settings import DEFAULT_SYSTEM_PROMPTS
 
 class AIOpsManager:
     
-    def __init__(self, api_key: str = None, base_url: str = None, mcp_server_url: str = "http://localhost:8000/mcp", system_prompt: str | list[str] = None):
+    def __init__(self, api_key: str = None, base_url: str = None, mcp_server_url: str = "http://localhost:8000/mcp", model: str = "openai/gpt-oss-120b", system_prompt: str | list[str] = None):
         """
         Initialize AI Ops Manager with OpenAI client and MCP server.
-        
+
         Args:
             api_key: API key for AI service
             base_url: Base URL for AI API
             mcp_server_url: URL to MCP server (default: http://localhost:8000/mcp)
+            model: Model identifier to use for completions
             system_prompt: System prompt(s) for the AI assistant. Can be a string or list of strings.
         """
         print(f"Adding AI ops with API: {base_url} and MCP: {mcp_server_url}")
+        self.model = model
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         transport = StreamableHttpTransport(url=mcp_server_url)
         self.mcp = Client(transport)
@@ -80,7 +82,7 @@ class AIOpsManager:
 
             # First request - check if tools are needed
             response = await self.client.chat.completions.create(
-                model="openai/gpt-oss-120b",
+                model=self.model,
                 messages=messages,
                 tools=tools,
                 tool_choice="auto"
@@ -162,7 +164,7 @@ class AIOpsManager:
                 
                 try:
                     stream = await self.client.chat.completions.create(
-                        model="openai/gpt-oss-120b",
+                        model=self.model,
                         messages=final_messages,
                         stream=True
                     )
@@ -170,8 +172,6 @@ class AIOpsManager:
                     async for chunk in stream:
                         if chunk.choices:
                             delta = chunk.choices[0].delta
-                            if hasattr(delta, 'reasoning') and delta.reasoning:
-                                yield f"[Reasoning: {delta.reasoning}]\n"
                             if delta.content:
                                 yield delta.content
                 except Exception as e:
@@ -181,7 +181,7 @@ class AIOpsManager:
             else:
                 # No tools needed - stream initial response
                 stream = await self.client.chat.completions.create(
-                    model="openai/gpt-oss-120b",
+                    model=self.model,
                     messages=messages,
                     tools=tools,
                     tool_choice="auto",
@@ -191,7 +191,5 @@ class AIOpsManager:
                 async for chunk in stream:
                     if chunk.choices:
                         delta = chunk.choices[0].delta
-                        if hasattr(delta, 'reasoning') and delta.reasoning:
-                            yield f"[Reasoning: {delta.reasoning}]\n"
                         if delta.content:
                             yield delta.content
