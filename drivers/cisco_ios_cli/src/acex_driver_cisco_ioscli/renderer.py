@@ -210,9 +210,14 @@ class CiscoIOSCLIRenderer(RendererBase):
         else:
             os = asset.os
 
-        # TODO: Prefix
+
+
+
+
+        # TODO: Prefix, 
         for _,intf in config.get("interfaces", {}).items():
             if intf["type"] == "ethernetCsmacd":
+
 
                 index = intf["index"]["value"]
                 stack_index = (intf.get("stack_index") or {}).get("value")
@@ -227,6 +232,8 @@ class CiscoIOSCLIRenderer(RendererBase):
                 # Handle LAG interface names here
                 index = intf["index"]["value"]
                 intf["name"] = f"Port-channel{index}"
+
+
 
 
         # TODO: stacknumber
