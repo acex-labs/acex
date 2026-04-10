@@ -7,6 +7,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from .filters import cidr_to_addrmask
+from .hardware_models import match_hardware_model
 
 
 class GeneratorRegistry:
@@ -180,8 +181,9 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
-
+        print('pre-processing configuration for asset: ', asset)
         configuration = self._physical_interface_names(configuration, asset)
+        print('configuration after physical interface name resolution: ', configuration)
         # self.add_vrf_to_intefaces(configuration)
         # self.ssh_interface(configuration)
         #self.lacp_load_balancing(configuration)
@@ -215,7 +217,15 @@ class CiscoIOSCLIRenderer(RendererBase):
 
 
         # TODO: Prefix, 
+        print('='*100)
+        print('config: ',config)
+        print('='*100)
+        print('='*100)
+        print('='*100)
         for _,intf in config.get("interfaces", {}).items():
+            print('='*100)
+            print('intf: ', intf)
+            print('='*100)
             if intf["type"] == "ethernetCsmacd":
 
 
@@ -242,6 +252,31 @@ class CiscoIOSCLIRenderer(RendererBase):
 
         return config
 
+    def _get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
+        max_index = match_hardware_model(hardware_model)
+        suffix_string = ""
+
+        if index <= max_index:
+            if stack_index is not None:
+                suffix_string = f"{stack_index}/0/{index+1}"
+                if module_index is not None:
+                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
+            else:
+                if module_index is not None:
+                    suffix_string = f"{module_index}/{index}"
+                else:
+                    suffix_string = f"0/{index}"
+        elif index > max_index:
+            if stack_index is not None:
+                suffix_string = f"{stack_index}/1/{index - max_index + 1}"
+                if module_index is not None:
+                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
+            else:
+                if module_index is not None:
+                    suffix_string = f"{module_index}/{index}"
+                else:
+                    suffix_string = f"0/{index - max_index + 1}"
+        return suffix_string
 
     def _get_port_prefix(self, os:str, speed:int) -> Optional[str]:
         PREFIX_MAP = {
@@ -265,11 +300,6 @@ class CiscoIOSCLIRenderer(RendererBase):
             },
         }
         return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
-
-
-
-
-
 
     def ssh_interface(self, configuration):
         """Process SSH interface configurations if needed."""
@@ -362,43 +392,43 @@ class CiscoIOSCLIRenderer(RendererBase):
     #     return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
 
 
-    # def get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
-    #     max_index = 0
-    #     suffix_string = ""
+    def get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
+        max_index = 0
+        suffix_string = ""
 
-    #     # TODO: Utöka med fler modeller
-    #     match hardware_model:
-    #         case "C9300-48":
-    #             max_index = 48
-    #         case "C9300-48P":
-    #             max_index = 52
-    #         case "C9500-48Y4C":
-    #             max_index = 52
+        # TODO: Utöka med fler modeller
+        match hardware_model:
+            case "C9300-48":
+                max_index = 48
+            case "C9300-48P":
+                max_index = 52
+            case "C9500-48Y4C":
+                max_index = 52
 
-    #     # TODO: Fungerar upp till max port, förutsätter sen att man är 
-    #     # på en modul, stöd för en modul eftersom vi inte vet maxportar på
-    #     # tilläggsmodulen.
-    #     if index <= max_index:
-    #         if stack_index is not None:
-    #             suffix_string = f"{stack_index}/0/{index+1}"
-    #             if module_index is not None:
-    #                 suffix_string = f"{stack_index}/{module_index}/{index+1}"
-    #         else:
-    #             if module_index is not None:
-    #                 suffix_string = f"{module_index}/{index}"
-    #             else:
-    #                 suffix_string = f"0/{index}"
-    #     elif index > max_index:
-    #         if stack_index is not None:
-    #             suffix_string = f"{stack_index}/1/{index - max_index + 1}"
-    #             if module_index is not None:
-    #                 suffix_string = f"{stack_index}/{module_index}/{index+1}"
-    #         else:
-    #             if module_index is not None:
-    #                 suffix_string = f"{module_index}/{index}"
-    #             else:
-    #                 suffix_string = f"0/{index - max_index + 1}"
-    #     return suffix_string
+        # TODO: Fungerar upp till max port, förutsätter sen att man är 
+        # på en modul, stöd för en modul eftersom vi inte vet maxportar på
+        # tilläggsmodulen.
+        if index <= max_index:
+            if stack_index is not None:
+                suffix_string = f"{stack_index}/0/{index+1}"
+                if module_index is not None:
+                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
+            else:
+                if module_index is not None:
+                    suffix_string = f"{module_index}/{index}"
+                else:
+                    suffix_string = f"0/{index}"
+        elif index > max_index:
+            if stack_index is not None:
+                suffix_string = f"{stack_index}/1/{index - max_index + 1}"
+                if module_index is not None:
+                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
+            else:
+                if module_index is not None:
+                    suffix_string = f"{module_index}/{index}"
+                else:
+                    suffix_string = f"0/{index - max_index + 1}"
+        return suffix_string
     
     # Create functions to handle ref paths
 
