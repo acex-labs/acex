@@ -54,11 +54,9 @@ class NodeService:
         asset = None
         if getattr(ni, "asset_ref_type", "asset") == "asset_cluster":
             asset = self.inventory.asset_cluster_manager.get_cluster(ni.asset_ref_id)
-            print(asset)
         else:
             asset = await self.inventory.assets.get(ni.asset_ref_id)
 
-        print(f"fetch ned: {asset.ned_id}")
         ned_manager = NEDManager()
         ned = ned_manager.get_driver_instance(asset.ned_id)
 
