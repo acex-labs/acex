@@ -136,14 +136,17 @@ class CiscoIOSCLIRenderer(RendererBase):
         - os och os version? ta från första noden? 
 
         """
+
         if isinstance(configuration, ComposedConfiguration):
             configuration = configuration.model_dump(mode="json")
         else:
             raise ValueError(f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}")
 
+
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)
 
+        # Render template and return payload
         template = self._load_template_file(asset)
         return template.render(configuration=processed_config)
 
@@ -181,9 +184,8 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
-        print('pre-processing configuration for asset: ', asset)
         configuration = self._physical_interface_names(configuration, asset)
-        print('configuration after physical interface name resolution: ', configuration)
+        # print('configuration after physical interface name resolution: ', configuration)
         # self.add_vrf_to_intefaces(configuration)
         # self.ssh_interface(configuration)
         #self.lacp_load_balancing(configuration)
@@ -213,44 +215,38 @@ class CiscoIOSCLIRenderer(RendererBase):
             os = asset.os
 
 
-
-
-
-        # TODO: Prefix, 
-        print('='*100)
-        print('config: ',config)
-        print('='*100)
-        print('='*100)
-        print('='*100)
+        # TODO: Prefix
         for _,intf in config.get("interfaces", {}).items():
-            print('='*100)
-            print('intf: ', intf)
-            print('='*100)
+
             if intf["type"] == "ethernetCsmacd":
-
-
-                index = intf["index"]["value"]
-                stack_index = (intf.get("stack_index") or {}).get("value")
-                module_index = (intf.get("module_index") or {}).get("value")
+                
                 speed = (intf.get("speed") or {}).get("value") or 1000000 # Default to gig
 
+                # Resolve prefix
                 intf_prefix = self._get_port_prefix(os, speed)
-                intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index, module_index)
+
+                # Resolve stackindex
+                stack_index = (intf.get("stack_index") or {}).get("value")
+
+                # Resolve module
+                module_index = (intf.get("module_index") or {}).get("value")
+
+                # Index
+                port_index = intf["index"]["value"]
+
+                # Resolve port
+                full_name = self._resolve_full_name(intf_prefix, stack_index, module_index, port_index)
                 
-                intf["name"] = f"{intf_prefix}{intf_suffix}"
+                intf["name"] = full_name
             if intf['type'] == "ieee8023adLag":
                 # Handle LAG interface names here
                 index = intf["index"]["value"]
                 intf["name"] = f"Port-channel{index}"
 
-
-
-
-        # TODO: stacknumber
-        # TODO: module number 
-        # TODO: if-number
-
         return config
+
+    def _resolve_full_name(self, intf_prefix, stack_index, module_index, port_index):
+        return f"{intf_prefix}/{stack_index or 0}/{module_index or 0}/{port_index}"
 
     def _get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
         max_index = match_hardware_model(hardware_model)
@@ -279,6 +275,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         return suffix_string
 
     def _get_port_prefix(self, os:str, speed:int) -> Optional[str]:
+        print(f"os: {os} speed: {speed}")
         PREFIX_MAP = {
             "cisco_ios": {
                 1000000: "GigabitEthernet",

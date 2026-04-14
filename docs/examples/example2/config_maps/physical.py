@@ -6,7 +6,9 @@ class PhysicalPort(ConfigMap):
     def compile(self, context):
 
         if0 = FrontpanelPort(
-            index=0,
+            index=1,
+            stack_index=1,
+            module_index=1,
             name="if0",
             speed=1000000,
             description="Switchport1",
