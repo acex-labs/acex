@@ -652,6 +652,17 @@ class TripleA(BaseModel):
     authorization: aaaAuthorization = aaaAuthorization()
     accounting: aaaAccounting = aaaAccounting()
 
+class VTPAttributes(BaseModel):
+    domain_name: Optional[AttributeValue[str]] = None
+    mode: Optional[AttributeValue[Literal["server", "client", "transparent", 'off']]] = None
+    primary_server: Optional[AttributeValue[bool]] = False # Cisco proprietary
+    version: Optional[AttributeValue[Literal[1, 2, 3]]] = None
+    password: Optional[AttributeValue[str]] = None
+    password_hashed: Optional[AttributeValue[str]] = None
+
+class VTP(BaseModel):
+    config: VTPAttributes = VTPAttributes()
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
@@ -659,6 +670,7 @@ class System(BaseModel):
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
     snmp: Optional[Snmp] = Snmp()
+    vtp: Optional[VTP] = VTP()
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
