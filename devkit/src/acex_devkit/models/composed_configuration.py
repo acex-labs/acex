@@ -130,6 +130,8 @@ class Interface(ContainerEntry, BaseModel):
     description: Optional[AttributeValue[str]] = None
     enabled: Optional[AttributeValue[bool]] = None
     ipv4: Optional[AttributeValue[str]] = None
+    redirects: Optional[AttributeValue[bool]] = None
+    proxy_arp: Optional[AttributeValue[bool]] = None # Cisco yes/no, Juniper unrestricted/restricted
     
     type: Literal[
         "ethernetCsmacd",

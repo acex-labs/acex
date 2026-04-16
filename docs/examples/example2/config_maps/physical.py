@@ -18,11 +18,13 @@ class PhysicalPort(ConfigMap):
             mtu = 1500,
             negotiation = True,
             lldp_enabled = False,
-            cdp_enabled = False
+            cdp_enabled = False,
+            proxy_arp = False,
+            redirects = False
         )
         context.configuration.add(if0)
 
-        if1 = Physical(
+        if1 = FrontpanelPort(
             index=1,
             module_index=0,
             stack_index=0,
@@ -36,7 +38,9 @@ class PhysicalPort(ConfigMap):
             mtu = 1500,
             negotiation = True,
             lldp_enabled = True,
-            cdp_enabled = True
+            cdp_enabled = True,
+            proxy_arp = False,
+            redirects = False
         )
         context.configuration.add(if1)
 
