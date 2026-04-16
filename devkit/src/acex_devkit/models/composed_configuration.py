@@ -130,6 +130,8 @@ class Interface(ContainerEntry, BaseModel):
     description: Optional[AttributeValue[str]] = None
     enabled: Optional[AttributeValue[bool]] = None
     ipv4: Optional[AttributeValue[str]] = None
+    redirects: Optional[AttributeValue[bool]] = None # Regarding IP redirects. 
+    proxy_arp: Optional[AttributeValue[bool]] = None # Cisco true = yes / false = no, Juniper true = unrestricted / false = restricted
     
     type: Literal[
         "ethernetCsmacd",
@@ -164,6 +166,8 @@ class EthernetCsmacdInterface(Interface):
     voice_vlan: Optional[AttributeValue[int]] = None
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
     negotiation: Optional[AttributeValue[bool]] = None
+    lldp_enabled: Optional[AttributeValue[bool]] = None
+    cdp_enabled: Optional[AttributeValue[bool]] = None
 
     # LACP relaterade attribut
     aggregate_id: Optional[AttributeValue[int]] = None
@@ -652,6 +656,17 @@ class TripleA(BaseModel):
     authorization: aaaAuthorization = aaaAuthorization()
     accounting: aaaAccounting = aaaAccounting()
 
+class VTPAttributes(BaseModel):
+    domain_name: Optional[AttributeValue[str]] = None
+    mode: Optional[AttributeValue[Literal["server", "client", "transparent", 'off']]] = None
+    primary_server: Optional[AttributeValue[bool]] = False # Cisco proprietary
+    version: Optional[AttributeValue[Literal[1, 2, 3]]] = None
+    password: Optional[AttributeValue[str]] = None
+    password_hashed: Optional[AttributeValue[str]] = None
+
+class VTP(BaseModel):
+    config: VTPAttributes = VTPAttributes()
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
@@ -659,6 +674,7 @@ class System(BaseModel):
     ntp: Optional[Ntp] = Ntp()
     ssh: Optional[Ssh] = Ssh()
     snmp: Optional[Snmp] = Snmp()
+    vtp: Optional[VTP] = VTP()
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
