@@ -22,6 +22,11 @@ class Interface(ConfigComponent):
             network_instance = self.kwargs.pop("network_instance")
             self.kwargs["network_instance"] = ReferenceFrom(pointer=f"network_instances.{network_instance.name}.interfaces")
 
+    def _add_dhcp_trust(self):
+        # Add reference to DHCP snooping config if exists in configmap
+        if self.kwargs.get("dhcp_snooping_trust") is not None:
+            self.kwargs["dhcp_snooping"] = ReferenceFrom(pointer="system.dhcp.snooping.trust_interfaces")
+
 
 # Keep commented for now
 #class Physical(Interface):
@@ -33,6 +38,7 @@ class FrontpanelPort(Interface):
     model_cls = EthernetCsmacdInterface
     def pre_init(self):
         self._add_vrf()
+        self._add_dhcp_trust()
         # Resolve referenced etherchannel if any
         #print('self.kwargs: ', self.kwargs)
         #if "etherchannel" in self.kwargs:

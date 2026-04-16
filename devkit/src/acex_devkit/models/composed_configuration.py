@@ -667,6 +667,22 @@ class VTPAttributes(BaseModel):
 class VTP(BaseModel):
     config: VTPAttributes = VTPAttributes()
 
+#class DHCPRelay(BaseModel):
+#    enabled: Optional[AttributeValue[bool]] = None
+#    source_interface: Optional[Reference] = None
+#    servers: Optional[AttributeValue[List[str]]] = None # List of DHCP server IPs
+
+class DHCPSnoopingAttributes(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = None
+    #vlans: Optional[AttributeValue[List[int]]] = None # List of VLAN IDs where DHCP snooping is enabled
+    vlans: Optional[Dict[str, Reference]] = {} # VLANs where DHCP snooping is enabled, key is VLAN ID, value is reference to VLAN
+    trust_interfaces: Optional[Dict[str, Reference]] = {} # Interfaces that are trusted for DHCP snooping, key is interface name, value is reference to interface
+    option82: Optional[AttributeValue[bool]] = None # Whether DHCP snooping option 82 is enabled
+
+class Dhcp(BaseModel): 
+    snooping: Optional[DHCPSnoopingAttributes] = DHCPSnoopingAttributes()
+    #relay: Optional[DHCPRelay] = DHCPRelay()
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
@@ -675,6 +691,9 @@ class System(BaseModel):
     ssh: Optional[Ssh] = Ssh()
     snmp: Optional[Snmp] = Snmp()
     vtp: Optional[VTP] = VTP()
+    dhcp: Optional[Dhcp] = Dhcp()
+    #dhcp_relay: Optional[DHCPRelay] = DHCPRelay()
+    #dhcp_snooping: Optional[DHCPSnoopingAttributes] = DHCPSnoopingAttributes()
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
