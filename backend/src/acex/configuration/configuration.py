@@ -56,7 +56,7 @@ from acex.configuration.components.acl import (
 
 from acex.configuration.components.routing import StaticRoute, StaticRouteNextHop
 
-from acex.configuration.components.system.vtp import VTP
+from acex.configuration.components.system.vtp import Vtp
 
 from acex_devkit.models import ExternalValue
 from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
@@ -123,7 +123,7 @@ class Configuration:
         Ipv4AclEntry: Template("acl.ipv4_acls.${ipv4_acl}.acl_entries"),
         Ipv6Acl: "acl.ipv6_acls",
         Ipv6AclEntry: Template("acl.ipv6_acls.${ipv6_acl}.acl_entries"),
-        VTP: "system.vtp.config",
+        Vtp: "system.vtp.config",
     }
 
     # Reverse mapping from attribute name to path for __getattr__

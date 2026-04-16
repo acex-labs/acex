@@ -1,9 +1,9 @@
 from acex.config_map import ConfigMap, FilterAttribute
-from acex.configuration.components.system.vtp import VTP
+from acex.configuration.components.system.vtp import Vtp
 
 class VtpConfig(ConfigMap):
     def compile(self, context):
-        vtp = VTP(
+        vtp = Vtp(
             domain_name='example_domain',
             mode='client', # can be 'server', 'client', 'transparent' or 'off'
             version=3,
