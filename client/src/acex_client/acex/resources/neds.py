@@ -13,25 +13,25 @@ class Neds(Resource):
 
     def __init__(self, rest_client):
         self.rest = rest_client
-        self.drivers = {}
-        self._load_installed_drivers()
+        self._drivers = None
 
-    def _load_installed_drivers(self):
-        """
-        Loads installed drivers into self.drivers
-        """
-        for entry_point in entry_points(group="acex.neds"):
-            try:
-                _class = entry_point.load()
-                instance = _class()
-                version = entry_point.dist.version 
-                self.drivers[_class.__name__] = {
-                    "instance": instance,
-                    "version": version,
-                    "package_name": entry_point.dist.name
-                }
-            except Exception as e:
-                print(f"Error when loading {entry_point.name}: {e}")
+    @property
+    def drivers(self):
+        if self._drivers is None:
+            self._drivers = {}
+            for entry_point in entry_points(group="acex.neds"):
+                try:
+                    _class = entry_point.load()
+                    instance = _class()
+                    version = entry_point.dist.version
+                    self._drivers[_class.__name__] = {
+                        "instance": instance,
+                        "version": version,
+                        "package_name": entry_point.dist.name,
+                    }
+                except Exception as e:
+                    print(f"Error when loading {entry_point.name}: {e}")
+        return self._drivers
 
     def _url_for_wheel(self, ned: Ned) -> str:
         """

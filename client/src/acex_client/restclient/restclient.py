@@ -18,8 +18,8 @@ class RestClient:
             data = {}
         return data
 
-    def query_items(self, endpoint: str, params: dict = {}, limit: int = 100, cursor: str = None): 
+    def query_items(self, endpoint: str, params: dict = None):
         url = f"{self.url}{endpoint}"
-        response = requests.get(url, verify=self.verify)
+        response = requests.get(url, params=params, verify=self.verify)
         data = response.json()
         return data

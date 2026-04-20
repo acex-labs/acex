@@ -38,8 +38,13 @@ class Node(NodeBase, table=True):
 
 class NodeListResponse(NodeBase):
     id: int
+    # Denormalized from logical_node
     hostname: Optional[str] = None
     site: Optional[str] = None
+    # Denormalized from asset
+    vendor: Optional[str] = None
+    os: Optional[str] = None
+    ned_id: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
