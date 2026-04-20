@@ -4,20 +4,19 @@ import typer
 
 from acex_cli.sdk import get_sdk
 from acex_cli.output import display_list, display_object
-from acex_client.models.generated_models import AssetResponse
+from acex_client.models.generated_models import LogicalNode
 
-app = typer.Typer(help="Asset resource commands")
+app = typer.Typer(help="Logical node resource commands")
 
 
 @app.command("list")
 def list_cmd(
     ctx: typer.Context,
     # Filters (match backend query params)
-    vendor: Optional[str] = typer.Option(None, help="Filter by vendor (prefix match)"),
-    os: Optional[str] = typer.Option(None, "--os", help="Filter by OS"),
-    hardware_model: Optional[str] = typer.Option(None, help="Filter by hardware model"),
-    ned_id: Optional[str] = typer.Option(None, help="Filter by NED ID"),
-    serial_number: Optional[str] = typer.Option(None, help="Filter by serial number"),
+    role: Optional[str] = typer.Option(None, help="Filter by role (prefix match)"),
+    site: Optional[str] = typer.Option(None, help="Filter by site (prefix match)"),
+    hostname: Optional[str] = typer.Option(None, help="Filter by hostname (prefix match)"),
+    sequence: Optional[int] = typer.Option(None, help="Filter by sequence number"),
     assigned: Optional[bool] = typer.Option(None, help="Filter assigned/unassigned"),
     # Pagination
     limit: int = typer.Option(100, "--limit", "-l", help="Max items to return"),
@@ -27,39 +26,38 @@ def list_cmd(
     columns: Optional[str] = typer.Option(None, "--columns", "-c", help="Comma-separated columns"),
     no_header: bool = typer.Option(False, "--no-header", help="Hide table header"),
 ):
-    """List assets with optional filters."""
+    """List logical nodes with optional filters."""
     sdk = get_sdk(ctx.obj.get_active_context())
     filters = _compact(
-        vendor=vendor, os=os, hardware_model=hardware_model,
-        ned_id=ned_id, serial_number=serial_number, assigned=assigned,
+        role=role, site=site, hostname=hostname,
+        sequence=sequence, assigned=assigned,
     )
-    result = sdk.assets.query(limit=limit, offset=offset, **filters)
+    result = sdk.logical_nodes.query(limit=limit, offset=offset, **filters)
     display_list(
         result,
         format=format,
         columns=columns.split(",") if columns else None,
         no_header=no_header,
-        model=AssetResponse,
-        title="Assets",
+        model=LogicalNode,
+        title="Logical Nodes",
     )
 
 
 @app.command("show")
 def show_cmd(
     ctx: typer.Context,
-    asset_id: str,
+    logical_node_id: str,
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, csv"),
     columns: Optional[str] = typer.Option(None, "--columns", "-c", help="Comma-separated fields"),
 ):
-    """Show details for an asset."""
+    """Show details for a logical node."""
     sdk = get_sdk(ctx.obj.get_active_context())
-    asset = sdk.assets.get(asset_id)
+    logical_node = sdk.logical_nodes.get(logical_node_id)
     display_object(
-        asset,
+        logical_node,
         format=format,
         columns=columns.split(",") if columns else None,
-        model=AssetResponse,
-        title=f"Asset {asset_id}",
+        title=f"Logical Node {logical_node_id}",
     )
 
 

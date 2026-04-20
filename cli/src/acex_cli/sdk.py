@@ -20,20 +20,4 @@ def get_sdk(context):
 
     verify = context.get("verify_ssl", True)
     client = Acex(baseurl=f"{url}/", verify=verify)
-    try:
-        requests.head(client.api_url, verify=verify)
-    except SSLError as e:
-        reason = _innermost_exception_message(e)
-        print(
-            "\033[91mCould not connect to API due to untrusted certificate!\033[0m\r\n\r\n"
-            f"Reason: {reason}"
-        )
-        exit()
-    except ConnectionError as e:
-        reason = _innermost_exception_message(e)
-        print(
-            "\033[91mCould not connect to API!\033[0m\r\n\r\n"
-            f"Reason: {reason}"
-        )
-        exit()
     return client

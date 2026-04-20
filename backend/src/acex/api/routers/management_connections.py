@@ -18,7 +18,7 @@ def create_router(automation_engine):
     manager = automation_engine.mgmt_con_manager
 
     router.add_api_route(
-        "/management_connections/{id}",
+        "/management_connections/",
         manager.create_connection,
         methods=["POST"],
         tags=tags

@@ -48,7 +48,23 @@ class Node(NodeBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+
+class NodeListItem(NodeBase):
+    """Enriched list representation with denormalized fields from asset and logical_node."""
+    id: Optional[int] = None
+    # From logical_node
+    hostname: Optional[str] = None
+    site: Optional[str] = None
+    # From asset
+    vendor: Optional[str] = None
+    os: Optional[str] = None
+    ned_id: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
 class NodeResponse(NodeBase):
+    id: Optional[int] = None
     asset: Asset
     logical_node: LogicalNodeResponse
     created_at: datetime

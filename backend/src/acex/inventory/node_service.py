@@ -111,14 +111,27 @@ class NodeService:
             }.items() if v is not None
         }
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
-        items = [
-            NodeListResponse(
+
+        # Bulk-fetch unique assets to avoid N+1
+        asset_ids = {n.asset_ref_id for n in result["items"]}
+        assets_by_id = {}
+        for aid in asset_ids:
+            asset = await self._call_method(self.inventory.assets.adapter.get, aid)
+            if asset:
+                assets_by_id[asset.id] = asset
+
+        items = []
+        for node in result["items"]:
+            asset = assets_by_id.get(node.asset_ref_id)
+            items.append(NodeListResponse(
                 **node.model_dump(),
                 hostname=node.logical_node.hostname if node.logical_node else None,
-                site=node.logical_node.site if node.logical_node else None
-            )
-            for node in result["items"]
-        ]
+                site=node.logical_node.site if node.logical_node else None,
+                vendor=asset.vendor if asset else None,
+                os=asset.os if asset else None,
+                ned_id=asset.ned_id if asset else None,
+            ))
+
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, logical_node: Node):

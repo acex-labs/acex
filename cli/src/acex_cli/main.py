@@ -21,7 +21,7 @@ for module_info in pkgutil.iter_modules([str(commands_path)]):
         continue
     module = importlib.import_module(f"acex_cli.commands.{module_info.name}")
     if hasattr(module, "app"):
-        app.add_typer(module.app, name=module_info.name)
+        app.add_typer(module.app, name=module_info.name.replace("_", "-"))
 
 cli_context = CLIContext()
 

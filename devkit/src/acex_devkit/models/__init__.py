@@ -5,11 +5,12 @@
 
 from .external_value import ExternalValue
 from .attribute_value import AttributeValue
-from .node_response import NodeResponse, LogicalNodeResponse
+from .node_response import NodeResponse, NodeListItem, LogicalNodeResponse
 
 __all__ = [
     ExternalValue,
     AttributeValue,
     NodeResponse,
+    NodeListItem,
     LogicalNodeResponse
     ]
