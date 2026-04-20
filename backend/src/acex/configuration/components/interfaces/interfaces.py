@@ -22,6 +22,16 @@ class Interface(ConfigComponent):
             network_instance = self.kwargs.pop("network_instance")
             self.kwargs["network_instance"] = ReferenceFrom(pointer=f"network_instances.{network_instance.name}.interfaces")
 
+    def _add_dhcp_trust(self):
+        # Add reference to DHCP snooping config if exists in configmap
+        if self.kwargs.get("dhcp_snooping_trust") == True:
+            self.kwargs["dhcp_snooping"] = ReferenceFrom(pointer="system.dhcp.snooping.trust_interfaces")
+
+    def _helper(self):
+        if self.kwargs.get("relay_helper") is not None:
+            helper = self.kwargs.pop("relay_helper")
+            self.kwargs["relay_helper"] = ReferenceFrom(pointer=f"system.dhcp.relay.relay_servers.{helper.name}.interfaces")
+
 
 # Keep commented for now
 #class Physical(Interface):
@@ -33,6 +43,8 @@ class FrontpanelPort(Interface):
     model_cls = EthernetCsmacdInterface
     def pre_init(self):
         self._add_vrf()
+        self._add_dhcp_trust()
+        self._helper()
         # Resolve referenced etherchannel if any
         #print('self.kwargs: ', self.kwargs)
         #if "etherchannel" in self.kwargs:
@@ -75,8 +87,8 @@ class Svi(Interface):
         referenced_vlan = self.kwargs.pop("vlan")
         self.kwargs["vlan_id"] = referenced_vlan.model.vlan_id.value
         self._add_vrf()
-
-
+        self._add_dhcp_trust()
+        self._helper()
 
 class Loopback(Interface):
     type = "softwareLoopback"

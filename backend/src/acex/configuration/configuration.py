@@ -58,6 +58,11 @@ from acex.configuration.components.routing import StaticRoute, StaticRouteNextHo
 
 from acex.configuration.components.system.vtp import Vtp
 
+from acex.configuration.components.system.dhcp import (
+    DHCPSnooping, 
+    DhcpRelayServer
+)
+
 from acex_devkit.models import ExternalValue
 from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict
@@ -124,6 +129,8 @@ class Configuration:
         Ipv6Acl: "acl.ipv6_acls",
         Ipv6AclEntry: Template("acl.ipv6_acls.${ipv6_acl}.acl_entries"),
         Vtp: "system.vtp.config",
+        DHCPSnooping: "system.dhcp.snooping",
+        DhcpRelayServer: "system.dhcp.relay.relay_servers", 
     }
 
     # Reverse mapping from attribute name to path for __getattr__
@@ -242,7 +249,6 @@ class Configuration:
         """
         component_type = type(component)
         if component_type not in self.COMPONENT_MAPPING:
-            print(f"Unknown component type: {component_type.__name__}")
             raise ValueError(f"Unknown component type: {component_type.__name__}")
 
         # pop references

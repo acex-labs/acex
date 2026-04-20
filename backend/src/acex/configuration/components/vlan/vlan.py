@@ -1,6 +1,6 @@
 
 from acex.configuration.components.base_component import ConfigComponent
-from acex_devkit.models.composed_configuration import Vlan as VlanAttributes
+from acex_devkit.models.composed_configuration import ReferenceFrom, ReferenceTo, Vlan as VlanAttributes
 
 class Vlan(ConfigComponent): 
     type = "l2vlan"
@@ -13,8 +13,9 @@ class Vlan(ConfigComponent):
             network_instance = self.kwargs.pop("network_instance")
             self.kwargs["network_instance"] = network_instance.name 
 
-
-
+        # Add reference to DHCP snooping config if exists in configmap
+        if self.kwargs.get("dhcp_snooping_trust") == True:
+            self.kwargs["dhcp_snooping"] = ReferenceFrom(pointer="system.dhcp.snooping.vlans")
 
 
 
