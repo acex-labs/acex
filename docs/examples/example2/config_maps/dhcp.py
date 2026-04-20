@@ -3,9 +3,6 @@ from acex.configuration.components.interfaces.interfaces import Svi
 from acex.configuration.components.network_instances.network_instances import L3Vrf
 from acex.configuration.components.system.dhcp import (
     DHCPSnooping,
-    #DhcpRelayInterface,
-    #DhcpRelayConfig,
-    #DhcpRelayServer
     DhcpRelayServer
 )
 
