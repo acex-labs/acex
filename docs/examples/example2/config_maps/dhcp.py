@@ -31,6 +31,13 @@ class SetDhcpConfig(ConfigMap):
         )
         context.configuration.add(hlp_1)
 
+        hlp_2 = DhcpRelayServer(
+            name="DHCP_HELPER_VLAN10_SRV2",
+            address="192.168.1.255",
+            network_instance=test_vrf
+        )
+        context.configuration.add(hlp_2)
+
         vlan10 = Vlan(
             name="Vlan10",
             vlan_id=10,
@@ -69,7 +76,7 @@ class SetDhcpConfig(ConfigMap):
             dhcp_snooping_trust=True, # This will add reference to DHCP snooping config
             relay_helper=hlp_1 # This will add reference to DHCP relay helper address # does not work
         )
-        context.configuration.add(if0_test)
+        context.configuration.add(hlp_2)
 
 autolab_dhcp = SetDhcpConfig()
 autolab_dhcp.filters = FilterAttribute("site").eq("test_site_123")
