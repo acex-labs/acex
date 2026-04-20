@@ -880,10 +880,11 @@ def create_router(automation_engine):
             stored = await automation_engine.device_config_manager.get_latest_config(
                 node_instance_id, "parsed"
             )
-            if stored is None:
+            if stored is None or not stored.content:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"No observed parsed config found for {node_instance_id}",
+                    detail=f"No observed parsed config for node instance {node_instance_id}. "
+                           f"The device may not have a NED assigned, or the NED failed to parse the config.",
                 )
             # stored is a StoredDeviceConfig — .content holds the ComposedConfiguration
             component_instances = _flatten_config_to_instances(stored.content, model_to_comp)
