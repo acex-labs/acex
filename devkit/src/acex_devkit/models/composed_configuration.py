@@ -112,7 +112,18 @@ class Ssh(BaseModel):
     config: Optional[SshServer] = None
     host_keys: Optional[Dict[str, AuthorizedKey]] = {}
 
-class Lldp(BaseModel): ...
+class LldpConfigAttributes(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = None
+    transmit_interval: Optional[AttributeValue[int]] = None
+    hold_time: Optional[AttributeValue[int]] = None
+    system_name: Optional[AttributeValue[str]] = None  # The system name field shall contain an alpha-numeric string that indicates the system's administratively assigned name.
+    suppress_tlv_advertisement: Optional[AttributeValue[List[str]]] = None # Comma-separated list of TLVs to suppress in advertisements. Values depend on device and vendor, but common ones include "system_name", "system_description", "system_capabilities", "management_address", etc.
+    interfaces: Optional[Dict[str, Reference]] = {}
+
+#class Lldp(BaseModel):
+#    config: Optional[LldpConfigAttributes] = LldpConfigAttributes()
+#    #interfaces: Optional[Dict[str, LldpInterfaceConfigAttributes]] = {}
+#    interfaces: Optional[Dict[str, Reference]] = {}
 
 class Vlan(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("vlan_id",)
@@ -166,7 +177,7 @@ class EthernetCsmacdInterface(Interface):
     voice_vlan: Optional[AttributeValue[int]] = None
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
     negotiation: Optional[AttributeValue[bool]] = None
-    lldp_enabled: Optional[AttributeValue[bool]] = None
+    #lldp_enabled: Optional[AttributeValue[bool]] = None
     cdp_enabled: Optional[AttributeValue[bool]] = None
 
     # LACP relaterade attribut
@@ -709,7 +720,7 @@ InterfaceType = Union[
 class ComposedConfiguration(BaseModel):
     system: Optional[System] = System()
     acl: Optional[Acl] = Acl()
-    lldp: Optional[Lldp] = Lldp()
+    lldp: Optional[LldpConfigAttributes] = LldpConfigAttributes()
     lacp: Optional[Lacp] = Lacp()
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
