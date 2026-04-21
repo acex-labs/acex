@@ -27,7 +27,7 @@ class Asset(BaseModel):
 
 class AssetRefType(str, Enum):
     asset = "asset"
-    assetcluster = "assetcluster"
+    asset_cluster = "asset_cluster"
 
 
 class NodeStatus(str, Enum):

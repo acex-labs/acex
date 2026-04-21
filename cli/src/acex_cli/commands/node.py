@@ -279,10 +279,7 @@ def config_show_desired(
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """Show desired config."""
-    import time
-    t0 = time.time()
     sdk = get_sdk(ctx.obj.get_active_context())
-    t1 = time.time()
 
     if render:
         node_instance = _fetch_node_instance(sdk, node)
@@ -292,11 +289,7 @@ def config_show_desired(
         _print_rendered(ned.render(config, node_instance.asset))
     else:
         _, config = _fetch_desired_config(sdk, node)
-        t2 = time.time()
         _print_parsed_config(config.model_dump(), path=path, format=format, title=f"Desired config — {node}")
-        t3 = time.time()
-
-    typer.echo(f"[debug] sdk init: {t1-t0:.2f}s, fetch: {t2-t1:.2f}s, render: {t3-t2:.2f}s")
 
 
 @config_show_app.command("observed")

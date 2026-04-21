@@ -35,7 +35,7 @@ class AssetClusterCreate(BaseModel):
 
 class AssetRefType(Enum):
     asset = 'asset'
-    assetcluster = 'assetcluster'
+    asset_cluster = 'asset_cluster'
 
 
 class AssetResponse(BaseModel):
