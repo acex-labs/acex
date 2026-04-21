@@ -65,7 +65,6 @@ from acex.configuration.components.system.dhcp import (
 
 from acex.configuration.components.lldp import (
     LldpConfig,
-    LldpInterface
 )
 
 from acex_devkit.models import ExternalValue
@@ -136,8 +135,7 @@ class Configuration:
         Vtp: "system.vtp.config",
         DHCPSnooping: "system.dhcp.snooping",
         DhcpRelayServer: "system.dhcp.relay.relay_servers", 
-        LldpConfig: "lldp.config",
-        LldpInterface: "lldp.interfaces"
+        LldpConfig: "lldp",
     }
 
     # Reverse mapping from attribute name to path for __getattr__

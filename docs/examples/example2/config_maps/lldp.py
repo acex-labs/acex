@@ -1,5 +1,5 @@
 from acex.config_map import ConfigMap, FilterAttribute
-from acex.configuration.components.lldp import LldpConfig, LldpInterface
+from acex.configuration.components.lldp import LldpConfig
 from acex.configuration.components.interfaces import FrontpanelPort
 
 class LldpConfigMap(ConfigMap):
