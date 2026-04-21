@@ -180,7 +180,7 @@ class EthernetCsmacdInterface(Interface):
     voice_vlan: Optional[AttributeValue[int]] = None
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
     negotiation: Optional[AttributeValue[bool]] = None
-    lldp_enabled: Optional[AttributeValue[bool]] = None
+    #lldp_enabled: Optional[AttributeValue[bool]] = None
     cdp_enabled: Optional[AttributeValue[bool]] = None
 
     # LACP relaterade attribut
