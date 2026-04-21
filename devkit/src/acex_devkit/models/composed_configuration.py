@@ -112,7 +112,21 @@ class Ssh(BaseModel):
     config: Optional[SshServer] = None
     host_keys: Optional[Dict[str, AuthorizedKey]] = {}
 
-class Lldp(BaseModel): ...
+class LldpConfigAttributes(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = None
+    transmit_interval: Optional[AttributeValue[int]] = None
+    hold_time: Optional[AttributeValue[int]] = None
+    system_name: Optional[AttributeValue[str]] = None  # The system name field shall contain an alpha-numeric string that indicates the system's administratively assigned name.
+    suppress_tlv_advertisement: Optional[AttributeValue[str]] = None # Comma-separated list of TLVs to suppress in advertisements. Values depend on device and vendor, but common ones include "system_name", "system_description", "system_capabilities", "management_address", etc.
+
+class LldpInterfaceConfigAttributes(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = None
+    interface: Optional[Reference] = None
+
+class Lldp(BaseModel):
+    config: Optional[LldpConfigAttributes] = LldpConfigAttributes()
+    #interfaces: Optional[Dict[str, LldpInterfaceConfigAttributes]] = {}
+    interfaces: Optional[Dict[str, Reference]] = {}
 
 class Vlan(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("vlan_id",)

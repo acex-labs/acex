@@ -32,6 +32,9 @@ class Interface(ConfigComponent):
             helper = self.kwargs.pop("relay_helper")
             self.kwargs["relay_helper"] = ReferenceFrom(pointer=f"system.dhcp.relay.relay_servers.{helper.name}.interfaces")
 
+    def _lldp_enable(self):
+        if self.kwargs.get("lldp_enabled") == True:
+            self.kwargs["lldp"] = ReferenceFrom(pointer="lldp.interfaces")
 
 # Keep commented for now
 #class Physical(Interface):
@@ -45,6 +48,7 @@ class FrontpanelPort(Interface):
         self._add_vrf()
         self._add_dhcp_trust()
         self._helper()
+        self._lldp_enable()
         # Resolve referenced etherchannel if any
         #print('self.kwargs: ', self.kwargs)
         #if "etherchannel" in self.kwargs:
