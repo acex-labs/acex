@@ -328,11 +328,7 @@ class CiscoIOSCLIParser:
                 ssh_values_dict['source_interface'] = intf_ref
 
         self.parsed_config.system.ssh.config = self.removekey(SshServer(**ssh_values_dict), 'metadata')
-        algorithm_list = []
-        self.parsed_config.system.ssh.host_keys = {
-            "algorithms": algorithm_list,
-            "public_keys": {}
-        }
+        self.parsed_config.system.ssh.host_keys = {}
 
     # Only used for local testing with static config file
     def load_running_config(self, filepath: str) -> str:
