@@ -35,6 +35,26 @@ vrf definition {{ ni.name.value }}
 !
 {%- if configuration.system.aaa.config is defined and configuration.system.aaa.config.enabled %}
 aaa new-model
+{%-   if configuration.system.aaa.server_groups %}
+{%-     for group_name, group in configuration.system.aaa.server_groups.items() %}
+{%-       if group.enable and group.enable.value %}
+{%-         if group.tacacs %}
+!
+aaa group server tacacs+ {{ group_name }}
+{%-           for server_name in group.tacacs.keys() %}
+ server name {{ server_name }}
+{%-           endfor %}
+{%-         endif %}
+{%-         if group.radius %}
+!
+aaa group server radius {{ group_name }}
+{%-           for server_name in group.radius.keys() %}
+ server name {{ server_name }}
+{%-           endfor %}
+{%-         endif %}
+{%-       endif %}
+{%-     endfor %}
+{%-   endif %}
 {%- else %}
 no aaa new-model
 {%- endif %}
@@ -59,6 +79,23 @@ no ipv6 cef
 spanning-tree mode pvst
 spanning-tree extend system-id
 !
+{%- if configuration.system.vtp and configuration.system.vtp.config -%}
+{%-   set vtp = configuration.system.vtp.config %}
+{%-   if vtp.domain_name %}
+vtp domain {{ vtp.domain_name.value }}
+{%-   endif %}
+{%-   if vtp.mode %}
+vtp mode {{ vtp.mode.value }}
+{%-   endif %}
+{%-   if vtp.version %}
+vtp version {{ vtp.version.value }}
+{%-   endif %}
+{%-   if vtp.password %}
+vtp password {{ vtp.password.value }}
+{%-   elif vtp.password_hashed %}
+vtp password {{ vtp.password_hashed.value }} hidden
+{%-   endif %}
+{%- endif %}
 !
 !
 !
@@ -115,7 +152,7 @@ interface {{ intf.name }}
  switchport trunk native vlan {{ intf.native_vlan.value }}
 {%-      endif %}
 {%-      if intf.trunk_allowed_vlans %}
-    switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
+ switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
 {%-      endif %}
 {%-    endif %}
 {%-  endif %}
@@ -157,7 +194,7 @@ interface {{ intf.name }}
  switchport trunk native vlan {{ intf.native_vlan.value }}
 {%-      endif %}
 {%-      if intf.trunk_allowed_vlans %}
-    switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
+ switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
 {%-      endif %}
 {%-  endif %}
 {%-  if intf.lacp_enabled %}
@@ -232,27 +269,6 @@ ip forward-protocol nd
 ip http server
 ip http secure-server
 !
-{# 
-{%- if configuration.routing
- -%}
-{%- if configuration.routing.static_routes %}
-{%- for route in configuration.routing.static_routes %}
-ip route {{ route.network }} {{ route.mask }} {{ route.next_hop }}
-{%- endfor %}
-{%- endif %}
-{%- if configuration.routing.ospf %}
-router ospf {{ configuration.routing.ospf.process_id | default(1) }}
-{%- if configuration.routing.ospf.router_id %}
- router-id {{ configuration.routing.ospf.router_id }}
-{%- endif %}
-{%- if configuration.routing.ospf.networks %}
-{%- for network in configuration.routing.ospf.networks %}
- network {{ network.address }} {{ network.wildcard }} area {{ network.area }}
-{%- endfor %}
-{%- endif %}
-{%- endif %}
-{%- endif %}
-#}
 {% set ssh = configuration.system.ssh.config -%}
 {%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
 {%-   if ssh.get('protocol_version') %}
@@ -269,6 +285,45 @@ ip ssh source-interface {{ ssh['source_interface'] }}
 {%-   endif %}
 {%- endif %}
 !
+{%- for _, group in configuration.system.aaa.server_groups.items() %}
+{%-   if group.tacacs %}
+{%-     for server_name, server in group.tacacs.items() %}
+tacacs server {{ server_name }}
+{%-       if server.address %}
+ address ipv4 {{ server.address.value }}
+{%-       endif %}
+{%-       if server.port %}
+ port {{ server.port.value }}
+{%-       endif %}
+{%-       if server.secret_key_hashed %}
+ key 7 {{ server.secret_key_hashed.value }}
+{%-       elif server.secret_key %}
+ key 0 {{ server.secret_key.value }}
+{%-       endif %}
+{%-       if server.timeout %}
+ timeout {{ server.timeout.value }}
+{%-       endif %}
+!
+{%-     endfor %}
+{%-   endif %}
+{%-   if group.radius %}
+{%-     for server_name, server in group.radius.items() %}
+radius server {{ server_name }}
+{%-       if server.address %}
+ address ipv4 {{ server.address.value }}{% if server.auth_port %} auth-port {{ server.auth_port.value }}{% endif %}{% if server.acct_port %} acct-port {{ server.acct_port.value }}{% endif %}
+{%-       endif %}
+{%-       if server.secret_key_hashed %}
+ key 7 {{ server.secret_key_hashed.value }}
+{%-       elif server.secret_key %}
+ key 0 {{ server.secret_key.value }}
+{%-       endif %}
+{%-       if server.timeout %}
+ timeout {{ server.timeout.value }}
+{%-       endif %}
+!
+{%-     endfor %}
+{%-   endif %}
+{%- endfor %}
 {%- if "lacp" in configuration -%}
 {%-   if configuration.lacp.config.system_priority %}
 lacp system-priority {{ configuration.lacp.config.system_priority.value }}

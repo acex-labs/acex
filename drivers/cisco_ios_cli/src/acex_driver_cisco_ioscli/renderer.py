@@ -275,7 +275,6 @@ class CiscoIOSCLIRenderer(RendererBase):
         return suffix_string
 
     def _get_port_prefix(self, os:str, speed:int) -> Optional[str]:
-        print(f"os: {os} speed: {speed}")
         PREFIX_MAP = {
             "cisco_ios": {
                 1000000: "GigabitEthernet",
