@@ -67,6 +67,10 @@ from acex.configuration.components.lldp import (
     LldpConfig,
 )
 
+from acex.configuration.components.cdp import (
+    CdpConfig,
+)
+
 from acex_devkit.models import ExternalValue
 from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict
@@ -136,6 +140,7 @@ class Configuration:
         DHCPSnooping: "system.dhcp.snooping",
         DhcpRelayServer: "system.dhcp.relay.relay_servers", 
         LldpConfig: "lldp",
+        CdpConfig: "cdp",
     }
 
     # Reverse mapping from attribute name to path for __getattr__

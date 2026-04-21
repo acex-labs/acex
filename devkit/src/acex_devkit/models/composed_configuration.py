@@ -120,6 +120,13 @@ class LldpConfigAttributes(BaseModel):
     suppress_tlv_advertisement: Optional[AttributeValue[List[str]]] = None # Comma-separated list of TLVs to suppress in advertisements. Values depend on device and vendor, but common ones include "system_name", "system_description", "system_capabilities", "management_address", etc.
     interfaces: Optional[Dict[str, Reference]] = {}
 
+class CdpConfigAttributes(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = None
+    transmit_interval: Optional[AttributeValue[int]] = None
+    hold_time: Optional[AttributeValue[int]] = None
+    advertise_v2: Optional[AttributeValue[bool]] = None # Whether to advertise CDP version 2
+    interfaces: Optional[Dict[str, Reference]] = {}
+
 #class Lldp(BaseModel):
 #    config: Optional[LldpConfigAttributes] = LldpConfigAttributes()
 #    #interfaces: Optional[Dict[str, LldpInterfaceConfigAttributes]] = {}
@@ -178,7 +185,7 @@ class EthernetCsmacdInterface(Interface):
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
     negotiation: Optional[AttributeValue[bool]] = None
     #lldp_enabled: Optional[AttributeValue[bool]] = None
-    cdp_enabled: Optional[AttributeValue[bool]] = None
+    #cdp_enabled: Optional[AttributeValue[bool]] = None
 
     # LACP relaterade attribut
     aggregate_id: Optional[AttributeValue[int]] = None
@@ -721,6 +728,7 @@ class ComposedConfiguration(BaseModel):
     system: Optional[System] = System()
     acl: Optional[Acl] = Acl()
     lldp: Optional[LldpConfigAttributes] = LldpConfigAttributes()
+    cdp: Optional[CdpConfigAttributes] = CdpConfigAttributes()
     lacp: Optional[Lacp] = Lacp()
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}

@@ -36,6 +36,10 @@ class Interface(ConfigComponent):
         if self.kwargs.get("lldp_enabled") == True:
             self.kwargs["lldp"] = ReferenceFrom(pointer="lldp.interfaces")
 
+    def _cdp_enable(self):
+        if self.kwargs.get("cdp_enabled") == True:
+            self.kwargs["cdp"] = ReferenceFrom(pointer="cdp.interfaces")
+
 # Keep commented for now
 #class Physical(Interface):
 #    type = "ethernetCsmacd"
@@ -49,6 +53,7 @@ class FrontpanelPort(Interface):
         self._add_dhcp_trust()
         self._helper()
         self._lldp_enable()
+        self._cdp_enable()
         # Resolve referenced etherchannel if any
         #print('self.kwargs: ', self.kwargs)
         #if "etherchannel" in self.kwargs:
