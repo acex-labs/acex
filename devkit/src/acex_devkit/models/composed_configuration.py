@@ -117,7 +117,7 @@ class LldpConfigAttributes(BaseModel):
     transmit_interval: Optional[AttributeValue[int]] = None
     hold_time: Optional[AttributeValue[int]] = None
     system_name: Optional[AttributeValue[str]] = None  # The system name field shall contain an alpha-numeric string that indicates the system's administratively assigned name.
-    suppress_tlv_advertisement: Optional[AttributeValue[str]] = None # Comma-separated list of TLVs to suppress in advertisements. Values depend on device and vendor, but common ones include "system_name", "system_description", "system_capabilities", "management_address", etc.
+    suppress_tlv_advertisement: Optional[AttributeValue[List[str]]] = None # Comma-separated list of TLVs to suppress in advertisements. Values depend on device and vendor, but common ones include "system_name", "system_description", "system_capabilities", "management_address", etc.
 
 class LldpInterfaceConfigAttributes(BaseModel):
     enabled: Optional[AttributeValue[bool]] = None

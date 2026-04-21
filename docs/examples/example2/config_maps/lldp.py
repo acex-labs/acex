@@ -17,7 +17,8 @@ class LldpConfigMap(ConfigMap):
         lldp_config = LldpConfig(
             enabled=True,
             transmit_interval=30,
-            hold_time=120
+            hold_time=120,
+            suppress_tlv_advertisement=["system_name", "system_description"]
         )
 
         context.configuration.add(lldp_config)
