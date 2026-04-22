@@ -237,8 +237,24 @@ def show_cmd(
 ):
     """Show details for a node instance (by ID or hostname)."""
     sdk = get_sdk(ctx.obj.get_active_context())
-    resolved = _resolve_node(sdk, node)
-    flat = _flatten_node(resolved)
+    node_id = _resolve_node_id(sdk, node)
+    resolved = sdk.node_instances.get(node_id)
+    if not resolved:
+        typer.echo(f"Node '{node}' not found.")
+        raise typer.Exit(1)
+    flat = _flatten_node(resolved, node_id=node_id)
+
+    # Fetch management connection
+    try:
+        connections = _get_connection(sdk, node_id)
+        if connections:
+            conn = connections[0]
+            flat["mgmt_target_ip"] = conn.get("target_ip")
+            flat["mgmt_target_port"] = conn.get("target_port")
+            flat["mgmt_protocol"] = conn.get("protocol")
+    except Exception:
+        pass  # Don't fail show if connection info is unavailable
+
     display_object(
         flat,
         format=format,
@@ -556,14 +572,14 @@ def _print_config_section(console, data: dict, path: str):
 
 # ── Util ────────────────────────────────────────────────────────
 
-def _flatten_node(node) -> dict:
+def _flatten_node(node, node_id: str = None) -> dict:
     """Flatten NodeResponse into a single-level dict for display."""
     data = node.model_dump() if hasattr(node, "model_dump") else dict(node)
     asset = data.pop("asset", {}) or {}
     logical_node = data.pop("logical_node", {}) or {}
 
     flat = {
-        "id": data.get("id"),
+        "id": data.get("id") or node_id,
         "hostname": logical_node.get("hostname"),
         "site": logical_node.get("site"),
         "role": logical_node.get("role"),
