@@ -246,7 +246,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         return config
 
     def _resolve_full_name(self, intf_prefix, stack_index, module_index, port_index):
-        return f"{intf_prefix}/{stack_index or 0}/{module_index or 0}/{port_index}"
+        return f"{intf_prefix}{stack_index or 0}/{module_index or 0}/{port_index}"
 
     def _get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
         max_index = match_hardware_model(hardware_model)
