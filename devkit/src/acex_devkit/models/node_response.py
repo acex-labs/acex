@@ -6,22 +6,22 @@ from acex_devkit.models.composed_configuration import ComposedConfiguration
 
 
 class LogicalNodeResponse(BaseModel):
-    id: Optional[int] = Field(None, title='Id')
-    hostname: Optional[str] = Field('R1', title='Hostname')
-    role: Optional[str] = Field('core', title='Role')
-    site: Optional[str] = Field('HQ', title='Site')
-    sequence: Optional[int] = Field(1, title='Sequence')
-    configuration: Optional[ComposedConfiguration] = ComposedConfiguration()
-    meta_data: Optional[Dict[str, Any]] = Field(None, title='Meta Data')
+    id: Optional[int] = None
+    hostname: Optional[str] = None
+    role: Optional[str] = None
+    site: Optional[str] = None
+    sequence: Optional[int] = None
+    configuration: Optional[ComposedConfiguration] = None
+    meta_data: Optional[Dict[str, Any]] = None
 
 
 class Asset(BaseModel):
     id: Optional[int] = None
-    vendor: str = None
-    serial_number: str
-    os: str
-    os_version: str
-    hardware_model: str
+    vendor: Optional[str] = None
+    serial_number: Optional[str] = None
+    os: Optional[str] = None
+    os_version: Optional[str] = None
+    hardware_model: Optional[str] = None
     ned_id: Optional[str] = None
 
 
@@ -39,9 +39,9 @@ class NodeStatus(str, Enum):
 
 class NodeBase(BaseModel):
     asset_ref_id: int
-    asset_ref_type: AssetRefType = AssetRefType.asset
+    asset_ref_type: Optional[AssetRefType] = None
     logical_node_id: int
-    status: NodeStatus = NodeStatus.planned
+    status: Optional[NodeStatus] = None
 
 class Node(NodeBase):
     id: Optional[int] = None
