@@ -33,10 +33,7 @@ class NodeService:
             asset = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"])
         else:
             asset = await self.inventory.assets.get(node["asset_ref_id"])
-        if isinstance(asset, Asset):
-            node["asset"] = asset.model_dump()
-        else:
-            node["asset"] = asset
+        node["asset"] = asset.model_dump() if hasattr(asset, 'model_dump') else asset
         ln = await self.inventory.logical_nodes.get(node["logical_node_id"])
         if ln is not None:
             node["logical_node"] = ln.model_dump()
@@ -112,24 +109,41 @@ class NodeService:
         }
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
 
-        # Bulk-fetch unique assets to avoid N+1
-        asset_ids = {n.asset_ref_id for n in result["items"]}
+        # Bulk-fetch unique assets and clusters to avoid N+1
+        asset_ids = {n.asset_ref_id for n in result["items"] if getattr(n, "asset_ref_type", "asset") == "asset"}
+        cluster_ids = {n.asset_ref_id for n in result["items"] if getattr(n, "asset_ref_type", None) == "asset_cluster"}
+
         assets_by_id = {}
         for aid in asset_ids:
             asset = await self._call_method(self.inventory.assets.adapter.get, aid)
             if asset:
-                assets_by_id[asset.id] = asset
+                assets_by_id[aid] = asset
+
+        clusters_by_id = {}
+        for cid in cluster_ids:
+            cluster = self.inventory.asset_cluster_manager.get_cluster(cid)
+            if cluster:
+                clusters_by_id[cid] = cluster
 
         items = []
         for node in result["items"]:
-            asset = assets_by_id.get(node.asset_ref_id)
+            if getattr(node, "asset_ref_type", "asset") == "asset_cluster":
+                cluster = clusters_by_id.get(node.asset_ref_id)
+                vendor = None
+                os_val = None
+                ned_id = cluster.ned_id if cluster else None
+            else:
+                asset = assets_by_id.get(node.asset_ref_id)
+                vendor = asset.vendor if asset else None
+                os_val = asset.os if asset else None
+                ned_id = asset.ned_id if asset else None
             items.append(NodeListResponse(
                 **node.model_dump(),
                 hostname=node.logical_node.hostname if node.logical_node else None,
                 site=node.logical_node.site if node.logical_node else None,
-                vendor=asset.vendor if asset else None,
-                os=asset.os if asset else None,
-                ned_id=asset.ned_id if asset else None,
+                vendor=vendor,
+                os=os_val,
+                ned_id=ned_id,
             ))
 
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)

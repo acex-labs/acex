@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Literal
 from sqlmodel import SQLModel, Field, Relationship
 
 
@@ -58,8 +58,8 @@ class AssetClusterAssetResponse(AssetBase):
 
 class AssetClusterResponse(AssetClusterBase):
     id: int
-    type: str = "asset_cluster"
+    type: Literal["asset_cluster"] = "asset_cluster"
     assets: list[AssetClusterAssetResponse] = []
 
 class AssetResponse(AssetBase):
-    type: str = "asset"
+    type: Literal["asset"] = "asset"
