@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Annotated, Optional, Dict, Any, List, Literal, Union
 from enum import Enum
 from datetime import datetime
 from acex_devkit.models.composed_configuration import ComposedConfiguration
@@ -17,12 +17,32 @@ class LogicalNodeResponse(BaseModel):
 
 class Asset(BaseModel):
     id: Optional[int] = None
+    type: Literal["asset"] = "asset"
     vendor: Optional[str] = None
     serial_number: Optional[str] = None
     os: Optional[str] = None
     os_version: Optional[str] = None
     hardware_model: Optional[str] = None
     ned_id: Optional[str] = None
+
+
+class AssetClusterAsset(BaseModel):
+    id: Optional[int] = None
+    vendor: Optional[str] = None
+    serial_number: Optional[str] = None
+    os: Optional[str] = None
+    os_version: Optional[str] = None
+    hardware_model: Optional[str] = None
+    ned_id: Optional[str] = None
+    cluster_index: Optional[int] = None
+
+
+class AssetCluster(BaseModel):
+    id: Optional[int] = None
+    type: Literal["asset_cluster"] = "asset_cluster"
+    name: Optional[str] = None
+    ned_id: Optional[str] = None
+    assets: List[AssetClusterAsset] = []
 
 
 class AssetRefType(str, Enum):
@@ -65,7 +85,7 @@ class NodeListItem(NodeBase):
 
 class NodeResponse(NodeBase):
     id: Optional[int] = None
-    asset: Asset
+    asset: Annotated[Union[Asset, AssetCluster], Field(discriminator="type")]
     logical_node: LogicalNodeResponse
     created_at: datetime
     updated_at: Optional[datetime] = None

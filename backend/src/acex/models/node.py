@@ -1,10 +1,11 @@
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional, Dict, TYPE_CHECKING
+from typing import Annotated, Optional, Dict, Union, TYPE_CHECKING
 from enum import Enum
 from datetime import datetime
 
 from acex.models import LogicalNodeResponse
 from acex.models import AssetResponse
+from acex.models.asset import AssetClusterResponse
 
 if TYPE_CHECKING:
     from acex.models.logical_node import LogicalNode
@@ -49,7 +50,7 @@ class NodeListResponse(NodeBase):
     updated_at: Optional[datetime] = None
 
 class NodeResponse(NodeBase):
-    asset: AssetResponse
+    asset: Annotated[Union[AssetResponse, AssetClusterResponse], Field(discriminator="type")]
     logical_node: LogicalNodeResponse
     created_at: datetime
     updated_at: Optional[datetime] = None
