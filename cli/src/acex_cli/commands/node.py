@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 from typing import Optional
 
 import requests
@@ -261,6 +262,44 @@ def show_cmd(
         columns=columns.split(",") if columns else None,
         title=f"Node {node}",
     )
+
+
+@app.command("connect")
+def connect_cmd(
+    ctx: typer.Context,
+    node: str = typer.Argument(help="Node ID or hostname"),
+):
+    """Connect to a node via its management connection (SSH)."""
+    sdk = get_sdk(ctx.obj.get_active_context())
+    node_id = _resolve_node_id(sdk, node)
+
+    try:
+        connections = _get_connection(sdk, node_id)
+    except Exception as e:
+        typer.echo(f"Failed to fetch management connection: {e}")
+        raise typer.Exit(1)
+
+    if not connections:
+        typer.echo(f"No management connection found for node '{node}'.")
+        raise typer.Exit(1)
+
+    conn = connections[0]
+    connection_type = (conn.get("connection_type") or "").lower()
+
+    if connection_type != "ssh":
+        typer.echo(f"Unsupported connection type '{connection_type}'. Only SSH is supported.")
+        raise typer.Exit(1)
+
+    target_ip = conn.get("target_ip")
+
+    if not target_ip:
+        typer.echo("Management connection has no target_ip.")
+        raise typer.Exit(1)
+
+    ssh_args = ["ssh", target_ip]
+
+    typer.echo(f"Connecting to {target_ip} via SSH...")
+    os.execvp("ssh", ssh_args)
 
 
 # ── Config show commands ────────────────────────────────────────
