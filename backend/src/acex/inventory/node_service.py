@@ -4,6 +4,7 @@ from acex.models import Node, NodeResponse, NodeListResponse, PaginatedResponse
 from acex.models.node import NodeStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from acex.models.asset import Asset
+from fastapi import HTTPException
 from typing import List, Optional
 
 class NodeService:
@@ -30,10 +31,13 @@ class NodeService:
         node = node.model_dump()
         asset = None
         if node.get("asset_ref_type") == "asset_cluster":
-            asset = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"])
+            node["asset"] = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"]).model_dump()
         else:
-            asset = await self.inventory.assets.get(node["asset_ref_id"])
-        node["asset"] = asset.model_dump() if hasattr(asset, 'model_dump') else asset
+            raw_asset = await self.inventory.assets.get(node["asset_ref_id"])
+            if raw_asset:
+                node["asset"] = {**raw_asset.model_dump(), "type": "asset"}
+            else:
+                node["asset"] = None
         ln = await self.inventory.logical_nodes.get(node["logical_node_id"])
         if ln is not None:
             node["logical_node"] = ln.model_dump()
@@ -84,6 +88,8 @@ class NodeService:
     
     async def get(self, id: str) -> NodeResponse:
         result = await self._call_method(self.adapter.get, id)
+        if result is None:
+            raise HTTPException(status_code=404, detail=f"Node instance {id} not found")
         result = await self._enrich_data(result)
         return result
 

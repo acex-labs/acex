@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Annotated, Optional, Dict, Union, TYPE_CHECKING
+from typing import Optional, Dict, Union, TYPE_CHECKING
 from enum import Enum
 from datetime import datetime
 
@@ -50,7 +50,7 @@ class NodeListResponse(NodeBase):
     updated_at: Optional[datetime] = None
 
 class NodeResponse(NodeBase):
-    asset: Annotated[Union[AssetResponse, AssetClusterResponse], Field(discriminator="type")]
+    asset: Union[AssetClusterResponse, AssetResponse]
     logical_node: LogicalNodeResponse
     created_at: datetime
     updated_at: Optional[datetime] = None
