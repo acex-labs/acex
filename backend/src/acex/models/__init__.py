@@ -9,6 +9,7 @@ from .device_config import StoredDeviceConfig, DeviceConfig, DeviceConfigRespons
 from .management_connections import ManagementConnection, ManagementConnectionResponse, ManagementConnectionBase
 from .sites import Site, SiteResponse
 from .contacts import Contact, ContactResponse, ContactAssignment
+from .telemetry_agent import TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination
 from .pagination import PaginatedResponse
 
-system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment]
+system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment, TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination]

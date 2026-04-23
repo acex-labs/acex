@@ -8,6 +8,7 @@ from acex.inventory.site_service import SiteService
 from acex.inventory.contact_service import ContactService
 from acex.inventory.asset_cluster_manager import AssetClusterManager
 from acex.inventory.contact_assignment_manager import ContactAssignmentManager
+from acex.inventory.telemetry_agent_manager import TelemetryAgentManager
 
 class Inventory:
 
@@ -53,6 +54,7 @@ class Inventory:
         node_instances_adapter = NodeAdapter(node_instance_plugin)
         self.node_instances = NodeService(node_instances_adapter, self)
         self.asset_cluster_manager = AssetClusterManager(db_connection)
+        self.telemetry_agent_manager = TelemetryAgentManager(db_connection)
 
         # Contacts
         if contacts_plugin:
