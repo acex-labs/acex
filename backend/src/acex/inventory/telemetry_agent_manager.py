@@ -31,6 +31,11 @@ class TelemetryAgentManager:
     def __init__(self, db_manager):
         self.db = db_manager
 
+    def _bump_revision(self, session, agent_id: int):
+        agent = session.get(TelemetryAgent, agent_id)
+        if agent:
+            agent.config_revision = (agent.config_revision or 0) + 1
+
     def _resolve_rule_nodes(self, session, rules: List[TelemetryAgentMatchRule]) -> Set[int]:
         """Resolve node IDs matching any of the given rules."""
         if not rules:
@@ -96,6 +101,7 @@ class TelemetryAgentManager:
 
         return TelemetryAgentResponse(
             id=agent.id,
+            config_revision=agent.config_revision or 0,
             name=agent.name,
             description=agent.description,
             capabilities=[link.capability for link in cap_links],
@@ -197,6 +203,7 @@ class TelemetryAgentManager:
                     )
                     session.add(link)
 
+            self._bump_revision(session, id)
             session.commit()
             session.refresh(agent)
             return self._get_agent_response(session, agent)
@@ -254,6 +261,7 @@ class TelemetryAgentManager:
 
             link = TelemetryAgentNodeLink(telemetry_agent_id=id, node_id=node_id)
             session.add(link)
+            self._bump_revision(session, id)
             session.commit()
         finally:
             session.close()
@@ -273,6 +281,7 @@ class TelemetryAgentManager:
                 raise HTTPException(status_code=404, detail="Node not assigned to this telemetry agent")
 
             session.delete(link)
+            self._bump_revision(session, id)
             session.commit()
         finally:
             session.close()
@@ -295,6 +304,7 @@ class TelemetryAgentManager:
                 role=payload.role,
             )
             session.add(rule)
+            self._bump_revision(session, id)
             session.commit()
             session.refresh(rule)
             return TelemetryAgentMatchRuleResponse(
@@ -319,6 +329,7 @@ class TelemetryAgentManager:
                 raise HTTPException(status_code=404, detail="Rule not found")
 
             session.delete(rule)
+            self._bump_revision(session, id)
             session.commit()
         finally:
             session.close()
@@ -344,6 +355,7 @@ class TelemetryAgentManager:
                 password=payload.password,
             )
             session.add(dest)
+            self._bump_revision(session, id)
             session.commit()
             session.refresh(dest)
             return OutputDestinationResponse(
@@ -370,6 +382,7 @@ class TelemetryAgentManager:
                 if value is not None:
                     setattr(dest, field, value)
 
+            self._bump_revision(session, id)
             session.commit()
             session.refresh(dest)
             return OutputDestinationResponse(
@@ -392,6 +405,7 @@ class TelemetryAgentManager:
                 raise HTTPException(status_code=404, detail="Output destination not found")
 
             session.delete(dest)
+            self._bump_revision(session, id)
             session.commit()
         finally:
             session.close()
