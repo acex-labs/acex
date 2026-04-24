@@ -70,19 +70,22 @@ class TransportBase(ABC):
 
 class NetworkElementDriver:
     """Base class for network element drivers.
-    
+
     Combines renderer, transport, and parser to provide complete
     configuration management for network devices.
-    
+
     Attributes:
         renderer_class: Renderer class to use (must be set in subclass)
         transport_class: Transport class to use (must be set in subclass)
         parser_class: Parser class to use (must be set in subclass)
+        normalizer_class: Optional normalizer class for stripping
+            non-intent config and masking secrets
     """
-    
+
     renderer_class = None
     transport_class = None
     parser_class = None
+    normalizer_class = None
 
     def __init__(self):
         """Initialize driver with renderer, transport, and parser instances."""
@@ -93,6 +96,7 @@ class NetworkElementDriver:
         self.renderer = self.renderer_class()
         self.transport = self.transport_class()
         self.parser = self.parser_class()
+        self.normalizer = self.normalizer_class() if self.normalizer_class else None
 
     @abstractmethod
     def render(self, logical_node: "LogicalNode", asset: Any = None) -> Any:
@@ -110,11 +114,31 @@ class NetworkElementDriver:
     @abstractmethod
     def parse(self, configuration: str) -> Any:
         """Parse device configuration.
-        
+
         Args:
             configuration: Raw device configuration
-            
+
         Returns:
             Parsed configuration model
         """
         return self.parser.parse(configuration)
+
+    def normalize(self, raw: str) -> str:
+        """Strip non-intent data (timestamps, auto-generated certs, etc.).
+
+        Returns the cleaned config string. If no normalizer is configured
+        the input is returned unchanged.
+        """
+        if self.normalizer is None:
+            return raw
+        return self.normalizer.normalize(raw).config
+
+    def mask(self, raw: str) -> str:
+        """Replace secrets with <REDACTED>.
+
+        Returns the masked config string. If no normalizer is configured
+        the input is returned unchanged.
+        """
+        if self.normalizer is None:
+            return raw
+        return self.normalizer.mask(raw).config

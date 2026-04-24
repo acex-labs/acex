@@ -10,6 +10,7 @@ from acex_devkit.configdiffer import Diff
 
 from .renderer import CiscoIOSCLIRenderer
 from .parser import CiscoIOSCLIParser
+from .normalizer import CiscoIOSNormalizer
 
 
 class CiscoIOSTransport(TransportBase):
@@ -65,6 +66,7 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     renderer_class = CiscoIOSCLIRenderer
     transport_class = CiscoIOSTransport
     parser_class = CiscoIOSCLIParser
+    normalizer_class = CiscoIOSNormalizer
 
     def render(self, configuration: ComposedConfiguration, asset):
         config = self.renderer.render(configuration, asset)
