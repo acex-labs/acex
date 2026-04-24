@@ -342,6 +342,7 @@ jobs:
 
   build-and-push-config-agent:
     name: Build & Push Config Agent
+    needs: [build-and-publish, build-and-publish-drivers]
     runs-on: ubuntu-latest
     permissions:
       contents: read
