@@ -375,6 +375,11 @@ jobs:
             echo "✅ Image version $VERSION is new - will build and push"
           fi
 
+      - name: Switch client dependencies to version (prod)
+        if: steps.check-image.outputs.exists == 'false'
+        working-directory: ./client
+        run: bash switch_deps.sh prod
+
       - name: Set up Docker Buildx
         if: steps.check-image.outputs.exists == 'false'
         uses: docker/setup-buildx-action@v3
