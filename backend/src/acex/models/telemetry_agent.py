@@ -4,7 +4,6 @@ from sqlmodel import SQLModel, Field
 
 
 class TelemetryCapability(str, Enum):
-    config_backup = "config_backup"
     icmp = "icmp"
     mdt = "mdt"
     snmp = "snmp"
@@ -20,6 +19,7 @@ class TelemetryAgentBase(SQLModel):
 class TelemetryAgent(TelemetryAgentBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     config_revision: int = Field(default=0)
+    last_config_poll: Optional[str] = None
 
 
 class TelemetryAgentNodeLink(SQLModel, table=True):
@@ -110,6 +110,7 @@ class TelemetryAgentUpdate(SQLModel):
 class TelemetryAgentResponse(TelemetryAgentBase):
     id: int
     config_revision: int = 0
+    last_config_poll: Optional[str] = None
     capabilities: list[TelemetryCapability] = []
     nodes: list[int] = []
     rules: list[TelemetryAgentMatchRuleResponse] = []

@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import importlib
 
-class Api: 
+class Api:
 
     def create_app(self, automation_engine):
 
