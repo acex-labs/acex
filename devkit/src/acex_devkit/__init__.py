@@ -8,10 +8,12 @@ from acex_devkit.drivers import (
     RendererBase,
     ParserBase,
 )
+from acex_devkit.normalizer import BaseNormalizer
 
 __all__ = [
     "NetworkElementDriver",
     "TransportBase",
     "RendererBase",
     "ParserBase",
+    "BaseNormalizer",
 ]

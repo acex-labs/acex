@@ -103,7 +103,7 @@ class DeviceConfigManager:
                 ned = await self._get_ned(node_instance)
 
                 if ned is not None:
-                    existing.content = ned.parse(base64.b64decode(existing.content).decode('utf-8'))
+                    existing.content = ned.parse(existing.content)
                 else:
                     existing.content = ""
                 return existing
@@ -113,31 +113,40 @@ class DeviceConfigManager:
             session.close()
 
 
-    def upload_config(
+    async def upload_config(
         self,
         payload: DeviceConfig,
-        ) -> StoredDeviceConfig: 
-        # Use MD5 for widely adopted checksum (32 chars)
-        # Fast and universally recognized for content verification
-        config_hash = hashlib.md5(payload.content.encode()).hexdigest()
+        ) -> StoredDeviceConfig:
+        # Normalize: strip non-intent data and mask secrets via NED
+        node_instance = await self.inventory.node_instances.get(payload.node_instance_id)
+        ned = await self._get_ned(node_instance)
+
+        raw = base64.b64decode(payload.content).decode("utf-8")
+
+        if ned is not None:
+            cleaned = ned.normalize(raw)
+            cleaned = ned.mask(cleaned)
+        else:
+            cleaned = raw
+
+        content = cleaned
+        config_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
 
         # spara till db med hash
         session = next(self.db.get_session())
         try:
-            # Kontrollera om ett objekt med samma hash redan finns
-            existing_config = session.query(StoredDeviceConfig).filter(
-                StoredDeviceConfig.node_instance_id == payload.node_instance_id,
-                StoredDeviceConfig.hash == config_hash
-            ).first()
-            
-            if existing_config:
-                # Kasta HTTPException med 409 Conflict när konfigurationen redan finns
+            # Skippa om senaste configen har samma hash (ingen faktisk ändring)
+            latest = session.query(StoredDeviceConfig).filter(
+                StoredDeviceConfig.node_instance_id == payload.node_instance_id
+            ).order_by(StoredDeviceConfig.created_at.desc()).first()
+
+            if latest and latest.hash == config_hash:
                 raise HTTPException(
                     status_code=409,
                     detail={
                         "message": "Config not changed since last time",
                         "last_hash": config_hash,
-                        "last_change": str(existing_config.created_at),
+                        "last_change": str(latest.created_at),
                         "node_instance_id": payload.node_instance_id
                     }
                 )
@@ -145,16 +154,12 @@ class DeviceConfigManager:
             save_this = StoredDeviceConfig(
                 node_instance_id=payload.node_instance_id,
                 hash=config_hash,
-                content=payload.content
+                content=content
             )
-            print(StoredDeviceConfig().model_dump())
 
-            
-            # Lägg till objektet i sessionen och spara
             session.add(save_this)
             session.commit()
-            session.refresh(save_this)  # Uppdatera objektet med det genererade ID:t
-            
+            session.refresh(save_this)
             return save_this
         finally:
             session.close()
