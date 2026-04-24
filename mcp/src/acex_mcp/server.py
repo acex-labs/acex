@@ -86,43 +86,106 @@ TROUBLESHOOTING
 """
 
 @mcp.tool
-def list_assets() -> list:
+def list_assets(
+    vendor: str = None,
+    os: str = None,
+    hardware_model: str = None,
+    ned_id: str = None,
+    serial_number: str = None,
+    assigned: bool = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict:
     """
-    List all physical hardware devices (assets) in the system.
-    
-    Returns a list of assets where each asset represents physical hardware (switch, router, firewall).
-    
+    List physical hardware devices (assets) in the system.
+
+    Returns a paginated response with items, total count, limit, and offset.
+    Each asset represents physical hardware (switch, router, firewall).
+
+    Args:
+        vendor: Filter by manufacturer (e.g., "Cisco", "Juniper")
+        os: Filter by operating system
+        hardware_model: Filter by hardware model
+        ned_id: Filter by NED ID
+        serial_number: Filter by serial number
+        assigned: Filter by assignment status (true = assigned to a node instance)
+        limit: Max number of results (default 100)
+        offset: Pagination offset (default 0)
+
     Each asset has these attributes:
     - id: Unique identifier
-    - vendor: Manufacturer (e.g., "Cisco", "Juniper")
-    - model: Hardware model
+    - vendor: Manufacturer
     - serial_number: Device serial number
-    - operating_system: OS version
-    
+    - os / os_version: Operating system info
+    - hardware_model: Hardware model
+    - ned_id: NED identifier
+
     Use this to see what physical hardware is available.
     """
-    response = requests.get(f"{BACKEND_API_URL}/inventory/assets/")
+    params = {"limit": limit, "offset": offset}
+    if vendor is not None:
+        params["vendor"] = vendor
+    if os is not None:
+        params["os"] = os
+    if hardware_model is not None:
+        params["hardware_model"] = hardware_model
+    if ned_id is not None:
+        params["ned_id"] = ned_id
+    if serial_number is not None:
+        params["serial_number"] = serial_number
+    if assigned is not None:
+        params["assigned"] = assigned
+    response = requests.get(f"{BACKEND_API_URL}/inventory/assets/", params=params)
     response.raise_for_status()
     return response.json()
 
 @mcp.tool
-def list_logical_nodes() -> list:
+def list_logical_nodes(
+    role: str = None,
+    site: str = None,
+    sequence: int = None,
+    hostname: str = None,
+    assigned: bool = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict:
     """
-    List all logical nodes (configuration templates) in the system.
-    
-    Returns a list of logical nodes. Each logical node represents a vendor-agnostic 
-    configuration template that can be deployed to physical hardware.
-    
+    List logical nodes (configuration templates) in the system.
+
+    Returns a paginated response with items, total count, limit, and offset.
+    Each logical node represents a vendor-agnostic configuration template
+    that can be deployed to physical hardware.
+
+    Args:
+        role: Filter by role (e.g., "core", "access-switch")
+        site: Filter by site/location (e.g., "HQ", "cph01")
+        sequence: Filter by sequence number
+        hostname: Filter by hostname
+        assigned: Filter by assignment status (true = assigned to a node instance)
+        limit: Max number of results (default 100)
+        offset: Pagination offset (default 0)
+
     Each logical node has:
-    - id: The logical_node_id (e.g., "R1", "SW-Core-01") - USE THIS as logical_node_id parameter
-    - site: Location (e.g., "HQ", "cph01")
-    - role: Function (e.g., "core", "access-switch")
+    - id: The logical_node_id - USE THIS as logical_node_id parameter
+    - site: Location
+    - role: Function
     - sequence: Order number
     - hostname: Device hostname
-    
+
     NOTE: To get the actual configuration, use get_specific_logical_node(logical_node_id=<id>)
     """
-    response = requests.get(f"{BACKEND_API_URL}/inventory/logical_nodes/")
+    params = {"limit": limit, "offset": offset}
+    if role is not None:
+        params["role"] = role
+    if site is not None:
+        params["site"] = site
+    if sequence is not None:
+        params["sequence"] = sequence
+    if hostname is not None:
+        params["hostname"] = hostname
+    if assigned is not None:
+        params["assigned"] = assigned
+    response = requests.get(f"{BACKEND_API_URL}/inventory/logical_nodes/", params=params)
     response.raise_for_status()
     return response.json()
 
@@ -157,21 +220,54 @@ def get_specific_logical_node(logical_node_id: str) -> dict:
 
 
 @mcp.tool
-def list_node_instances() -> list:
+def list_node_instances(
+    site: str = None,
+    hostname: str = None,
+    logical_node_id: int = None,
+    asset_ref_id: int = None,
+    status: str = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict:
     """
-    List all node instances (deployed configurations).
-    
+    List node instances (deployed configurations).
+
     A node instance links a logical node (configuration) to a physical asset (hardware).
-    
-    Returns a list where each node instance has:
+
+    Returns a paginated response with items, total count, limit, and offset.
+
+    Args:
+        site: Filter by site/location
+        hostname: Filter by hostname
+        logical_node_id: Filter by logical node ID
+        asset_ref_id: Filter by asset reference ID
+        status: Filter by status ("planned", "init", "active", "decommissioned")
+        limit: Max number of results (default 100)
+        offset: Pagination offset (default 0)
+
+    Each node instance has:
     - id: Unique instance ID (integer) - USE THIS for get_node_instance() and get_node_instance_config()
-    - asset_id: Which physical device (links to assets)
+    - asset_ref_id: Which physical device (links to assets)
     - logical_node_id: Which configuration template (links to logical nodes)
     - hostname: Inherited from logical node
-    
+    - site, vendor, os, ned_id: Denormalized fields
+    - status: Current status
+    - created_at / updated_at: Timestamps
+
     Use this to see which configurations are deployed on which hardware.
     """
-    response = requests.get(f"{BACKEND_API_URL}/inventory/node_instances/")
+    params = {"limit": limit, "offset": offset}
+    if site is not None:
+        params["site"] = site
+    if hostname is not None:
+        params["hostname"] = hostname
+    if logical_node_id is not None:
+        params["logical_node_id"] = logical_node_id
+    if asset_ref_id is not None:
+        params["asset_ref_id"] = asset_ref_id
+    if status is not None:
+        params["status"] = status
+    response = requests.get(f"{BACKEND_API_URL}/inventory/node_instances/", params=params)
     response.raise_for_status()
     return response.json()
 
