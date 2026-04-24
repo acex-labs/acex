@@ -10,6 +10,7 @@ from .management_connections import ManagementConnection, ManagementConnectionRe
 from .sites import Site, SiteResponse
 from .contacts import Contact, ContactResponse, ContactAssignment
 from .telemetry_agent import TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination
+from .config_agent import ConfigAgent, ConfigAgentNodeLink, ConfigAgentMatchRule
 from .pagination import PaginatedResponse
 
-system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment, TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination]
+system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment, TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination, ConfigAgent, ConfigAgentNodeLink, ConfigAgentMatchRule]

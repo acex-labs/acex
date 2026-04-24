@@ -1,4 +1,5 @@
 from typing import Optional, List, Set
+from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy import or_
@@ -102,6 +103,7 @@ class TelemetryAgentManager:
         return TelemetryAgentResponse(
             id=agent.id,
             config_revision=agent.config_revision or 0,
+            last_config_poll=agent.last_config_poll,
             name=agent.name,
             description=agent.description,
             capabilities=[link.capability for link in cap_links],
@@ -475,6 +477,10 @@ class TelemetryAgentManager:
                 .filter(OutputDestination.telemetry_agent_id == id)
                 .all()
             )
+
+            # Update poll timestamp
+            agent.last_config_poll = datetime.utcnow().isoformat()
+            session.commit()
 
             return self._render_telegraf_config(agent, capabilities, nodes, node_ip_map, ln_map, outputs)
         finally:
