@@ -6,6 +6,7 @@
 from .external_value import ExternalValue
 from .attribute_value import AttributeValue
 from .node_response import NodeResponse, NodeListItem, LogicalNodeResponse
+from .management_connection import ManagementConnection, ConnectionType
 
 __all__ = [
     ExternalValue,

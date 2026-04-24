@@ -3,6 +3,9 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
+from acex_devkit.models.node_response import NodeListItem
+from acex_devkit.models.management_connection import ManagementConnection
+
 
 class ParserBase(ABC):
     """Base class for configuration parsers."""
@@ -38,35 +41,31 @@ class RendererBase(ABC):
 
 
 class TransportBase(ABC):
-    """Base class for device transport/communication."""
-    
+    """Base class for device transport/communication.
+
+    Each method is self-contained — the driver decides internally
+    whether to open/close sessions per call, pool connections, or
+    make stateless requests.
+
+    Args:
+        node: The node instance (identity, hostname, vendor, os, ned_id)
+        connection: Management connection (target_ip, connection_type)
+        **kwargs: Future use (credentials, options, etc.)
+    """
+
     @abstractmethod
-    def connect(self) -> None:
-        """Establish connection to the device."""
+    def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
+        """Fetch the full running configuration from a device."""
         pass
 
     @abstractmethod
-    def send(self, payload: Any) -> None:
-        """Send configuration to the device.
-        
-        Args:
-            payload: Configuration payload to send
-        """
+    def send_config(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> str:
+        """Apply configuration commands to a device."""
         pass
 
-    @abstractmethod
-    def verify(self) -> bool:
-        """Verify configuration was applied correctly.
-        
-        Returns:
-            True if verification succeeded, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def rollback(self) -> None:
-        """Rollback configuration if verification fails."""
-        pass
+    def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
+        """Run arbitrary commands and return output per command. Opt-in per driver."""
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
 
 
 class NetworkElementDriver:

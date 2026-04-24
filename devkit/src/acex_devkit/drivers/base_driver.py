@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
+from acex_devkit.models.node_response import NodeListItem
+from acex_devkit.models.management_connection import ManagementConnection
+
 class ParserBase(ABC):
     @abstractmethod
     def parse(self, model: Dict[str, Any]) -> Any:
@@ -14,16 +17,18 @@ class RendererBase(ABC):
 
 class TransportBase(ABC):
     @abstractmethod
-    def connect(self) -> None: ...
+    def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
+        """Fetch the full running configuration from a device."""
+        pass
 
     @abstractmethod
-    def send(self, payload: Any) -> None: ...
+    def send_config(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> str:
+        """Apply configuration commands to a device."""
+        pass
 
-    @abstractmethod
-    def verify(self) -> bool: ...
-
-    @abstractmethod
-    def rollback(self) -> None: ...
+    def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
+        """Run arbitrary commands. Opt-in per driver."""
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
 
 class NetworkElementDriver:
     """Kombinerar renderer + transport – exponeras som en plugin."""
