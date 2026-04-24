@@ -20,14 +20,19 @@ jobs:
         include:
           - package: backend
             pypi-name: acex
+            working-dir: ./backend
           - package: cli
             pypi-name: acex-cli
+            working-dir: ./cli
           - package: client
             pypi-name: acex-client
+            working-dir: ./client
           - package: mcp
             pypi-name: acex-mcp-server
+            working-dir: ./mcp
           - package: devkit
             pypi-name: acex-devkit
+            working-dir: ./devkit
     
     steps:
     - name: Checkout code
@@ -45,7 +50,7 @@ jobs:
     
     - name: Get package version
       id: get-version
-      working-directory: ./${{ matrix.package }}
+      working-directory: ${{ matrix.working-dir }}
       run: |
         VERSION=$(poetry version -s)
         echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -109,18 +114,23 @@ jobs:
           - package: backend
             pypi-name: acex
             should-publish-output: backend-should-publish
+            working-dir: ./backend
           - package: cli
             pypi-name: acex-cli
             should-publish-output: cli-should-publish
+            working-dir: ./cli
           - package: client
             pypi-name: acex-client
             should-publish-output: client-should-publish
+            working-dir: ./client
           - package: mcp
             pypi-name: acex-mcp-server
             should-publish-output: mcp-should-publish
+            working-dir: ./mcp
           - package: devkit
             pypi-name: acex-devkit
             should-publish-output: devkit-should-publish
+            working-dir: ./devkit
     
     steps:
     - name: Check if should publish
@@ -154,12 +164,12 @@ jobs:
     
     - name: Update lock file
       if: steps.should-publish.outputs.should-publish == 'true'
-      working-directory: ./${{ matrix.package }}
+      working-directory: ${{ matrix.working-dir }}
       run: poetry lock
-    
+
     - name: Install dependencies - ${{ matrix.package }}
       if: steps.should-publish.outputs.should-publish == 'true'
-      working-directory: ./${{ matrix.package }}
+      working-directory: ${{ matrix.working-dir }}
       run: poetry install --no-interaction
 
     - name: Switch dependencies to version (prod)
@@ -176,17 +186,17 @@ jobs:
       if: steps.should-publish.outputs.should-publish == 'true' && matrix.package == 'client'
       working-directory: ./client
       run: bash switch_deps.sh prod
-    
+
     - name: Build package
       if: steps.should-publish.outputs.should-publish == 'true'
-      working-directory: ./${{ matrix.package }}
+      working-directory: ${{ matrix.working-dir }}
       run: poetry build
-    
+
     - name: Publish to PyPI using Trusted Publisher
       if: steps.should-publish.outputs.should-publish == 'true'
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        packages-dir: ${{ matrix.package }}/dist/
+        packages-dir: ${{ matrix.working-dir }}/dist/
         verbose: true
 
 
@@ -326,3 +336,64 @@ jobs:
         with:
           packages-dir: drivers/${{ matrix.driver }}/dist/
           verbose: true
+
+
+  # Container images for agents
+
+  build-and-push-config-agent:
+    name: Build & Push Config Agent
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get-version
+        working-directory: ./agents/config-agent
+        run: |
+          pip install poetry
+          VERSION=$(poetry version -s)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if image exists
+        id: check-image
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          TOKEN=$(echo ${{ secrets.GITHUB_TOKEN }} | base64)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $TOKEN" \
+            "https://ghcr.io/v2/${{ github.repository_owner }}/acex-config-agent/manifests/${VERSION}")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⏭️  Image version $VERSION already exists - skipping"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Image version $VERSION is new - will build and push"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.check-image.outputs.exists == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: steps.check-image.outputs.exists == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        if: steps.check-image.outputs.exists == 'false'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./agents/config-agent/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/acex-config-agent:${{ steps.get-version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/acex-config-agent:latest
