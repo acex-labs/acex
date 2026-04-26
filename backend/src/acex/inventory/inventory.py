@@ -9,7 +9,7 @@ from acex.inventory.contact_service import ContactService
 from acex.inventory.asset_cluster_manager import AssetClusterManager
 from acex.inventory.contact_assignment_manager import ContactAssignmentManager
 from acex.inventory.telemetry_agent_manager import TelemetryAgentManager
-from acex.inventory.config_agent_manager import ConfigAgentManager
+from acex.inventory.collection_agent_manager import CollectionAgentManager
 
 class Inventory:
 
@@ -56,7 +56,7 @@ class Inventory:
         self.node_instances = NodeService(node_instances_adapter, self)
         self.asset_cluster_manager = AssetClusterManager(db_connection)
         self.telemetry_agent_manager = TelemetryAgentManager(db_connection)
-        self.config_agent_manager = ConfigAgentManager(db_connection)
+        self.collection_agent_manager = CollectionAgentManager(db_connection)
 
         # Contacts
         if contacts_plugin:

@@ -3,15 +3,16 @@ from datetime import datetime
 
 from fastapi import HTTPException
 
-from acex.models.config_agent import (
-    ConfigAgent,
-    ConfigAgentCreate,
-    ConfigAgentUpdate,
-    ConfigAgentResponse,
-    ConfigAgentNodeLink,
-    ConfigAgentMatchRule,
-    ConfigAgentMatchRuleCreate,
-    ConfigAgentMatchRuleResponse,
+from acex.models.collection_agent import (
+    CollectionAgent,
+    CollectionAgentCreate,
+    CollectionAgentUpdate,
+    CollectionAgentResponse,
+    CollectionAgentAck,
+    CollectionAgentNodeLink,
+    CollectionAgentMatchRule,
+    CollectionAgentMatchRuleCreate,
+    CollectionAgentMatchRuleResponse,
 )
 from acex.models.node import Node
 from acex.models.asset import Asset
@@ -19,17 +20,17 @@ from acex.models.management_connections import ManagementConnection
 from acex.models.logical_node import LogicalNode
 
 
-class ConfigAgentManager:
+class CollectionAgentManager:
 
     def __init__(self, db_manager):
         self.db = db_manager
 
     def _bump_revision(self, session, agent_id: int):
-        agent = session.get(ConfigAgent, agent_id)
+        agent = session.get(CollectionAgent, agent_id)
         if agent:
             agent.config_revision = (agent.config_revision or 0) + 1
 
-    def _resolve_rule_nodes(self, session, rules: List[ConfigAgentMatchRule]) -> Set[int]:
+    def _resolve_rule_nodes(self, session, rules: List[CollectionAgentMatchRule]) -> Set[int]:
         if not rules:
             return set()
 
@@ -61,15 +62,15 @@ class ConfigAgentManager:
 
         return matched_ids
 
-    def _get_agent_response(self, session, agent: ConfigAgent) -> ConfigAgentResponse:
+    def _get_agent_response(self, session, agent: CollectionAgent) -> CollectionAgentResponse:
         node_links = (
-            session.query(ConfigAgentNodeLink)
-            .filter(ConfigAgentNodeLink.config_agent_id == agent.id)
+            session.query(CollectionAgentNodeLink)
+            .filter(CollectionAgentNodeLink.collection_agent_id == agent.id)
             .all()
         )
         rules = (
-            session.query(ConfigAgentMatchRule)
-            .filter(ConfigAgentMatchRule.config_agent_id == agent.id)
+            session.query(CollectionAgentMatchRule)
+            .filter(CollectionAgentMatchRule.collection_agent_id == agent.id)
             .all()
         )
 
@@ -77,7 +78,7 @@ class ConfigAgentManager:
         rule_matched_ids = self._resolve_rule_nodes(session, rules)
         resolved = sorted(set(explicit_node_ids) | rule_matched_ids)
 
-        return ConfigAgentResponse(
+        return CollectionAgentResponse(
             id=agent.id,
             name=agent.name,
             description=agent.description,
@@ -85,9 +86,11 @@ class ConfigAgentManager:
             enabled=agent.enabled,
             config_revision=agent.config_revision or 0,
             last_manifest_poll=agent.last_manifest_poll,
+            acked_revision=agent.acked_revision or 0,
+            acked_at=agent.acked_at,
             nodes=explicit_node_ids,
             rules=[
-                ConfigAgentMatchRuleResponse(
+                CollectionAgentMatchRuleResponse(
                     id=r.id, site=r.site, vendor=r.vendor,
                     os=r.os, status=r.status, role=r.role,
                 )
@@ -98,10 +101,10 @@ class ConfigAgentManager:
 
     # --- CRUD ---
 
-    def create(self, payload: ConfigAgentCreate) -> ConfigAgentResponse:
+    def create(self, payload: CollectionAgentCreate) -> CollectionAgentResponse:
         session = next(self.db.get_session())
         try:
-            agent = ConfigAgent(
+            agent = CollectionAgent(
                 name=payload.name,
                 description=payload.description,
                 interval_seconds=payload.interval_seconds,
@@ -118,35 +121,35 @@ class ConfigAgentManager:
         self,
         name: Optional[str] = None,
         enabled: Optional[bool] = None,
-    ) -> List[ConfigAgentResponse]:
+    ) -> List[CollectionAgentResponse]:
         session = next(self.db.get_session())
         try:
-            query = session.query(ConfigAgent)
+            query = session.query(CollectionAgent)
             if name is not None:
-                query = query.filter(ConfigAgent.name.ilike(f"{name}%"))
+                query = query.filter(CollectionAgent.name.ilike(f"{name}%"))
             if enabled is not None:
-                query = query.filter(ConfigAgent.enabled == enabled)
+                query = query.filter(CollectionAgent.enabled == enabled)
             agents = query.all()
             return [self._get_agent_response(session, agent) for agent in agents]
         finally:
             session.close()
 
-    def get(self, id: int) -> ConfigAgentResponse:
+    def get(self, id: int) -> CollectionAgentResponse:
         session = next(self.db.get_session())
         try:
-            agent = session.get(ConfigAgent, id)
+            agent = session.get(CollectionAgent, id)
             if not agent:
-                raise HTTPException(status_code=404, detail="ConfigAgent not found")
+                raise HTTPException(status_code=404, detail="CollectionAgent not found")
             return self._get_agent_response(session, agent)
         finally:
             session.close()
 
-    def update(self, id: int, payload: ConfigAgentUpdate) -> ConfigAgentResponse:
+    def update(self, id: int, payload: CollectionAgentUpdate) -> CollectionAgentResponse:
         session = next(self.db.get_session())
         try:
-            agent = session.get(ConfigAgent, id)
+            agent = session.get(CollectionAgent, id)
             if not agent:
-                raise HTTPException(status_code=404, detail="ConfigAgent not found")
+                raise HTTPException(status_code=404, detail="CollectionAgent not found")
 
             for field in ['name', 'description', 'interval_seconds', 'enabled']:
                 value = getattr(payload, field)
@@ -163,15 +166,15 @@ class ConfigAgentManager:
     def delete(self, id: int) -> None:
         session = next(self.db.get_session())
         try:
-            agent = session.get(ConfigAgent, id)
+            agent = session.get(CollectionAgent, id)
             if not agent:
-                raise HTTPException(status_code=404, detail="ConfigAgent not found")
+                raise HTTPException(status_code=404, detail="CollectionAgent not found")
 
-            session.query(ConfigAgentNodeLink).filter(
-                ConfigAgentNodeLink.config_agent_id == id
+            session.query(CollectionAgentNodeLink).filter(
+                CollectionAgentNodeLink.collection_agent_id == id
             ).delete()
-            session.query(ConfigAgentMatchRule).filter(
-                ConfigAgentMatchRule.config_agent_id == id
+            session.query(CollectionAgentMatchRule).filter(
+                CollectionAgentMatchRule.collection_agent_id == id
             ).delete()
 
             session.delete(agent)
@@ -184,26 +187,26 @@ class ConfigAgentManager:
     def add_node(self, id: int, node_id: int) -> None:
         session = next(self.db.get_session())
         try:
-            agent = session.get(ConfigAgent, id)
+            agent = session.get(CollectionAgent, id)
             if not agent:
-                raise HTTPException(status_code=404, detail="ConfigAgent not found")
+                raise HTTPException(status_code=404, detail="CollectionAgent not found")
 
             node = session.get(Node, node_id)
             if not node:
                 raise HTTPException(status_code=404, detail="Node not found")
 
             existing = (
-                session.query(ConfigAgentNodeLink)
+                session.query(CollectionAgentNodeLink)
                 .filter(
-                    ConfigAgentNodeLink.config_agent_id == id,
-                    ConfigAgentNodeLink.node_id == node_id,
+                    CollectionAgentNodeLink.collection_agent_id == id,
+                    CollectionAgentNodeLink.node_id == node_id,
                 )
                 .first()
             )
             if existing:
-                raise HTTPException(status_code=409, detail="Node already assigned to this config agent")
+                raise HTTPException(status_code=409, detail="Node already assigned to this collection agent")
 
-            link = ConfigAgentNodeLink(config_agent_id=id, node_id=node_id)
+            link = CollectionAgentNodeLink(collection_agent_id=id, node_id=node_id)
             session.add(link)
             self._bump_revision(session, id)
             session.commit()
@@ -214,15 +217,15 @@ class ConfigAgentManager:
         session = next(self.db.get_session())
         try:
             link = (
-                session.query(ConfigAgentNodeLink)
+                session.query(CollectionAgentNodeLink)
                 .filter(
-                    ConfigAgentNodeLink.config_agent_id == id,
-                    ConfigAgentNodeLink.node_id == node_id,
+                    CollectionAgentNodeLink.collection_agent_id == id,
+                    CollectionAgentNodeLink.node_id == node_id,
                 )
                 .first()
             )
             if not link:
-                raise HTTPException(status_code=404, detail="Node not assigned to this config agent")
+                raise HTTPException(status_code=404, detail="Node not assigned to this collection agent")
 
             session.delete(link)
             self._bump_revision(session, id)
@@ -232,15 +235,15 @@ class ConfigAgentManager:
 
     # --- Match rules ---
 
-    def add_rule(self, id: int, payload: ConfigAgentMatchRuleCreate) -> ConfigAgentMatchRuleResponse:
+    def add_rule(self, id: int, payload: CollectionAgentMatchRuleCreate) -> CollectionAgentMatchRuleResponse:
         session = next(self.db.get_session())
         try:
-            agent = session.get(ConfigAgent, id)
+            agent = session.get(CollectionAgent, id)
             if not agent:
-                raise HTTPException(status_code=404, detail="ConfigAgent not found")
+                raise HTTPException(status_code=404, detail="CollectionAgent not found")
 
-            rule = ConfigAgentMatchRule(
-                config_agent_id=id,
+            rule = CollectionAgentMatchRule(
+                collection_agent_id=id,
                 site=payload.site, vendor=payload.vendor,
                 os=payload.os, status=payload.status, role=payload.role,
             )
@@ -248,7 +251,7 @@ class ConfigAgentManager:
             self._bump_revision(session, id)
             session.commit()
             session.refresh(rule)
-            return ConfigAgentMatchRuleResponse(
+            return CollectionAgentMatchRuleResponse(
                 id=rule.id, site=rule.site, vendor=rule.vendor,
                 os=rule.os, status=rule.status, role=rule.role,
             )
@@ -259,10 +262,10 @@ class ConfigAgentManager:
         session = next(self.db.get_session())
         try:
             rule = (
-                session.query(ConfigAgentMatchRule)
+                session.query(CollectionAgentMatchRule)
                 .filter(
-                    ConfigAgentMatchRule.id == rule_id,
-                    ConfigAgentMatchRule.config_agent_id == id,
+                    CollectionAgentMatchRule.id == rule_id,
+                    CollectionAgentMatchRule.collection_agent_id == id,
                 )
                 .first()
             )
@@ -275,26 +278,41 @@ class ConfigAgentManager:
         finally:
             session.close()
 
+    # --- Ack ---
+
+    def ack_manifest(self, id: int, payload: CollectionAgentAck) -> dict:
+        session = next(self.db.get_session())
+        try:
+            agent = session.get(CollectionAgent, id)
+            if not agent:
+                raise HTTPException(status_code=404, detail="CollectionAgent not found")
+            agent.acked_revision = payload.config_revision
+            agent.acked_at = datetime.utcnow().isoformat()
+            session.commit()
+            return {"status": "ok", "acked_revision": agent.acked_revision}
+        finally:
+            session.close()
+
     # --- Manifest ---
 
     def get_manifest(self, id: int) -> dict:
         session = next(self.db.get_session())
         try:
-            agent = session.get(ConfigAgent, id)
+            agent = session.get(CollectionAgent, id)
             if not agent:
-                raise HTTPException(status_code=404, detail="ConfigAgent not found")
+                raise HTTPException(status_code=404, detail="CollectionAgent not found")
 
             # Resolve nodes
             node_links = (
-                session.query(ConfigAgentNodeLink)
-                .filter(ConfigAgentNodeLink.config_agent_id == id)
+                session.query(CollectionAgentNodeLink)
+                .filter(CollectionAgentNodeLink.collection_agent_id == id)
                 .all()
             )
             explicit_ids = {link.node_id for link in node_links}
 
             rules = (
-                session.query(ConfigAgentMatchRule)
-                .filter(ConfigAgentMatchRule.config_agent_id == id)
+                session.query(CollectionAgentMatchRule)
+                .filter(CollectionAgentMatchRule.collection_agent_id == id)
                 .all()
             )
             rule_ids = self._resolve_rule_nodes(session, rules)

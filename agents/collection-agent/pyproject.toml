@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "acex-config-agent"
+name = "acex-collection-agent"
 version = "0.1.0"
-description = "ACE-X Config Agent - Collects device configurations via NEDs"
+description = "ACE-X Collection Agent - Collects device data via NEDs"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
 license = "Apache-2.0"
 packages = [
-    { include = "acex_config_agent", from = "src" }
+    { include = "acex_collection_agent", from = "src" }
 ]
 
 [tool.poetry.dependencies]
@@ -17,7 +17,7 @@ acex-client = { path = "../../client", develop = true }
 pytest = "^8.0.0"
 
 [tool.poetry.scripts]
-acex-config-agent = "acex_config_agent.main:main"
+acex-collection-agent = "acex_collection_agent.main:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

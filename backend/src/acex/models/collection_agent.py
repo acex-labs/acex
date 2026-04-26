@@ -2,25 +2,27 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 
 
-class ConfigAgentBase(SQLModel):
+class CollectionAgentBase(SQLModel):
     name: str
     description: Optional[str] = None
     interval_seconds: int = 21600
     enabled: bool = True
 
 
-class ConfigAgent(ConfigAgentBase, table=True):
+class CollectionAgent(CollectionAgentBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     config_revision: int = Field(default=0)
     last_manifest_poll: Optional[str] = None
+    acked_revision: int = Field(default=0)
+    acked_at: Optional[str] = None
 
 
-class ConfigAgentNodeLink(SQLModel, table=True):
-    config_agent_id: int = Field(foreign_key="configagent.id", primary_key=True)
+class CollectionAgentNodeLink(SQLModel, table=True):
+    collection_agent_id: int = Field(foreign_key="collectionagent.id", primary_key=True)
     node_id: int = Field(foreign_key="node.id", primary_key=True)
 
 
-class ConfigAgentMatchRuleBase(SQLModel):
+class CollectionAgentMatchRuleBase(SQLModel):
     site: Optional[str] = None
     vendor: Optional[str] = None
     os: Optional[str] = None
@@ -28,37 +30,43 @@ class ConfigAgentMatchRuleBase(SQLModel):
     role: Optional[str] = None
 
 
-class ConfigAgentMatchRule(ConfigAgentMatchRuleBase, table=True):
+class CollectionAgentMatchRule(CollectionAgentMatchRuleBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    config_agent_id: int = Field(foreign_key="configagent.id")
+    collection_agent_id: int = Field(foreign_key="collectionagent.id")
 
 
-class ConfigAgentMatchRuleCreate(ConfigAgentMatchRuleBase):
+class CollectionAgentMatchRuleCreate(CollectionAgentMatchRuleBase):
     pass
 
 
-class ConfigAgentMatchRuleResponse(ConfigAgentMatchRuleBase):
+class CollectionAgentMatchRuleResponse(CollectionAgentMatchRuleBase):
     id: int
 
 
-class ConfigAgentCreate(SQLModel):
+class CollectionAgentCreate(SQLModel):
     name: str
     description: Optional[str] = None
     interval_seconds: int = 21600
     enabled: bool = True
 
 
-class ConfigAgentUpdate(SQLModel):
+class CollectionAgentUpdate(SQLModel):
     name: Optional[str] = None
     description: Optional[str] = None
     interval_seconds: Optional[int] = None
     enabled: Optional[bool] = None
 
 
-class ConfigAgentResponse(ConfigAgentBase):
+class CollectionAgentAck(SQLModel):
+    config_revision: int
+
+
+class CollectionAgentResponse(CollectionAgentBase):
     id: int
     config_revision: int = 0
     last_manifest_poll: Optional[str] = None
+    acked_revision: int = 0
+    acked_at: Optional[str] = None
     nodes: list[int] = []
-    rules: list[ConfigAgentMatchRuleResponse] = []
+    rules: list[CollectionAgentMatchRuleResponse] = []
     resolved_nodes: list[int] = []
