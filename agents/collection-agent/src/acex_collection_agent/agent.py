@@ -6,14 +6,14 @@ import logging
 import requests
 from acex_client.acex.acex import Acex
 
-from acex_config_agent.collector import Collector
+from acex_collection_agent.collector import Collector
 
-logger = logging.getLogger("acex_config_agent")
+logger = logging.getLogger("acex_collection_agent")
 
 POLL_INTERVAL = 60  # Poll manifest every 60s for liveness + change detection
 
 
-class ConfigAgent:
+class CollectionAgent:
 
     def __init__(self, api_url: str, agent_id: int, verify_ssl: bool = False):
         self.agent_id = agent_id
@@ -24,7 +24,7 @@ class ConfigAgent:
 
     def run(self):
         """Main loop — poll manifest every 60s, collect on interval or revision change."""
-        logger.info(f"Config Agent started (agent_id={self.agent_id})")
+        logger.info(f"Collection Agent started (agent_id={self.agent_id})")
 
         while True:
             try:
@@ -63,7 +63,7 @@ class ConfigAgent:
     def _fetch_manifest(self) -> dict | None:
         """Fetch manifest from ACEX API."""
         try:
-            url = f"/inventory/config_agents/{self.agent_id}/manifest"
+            url = f"/inventory/collection_agents/{self.agent_id}/manifest"
             full_url = f"{self.client.rest.url}{url}"
             response = requests.get(full_url, verify=self.client.rest.verify)
             if response.status_code != 200:
@@ -74,14 +74,24 @@ class ConfigAgent:
                 return None
 
             targets = data.get("targets", [])
+            revision = data.get("config_revision", 0)
             logger.debug(
-                f"Manifest polled: rev={data.get('config_revision')}, "
+                f"Manifest polled: rev={revision}, "
                 f"{len(targets)} targets"
             )
+            self._ack_manifest(revision)
             return data
         except Exception as e:
             logger.error(f"Failed to fetch manifest: {e}")
             return None
+
+    def _ack_manifest(self, config_revision: int):
+        """Acknowledge receipt of manifest revision to ACEX API."""
+        try:
+            url = f"{self.client.rest.url}/inventory/collection_agents/{self.agent_id}/ack"
+            requests.post(url, json={"config_revision": config_revision}, verify=self.client.rest.verify)
+        except Exception as e:
+            logger.warning(f"Failed to ack manifest: {e}")
 
     def _ensure_neds(self, manifest: dict):
         """Install any missing NEDs required by targets."""

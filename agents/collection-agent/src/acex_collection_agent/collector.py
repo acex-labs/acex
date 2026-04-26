@@ -8,7 +8,7 @@ from acex_client.acex.acex import Acex
 from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.management_connection import ManagementConnection
 
-logger = logging.getLogger("acex_config_agent")
+logger = logging.getLogger("acex_collection_agent")
 
 
 class Collector:

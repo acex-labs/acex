@@ -9,11 +9,11 @@ COPY client/ /deps/client/
 COPY devkit/ /deps/devkit/
 
 # Copy agent
-COPY agents/config-agent/ /app/
+COPY agents/collection-agent/ /app/
 
 # Adjust paths for container context
 RUN sed -i 's|../../client|/deps/client|' pyproject.toml && \
     pip install /deps/devkit && \
     poetry install --no-interaction
 
-ENTRYPOINT ["acex-config-agent"]
+ENTRYPOINT ["acex-collection-agent"]

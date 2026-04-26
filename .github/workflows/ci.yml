@@ -340,8 +340,8 @@ jobs:
 
   # Container images for agents
 
-  build-and-push-config-agent:
-    name: Build & Push Config Agent
+  build-and-push-collection-agent:
+    name: Build & Push Collection Agent
     needs: [build-and-publish, build-and-publish-drivers]
     runs-on: ubuntu-latest
     permissions:
@@ -354,7 +354,7 @@ jobs:
 
       - name: Get version
         id: get-version
-        working-directory: ./agents/config-agent
+        working-directory: ./agents/collection-agent
         run: |
           pip install poetry
           VERSION=$(poetry version -s)
@@ -367,7 +367,7 @@ jobs:
           TOKEN=$(echo ${{ secrets.GITHUB_TOKEN }} | base64)
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer $TOKEN" \
-            "https://ghcr.io/v2/${{ github.repository_owner }}/acex-config-agent/manifests/${VERSION}")
+            "https://ghcr.io/v2/${{ github.repository_owner }}/acex-collection-agent/manifests/${VERSION}")
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "⏭️  Image version $VERSION already exists - skipping"
@@ -398,8 +398,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./agents/config-agent/Dockerfile
+          file: ./agents/collection-agent/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/acex-config-agent:${{ steps.get-version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/acex-config-agent:latest
+            ghcr.io/${{ github.repository_owner }}/acex-collection-agent:${{ steps.get-version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/acex-collection-agent:latest
