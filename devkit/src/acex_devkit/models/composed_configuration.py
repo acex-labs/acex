@@ -704,6 +704,11 @@ class Dhcp(BaseModel):
     snooping: Optional[DHCPSnoopingAttributes] = DHCPSnoopingAttributes()
     relay: Optional[DhcpRelay] = DhcpRelay()
 
+class Services(BaseModel):
+    name: Optional[AttributeValue[str]] = None
+    http: Optional[AttributeValue[bool]] = None # for webgui access
+    https: Optional[AttributeValue[bool]] = None # for webgui access
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
@@ -713,6 +718,7 @@ class System(BaseModel):
     snmp: Optional[Snmp] = Snmp()
     vtp: Optional[VTP] = VTP()
     dhcp: Optional[Dhcp] = Dhcp()
+    services: Optional[Services] = Services()
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
