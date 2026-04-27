@@ -704,6 +704,11 @@ class Dhcp(BaseModel):
     snooping: Optional[DHCPSnoopingAttributes] = DHCPSnoopingAttributes()
     relay: Optional[DhcpRelay] = DhcpRelay()
 
+class Services(BaseModel):
+    name: Optional[AttributeValue[str]] = None
+    http: Optional[AttributeValue[bool]] = None # for webgui access
+    https: Optional[AttributeValue[bool]] = None # for webgui access
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
