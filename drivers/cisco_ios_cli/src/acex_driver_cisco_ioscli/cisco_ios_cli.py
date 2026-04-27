@@ -1,4 +1,5 @@
 
+from contextlib import contextmanager
 from typing import Any, Dict, Optional, Callable
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.node_response import NodeListItem
@@ -15,18 +16,24 @@ from .normalizer import CiscoIOSNormalizer
 
 class CiscoIOSTransport(TransportBase):
 
-    def _get_connection(self, connection: ManagementConnection, **kwargs) -> ConnectHandler:
+    def __init__(self):
+        self._session_conn: Optional[ConnectHandler] = None
+
+    def _open_connection(self, connection: ManagementConnection, **kwargs) -> ConnectHandler:
+        username = kwargs.get("username")
+        password = kwargs.get("password")
+        if not username or not password:
+            raise ValueError("Credentials required: username and password must be provided")
         device = {
             "device_type": "cisco_ios",
             "host": connection.target_ip,
-            "username": kwargs.get("username"),
-            "password": kwargs.get("password"),
+            "username": username,
+            "password": password,
+            "secret": kwargs.get("enable_password") or password,
             "port": 22,
             "disabled_algorithms": {},
             "conn_timeout": 30,
         }
-        if not device["username"] or not device["password"]:
-            raise ValueError("Credentials required: username and password must be provided")
         # Allow legacy KEX/ciphers for older IOS devices
         import paramiko
         paramiko.Transport._preferred_kex = (
@@ -37,46 +44,58 @@ class CiscoIOSTransport(TransportBase):
             "diffie-hellman-group1-sha1",
         )
         conn = ConnectHandler(**device)
-        enable_pw = kwargs.get("enable_password")
-        if enable_pw:
-            conn.enable(cmd="enable", pattern="ssword", enable_pattern=r"#")
-            conn.send_command_timing(enable_pw)
-        else:
-            conn.enable()
+        conn.enable()
         return conn
 
-    def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
-        conn = self._get_connection(connection, **kwargs)
+    @contextmanager
+    def session(self, connection: ManagementConnection, **kwargs):
+        """Hold one SSH session open for the duration of the block."""
+        conn = self._open_connection(connection, **kwargs)
+        self._session_conn = conn
         try:
-            return conn.send_command("show running-config", read_timeout=120)
+            yield self
         finally:
-            conn.disconnect()
+            self._session_conn = None
+            try:
+                conn.disconnect()
+            except Exception:
+                pass
+
+    @contextmanager
+    def _conn(self, connection: ManagementConnection, **kwargs):
+        """Yield active session conn or open a one-shot, closing what we own."""
+        if self._session_conn is not None:
+            yield self._session_conn
+            return
+        conn = self._open_connection(connection, **kwargs)
+        try:
+            yield conn
+        finally:
+            try:
+                conn.disconnect()
+            except Exception:
+                pass
+
+    def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
+        with self._conn(connection, **kwargs) as conn:
+            return conn.send_command("show running-config", read_timeout=120)
 
     def send_config(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> str:
-        conn = self._get_connection(connection, **kwargs)
-        try:
+        with self._conn(connection, **kwargs) as conn:
             return conn.send_config_set(commands)
-        finally:
-            conn.disconnect()
 
     def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
-        conn = self._get_connection(connection, **kwargs)
-        try:
+        with self._conn(connection, **kwargs) as conn:
             return [conn.send_command(cmd, read_timeout=120) for cmd in commands]
-        finally:
-            conn.disconnect()
 
     def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> list[dict]:
-        conn = self._get_connection(connection, **kwargs)
-        try:
+        with self._conn(connection, **kwargs) as conn:
             neighbors = []
-            # LLDP first (preferred)
             try:
                 raw = conn.send_command("show lldp neighbors detail", read_timeout=60)
                 neighbors.extend(self._parse_lldp_detail(raw))
             except Exception:
                 pass
-            # CDP — only add links not already seen via LLDP
             try:
                 raw = conn.send_command("show cdp neighbors detail", read_timeout=60)
                 seen = {(n["local_interface"], n["remote_device"]) for n in neighbors}
@@ -86,8 +105,6 @@ class CiscoIOSTransport(TransportBase):
             except Exception:
                 pass
             return neighbors
-        finally:
-            conn.disconnect()
 
     @staticmethod
     def _parse_lldp_detail(raw: str) -> list[dict]:
