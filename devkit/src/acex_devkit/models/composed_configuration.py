@@ -709,18 +709,52 @@ class Services(BaseModel):
     http: Optional[AttributeValue[bool]] = None # for webgui access
     https: Optional[AttributeValue[bool]] = None # for webgui access
 
-class NetflowCollector(ContainerEntry, BaseModel):
+class NetflowFormat(str, Enum):
+    IPFIX = "IPFIX"
+    NETFLOW_V9 = "NetFlow v9"
+    NETFLOW_V5 = "NetFlow v5"
+
+class NetflowRecordAttributes(BaseModel):
+    version: Optional[AttributeValue[int]] = None
+    protocol: Optional[AttributeValue[str]] = None
+    
+    # Additional attributes for record format can be added here, e.g. template options for IPFIX
+
+class NetflowCollectorAttributes(BaseModel):
+    cache_inactive: Optional[AttributeValue[int]] = None
+    cache_active: Optional[AttributeValue[int]] = None
+
+class NetflowExporterAttributes(ContainerEntry, BaseModel): 
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     address: Optional[AttributeValue[str]] = None
     port: Optional[AttributeValue[int]] = None
-    version: Optional[AttributeValue[int]] = None
+    format: Optional[AttributeValue[NetflowFormat]] = None
     source_interface: Optional[Reference] = None
     network_instance: Optional[AttributeValue[str]] = None
 
 class Netflow(BaseModel):
     enabled: Optional[AttributeValue[bool]] = None
     version: Optional[AttributeValue[int]] = None
-    collectors: Optional[Dict[str, NetflowCollector]] = {}
+    record: Optional[Dict[str, NetflowRecordAttributes]] = {}
+    exporter: Optional[Dict[str, NetflowExporterAttributes]] = {}
+    collector: Optional[Dict[str, NetflowCollectorAttributes]] = {}
+
+class SflowCollectorAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+    address: Optional[AttributeValue[str]] = None
+    port: Optional[AttributeValue[int]] = None
+    source_address: Optional[AttributeValue[str]] = None
+    network_instance: Optional[AttributeValue[str]] = None
+    interfaces: Optional[Dict[str, Reference]] = {} # allow for disabling sflow on specific interfaces
+
+class Sflow(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = None
+    version: Optional[AttributeValue[int]] = None
+    # Similar structure to Netflow can be implemented here for sFlow-specific attributes
+
+class Sampling(BaseModel):
+    netflow: Optional[Netflow] = Netflow()
+    sflow: Optional[Sflow] = Sflow() # Sflow can be added in the future, similar structure to Netflow
 
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
@@ -752,7 +786,7 @@ class ComposedConfiguration(BaseModel):
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
     stp: Optional[SpanningTree] = SpanningTree()
-
+    sampling: Optional[Sampling] = Sampling()
 
 """
 GUIDELINES FOR COMPOSED CONFIGURATION:
