@@ -48,7 +48,7 @@ class CiscoIOSTransport(TransportBase):
     def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
         conn = self._get_connection(connection, **kwargs)
         try:
-            return conn.send_command("show running-config")
+            return conn.send_command("show running-config", read_timeout=120)
         finally:
             conn.disconnect()
 
@@ -62,7 +62,7 @@ class CiscoIOSTransport(TransportBase):
     def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
         conn = self._get_connection(connection, **kwargs)
         try:
-            return [conn.send_command(cmd) for cmd in commands]
+            return [conn.send_command(cmd, read_timeout=120) for cmd in commands]
         finally:
             conn.disconnect()
 
@@ -72,13 +72,13 @@ class CiscoIOSTransport(TransportBase):
             neighbors = []
             # LLDP first (preferred)
             try:
-                raw = conn.send_command("show lldp neighbors detail")
+                raw = conn.send_command("show lldp neighbors detail", read_timeout=60)
                 neighbors.extend(self._parse_lldp_detail(raw))
             except Exception:
                 pass
             # CDP — only add links not already seen via LLDP
             try:
-                raw = conn.send_command("show cdp neighbors detail")
+                raw = conn.send_command("show cdp neighbors detail", read_timeout=60)
                 seen = {(n["local_interface"], n["remote_device"]) for n in neighbors}
                 for entry in self._parse_cdp_detail(raw):
                     if (entry["local_interface"], entry["remote_device"]) not in seen:
