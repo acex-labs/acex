@@ -90,23 +90,23 @@ class Collector:
         try:
             logger.info(f"Collecting config from {hostname} ({target_ip}) via {ned_id}")
 
-            running_config = driver.transport.get_config(node, connection, **creds)
+            with driver.transport.session(connection, **creds):
+                running_config = driver.transport.get_config(node, connection, **creds)
 
-            if not running_config:
-                return {"node_id": node_id, "status": "error", "message": "Empty config returned"}
+                if not running_config:
+                    return {"node_id": node_id, "status": "error", "message": "Empty config returned"}
 
-            config_result = self._upload_config(node_id, running_config)
+                config_result = self._upload_config(node_id, running_config)
 
-            # Collect LLDP/CDP neighbors if supported
-            try:
-                neighbors = driver.transport.get_lldp_neighbors(node, connection, **creds)
-                if neighbors:
-                    self._upload_neighbors(node_id, neighbors)
-                    logger.info(f"  {hostname}: {len(neighbors)} neighbors uploaded")
-            except NotImplementedError:
-                pass
-            except Exception as e:
-                logger.warning(f"  {hostname}: neighbor collection failed: {e}")
+                try:
+                    neighbors = driver.transport.get_lldp_neighbors(node, connection, **creds)
+                    if neighbors:
+                        self._upload_neighbors(node_id, neighbors)
+                        logger.info(f"  {hostname}: {len(neighbors)} neighbors uploaded")
+                except NotImplementedError:
+                    pass
+                except Exception as e:
+                    logger.warning(f"  {hostname}: neighbor collection failed: {e}")
 
             return config_result
 

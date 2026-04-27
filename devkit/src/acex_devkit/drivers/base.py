@@ -1,6 +1,7 @@
 """Driver base classes for ACE-X network element drivers."""
 
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from typing import Any, Dict
 
 from acex_devkit.models.node_response import NodeListItem
@@ -43,15 +44,25 @@ class RendererBase(ABC):
 class TransportBase(ABC):
     """Base class for device transport/communication.
 
-    Each method is self-contained — the driver decides internally
-    whether to open/close sessions per call, pool connections, or
-    make stateless requests.
+    Each method is self-contained, but transports may also expose
+    `session()` as a context manager so a caller can run multiple
+    operations against the same physical connection.
 
     Args:
         node: The node instance (identity, hostname, vendor, os, ned_id)
         connection: Management connection (target_ip, connection_type)
         **kwargs: Future use (credentials, options, etc.)
     """
+
+    @contextmanager
+    def session(self, connection: ManagementConnection, **kwargs):
+        """Open a reusable session for multiple ops on one device.
+
+        Default is a no-op: methods continue to open/close per call.
+        Drivers that benefit from connection reuse override this to
+        hold a single connection open for the duration of the block.
+        """
+        yield self
 
     @abstractmethod
     def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
