@@ -18,6 +18,7 @@ from acex.models.node import Node
 from acex.models.asset import Asset
 from acex.models.management_connections import ManagementConnection
 from acex.models.logical_node import LogicalNode
+from acex.models.credential import NodeCredential, Credential
 
 
 class CollectionAgentManager:
@@ -346,6 +347,20 @@ class CollectionAgentManager:
             ) if ln_ids else []
             ln_map = {ln.id: ln.hostname for ln in logical_nodes}
 
+            # Node ↔ Credential mappings {node_id: {credential_type: credential_id}}
+            node_creds = (
+                session.query(NodeCredential)
+                .filter(NodeCredential.node_id.in_(all_node_ids))
+                .all()
+            ) if all_node_ids else []
+            cred_ids = {nc.credential_id for nc in node_creds}
+            cred_map = {c.id: c for c in session.query(Credential).filter(Credential.id.in_(cred_ids)).all()} if cred_ids else {}
+            node_cred_map = {}
+            for nc in node_creds:
+                cred = cred_map.get(nc.credential_id)
+                if cred:
+                    node_cred_map.setdefault(nc.node_id, {})[cred.credential_type] = nc.credential_id
+
             targets = []
             for node in nodes:
                 asset = asset_map.get(node.asset_ref_id)
@@ -357,6 +372,7 @@ class CollectionAgentManager:
                     "ned_id": asset.ned_id if asset else None,
                     "vendor": asset.vendor if asset else None,
                     "os": asset.os if asset else None,
+                    "credentials": node_cred_map.get(node.id, {}),
                 })
 
             # Update poll timestamp

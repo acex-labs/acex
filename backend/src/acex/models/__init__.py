@@ -11,6 +11,8 @@ from .sites import Site, SiteResponse
 from .contacts import Contact, ContactResponse, ContactAssignment
 from .telemetry_agent import TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination
 from .collection_agent import CollectionAgent, CollectionAgentNodeLink, CollectionAgentMatchRule
+from .lldp_neighbor import LldpNeighbor
+from .credential import Credential, CredentialField, NodeCredential
 from .pagination import PaginatedResponse
 
-system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment, TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination, CollectionAgent, CollectionAgentNodeLink, CollectionAgentMatchRule]
+system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment, TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination, CollectionAgent, CollectionAgentNodeLink, CollectionAgentMatchRule, LldpNeighbor, Credential, CredentialField, NodeCredential]

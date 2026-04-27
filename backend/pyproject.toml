@@ -24,6 +24,10 @@ openai = "^1.54.0"
 mcp = "^1.20.0"
 fastmcp = "^2.13.0.2"
 ipaddress = "^1.0.23"
+hvac = {version = "^2.3.0", optional = true}
+
+[tool.poetry.extras]
+vault = ["hvac"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

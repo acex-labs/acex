@@ -67,6 +67,14 @@ class TransportBase(ABC):
         """Run arbitrary commands and return output per command. Opt-in per driver."""
         raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
 
+    def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> list[dict]:
+        """Fetch LLDP/CDP neighbor table from a device.
+
+        Returns list of dicts with keys:
+            local_interface, remote_device, remote_interface, discovery_protocol
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement get_lldp_neighbors()")
+
 
 class NetworkElementDriver:
     """Base class for network element drivers.
