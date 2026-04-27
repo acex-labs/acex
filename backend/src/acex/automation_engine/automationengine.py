@@ -62,7 +62,17 @@ class AutomationEngine:
         
         # Create DeviceConfigManager
         self.device_config_manager = DeviceConfigManager(self.db, self.inventory)
-        
+
+        # Create LldpNeighborManager
+        from acex.lldp.lldp_neighbor_manager import LldpNeighborManager
+        self.lldp_neighbor_manager = LldpNeighborManager(self.db)
+
+        # Create CredentialManager
+        from acex.credentials.credential_manager import CredentialManager
+        self._encryption_key = None
+        self._vault_client = None
+        self.credential_manager = None  # initialized in set_encryption_key() or lazily
+
         self._create_db_tables()
         
     def _create_db_tables(self):
@@ -72,10 +82,35 @@ class AutomationEngine:
         self.db.create_tables()
 
 
+    def _ensure_credential_manager(self):
+        """Lazily initialize CredentialManager from env var if not set via set_encryption_key()."""
+        if self.credential_manager is None:
+            from acex.credentials.credential_manager import CredentialManager
+            self.credential_manager = CredentialManager(self.db, self._encryption_key, vault_client=self._vault_client)
+        elif self._vault_client and not self.credential_manager._vault:
+            self.credential_manager._vault = self._vault_client
+
+    def set_encryption_key(self, key: str):
+        """Set the encryption key for credential storage. Call before create_app()."""
+        import logging
+        logging.getLogger("acex").warning(
+            "Encryption key set via code — do NOT use this in production. "
+            "Use the ACEX_ENCRYPTION_KEY environment variable instead."
+        )
+        from acex.credentials.credential_manager import CredentialManager
+        self._encryption_key = key
+        self.credential_manager = CredentialManager(self.db, key)
+
+    def set_vault(self, url: str, token: str = None, role_id: str = None, secret_id: str = None, verify: bool = True):
+        """Configure HashiCorp Vault for credential storage. Call before create_app()."""
+        from acex.credentials.vault_client import VaultClient
+        self._vault_client = VaultClient(url=url, token=token, role_id=role_id, secret_id=secret_id, verify=verify)
+
     def create_app(self) -> "FastAPI":
         """
         This is the method that creates the full API.
         """
+        self._ensure_credential_manager()
         return self.api.create_app(self)
 
     def ai_ops(

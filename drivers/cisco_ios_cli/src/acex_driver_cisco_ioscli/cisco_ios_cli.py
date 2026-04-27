@@ -15,16 +15,18 @@ from .normalizer import CiscoIOSNormalizer
 
 class CiscoIOSTransport(TransportBase):
 
-    def _get_connection(self, connection: ManagementConnection) -> ConnectHandler:
+    def _get_connection(self, connection: ManagementConnection, **kwargs) -> ConnectHandler:
         device = {
             "device_type": "cisco_ios",
             "host": connection.target_ip,
-            "username": "admin",
-            "password": "polly123",
+            "username": kwargs.get("username"),
+            "password": kwargs.get("password"),
             "port": 22,
             "disabled_algorithms": {},
             "conn_timeout": 30,
         }
+        if not device["username"] or not device["password"]:
+            raise ValueError("Credentials required: username and password must be provided")
         # Allow legacy KEX/ciphers for older IOS devices
         import paramiko
         paramiko.Transport._preferred_kex = (
@@ -35,29 +37,93 @@ class CiscoIOSTransport(TransportBase):
             "diffie-hellman-group1-sha1",
         )
         conn = ConnectHandler(**device)
-        conn.enable()
+        enable_pw = kwargs.get("enable_password")
+        if enable_pw:
+            conn.enable(cmd="enable", pattern="ssword", enable_pattern=r"#")
+            conn.send_command_timing(enable_pw)
+        else:
+            conn.enable()
         return conn
 
     def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
-        conn = self._get_connection(connection)
+        conn = self._get_connection(connection, **kwargs)
         try:
             return conn.send_command("show running-config")
         finally:
             conn.disconnect()
 
     def send_config(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> str:
-        conn = self._get_connection(connection)
+        conn = self._get_connection(connection, **kwargs)
         try:
             return conn.send_config_set(commands)
         finally:
             conn.disconnect()
 
     def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
-        conn = self._get_connection(connection)
+        conn = self._get_connection(connection, **kwargs)
         try:
             return [conn.send_command(cmd) for cmd in commands]
         finally:
             conn.disconnect()
+
+    def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> list[dict]:
+        conn = self._get_connection(connection, **kwargs)
+        try:
+            neighbors = []
+            # LLDP first (preferred)
+            try:
+                raw = conn.send_command("show lldp neighbors detail")
+                neighbors.extend(self._parse_lldp_detail(raw))
+            except Exception:
+                pass
+            # CDP — only add links not already seen via LLDP
+            try:
+                raw = conn.send_command("show cdp neighbors detail")
+                seen = {(n["local_interface"], n["remote_device"]) for n in neighbors}
+                for entry in self._parse_cdp_detail(raw):
+                    if (entry["local_interface"], entry["remote_device"]) not in seen:
+                        neighbors.append(entry)
+            except Exception:
+                pass
+            return neighbors
+        finally:
+            conn.disconnect()
+
+    @staticmethod
+    def _parse_lldp_detail(raw: str) -> list[dict]:
+        import re
+        entries = re.split(r'-{20,}', raw)
+        neighbors = []
+        for entry in entries:
+            local = re.search(r'Local Intf:\s*(\S+)', entry)
+            sys_name = re.search(r'System Name:\s*(\S+)', entry)
+            port_id = re.search(r'Port id:\s*(\S+)', entry)
+            if local and sys_name:
+                neighbors.append({
+                    "local_interface": local.group(1),
+                    "remote_device": sys_name.group(1),
+                    "remote_interface": port_id.group(1) if port_id else "",
+                    "discovery_protocol": "lldp",
+                })
+        return neighbors
+
+    @staticmethod
+    def _parse_cdp_detail(raw: str) -> list[dict]:
+        import re
+        entries = re.split(r'-{20,}', raw)
+        neighbors = []
+        for entry in entries:
+            device = re.search(r'Device ID:\s*(\S+)', entry)
+            local = re.search(r'Interface:\s*(\S+?),', entry)
+            remote = re.search(r'Port ID.*?:\s*(\S+)', entry)
+            if device and local:
+                neighbors.append({
+                    "local_interface": local.group(1),
+                    "remote_device": device.group(1).rstrip('.'),
+                    "remote_interface": remote.group(1) if remote else "",
+                    "discovery_protocol": "cdp",
+                })
+        return neighbors
 
 
 class CiscoIOSCLIDriver(NetworkElementDriver):

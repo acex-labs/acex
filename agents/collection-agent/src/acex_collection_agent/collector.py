@@ -24,6 +24,18 @@ class Collector:
             results.append(result)
         return results
 
+    def _fetch_credential_secret(self, credential_id: int) -> dict | None:
+        """Fetch decrypted credential fields from ACEX API."""
+        try:
+            url = f"{self.client.rest.url}/inventory/credentials/{credential_id}/secret"
+            response = requests.get(url, verify=self.client.rest.verify)
+            if response.ok:
+                return response.json()
+            logger.warning(f"Failed to fetch credentials {credential_id}: {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Failed to fetch credentials {credential_id}: {e}")
+        return None
+
     def _collect_one(self, target: dict) -> dict:
         """Collect config from a single target using its NED."""
         node_id = target["node_id"]
@@ -36,6 +48,25 @@ class Collector:
 
         if not ned_id:
             return {"node_id": node_id, "status": "error", "message": "No NED configured"}
+
+        # Fetch credentials by type (e.g. {"userpass": 1, "privilege_escalation": 2})
+        credentials = target.get("credentials", {})
+        creds = {}
+        userpass_id = credentials.get("userpass")
+        if userpass_id:
+            secret = self._fetch_credential_secret(userpass_id)
+            if secret:
+                creds = secret.get("fields", {})
+            else:
+                return {"node_id": node_id, "status": "error", "message": "Failed to fetch credentials"}
+
+        escalation_id = credentials.get("privilege_escalation")
+        if escalation_id:
+            secret = self._fetch_credential_secret(escalation_id)
+            if secret:
+                creds["enable_password"] = secret.get("fields", {}).get("password", "")
+            else:
+                logger.warning(f"Failed to fetch privilege_escalation credential for node {node_id}")
 
         driver = self.client.neds.get_driver_instance(ned_id)
         if driver is None:
@@ -59,12 +90,25 @@ class Collector:
         try:
             logger.info(f"Collecting config from {hostname} ({target_ip}) via {ned_id}")
 
-            running_config = driver.transport.get_config(node, connection)
+            running_config = driver.transport.get_config(node, connection, **creds)
 
             if not running_config:
                 return {"node_id": node_id, "status": "error", "message": "Empty config returned"}
 
-            return self._upload_config(node_id, running_config)
+            config_result = self._upload_config(node_id, running_config)
+
+            # Collect LLDP/CDP neighbors if supported
+            try:
+                neighbors = driver.transport.get_lldp_neighbors(node, connection, **creds)
+                if neighbors:
+                    self._upload_neighbors(node_id, neighbors)
+                    logger.info(f"  {hostname}: {len(neighbors)} neighbors uploaded")
+            except NotImplementedError:
+                pass
+            except Exception as e:
+                logger.warning(f"  {hostname}: neighbor collection failed: {e}")
+
+            return config_result
 
         except Exception as e:
             return {"node_id": node_id, "status": "error", "message": str(e)}
@@ -86,3 +130,14 @@ class Collector:
             return {"node_id": node_id, "status": "ok", "message": "Config uploaded"}
         else:
             return {"node_id": node_id, "status": "error", "message": f"Upload failed ({response.status_code})"}
+
+    def _upload_neighbors(self, node_id: int, neighbors: list[dict]):
+        """Upload LLDP/CDP neighbors to ACEX API."""
+        url = f"{self.client.rest.url}/operations/lldp_neighbors/"
+        response = requests.post(
+            url,
+            json={"node_instance_id": node_id, "neighbors": neighbors},
+            verify=self.client.rest.verify,
+        )
+        if response.status_code not in (200, 409):
+            logger.warning(f"  Node #{node_id}: neighbor upload failed ({response.status_code})")

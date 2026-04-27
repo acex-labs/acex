@@ -42,6 +42,10 @@ ae.ai_ops(
 # CORS
 ae.add_cors_allowed_origin("*")
 
+# Encryption key for device credentials
+# ae.set_encryption_key(os.getenv("ACEX_ENCRYPTION_KEY", ""))
+ae.set_encryption_key("9VfRDg1KSH4U6-Kv5dG7e59f1iKeGEQHWUAKPnZO4hk=")
+
 # Create the api app!
 app = ae.create_app()
 
