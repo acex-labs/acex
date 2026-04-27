@@ -43,10 +43,11 @@ class CollectionAgent:
 
                 should_collect = revision_changed or interval_elapsed or self._last_collection == 0
 
+                self._ensure_neds()
+
                 if should_collect:
                     if revision_changed:
                         logger.info(f"Config revision changed ({self._last_revision} -> {revision})")
-                    self._ensure_neds(manifest)
                     self._collect(manifest)
                     self._last_collection = now
 
@@ -93,21 +94,29 @@ class CollectionAgent:
         except Exception as e:
             logger.warning(f"Failed to ack manifest: {e}")
 
-    def _ensure_neds(self, manifest: dict):
-        """Install any missing NEDs required by targets."""
-        required_neds = {t["ned_id"] for t in manifest.get("targets", []) if t.get("ned_id")}
+    def _ensure_neds(self):
+        """Install or upgrade NEDs whose version differs from the API.
 
-        for ned_name in required_neds:
-            driver = self.client.neds.get_driver(ned_name)
-            if driver is None:
-                missing = self.client.neds.get_missing()
-                for ned in missing:
-                    if ned.name == ned_name:
-                        logger.info(f"Installing NED: {ned.name} ({ned.package_name})")
-                        self.client.neds.install(ned)
-                        break
-                else:
-                    logger.warning(f"NED '{ned_name}' not found on API")
+        Runs every poll. `get_missing()` returns NEDs that are either not
+        installed locally or installed at a different version than the API.
+        """
+        try:
+            missing = self.client.neds.get_missing()
+        except Exception as e:
+            logger.warning(f"Failed to query NEDs from API: {e}")
+            return
+
+        if not missing:
+            return
+
+        for ned in missing:
+            try:
+                logger.info(f"Installing NED {ned.name} ({ned.package_name}) v{ned.version}")
+                self.client.neds.install(ned)
+            except Exception as e:
+                logger.error(f"Failed to install NED {ned.name}: {e}")
+
+        self.client.neds._drivers = None
 
     def _collect(self, manifest: dict):
         """Run config collection for all targets."""
