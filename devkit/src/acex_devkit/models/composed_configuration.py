@@ -718,6 +718,7 @@ class System(BaseModel):
     snmp: Optional[Snmp] = Snmp()
     vtp: Optional[VTP] = VTP()
     dhcp: Optional[Dhcp] = Dhcp()
+    services: Optional[Services] = Services()
 
 # For different types of interfaces that are fine for response model:
 InterfaceType = Union[
