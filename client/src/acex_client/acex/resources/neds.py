@@ -42,11 +42,11 @@ class Neds(Resource):
     
     def _install_wheel_from_api(self, ned: Ned):
         """
-        Installs a NED from the central API. 
+        Installs a NED from the central API.
         """
         url = self._url_for_wheel(ned)
         subprocess.check_call([
-            sys.executable, "-m", "pip", "install", url
+            sys.executable, "-m", "pip", "install", "--upgrade", url
         ])
 
     def install(self, ned:Ned): 

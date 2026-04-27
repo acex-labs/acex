@@ -26,6 +26,8 @@ class CollectionAgent:
         """Main loop — poll manifest every 60s, collect on interval or revision change."""
         logger.info(f"Collection Agent started (agent_id={self.agent_id})")
 
+        self._ensure_neds()
+
         while True:
             try:
                 manifest = self._fetch_manifest()
@@ -42,8 +44,6 @@ class CollectionAgent:
                 interval_elapsed = (now - self._last_collection) >= interval
 
                 should_collect = revision_changed or interval_elapsed or self._last_collection == 0
-
-                self._ensure_neds()
 
                 if should_collect:
                     if revision_changed:
@@ -95,10 +95,10 @@ class CollectionAgent:
             logger.warning(f"Failed to ack manifest: {e}")
 
     def _ensure_neds(self):
-        """Install or upgrade NEDs whose version differs from the API.
+        """Sync local NEDs against the API at startup.
 
-        Runs every poll. `get_missing()` returns NEDs that are either not
-        installed locally or installed at a different version than the API.
+        Installs anything missing or version-mismatched. Runs once per process
+        start — to roll out a driver update, restart the agent.
         """
         try:
             missing = self.client.neds.get_missing()
@@ -107,6 +107,7 @@ class CollectionAgent:
             return
 
         if not missing:
+            logger.info("All NEDs up to date")
             return
 
         for ned in missing:
@@ -115,8 +116,6 @@ class CollectionAgent:
                 self.client.neds.install(ned)
             except Exception as e:
                 logger.error(f"Failed to install NED {ned.name}: {e}")
-
-        self.client.neds._drivers = None
 
     def _collect(self, manifest: dict):
         """Run config collection for all targets."""
