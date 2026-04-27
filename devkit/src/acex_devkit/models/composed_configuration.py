@@ -709,6 +709,19 @@ class Services(BaseModel):
     http: Optional[AttributeValue[bool]] = None # for webgui access
     https: Optional[AttributeValue[bool]] = None # for webgui access
 
+class NetflowCollector(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+    address: Optional[AttributeValue[str]] = None
+    port: Optional[AttributeValue[int]] = None
+    version: Optional[AttributeValue[int]] = None
+    source_interface: Optional[Reference] = None
+    network_instance: Optional[AttributeValue[str]] = None
+
+class Netflow(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = None
+    version: Optional[AttributeValue[int]] = None
+    collectors: Optional[Dict[str, NetflowCollector]] = {}
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
