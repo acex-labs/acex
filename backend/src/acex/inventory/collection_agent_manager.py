@@ -14,8 +14,8 @@ from acex.models.collection_agent import (
     CollectionAgentMatchRuleCreate,
     CollectionAgentMatchRuleResponse,
 )
-from acex.models.node import Node
-from acex.models.asset import Asset
+from acex.models.node import Node, AssetRefType
+from acex.models.asset import Asset, AssetCluster
 from acex.models.management_connections import ManagementConnection
 from acex.models.logical_node import LogicalNode
 from acex.models.credential import NodeCredential, Credential
@@ -335,10 +335,14 @@ class CollectionAgentManager:
                     node_ip_map[conn.node_id] = conn.target_ip
                     node_conn_type_map[conn.node_id] = conn.connection_type.value
 
-            # Assets for NED lookup
-            asset_ids = [n.asset_ref_id for n in nodes]
+            # Assets / asset clusters for NED lookup. asset_ref_id points at
+            # different tables depending on asset_ref_type, so split the lookup.
+            asset_ids = [n.asset_ref_id for n in nodes if n.asset_ref_type == AssetRefType.asset]
+            cluster_ids = [n.asset_ref_id for n in nodes if n.asset_ref_type == AssetRefType.asset_cluster]
             assets = session.query(Asset).filter(Asset.id.in_(asset_ids)).all() if asset_ids else []
-            asset_map = {a.id: a for a in assets}
+            clusters = session.query(AssetCluster).filter(AssetCluster.id.in_(cluster_ids)).all() if cluster_ids else []
+            ref_map = {(AssetRefType.asset, a.id): a for a in assets}
+            ref_map.update({(AssetRefType.asset_cluster, c.id): c for c in clusters})
 
             # Logical nodes for hostname
             ln_ids = [n.logical_node_id for n in nodes]
@@ -363,15 +367,15 @@ class CollectionAgentManager:
 
             targets = []
             for node in nodes:
-                asset = asset_map.get(node.asset_ref_id)
+                ref = ref_map.get((node.asset_ref_type, node.asset_ref_id))
                 targets.append({
                     "node_id": node.id,
                     "hostname": ln_map.get(node.logical_node_id),
                     "target_ip": node_ip_map.get(node.id),
                     "connection_type": node_conn_type_map.get(node.id),
-                    "ned_id": asset.ned_id if asset else None,
-                    "vendor": asset.vendor if asset else None,
-                    "os": asset.os if asset else None,
+                    "ned_id": ref.ned_id if ref else None,
+                    "vendor": getattr(ref, "vendor", None),
+                    "os": getattr(ref, "os", None),
                     "credentials": node_cred_map.get(node.id, {}),
                 })
 
