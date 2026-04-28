@@ -73,6 +73,20 @@ from acex.configuration.components.cdp import (
 
 from acex.configuration.components.system.services import Services
 
+from acex.configuration.components.sampling.netflow import (
+    NetflowCollector,
+    NetflowExporter,
+    NetflowRecord,
+    NetflowRecordIpv4Match,
+    NetflowExporterOptions,
+    NetflowGlobalConfig
+)
+
+from acex.configuration.components.sampling.sflow import (
+    SfloGlobalConfig,
+    SflowCollector
+)
+
 from acex_devkit.models import ExternalValue
 from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict
@@ -144,6 +158,14 @@ class Configuration:
         LldpConfig: "lldp",
         CdpConfig: "cdp",
         Services: "system.services",
+        NetflowGlobalConfig: "sampling.netflow.config",
+        NetflowCollector: "sampling.netflow.collectors",
+        NetflowExporter: "sampling.netflow.exporters",
+        NetflowExporterOptions: Template("sampling.netflow.exporters.${netflow_exporter}.options"),
+        NetflowRecord: "sampling.netflow.records",
+        NetflowRecordIpv4Match: Template("sampling.netflow.records.${netflow_record}.match_ipv4"),
+        SfloGlobalConfig: "sampling.sflow.config",
+        SflowCollector: "sampling.sflow.collectors"
     }
 
     # Reverse mapping from attribute name to path for __getattr__
