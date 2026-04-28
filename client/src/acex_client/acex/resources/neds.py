@@ -1,4 +1,5 @@
 from importlib.metadata import entry_points
+from urllib.parse import urlparse
 import subprocess, sys
 from acex_client.models.generated_models import LogicalNode, Ned
 from .resource_base import Resource
@@ -45,9 +46,13 @@ class Neds(Resource):
         Installs a NED from the central API.
         """
         url = self._url_for_wheel(ned)
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install", "--upgrade", url
-        ])
+        cmd = [sys.executable, "-m", "pip", "install", "--upgrade"]
+        if not self.rest.verify:
+            host = urlparse(url).hostname
+            if host:
+                cmd += ["--trusted-host", host]
+        cmd.append(url)
+        subprocess.check_call(cmd)
 
     def install(self, ned:Ned): 
         """
