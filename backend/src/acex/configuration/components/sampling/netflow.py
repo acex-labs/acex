@@ -32,6 +32,12 @@ class NetflowExporterOptions(ConfigComponent):
     type = "NetflowExporterOptions"
     model_cls = NetflowExporterOptionsAttributes
 
+    def pre_init(self):
+        # Ensure that referenced components are added to the configuration before this component is added
+        if self.kwargs.get("netflow_exporter") is not None:
+            netflow_exporter = self.kwargs.pop("netflow_exporter")
+            self.kwargs["netflow_exporter"] = netflow_exporter.name
+
 class NetflowRecord(ConfigComponent): 
     type = "NetflowRecord"
     model_cls = NetflowRecordAttributes

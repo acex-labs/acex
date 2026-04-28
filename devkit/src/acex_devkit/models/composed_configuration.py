@@ -732,7 +732,7 @@ class NetflowRecordIpv4Match(BaseModel):
     version: Optional[AttributeValue[bool]] = None
 
 class NetflowRecordAttributes(BaseModel): # Cisco flow record
-    match_ipv4: Optional[NetflowRecordIpv4Match] = NetflowRecordIpv4Match() 
+    match_ipv4: Optional[NetflowRecordIpv4Match] = None
     #match_ipv4: Optional[Dict[str, NetflowRecordIpv4Match]] = {}
     application_name: Optional[AttributeValue[bool]] = None
 
@@ -754,6 +754,7 @@ class NetflowExporterOptions(BaseModel):
     sampler_table_timeout: Optional[AttributeValue[int]] = None
     application_table_timeout: Optional[AttributeValue[int]] = None
     application_attributes_timeout: Optional[AttributeValue[int]] = None
+    netflow_exporter: Optional[AttributeValue[str]] = None # Reference to parent exporter, used for easier access in config component
 
 class NetflowExporterAttributes(ContainerEntry, BaseModel): # Cisco flow exporter
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
@@ -769,7 +770,7 @@ class NetflowGlobalConfigAttributes(BaseModel):
     version: Optional[AttributeValue[int]] = None
 
 class Netflow(BaseModel):
-    config: Optional[NetflowGlobalConfigAttributes] = NetflowGlobalConfigAttributes()
+    config: Optional[NetflowGlobalConfigAttributes] = None
     records: Optional[Dict[str, NetflowRecordAttributes]] = {}
     exporters: Optional[Dict[str, NetflowExporterAttributes]] = {}
     collectors: Optional[Dict[str, NetflowCollectorAttributes]] = {}
