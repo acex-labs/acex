@@ -76,10 +76,12 @@ from acex.configuration.components.system.services import Services
 from acex.configuration.components.sampling.netflow import (
     NetflowCollector,
     NetflowExporter,
-    NetflowRecord
+    NetflowRecord,
+    NetflowGlobalConfig
 )
 
 from acex.configuration.components.sampling.sflow import (
+    SfloGlobalConfig,
     SflowCollector
 )
 
@@ -154,6 +156,12 @@ class Configuration:
         LldpConfig: "lldp",
         CdpConfig: "cdp",
         Services: "system.services",
+        NetflowGlobalConfig: "sampling.netflow.config",
+        NetflowCollector: "sampling.netflow.collectors",
+        NetflowExporter: "sampling.netflow.exporters",
+        NetflowRecord: "sampling.netflow.records",
+        SfloGlobalConfig: "sampling.sflow.config",
+        SflowCollector: "sampling.sflow.collectors"
     }
 
     # Reverse mapping from attribute name to path for __getattr__
