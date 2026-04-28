@@ -1,5 +1,12 @@
 from acex.config_map import ConfigMap, FilterAttribute
-from acex.configuration.components.sampling.netflow import NetflowCollector, NetflowGlobalConfig, NetflowRecord, NetflowExporter, NetflowRecordIpv4Match
+from acex.configuration.components.sampling.netflow import (
+    NetflowCollector, 
+    NetflowGlobalConfig, 
+    NetflowRecord, 
+    NetflowExporter, 
+    NetflowRecordIpv4Match,
+    NetflowExporterOptions
+)
 from acex.configuration.components.interfaces import FrontpanelPort
 from acex.configuration.components.network_instances import L3Vrf
 
@@ -7,19 +14,15 @@ class NetflowConfigRecord(ConfigMap):
     def compile(self, context):
         netflow_global_config = NetflowGlobalConfig(
             name="netflow_global_config_123",
-            enabled=True,
-            dscp=24,
-            polling_interval=30, # seconds
-            sample_size=128, # Sets the maximum number of bytes to be copied from a sampled packet (content within one specific sample of a packet).
-            ingress_sampling_rate=1000, # sampling rate is 1/N packets. An implementation may implement the sampling rate as a statistical average, rather than a strict periodic sampling.
-            egress_sampling_rate=2000 # sampling rate is 1/N packets. An implementation may implement the sampling rate as a statistical average, rather than a strict periodic sampling.
-        )
+            enabled=True
+            )
         context.configuration.add(netflow_global_config)
 
         netflow_record_global = NetflowRecord(
             name="netflow_record_global_1",
             collect_timestamp_absolute_first=True,
             collect_timestamp_absolute_last=True,
+            application_name=True
         )
         context.configuration.add(netflow_record_global)
 
@@ -48,9 +51,20 @@ class NetflowConfigRecord(ConfigMap):
             address='123.123.123.123',
             port=123,
             source_address='10.10.10.10',
-            network_instance=test_vrf
+            network_instance=test_vrf,
         )
         context.configuration.add(netflow_exporter_1)
+
+        netflow_exporter_options_1 = NetflowExporterOptions(
+            name="netflow_exporter_options_1",
+            interface_table_timeout=300,
+            vrf_table_timeout=300,
+            sampler_table_timeout=300,
+            application_table_timeout=300,
+            application_attributes_timeout=300,
+            netflow_exporter=netflow_exporter_1
+        )
+        context.configuration.add(netflow_exporter_options_1)
 
         intf1_1 = FrontpanelPort(
             name="1/1",
