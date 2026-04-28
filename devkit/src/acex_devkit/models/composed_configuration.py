@@ -799,7 +799,7 @@ class Sflow(BaseModel):
 
 class Sampling(BaseModel):
     netflow: Optional[Netflow] = Netflow()
-    sflow: Optional[Sflow] = Sflow() # Sflow can be added in the future, similar structure to Netflow
+    #sflow: Optional[Sflow] = Sflow() # Sflow can be added in the future, similar structure to Netflow
 
 class System(BaseModel):
     config: SystemConfig = SystemConfig()

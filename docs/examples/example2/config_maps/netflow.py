@@ -18,7 +18,6 @@ class NetflowConfigRecord(ConfigMap):
 
         netflow_record_global = NetflowRecord(
             name="netflow_record_global_1",
-            #match_ipv4=netflow_record_ipv4_1,
             collect_timestamp_absolute_first=True,
             collect_timestamp_absolute_last=True,
         )
@@ -32,9 +31,6 @@ class NetflowConfigRecord(ConfigMap):
         )
         context.configuration.add(netflow_record_ipv4_match_1)
 
-#class NetflowConfigCollector(ConfigMap):
-#    def compile(self, context):
-
         netflow_collector_1 = NetflowCollector(
             name='netflow_collector_123',
             cache_inactive=180,
@@ -42,8 +38,6 @@ class NetflowConfigRecord(ConfigMap):
         )
         context.configuration.add(netflow_collector_1)
 
-#class NetflowConfigExporter(ConfigMap):
-#    def compile(self, context):
         test_vrf = L3Vrf(
             name="test",
         )
@@ -69,6 +63,3 @@ class NetflowConfigRecord(ConfigMap):
 
 netflowconfigrecord = NetflowConfigRecord()
 netflowconfigrecord.filters = FilterAttribute("site").eq("/.*/")
-
-#netflowconfigcollector = NetflowConfigCollector()
-#netflowconfigcollector.filters = FilterAttribute("site").eq("/.*/")
