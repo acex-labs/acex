@@ -743,6 +743,8 @@ class NetflowRecordAttributes(BaseModel): # Cisco flow record
     collect_timestamp_absolute_last: Optional[AttributeValue[bool]] = None
 
 class NetflowCollectorAttributes(BaseModel): # Cisco flow monitor
+    netflow_record: Optional[AttributeValue[str]] = None # Reference to record, used for easier access in config component
+    netflow_exporter: Optional[AttributeValue[str]] = None # Reference to exporter, used for easier access in config component
     cache_inactive: Optional[AttributeValue[int]] = None
     cache_active: Optional[AttributeValue[int]] = None
     interfaces: Optional[Dict[str, Reference]] = {} # allow for disabling netflow on specific interfaces
@@ -751,7 +753,7 @@ class NetflowExporterOptions(BaseModel):
     # Mostly timeouts atm
     interface_table_timeout: Optional[AttributeValue[int]] = None
     vrf_table_timeout: Optional[AttributeValue[int]] = None
-    sampler_table_timeout: Optional[AttributeValue[int]] = None
+    sampler_table: Optional[AttributeValue[bool]] = None
     application_table_timeout: Optional[AttributeValue[int]] = None
     application_attributes_timeout: Optional[AttributeValue[int]] = None
     netflow_exporter: Optional[AttributeValue[str]] = None # Reference to parent exporter, used for easier access in config component
@@ -760,7 +762,7 @@ class NetflowExporterAttributes(ContainerEntry, BaseModel): # Cisco flow exporte
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     address: Optional[AttributeValue[str]] = None
     port: Optional[AttributeValue[int]] = None
-    format: Optional[AttributeValue[NetflowFormat]] = None
+    netflow_format: Optional[AttributeValue[str]] = None
     source_interface: Optional[Reference] = None
     network_instance: Optional[AttributeValue[str]] = None
     options: Optional[NetflowExporterOptions] = None
