@@ -77,6 +77,7 @@ from acex.configuration.components.sampling.netflow import (
     NetflowCollector,
     NetflowExporter,
     NetflowRecord,
+    NetflowRecordIpv4Match,
     NetflowGlobalConfig
 )
 
@@ -160,6 +161,7 @@ class Configuration:
         NetflowCollector: "sampling.netflow.collectors",
         NetflowExporter: "sampling.netflow.exporters",
         NetflowRecord: "sampling.netflow.records",
+        NetflowRecordIpv4Match: Template("sampling.netflow.records.${netflow_record}.match_ipv4"),
         SfloGlobalConfig: "sampling.sflow.config",
         SflowCollector: "sampling.sflow.collectors"
     }

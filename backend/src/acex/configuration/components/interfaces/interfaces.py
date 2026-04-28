@@ -40,15 +40,25 @@ class Interface(ConfigComponent):
         if self.kwargs.get("cdp_enabled") == True:
             self.kwargs["cdp"] = ReferenceFrom(pointer="cdp.interfaces")
 
-    def _netflow_ingress_disable(self):
-        if self.kwargs.get("netflow_ingress_disabled") == True:
-            collector_name = self.kwargs.pop("netflow_ingress_disabled")
-            self.kwargs["netflow"] = ReferenceFrom(pointer=f"sampling.netflow.collectors.{collector_name}.interfaces")
+    # Allow for disabling netflow on specific interface by referencing the collector
+    def _netflow_disable(self):
+        if self.kwargs.get("netflow_ingress_disabled") is not None:
+            collector = self.kwargs.pop("netflow_ingress_disabled")
+            self.kwargs["netflow"] = ReferenceFrom(pointer=f"sampling.netflow.collectors.{collector.name}.interfaces")
 
-    def _sflow_ingress_disable(self):
-        if self.kwargs.get("sflow_ingress_disabled") == True:
-            collector_name = self.kwargs.pop("sflow_ingress_disabled")
-            self.kwargs["sflow"] = ReferenceFrom(pointer=f"sampling.sflow.collectors.{collector_name}.interfaces")
+        if self.kwargs.get("netflow_egress_disabled") is not None:
+            collector = self.kwargs.pop("netflow_egress_disabled")
+            self.kwargs["netflow"] = ReferenceFrom(pointer=f"sampling.netflow.collectors.{collector.name}.interfaces")
+            
+    # Allow for disabling sflow on specific interface by referencing the collector
+    def _sflow_disable(self):
+        if self.kwargs.get("sflow_ingress_disabled") is not None:
+            collector = self.kwargs.pop("sflow_ingress_disabled")
+            self.kwargs["sflow"] = ReferenceFrom(pointer=f"sampling.sflow.collectors.{collector.name}.interfaces")
+
+        if self.kwargs.get("sflow_egress_disabled") is not None:
+            collector = self.kwargs.pop("sflow_egress_disabled")
+            self.kwargs["sflow"] = ReferenceFrom(pointer=f"sampling.sflow.collectors.{collector.name}.interfaces")
 
 # Keep commented for now
 #class Physical(Interface):
@@ -64,6 +74,7 @@ class FrontpanelPort(Interface):
         self._helper()
         self._lldp_enable()
         self._cdp_enable()
+        self._netflow_disable()
         # Resolve referenced etherchannel if any
         #print('self.kwargs: ', self.kwargs)
         #if "etherchannel" in self.kwargs:

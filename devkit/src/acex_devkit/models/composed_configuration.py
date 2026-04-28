@@ -714,19 +714,9 @@ class NetflowFormat(str, Enum):
     NETFLOW_V9 = "NetFlow v9"
     NETFLOW_V5 = "NetFlow v5"
 
-class NetflowRecordIpv4AddressMatch(BaseModel):
-    # Supports: match ipv4 (destination|source) (address|mask|prefix)
-    address: Optional[AttributeValue[bool]] = None
-    mask: Optional[AttributeValue[bool]] = None
-    prefix: Optional[AttributeValue[bool]] = None
-
 class NetflowRecordIpv4Match(BaseModel):
-    destination: Optional[NetflowRecordIpv4AddressMatch] = NetflowRecordIpv4AddressMatch()
-    #destination: Optional[Reference] = None
-    source: Optional[NetflowRecordIpv4AddressMatch] = NetflowRecordIpv4AddressMatch()
-    #source: Optional[Reference] = None
-
-    # Leaf-level ipv4 matches (Cisco style "match ipv4 <field>")
+    # Leaf-level ipv4 matches (Cisco style "match ipv4 <field>"). True = match this field, False = No. None = Ignore the field
+    netflow_record: Optional[AttributeValue[str]] = None # Reference to parent record, used for easier access in config component
     dscp: Optional[AttributeValue[bool]] = None
     fragmentation: Optional[AttributeValue[bool]] = None
     header_length: Optional[AttributeValue[bool]] = None
@@ -742,23 +732,15 @@ class NetflowRecordIpv4Match(BaseModel):
     version: Optional[AttributeValue[bool]] = None
 
 class NetflowRecordAttributes(BaseModel):
-    #version: Optional[AttributeValue[int]] = None
-    #protocol: Optional[AttributeValue[str]] = None
-    match_ipv4: Optional[NetflowRecordIpv4Match] = NetflowRecordIpv4Match()
+    match_ipv4: Optional[NetflowRecordIpv4Match] = NetflowRecordIpv4Match() 
+    #match_ipv4: Optional[Dict[str, NetflowRecordIpv4Match]] = {}
     application_name: Optional[AttributeValue[bool]] = None
 
-
-    # Backward-compatible fields kept while migrating to match_ipv4
-    #match_ipv4_version: Optional[AttributeValue[bool]] = None
-    #match_ipv4_protocol: Optional[AttributeValue[bool]] = None
-    #match_application_name: Optional[AttributeValue[bool]] = None
-
     # Escape hatch for vendor-specific match knobs not yet modeled
-    match_vendor_specific: Optional[AttributeValue[Dict[str, Any]]] = None
+    match_vendor_specific: Optional[AttributeValue[Dict[str, Any]]] = None # keeping a flexible option if needed. Not advertised to users.
 
     collect_timestamp_absolute_first: Optional[AttributeValue[bool]] = None
     collect_timestamp_absolute_last: Optional[AttributeValue[bool]] = None
-    # Additional attributes for record format can be added here, e.g. template options for IPFIX
 
 class NetflowCollectorAttributes(BaseModel):
     cache_inactive: Optional[AttributeValue[int]] = None
@@ -778,8 +760,6 @@ class NetflowGlobalConfigAttributes(BaseModel):
     version: Optional[AttributeValue[int]] = None
 
 class Netflow(BaseModel):
-    #enabled: Optional[AttributeValue[bool]] = None
-    #version: Optional[AttributeValue[int]] = None
     config: Optional[NetflowGlobalConfigAttributes] = NetflowGlobalConfigAttributes()
     records: Optional[Dict[str, NetflowRecordAttributes]] = {}
     exporters: Optional[Dict[str, NetflowExporterAttributes]] = {}
