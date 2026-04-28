@@ -40,6 +40,16 @@ class Interface(ConfigComponent):
         if self.kwargs.get("cdp_enabled") == True:
             self.kwargs["cdp"] = ReferenceFrom(pointer="cdp.interfaces")
 
+    def _netflow_ingress_disable(self):
+        if self.kwargs.get("netflow_ingress_disabled") == True:
+            collector_name = self.kwargs.pop("netflow_ingress_disabled")
+            self.kwargs["netflow"] = ReferenceFrom(pointer=f"sampling.netflow.collectors.{collector_name}.interfaces")
+
+    def _sflow_ingress_disable(self):
+        if self.kwargs.get("sflow_ingress_disabled") == True:
+            collector_name = self.kwargs.pop("sflow_ingress_disabled")
+            self.kwargs["sflow"] = ReferenceFrom(pointer=f"sampling.sflow.collectors.{collector_name}.interfaces")
+
 # Keep commented for now
 #class Physical(Interface):
 #    type = "ethernetCsmacd"

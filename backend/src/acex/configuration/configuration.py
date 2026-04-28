@@ -73,6 +73,16 @@ from acex.configuration.components.cdp import (
 
 from acex.configuration.components.system.services import Services
 
+from acex.configuration.components.sampling.netflow import (
+    NetflowCollector,
+    NetflowExporter,
+    NetflowRecord
+)
+
+from acex.configuration.components.sampling.sflow import (
+    SflowCollector
+)
+
 from acex_devkit.models import ExternalValue
 from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict

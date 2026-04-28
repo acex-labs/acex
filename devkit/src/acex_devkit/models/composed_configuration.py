@@ -723,6 +723,7 @@ class NetflowRecordAttributes(BaseModel):
 class NetflowCollectorAttributes(BaseModel):
     cache_inactive: Optional[AttributeValue[int]] = None
     cache_active: Optional[AttributeValue[int]] = None
+    interfaces: Optional[Dict[str, Reference]] = {} # allow for disabling netflow on specific interfaces
 
 class NetflowExporterAttributes(ContainerEntry, BaseModel): 
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
@@ -739,6 +740,10 @@ class Netflow(BaseModel):
     exporter: Optional[Dict[str, NetflowExporterAttributes]] = {}
     collector: Optional[Dict[str, NetflowCollectorAttributes]] = {}
 
+class SflowMonitoringAttributes(BaseModel): ...
+
+class SflowForwardingAttributes(BaseModel): ... # collector?
+
 class SflowCollectorAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     address: Optional[AttributeValue[str]] = None
@@ -750,6 +755,12 @@ class SflowCollectorAttributes(ContainerEntry, BaseModel):
 class Sflow(BaseModel):
     enabled: Optional[AttributeValue[bool]] = None
     version: Optional[AttributeValue[int]] = None
+    dscp: Optional[AttributeValue[int]] = None # range: 0..63 
+    sample_size: Optional[AttributeValue[int]] = None
+    polling_interval: Optional[AttributeValue[int]] = None
+    ingress_sampling_rate: Optional[AttributeValue[int]] = None
+    egress_sampling_rate: Optional[AttributeValue[int]] = None
+    collector: Optional[Dict[str, SflowCollectorAttributes]] = {}
     # Similar structure to Netflow can be implemented here for sFlow-specific attributes
 
 class Sampling(BaseModel):
