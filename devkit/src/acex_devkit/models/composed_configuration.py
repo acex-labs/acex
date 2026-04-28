@@ -709,6 +709,108 @@ class Services(BaseModel):
     http: Optional[AttributeValue[bool]] = None # for webgui access
     https: Optional[AttributeValue[bool]] = None # for webgui access
 
+class NetflowFormat(str, Enum):
+    IPFIX = "IPFIX"
+    NETFLOW_V9 = "NetFlow v9"
+    NETFLOW_V5 = "NetFlow v5"
+
+class NetflowRecordIpv4Match(BaseModel):
+    # Leaf-level ipv4 matches (Cisco style "match ipv4 <field>"). True = match this field, False = No. None = Ignore the field
+    netflow_record: Optional[AttributeValue[str]] = None # Reference to parent record, used for easier access in config component
+    dscp: Optional[AttributeValue[bool]] = None
+    fragmentation: Optional[AttributeValue[bool]] = None
+    header_length: Optional[AttributeValue[bool]] = None
+    id: Optional[AttributeValue[bool]] = None
+    length: Optional[AttributeValue[bool]] = None
+    option: Optional[AttributeValue[bool]] = None
+    precedence: Optional[AttributeValue[bool]] = None
+    protocol: Optional[AttributeValue[bool]] = None
+    section: Optional[AttributeValue[str]] = None
+    tos: Optional[AttributeValue[bool]] = None
+    total_length: Optional[AttributeValue[bool]] = None
+    ttl: Optional[AttributeValue[bool]] = None
+    version: Optional[AttributeValue[bool]] = None
+
+class NetflowRecordAttributes(BaseModel): # Cisco flow record
+    match_ipv4: Optional[NetflowRecordIpv4Match] = None
+    #match_ipv4: Optional[Dict[str, NetflowRecordIpv4Match]] = {}
+    application_name: Optional[AttributeValue[bool]] = None
+
+    # Escape hatch for vendor-specific match knobs not yet modeled
+    match_vendor_specific: Optional[AttributeValue[Dict[str, Any]]] = None # keeping a flexible option if needed. Not advertised to users.
+
+    collect_timestamp_absolute_first: Optional[AttributeValue[bool]] = None
+    collect_timestamp_absolute_last: Optional[AttributeValue[bool]] = None
+
+class NetflowCollectorAttributes(BaseModel): # Cisco flow monitor
+    cache_inactive: Optional[AttributeValue[int]] = None
+    cache_active: Optional[AttributeValue[int]] = None
+    interfaces: Optional[Dict[str, Reference]] = {} # allow for disabling netflow on specific interfaces
+
+class NetflowExporterOptions(BaseModel):
+    # Mostly timeouts atm
+    interface_table_timeout: Optional[AttributeValue[int]] = None
+    vrf_table_timeout: Optional[AttributeValue[int]] = None
+    sampler_table_timeout: Optional[AttributeValue[int]] = None
+    application_table_timeout: Optional[AttributeValue[int]] = None
+    application_attributes_timeout: Optional[AttributeValue[int]] = None
+    netflow_exporter: Optional[AttributeValue[str]] = None # Reference to parent exporter, used for easier access in config component
+
+class NetflowExporterAttributes(ContainerEntry, BaseModel): # Cisco flow exporter
+    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+    address: Optional[AttributeValue[str]] = None
+    port: Optional[AttributeValue[int]] = None
+    format: Optional[AttributeValue[NetflowFormat]] = None
+    source_interface: Optional[Reference] = None
+    network_instance: Optional[AttributeValue[str]] = None
+    options: Optional[NetflowExporterOptions] = None
+
+class NetflowGlobalConfigAttributes(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = None
+    version: Optional[AttributeValue[int]] = None
+
+class Netflow(BaseModel):
+    config: Optional[NetflowGlobalConfigAttributes] = None
+    records: Optional[Dict[str, NetflowRecordAttributes]] = {}
+    exporters: Optional[Dict[str, NetflowExporterAttributes]] = {}
+    collectors: Optional[Dict[str, NetflowCollectorAttributes]] = {}
+
+class SflowMonitoringAttributes(BaseModel): ...
+
+class SflowForwardingAttributes(BaseModel): ... # collector?
+
+class SflowCollectorAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+    address: Optional[AttributeValue[str]] = None # Destination IP address of the sFlow collector
+    port: Optional[AttributeValue[int]] = None # UDP
+    source_address: Optional[AttributeValue[str]] = None 
+    network_instance: Optional[AttributeValue[str]] = None # VRF
+    interfaces: Optional[Dict[str, Reference]] = {} # allow for disabling sflow on specific interfaces
+
+class SfloGlobalConfigAttributes(BaseModel):
+    enabled: Optional[AttributeValue[bool]] = None
+    #version: Optional[AttributeValue[int]] = None
+    dscp: Optional[AttributeValue[int]] = None # range: 0..63 
+    sample_size: Optional[AttributeValue[int]] = None # Sets the maximum number of bytes to be copied from a sampled packet (content within one specific sample of a packet).
+    polling_interval: Optional[AttributeValue[int]] = None # seconds
+    ingress_sampling_rate: Optional[AttributeValue[int]] = None # sampling rate is 1/N packets. An implementation may implement the sampling rate as a statistical average, rather than a strict periodic sampling.
+    egress_sampling_rate: Optional[AttributeValue[int]] = None  # sampling rate is 1/N packets. An implementation may implement the sampling rate as a statistical average, rather than a strict periodic sampling.
+
+class Sflow(BaseModel):
+    #enabled: Optional[AttributeValue[bool]] = None
+    #version: Optional[AttributeValue[int]] = None
+    #dscp: Optional[AttributeValue[int]] = None # range: 0..63 
+    #sample_size: Optional[AttributeValue[int]] = None
+    #polling_interval: Optional[AttributeValue[int]] = None
+    #ingress_sampling_rate: Optional[AttributeValue[int]] = None
+    #egress_sampling_rate: Optional[AttributeValue[int]] = None
+    collector: Optional[Dict[str, SflowCollectorAttributes]] = {}
+    # Similar structure to Netflow can be implemented here for sFlow-specific attributes
+
+class Sampling(BaseModel):
+    netflow: Optional[Netflow] = Netflow()
+    #sflow: Optional[Sflow] = Sflow() # Sflow can be added in the future, similar structure to Netflow
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
@@ -739,7 +841,7 @@ class ComposedConfiguration(BaseModel):
     interfaces: Dict[str, InterfaceType] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
     stp: Optional[SpanningTree] = SpanningTree()
-
+    sampling: Optional[Sampling] = Sampling()
 
 """
 GUIDELINES FOR COMPOSED CONFIGURATION:
