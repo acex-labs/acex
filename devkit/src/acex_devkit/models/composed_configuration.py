@@ -731,7 +731,7 @@ class NetflowRecordIpv4Match(BaseModel):
     ttl: Optional[AttributeValue[bool]] = None
     version: Optional[AttributeValue[bool]] = None
 
-class NetflowRecordAttributes(BaseModel):
+class NetflowRecordAttributes(BaseModel): # Cisco flow record
     match_ipv4: Optional[NetflowRecordIpv4Match] = NetflowRecordIpv4Match() 
     #match_ipv4: Optional[Dict[str, NetflowRecordIpv4Match]] = {}
     application_name: Optional[AttributeValue[bool]] = None
@@ -742,18 +742,27 @@ class NetflowRecordAttributes(BaseModel):
     collect_timestamp_absolute_first: Optional[AttributeValue[bool]] = None
     collect_timestamp_absolute_last: Optional[AttributeValue[bool]] = None
 
-class NetflowCollectorAttributes(BaseModel):
+class NetflowCollectorAttributes(BaseModel): # Cisco flow monitor
     cache_inactive: Optional[AttributeValue[int]] = None
     cache_active: Optional[AttributeValue[int]] = None
     interfaces: Optional[Dict[str, Reference]] = {} # allow for disabling netflow on specific interfaces
 
-class NetflowExporterAttributes(ContainerEntry, BaseModel): 
+class NetflowExporterOptions(BaseModel):
+    # Mostly timeouts atm
+    interface_table_timeout: Optional[AttributeValue[int]] = None
+    vrf_table_timeout: Optional[AttributeValue[int]] = None
+    sampler_table_timeout: Optional[AttributeValue[int]] = None
+    application_table_timeout: Optional[AttributeValue[int]] = None
+    application_attributes_timeout: Optional[AttributeValue[int]] = None
+
+class NetflowExporterAttributes(ContainerEntry, BaseModel): # Cisco flow exporter
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     address: Optional[AttributeValue[str]] = None
     port: Optional[AttributeValue[int]] = None
     format: Optional[AttributeValue[NetflowFormat]] = None
     source_interface: Optional[Reference] = None
     network_instance: Optional[AttributeValue[str]] = None
+    options: Optional[NetflowExporterOptions] = None
 
 class NetflowGlobalConfigAttributes(BaseModel):
     enabled: Optional[AttributeValue[bool]] = None

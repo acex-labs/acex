@@ -5,6 +5,7 @@ from acex_devkit.models.composed_configuration import (
     NetflowRecordAttributes,
     NetflowGlobalConfigAttributes,
     NetflowRecordIpv4Match as NetflowRecordIpv4MatchAttributes,
+    NetflowExporterOptions as NetflowExporterOptionsAttributes,
     ReferenceFrom,
 )
 
@@ -26,6 +27,10 @@ class NetflowExporter(ConfigComponent):
         else:
             network_instance = self.kwargs.pop("network_instance")
             self.kwargs["network_instance"] = network_instance.name
+
+class NetflowExporterOptions(ConfigComponent):
+    type = "NetflowExporterOptions"
+    model_cls = NetflowExporterOptionsAttributes
 
 class NetflowRecord(ConfigComponent): 
     type = "NetflowRecord"
