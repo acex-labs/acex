@@ -1,14 +1,20 @@
 from acex.config_map import ConfigMap, FilterAttribute
-from acex.configuration.components.interfaces import FrontpanelPort, ManagementPort, Svi, LagInterface
+from acex.configuration.components.interfaces import (
+    FrontpanelPort,
+    InterfaceTemplate,
+    LagInterface,
+    ManagementPort,
+    Svi,
+)
 from acex.configuration.components.network_instances import L3Vrf
 from acex.configuration.components.network_instances import Vlan
 from acex.configuration.components.lacp import LacpConfig
 
 interface_templates = {
-    "default":{"native_vlan": 1,"description":"default","switchport":True,"switchport_mode":"access","enabled":True},
-    "Mgmt":{"native_vlan": 1337,"description":"Mgmt","switchport":True,"switchport_mode":"access","enabled":True},
-    "IoTwired":{"native_vlan": 123,"description":"IoTwired","switchport":True,"switchport_mode":"access","enabled":True},
-    "Native":{"native_vlan": 999,"description":"Native","switchport":True,"switchport_mode":"access","enabled":True},
+    "default":  {"native_vlan": 1,    "description": "default",  "switchport": True, "switchport_mode": "access", "enabled": True},
+    "Mgmt":     {"native_vlan": 1337, "description": "Mgmt",     "switchport": True, "switchport_mode": "access", "enabled": True},
+    "IoTwired": {"native_vlan": 123,  "description": "IoTwired", "switchport": True, "switchport_mode": "access", "enabled": True},
+    "Native":   {"native_vlan": 999,  "description": "Native",   "switchport": True, "switchport_mode": "access", "enabled": True},
 }
 
 portchannel_list = [
@@ -51,10 +57,14 @@ interface_list = [
     {'interface': 'GigabitEthernet2/1/4', 'speed': 1000000, 'description': None, 'switchport': False, 'switchport_mode': None, 'module_index': 1, 'stack_index': 2, 'index': 3, 'enabled': True},
 ]
 
-# Define each interface with a loop. This is just and example. If you want to keep it easy you can let the below logic be and only work
-# with the interface list and templates above.
 class Interfaces(ConfigMap):
     def compile(self, context):
+        templates = {}
+        for tmpl_name, tmpl_attrs in interface_templates.items():
+            tmpl = InterfaceTemplate(name=tmpl_name, **tmpl_attrs)
+            context.configuration.add(tmpl)
+            templates[tmpl_name] = tmpl
+
         for portchannel in portchannel_list:
             portchannel = LagInterface(
                 name = f'Port-channel{portchannel.get("index")}',
@@ -68,26 +78,28 @@ class Interfaces(ConfigMap):
                 members = portchannel.get("members")
             )
             context.configuration.add(portchannel)
-        
+
         for intf in interface_list:
             interface = FrontpanelPort(
                 name = intf.get("interface"),
                 index = intf.get("index"),
-                stack_index = intf.get("stack_index") if intf.get("stack_index") else None,
+                stack_index = intf.get("stack_index"),
                 module_index = intf.get("module_index"),
-                mtu = intf.get('mtu') if intf.get('mtu') else None,
-                speed = intf.get('speed') if intf.get('speed') else None,
-                trunk_allowed_vlans = intf.get('trunk_allowed_vlans') if intf.get('trunk_allowed_vlans') else None, 
-                enabled = interface_templates.get(intf.get("_template"), {}).get("enabled") or intf.get("enabled"),
-                description = interface_templates.get(intf.get("_template"), {}).get("description") or intf.get("description"),
-                switchport_mode = interface_templates.get(intf.get("_template"), {}).get("switchport_mode") or intf.get("switchport_mode"), 
-                switchport = interface_templates.get(intf.get("_template"), {}).get("switchport") or intf.get("switchport"), 
-                access_vlan = interface_templates.get(intf.get("_template"), {}).get("access_vlan") or intf.get("access_vlan"), 
-                native_vlan = interface_templates.get(intf.get("_template"), {}).get("native_vlan") or intf.get("native_vlan"),
-                aggregate_id = intf.get("aggregate_id") if intf.get("aggregate_id") else None,
-                lacp_enabled = intf.get("lacp_enabled") if intf.get("lacp_enabled") else None,
-                lacp_mode = intf.get("lacp_mode") if intf.get("lacp_mode") else None,
-                #lacp_interval = intf.get("lacp_interval") if intf.get("lacp_interval") else None
+                mtu = intf.get("mtu"),
+                speed = intf.get("speed"),
+                trunk_allowed_vlans = intf.get("trunk_allowed_vlans"),
+                interface_template = templates.get(intf.get("_template")),
+                # per-port overrides (template attrs are rendered from the template block)
+                enabled = intf.get("enabled"),
+                description = intf.get("description"),
+                switchport = intf.get("switchport"),
+                switchport_mode = intf.get("switchport_mode"),
+                access_vlan = intf.get("access_vlan"),
+                native_vlan = intf.get("native_vlan"),
+                aggregate_id = intf.get("aggregate_id"),
+                lacp_enabled = intf.get("lacp_enabled"),
+                lacp_mode = intf.get("lacp_mode"),
+                lacp_port_priority = intf.get("lacp_port_priority"),
             )
             context.configuration.add(interface)
 
@@ -99,7 +111,7 @@ class ManagementInterface(ConfigMap):
             name="mgmt"
         )
         context.configuration.add(vrf)
-    
+
         mgmt_port = ManagementPort(
             name='mgmt0',
             index=0,
@@ -130,7 +142,7 @@ class SimpleVlan(ConfigMap):
             vlan_name = 'Mgmt' # You are allowed to change these stats.
         )
         context.configuration.add(vlan)
-        
+
         # Below is the mgmt vlan SVI
         svi2 = Svi(
             name=f'vlan2_svi', # You are allowed to change these stats. If ID changes, change name to "vlan{ID}_svi"

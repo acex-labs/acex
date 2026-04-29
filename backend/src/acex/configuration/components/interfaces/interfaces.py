@@ -3,17 +3,31 @@ from acex.configuration.components.base_component import ConfigComponent
 from acex_devkit.models.composed_configuration import (
     EthernetCsmacdInterface,
     Ieee8023adLagInterface,
+    InterfaceTemplateAttributes,
     L3IpvlanInterface,
     SoftwareLoopbackInterface,
     ManagementInterface,
     SubInterface as SubInterfaceModel,
-    ReferenceFrom, 
+    ReferenceFrom,
     ReferenceTo
 )
 
 from typing import Optional
 
+
+class InterfaceTemplate(ConfigComponent):
+    type = "interface_template"
+    model_cls = InterfaceTemplateAttributes
+
+
 class Interface(ConfigComponent):
+
+    def _add_template(self):
+        template = self.kwargs.pop("interface_template", None)
+        if template is not None:
+            self.kwargs["interface_template"] = ReferenceTo(
+                pointer=f"interface_templates.{template.name}"
+            )
 
     def _add_vrf(self):
         if self.kwargs.get('network_instance') is None:
@@ -69,6 +83,7 @@ class FrontpanelPort(Interface):
     type = "ethernetCsmacd"
     model_cls = EthernetCsmacdInterface
     def pre_init(self):
+        self._add_template()
         self._add_vrf()
         self._add_dhcp_trust()
         self._helper()
@@ -96,14 +111,18 @@ class ManagementPort(Interface):
 
     # VRF can be set on mgmt interfaces. Usually "mgmt" but can be something else depending on device and vendor.
     def pre_init(self):
+        self._add_template()
         self._add_vrf()
 
 class LagInterface(Interface):
     """
-    WIP :) 
+    WIP :)
     """
     type = "ieee8023adLag"
     model_cls = Ieee8023adLagInterface
+
+    def pre_init(self):
+        self._add_template()
 
     #def pre_init(self):
     #    # Resolve referenced interfaces if any
@@ -116,6 +135,7 @@ class Svi(Interface):
     def pre_init(self):
         referenced_vlan = self.kwargs.pop("vlan")
         self.kwargs["vlan_id"] = referenced_vlan.model.vlan_id.value
+        self._add_template()
         self._add_vrf()
         self._add_dhcp_trust()
         self._helper()
@@ -125,6 +145,7 @@ class Loopback(Interface):
     model_cls = SoftwareLoopbackInterface
 
     def pre_init(self):
+        self._add_template()
         self._add_vrf()
 
 class Subinterface(Interface):
@@ -133,6 +154,7 @@ class Subinterface(Interface):
 
     def pre_init(self):
         vlan = self.kwargs.pop("vlan")
-        self.kwargs["vlan"] = vlan.name 
+        self.kwargs["vlan"] = vlan.name
         self.kwargs["vlan_id"] = vlan.model.vlan_id.value
+        self._add_template()
         self._add_vrf()
