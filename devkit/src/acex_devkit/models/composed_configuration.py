@@ -875,6 +875,18 @@ class Sampling(BaseModel):
     netflow: Optional[Netflow] = Netflow()
     #sflow: Optional[Sflow] = Sflow() # Sflow can be added in the future, similar structure to Netflow
 
+class DnsServerAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+    address: Optional[AttributeValue[str]] = None
+    port: Optional[AttributeValue[int]] = None # Keeping option to allow for use where needed, even if default DNS port is 53
+    source_interface: Optional[Reference] = None # Keeping option to allow for use where needed
+    network_instance: Optional[AttributeValue[str]] = None
+
+class Dns(BaseModel):
+    # Placeholder for DNS configuration. Can be expanded with actual DNS attributes as needed.
+    #enabled: Optional[AttributeValue[bool]] = None
+    dns_servers: Optional[Dict[str, DnsServerAttributes]] = {} # key is server name, value is IP address
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
     aaa: Optional[TripleA] = TripleA()
@@ -884,6 +896,7 @@ class System(BaseModel):
     snmp: Optional[Snmp] = Snmp()
     vtp: Optional[VTP] = VTP()
     dhcp: Optional[Dhcp] = Dhcp()
+    dns: Optional[Dns] = Dns()
     services: Optional[Services] = Services()
 
 # For different types of interfaces that are fine for response model:
