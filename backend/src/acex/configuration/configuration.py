@@ -88,6 +88,8 @@ from acex.configuration.components.sampling.sflow import (
     SflowCollector
 )
 
+from acex.configuration.components.system.dns import DnsServer
+
 from acex_devkit.models import ExternalValue
 from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 from collections import defaultdict
@@ -108,6 +110,7 @@ class Configuration:
         DomainName: "system.config.domain_name",
         LoginBanner: "system.config.login_banner",
         MotdBanner: "system.config.motd_banner",
+        DnsServer: "system.dns.dns_servers",
         RemoteServer: "system.logging.remote_servers.servers",
         Console: "system.logging.console",
         VtyLine: "system.logging.vty.lines",
