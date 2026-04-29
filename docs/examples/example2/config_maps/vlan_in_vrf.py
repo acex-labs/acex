@@ -31,7 +31,7 @@ class VlanInVrf(ConfigMap):
 
 
 vlan = VlanInVrf()
-vlan.filters = FilterAttribute("hostname").eq("R1")
+vlan.filters = FilterAttribute("role").eq("lan_access")
 
 
 

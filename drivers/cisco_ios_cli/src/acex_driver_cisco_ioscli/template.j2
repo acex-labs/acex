@@ -110,6 +110,102 @@ vtp password {{ vtp.password_hashed.value }} hidden
 !
 !
 !
+{%- if configuration.interface_templates %}
+{%-  for _, tmpl in configuration.interface_templates.items() %}
+template {{ tmpl.name.value }}
+{%-    if tmpl.description %}
+ description {{ tmpl.description.value }}
+{%-    endif %}
+{%-    if tmpl.switchport and tmpl.switchport.value %}
+ switchport
+{%-      if tmpl.switchport_mode and tmpl.switchport_mode.value == "access" %}
+ switchport mode access
+{%-        if tmpl.access_vlan %}
+ switchport access vlan {{ tmpl.access_vlan.value }}
+{%-        endif %}
+{%-      endif %}
+{%-      if tmpl.switchport_mode and tmpl.switchport_mode.value == "trunk" %}
+ switchport mode trunk
+{%-        if tmpl.native_vlan %}
+ switchport trunk native vlan {{ tmpl.native_vlan.value }}
+{%-        endif %}
+{%-        if tmpl.trunk_allowed_vlans %}
+ switchport trunk allowed vlan {{ tmpl.trunk_allowed_vlans.value | join(',') }}
+{%-        endif %}
+{%-      endif %}
+{%-      if tmpl.voice_vlan %}
+ switchport voice vlan {{ tmpl.voice_vlan.value }}
+{%-      endif %}
+{%-    endif %}
+{%-    if tmpl.dtp_negotiation and tmpl.dtp_negotiation.value == False %}
+ switchport nonegotiate
+{%-    endif %}
+{%-    if tmpl.storm_control %}
+{%-      if tmpl.storm_control.broadcast_pps %}
+ storm-control broadcast level pps {{ tmpl.storm_control.broadcast_pps.value }}
+{%-      endif %}
+{%-      if tmpl.storm_control.multicast_pps %}
+ storm-control multicast level pps {{ tmpl.storm_control.multicast_pps.value }}
+{%-      endif %}
+{%-      if tmpl.storm_control.unknown_unicast_pps %}
+ storm-control unknown-unicast level pps {{ tmpl.storm_control.unknown_unicast_pps.value }}
+{%-      endif %}
+{%-      if tmpl.storm_control.action %}
+ storm-control action {{ tmpl.storm_control.action.value }}
+{%-      endif %}
+{%-    endif %}
+{%-    if tmpl.logging_link_status and tmpl.logging_link_status.value == False %}
+ no logging event link-status
+{%-    endif %}
+{%-    if tmpl.snmp_link_status_trap and tmpl.snmp_link_status_trap.value == False %}
+ no snmp trap link-status
+{%-    endif %}
+{%-    if tmpl.mtu %}
+ mtu {{ tmpl.mtu.value }}
+{%-    endif %}
+{%-    if tmpl.speed %}
+ speed {{ tmpl.speed.value }}
+{%-    endif %}
+{%-    if tmpl.duplex %}
+ duplex {{ tmpl.duplex.value }}
+{%-    endif %}
+{%-    if tmpl.negotiation is defined and tmpl.negotiation and tmpl.negotiation.value == False %}
+ no negotiation auto
+{%-    endif %}
+{%-    if tmpl.auto_mdix is defined and tmpl.auto_mdix and tmpl.auto_mdix.value == False %}
+ no mdix auto
+{%-    endif %}
+{%-    if tmpl.stp_edge_port and tmpl.stp_edge_port.value == True %}
+ spanning-tree portfast
+{%-    endif %}
+{%-    if tmpl.stp_bpdu_guard and tmpl.stp_bpdu_guard.value == True %}
+ spanning-tree bpduguard enable
+{%-    endif %}
+{%-    if tmpl.stp_bpdu_filter and tmpl.stp_bpdu_filter.value == True %}
+ spanning-tree bpdufilter enable
+{%-    endif %}
+{%-    if tmpl.stp_loop_guard and tmpl.stp_loop_guard.value == True %}
+ spanning-tree guard loop
+{%-    endif %}
+{%-    if tmpl.stp_root_guard and tmpl.stp_root_guard.value == True %}
+ spanning-tree guard root
+{%-    endif %}
+{%-    if tmpl.stp_port_priority %}
+ spanning-tree port-priority {{ tmpl.stp_port_priority.value }}
+{%-    endif %}
+{%-    if tmpl.stp_cost %}
+ spanning-tree cost {{ tmpl.stp_cost.value }}
+{%-    endif %}
+{%-    if tmpl.stp_link_type %}
+ spanning-tree link-type {{ tmpl.stp_link_type.value }}
+{%-    endif %}
+{%-    if tmpl.enabled is defined and tmpl.enabled and tmpl.enabled.value == False %}
+ shutdown
+{%-    endif %}
+!
+{%-  endfor %}
+{%- endif %}
+!
 {%- for _, intf in configuration.interfaces.items() %}
 {%-  if intf.type == "softwareLoopback" %}
 interface Loopback{{ intf.index.value }}
@@ -156,6 +252,9 @@ interface {{ intf.name }}
 {%-      endif %}
 {%-    endif %}
 {%-  endif %}
+{%-    if intf.interface_template %}
+ source template {{ intf.interface_template.pointer.split('.') | last }}
+{%-    endif %}
 {%-  if intf.enabled and intf.enabled.value %}
  no shutdown
 {%-    else %}
@@ -181,21 +280,23 @@ interface {{ intf.name }}
  ip address {{ intf.ipv4.value|cidr_to_addrmask }}
 {%-     endif %}
 {%- endif %}
-{%-  if intf.switchport and intf.switchport.value %}
-{%-    if intf.switchport_mode and intf.switchport_mode.value == "access" %}
+{%-  if intf.access_vlan %}
+ switchport access vlan {{ intf.access_vlan.value }}
+{%-  endif %}
+{%-  if intf.switchport_mode and intf.switchport_mode.value == "access" %}
  switchport mode access
-{%-      if intf.native_vlan %}
- switchport access vlan {{ intf.native_vlan.value }}
-{%-      endif %}
-{%-    endif %}
-{%-    if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
+{%-  endif %}
+{%-  if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
  switchport mode trunk
-{%-      if intf.native_vlan %}
+{%-  endif %}
+{%-  if intf.native_vlan %}
  switchport trunk native vlan {{ intf.native_vlan.value }}
-{%-      endif %}
-{%-      if intf.trunk_allowed_vlans %}
+{%-  endif %}
+{%-  if intf.trunk_allowed_vlans %}
  switchport trunk allowed vlan {{ intf.trunk_allowed_vlans.value | join(',') }}
-{%-      endif %}
+{%-  endif %}
+{%-  if intf.voice_vlan %}
+ switchport voice vlan {{ intf.voice_vlan.value }}
 {%-  endif %}
 {%-  if intf.lacp_enabled %}
  channel-group {{ intf.aggregate_id.value }} mode {{ intf.lacp_mode.value | default('active') }}
@@ -206,10 +307,39 @@ interface {{ intf.name }}
  lacp rate {{ intf.lacp_interval.value }}
 {%-    endif %}
 {%-  endif %}
+{%-  if intf.dtp_negotiation and intf.dtp_negotiation.value == False %}
+ switchport nonegotiate
 {%-  endif %}
-{%-  if intf.enabled and intf.enabled.value %}
- no shutdown
-{%-    else %}
+{%-  if intf.storm_control %}
+{%-    if intf.storm_control.broadcast_pps %}
+ storm-control broadcast level pps {{ intf.storm_control.broadcast_pps.value }}
+{%-    endif %}
+{%-    if intf.storm_control.multicast_pps %}
+ storm-control multicast level pps {{ intf.storm_control.multicast_pps.value }}
+{%-    endif %}
+{%-    if intf.storm_control.unknown_unicast_pps %}
+ storm-control unknown-unicast level pps {{ intf.storm_control.unknown_unicast_pps.value }}
+{%-    endif %}
+{%-    if intf.storm_control.action %}
+ storm-control action {{ intf.storm_control.action.value }}
+{%-    endif %}
+{%-  endif %}
+{%-  if intf.logging_link_status and intf.logging_link_status.value == False %}
+ no logging event link-status
+{%-  endif %}
+{%-  if intf.snmp_link_status_trap and intf.snmp_link_status_trap.value == False %}
+ no snmp trap link-status
+{%-  endif %}
+{%-  if intf.auto_mdix and intf.auto_mdix.value == False %}
+ no mdix auto
+{%- endif %}
+{%-    if intf.interface_template %}
+ source template {{ intf.interface_template.pointer.split('.') | last }}
+{%-    endif %}
+{%-  if intf.stp_portfast and intf.stp_portfast.value == True %}
+ spanning-tree portfast
+{%- endif %}
+{%-  if intf.enabled and intf.enabled.value == False %}
  shutdown
 {%-   endif %}
 {%-  endif %}
@@ -234,8 +364,8 @@ interface vlan{{ intf.vlan_id.value }}
 {%- else %}
  shutdown
 {%-     endif %}
-{%-  endif %}
 !
+{%-  endif %}
 {%- endfor %}
 !
 {%- for _, intf in configuration.interfaces.items() %}

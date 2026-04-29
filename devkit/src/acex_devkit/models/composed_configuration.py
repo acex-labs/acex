@@ -139,6 +139,60 @@ class Vlan(ContainerEntry, BaseModel):
     vlan_name: Optional[AttributeValue[str]] = None
     network_instance: Optional[AttributeValue[str]] = None
 
+class StormControlAttributes(BaseModel):
+    "Storm control thresholds for broadcast/multicast/unknown-unicast traffic on an interface."
+    broadcast_pps: Optional[AttributeValue[int]] = None
+    multicast_pps: Optional[AttributeValue[int]] = None
+    unknown_unicast_pps: Optional[AttributeValue[int]] = None
+    action: Optional[AttributeValue[Literal["trap", "shutdown"]]] = None
+
+
+class InterfaceTemplateAttributes(ContainerEntry, BaseModel):
+    "Reusable named set of interface attributes that interfaces can reference."
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
+
+    description: Optional[AttributeValue[str]] = None
+    enabled: Optional[AttributeValue[bool]] = None
+
+    # L1/L2
+    switchport: Optional[AttributeValue[bool]] = None
+    switchport_mode: Optional[AttributeValue[Literal["access", "trunk"]]] = None
+    trunk_allowed_vlans: Optional[AttributeValue[List[int]]] = None
+    native_vlan: Optional[AttributeValue[int]] = None
+    access_vlan: Optional[AttributeValue[int]] = None
+    voice_vlan: Optional[AttributeValue[int]] = None
+    mtu: Optional[AttributeValue[int]] = None
+    speed: Optional[AttributeValue[int]] = None
+    duplex: Optional[AttributeValue[str]] = None
+    negotiation: Optional[AttributeValue[bool]] = None
+    dtp_negotiation: Optional[AttributeValue[bool]] = None  # False renders as "switchport nonegotiate" on Cisco
+    auto_mdix: Optional[AttributeValue[bool]] = None
+
+    # Operational signaling (default on; set False to suppress)
+    logging_link_status: Optional[AttributeValue[bool]] = None
+    snmp_link_status_trap: Optional[AttributeValue[bool]] = None
+
+    # Storm control
+    storm_control: Optional[StormControlAttributes] = None
+
+    # Spanning-tree
+    stp_port_priority: Optional[AttributeValue[int]] = None
+    stp_cost: Optional[AttributeValue[int]] = None
+    stp_edge_port: Optional[AttributeValue[bool]] = None
+    stp_bpdu_filter: Optional[AttributeValue[bool]] = None
+    stp_bpdu_guard: Optional[AttributeValue[bool]] = None
+    stp_loop_guard: Optional[AttributeValue[bool]] = None
+    stp_root_guard: Optional[AttributeValue[bool]] = None
+    stp_link_type: Optional[AttributeValue[Literal["point-to-point", "shared"]]] = None
+
+    # LACP
+    lacp_enabled: Optional[AttributeValue[bool]] = None
+    lacp_mode: Optional[AttributeValue[Literal["active", "passive", "on", "auto"]]] = None
+    lacp_port_priority: Optional[AttributeValue[int]] = None
+    lacp_interval: Optional[AttributeValue[Literal["fast", "slow"]]] = None
+
+
 class Interface(ContainerEntry, BaseModel):
     "Base class for all interfaces"
     identity_fields: ClassVar[tuple[str, ...]] = ("index", "type")
@@ -148,9 +202,15 @@ class Interface(ContainerEntry, BaseModel):
     description: Optional[AttributeValue[str]] = None
     enabled: Optional[AttributeValue[bool]] = None
     ipv4: Optional[AttributeValue[str]] = None
-    redirects: Optional[AttributeValue[bool]] = None # Regarding IP redirects. 
+    redirects: Optional[AttributeValue[bool]] = None # Regarding IP redirects.
     proxy_arp: Optional[AttributeValue[bool]] = None # Cisco true = yes / false = no, Juniper true = unrestricted / false = restricted
-    
+    interface_template: Optional[Reference] = None
+
+    dtp_negotiation: Optional[AttributeValue[bool]] = None  # False renders as "switchport nonegotiate" on Cisco
+    logging_link_status: Optional[AttributeValue[bool]] = None  # Default on; False suppresses link-state log events
+    snmp_link_status_trap: Optional[AttributeValue[bool]] = None  # Default on; False suppresses link-state SNMP traps
+    storm_control: Optional[StormControlAttributes] = None
+
     type: Literal[
         "ethernetCsmacd",
         "ieee8023adLag",
@@ -159,7 +219,7 @@ class Interface(ContainerEntry, BaseModel):
         "subinterface",
         "managementInterface"
         ] = "ethernetCsmacd"
-    
+
     model_config = {
         "discriminator": "type"
     }
@@ -184,6 +244,7 @@ class EthernetCsmacdInterface(Interface):
     voice_vlan: Optional[AttributeValue[int]] = None
     mtu: Optional[AttributeValue[int]] = None # No default set as it differs between devices and vendors
     negotiation: Optional[AttributeValue[bool]] = None
+    auto_mdix: Optional[AttributeValue[bool]] = None
     #lldp_enabled: Optional[AttributeValue[bool]] = None
     #cdp_enabled: Optional[AttributeValue[bool]] = None
 
@@ -841,6 +902,7 @@ class ComposedConfiguration(BaseModel):
     cdp: Optional[CdpConfigAttributes] = CdpConfigAttributes()
     lacp: Optional[Lacp] = Lacp()
     interfaces: Dict[str, InterfaceType] = {}
+    interface_templates: Dict[str, InterfaceTemplateAttributes] = {}
     network_instances: Dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
     stp: Optional[SpanningTree] = SpanningTree()
     sampling: Optional[Sampling] = Sampling()
