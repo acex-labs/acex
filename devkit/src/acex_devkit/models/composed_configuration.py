@@ -179,7 +179,8 @@ class InterfaceTemplateAttributes(ContainerEntry, BaseModel):
     # Spanning-tree
     stp_port_priority: Optional[AttributeValue[int]] = None
     stp_cost: Optional[AttributeValue[int]] = None
-    stp_edge_port: Optional[AttributeValue[bool]] = None
+    stp_edge_port: Optional[AttributeValue[bool]] = None  # 802.1w edge port; renders to "spanning-tree portfast" on Cisco
+    stp_portfast: Optional[AttributeValue[bool]] = None   # Cisco-explicit; renders to "spanning-tree portfast"
     stp_bpdu_filter: Optional[AttributeValue[bool]] = None
     stp_bpdu_guard: Optional[AttributeValue[bool]] = None
     stp_loop_guard: Optional[AttributeValue[bool]] = None

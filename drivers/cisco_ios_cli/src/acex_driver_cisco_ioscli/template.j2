@@ -113,69 +113,24 @@ vtp password {{ vtp.password_hashed.value }} hidden
 {%- if configuration.interface_templates %}
 {%-  for _, tmpl in configuration.interface_templates.items() %}
 template {{ tmpl.name.value }}
-{%-    if tmpl.description %}
- description {{ tmpl.description.value }}
-{%-    endif %}
-{%-    if tmpl.switchport and tmpl.switchport.value %}
- switchport
-{%-      if tmpl.switchport_mode and tmpl.switchport_mode.value == "access" %}
- switchport mode access
-{%-        if tmpl.access_vlan %}
- switchport access vlan {{ tmpl.access_vlan.value }}
-{%-        endif %}
-{%-      endif %}
-{%-      if tmpl.switchport_mode and tmpl.switchport_mode.value == "trunk" %}
- switchport mode trunk
-{%-        if tmpl.native_vlan %}
- switchport trunk native vlan {{ tmpl.native_vlan.value }}
-{%-        endif %}
-{%-        if tmpl.trunk_allowed_vlans %}
- switchport trunk allowed vlan {{ tmpl.trunk_allowed_vlans.value | join(',') }}
-{%-        endif %}
-{%-      endif %}
-{%-      if tmpl.voice_vlan %}
- switchport voice vlan {{ tmpl.voice_vlan.value }}
-{%-      endif %}
-{%-    endif %}
-{%-    if tmpl.dtp_negotiation and tmpl.dtp_negotiation.value == False %}
- switchport nonegotiate
-{%-    endif %}
 {%-    if tmpl.storm_control %}
 {%-      if tmpl.storm_control.broadcast_pps %}
- storm-control broadcast level pps {{ tmpl.storm_control.broadcast_pps.value }}
+{%-        set v = tmpl.storm_control.broadcast_pps.value %}
+ storm-control broadcast level pps {% if v % 1000 == 0 %}{{ v // 1000 }}k{% else %}{{ v }}{% endif %}
 {%-      endif %}
 {%-      if tmpl.storm_control.multicast_pps %}
- storm-control multicast level pps {{ tmpl.storm_control.multicast_pps.value }}
+{%-        set v = tmpl.storm_control.multicast_pps.value %}
+ storm-control multicast level pps {% if v % 1000 == 0 %}{{ v // 1000 }}k{% else %}{{ v }}{% endif %}
 {%-      endif %}
 {%-      if tmpl.storm_control.unknown_unicast_pps %}
- storm-control unknown-unicast level pps {{ tmpl.storm_control.unknown_unicast_pps.value }}
+{%-        set v = tmpl.storm_control.unknown_unicast_pps.value %}
+ storm-control unknown-unicast level pps {% if v % 1000 == 0 %}{{ v // 1000 }}k{% else %}{{ v }}{% endif %}
 {%-      endif %}
 {%-      if tmpl.storm_control.action %}
  storm-control action {{ tmpl.storm_control.action.value }}
 {%-      endif %}
 {%-    endif %}
-{%-    if tmpl.logging_link_status and tmpl.logging_link_status.value == False %}
- no logging event link-status
-{%-    endif %}
-{%-    if tmpl.snmp_link_status_trap and tmpl.snmp_link_status_trap.value == False %}
- no snmp trap link-status
-{%-    endif %}
-{%-    if tmpl.mtu %}
- mtu {{ tmpl.mtu.value }}
-{%-    endif %}
-{%-    if tmpl.speed %}
- speed {{ tmpl.speed.value }}
-{%-    endif %}
-{%-    if tmpl.duplex %}
- duplex {{ tmpl.duplex.value }}
-{%-    endif %}
-{%-    if tmpl.negotiation is defined and tmpl.negotiation and tmpl.negotiation.value == False %}
- no negotiation auto
-{%-    endif %}
-{%-    if tmpl.auto_mdix is defined and tmpl.auto_mdix and tmpl.auto_mdix.value == False %}
- no mdix auto
-{%-    endif %}
-{%-    if tmpl.stp_edge_port and tmpl.stp_edge_port.value == True %}
+{%-    if (tmpl.stp_edge_port and tmpl.stp_edge_port.value == True) or (tmpl.stp_portfast and tmpl.stp_portfast.value == True) %}
  spanning-tree portfast
 {%-    endif %}
 {%-    if tmpl.stp_bpdu_guard and tmpl.stp_bpdu_guard.value == True %}
@@ -198,6 +153,54 @@ template {{ tmpl.name.value }}
 {%-    endif %}
 {%-    if tmpl.stp_link_type %}
  spanning-tree link-type {{ tmpl.stp_link_type.value }}
+{%-    endif %}
+{%-    if tmpl.switchport and tmpl.switchport.value %}
+ switchport
+{%-    endif %}
+{%-    if tmpl.switchport_mode and tmpl.switchport_mode.value == "access" %}
+ switchport mode access
+{%-    endif %}
+{%-    if tmpl.switchport_mode and tmpl.switchport_mode.value == "trunk" %}
+ switchport mode trunk
+{%-    endif %}
+{%-    if tmpl.access_vlan %}
+ switchport access vlan {{ tmpl.access_vlan.value }}
+{%-    endif %}
+{%-    if tmpl.native_vlan %}
+ switchport trunk native vlan {{ tmpl.native_vlan.value }}
+{%-    endif %}
+{%-    if tmpl.trunk_allowed_vlans %}
+ switchport trunk allowed vlan {{ tmpl.trunk_allowed_vlans.value | join(',') }}
+{%-    endif %}
+{%-    if tmpl.voice_vlan %}
+ switchport voice vlan {{ tmpl.voice_vlan.value }}
+{%-    endif %}
+{%-    if tmpl.dtp_negotiation and tmpl.dtp_negotiation.value == False %}
+ switchport nonegotiate
+{%-    endif %}
+{%-    if tmpl.mtu %}
+ mtu {{ tmpl.mtu.value }}
+{%-    endif %}
+{%-    if tmpl.speed %}
+ speed {{ tmpl.speed.value }}
+{%-    endif %}
+{%-    if tmpl.duplex %}
+ duplex {{ tmpl.duplex.value }}
+{%-    endif %}
+{%-    if tmpl.negotiation is defined and tmpl.negotiation and tmpl.negotiation.value == False %}
+ no negotiation auto
+{%-    endif %}
+{%-    if tmpl.auto_mdix is defined and tmpl.auto_mdix and tmpl.auto_mdix.value == False %}
+ no mdix auto
+{%-    endif %}
+{%-    if tmpl.logging_link_status and tmpl.logging_link_status.value == False %}
+ no logging event link-status
+{%-    endif %}
+{%-    if tmpl.snmp_link_status_trap and tmpl.snmp_link_status_trap.value == False %}
+ no snmp trap link-status
+{%-    endif %}
+{%-    if tmpl.description %}
+ description {{ tmpl.description.value }}
 {%-    endif %}
 {%-    if tmpl.enabled is defined and tmpl.enabled and tmpl.enabled.value == False %}
  shutdown
