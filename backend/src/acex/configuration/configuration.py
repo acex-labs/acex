@@ -310,8 +310,10 @@ class Configuration:
         # Dont edit the actual composed model, we make a model from a copy
         config = self.composed.copy()
 
-        # Apply all values from components to the composed model: 
-        for path, component in self._components:
+        # Apply all values from components to the composed model.
+        # Parent paths must be created before child paths (e.g. ACL before ACL entries).
+        components = sorted(self._components, key=lambda item: item[0].count('.'))
+        for path, component in components:
 
             # Set metadata of the component
             if hasattr(component.model, "metadata"):

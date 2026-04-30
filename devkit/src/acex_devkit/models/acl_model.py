@@ -70,14 +70,14 @@ class Ipv4AclAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     type: AttributeValue[str] = "ipv4_acl"
-    acl_entries: Optional[Dict[str, Ipv4AclEntryAttributes]] = None
+    acl_entries: Optional[Dict[str, Ipv4AclEntryAttributes]] = {}
 
 class Ipv6AclAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     type: AttributeValue[str] = "ipv6_acl"
-    acl_entries: Optional[Dict[str, Ipv6AclEntryAttributes]] = None
+    acl_entries: Optional[Dict[str, Ipv6AclEntryAttributes]] = {}
     
 class Acl(BaseModel):
-    ipv4_acls: Optional[Dict[str, Ipv4AclAttributes]] = None
-    ipv6_acls: Optional[Dict[str, Ipv6AclAttributes]] = None
+    ipv4_acls: Optional[Dict[str, Ipv4AclAttributes]] = {}
+    ipv6_acls: Optional[Dict[str, Ipv6AclAttributes]] = {}

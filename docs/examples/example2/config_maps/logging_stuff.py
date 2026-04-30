@@ -7,6 +7,8 @@ from acex.configuration.components.system.logging import (
     VtyLine
 )
 
+from acex.configuration.components.acl import Ipv4Acl, Ipv4AclEntry
+
 class GlobalConfig(ConfigMap):
     def compile(self, context):
 
@@ -51,12 +53,29 @@ class ConsoleConfig(ConfigMap):
 class VtyConfig(ConfigMap):
 
     def compile(self, context):
+        # ACL FOR VTY
+        ipv4acl = Ipv4Acl(
+            name="vty_acl"
+        )
+        context.configuration.add(ipv4acl)
+
+        ipv4aclentry = Ipv4AclEntry(
+            name='entry1',
+            ipv4_acl=ipv4acl,
+            action='permit',
+            source_address='any',
+            sequence_id=10
+        )
+        context.configuration.add(ipv4aclentry)
 
         for line in range(0,4):
             vty_line = VtyLine(
                     name=f'line_vty{line}',
                     line_number=line,
-                    logging_synchronous=True
+                    logging_synchronous=True,
+                    ipv4acl=ipv4acl,
+                    acl_direction='in',
+                    #acl_network_instance='test'
                 )
             context.configuration.add(vty_line)
 
