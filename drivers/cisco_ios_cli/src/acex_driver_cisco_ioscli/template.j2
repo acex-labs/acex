@@ -95,6 +95,9 @@ vtp password {{ vtp.password.value }}
 {%-   elif vtp.password_hashed %}
 vtp password {{ vtp.password_hashed.value }} hidden
 {%-   endif %}
+{%-   for line in configuration.augment_lines.get("system.vtp.config", []) %}
+{{ line }}
+{%-   endfor %}
 {%- endif %}
 !
 !
@@ -111,7 +114,7 @@ vtp password {{ vtp.password_hashed.value }} hidden
 !
 !
 {%- if configuration.interface_templates %}
-{%-  for _, tmpl in configuration.interface_templates.items() %}
+{%-  for tmpl_name, tmpl in configuration.interface_templates.items() %}
 template {{ tmpl.name.value }}
 {%-    if tmpl.storm_control %}
 {%-      if tmpl.storm_control.broadcast_pps %}
@@ -199,6 +202,9 @@ template {{ tmpl.name.value }}
 {%-    if tmpl.snmp_link_status_trap and tmpl.snmp_link_status_trap.value == False %}
  no snmp trap link-status
 {%-    endif %}
+{%-    for line in configuration.augment_lines.get("interface_templates." ~ tmpl_name, []) %}
+ {{ line }}
+{%-    endfor %}
 {%-    if tmpl.description %}
  description {{ tmpl.description.value }}
 {%-    endif %}
@@ -269,7 +275,7 @@ interface {{ intf.name }}
 {%-  endif %}
 {%- endfor %}
 !
-{%- for _, intf in configuration.interfaces.items() %}
+{%- for intf_name, intf in configuration.interfaces.items() %}
 {%-  if intf.type == "ethernetCsmacd" %}
 interface {{ intf.name }}
 {%-    if intf.description %}
@@ -327,6 +333,9 @@ interface {{ intf.name }}
  storm-control action {{ intf.storm_control.action.value }}
 {%-    endif %}
 {%-  endif %}
+{%-  for line in configuration.augment_lines.get("interfaces." ~ intf_name, []) %}
+ {{ line }}
+{%-  endfor %}
 {%-  if intf.logging_link_status and intf.logging_link_status.value == False %}
  no logging event link-status
 {%-  endif %}

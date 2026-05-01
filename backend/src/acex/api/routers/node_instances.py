@@ -43,6 +43,7 @@ def create_router(automation_engine):
             func,
             methods=[method],
             response_model=response_model,
+            response_model_exclude_none=True,
             tags=tags
         )
 

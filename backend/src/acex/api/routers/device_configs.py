@@ -15,6 +15,12 @@ def create_router(automation_engine):
 
     dcm = automation_engine.device_config_manager
     router.add_api_route(
+        "/device_configs/",
+        dcm.list_changes,
+        methods=["GET"],
+        tags=tags
+    )
+    router.add_api_route(
         "/device_configs/{node_instance_id}",
         dcm.list_config_hashes,
         methods=["GET"],

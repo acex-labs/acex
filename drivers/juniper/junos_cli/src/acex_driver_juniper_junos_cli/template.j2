@@ -1,0 +1,176 @@
+{#- Junos CLI day-0 template — renders against the current ComposedConfiguration shape.
+    Scope: hostname, domain, DNS, SSH, NTP, interfaces (mgmt/loopback/ethernet),
+    SNMP communities (with per-community augments), VLANs, static routes.
+    Out of scope: AAA, logging beyond defaults, ACLs, complex routing, sFlow. -#}
+{%- if configuration._lag_count %}
+set chassis aggregated-devices ethernet device-count {{ configuration._lag_count }}
+{%- endif %}
+{%- if configuration.system.config.hostname %}
+set system host-name {{ configuration.system.config.hostname.value }}
+{%- endif %}
+{%- if configuration.system.config.domain_name %}
+set system domain-name {{ configuration.system.config.domain_name.value }}
+{%- endif %}
+{%- if configuration.system.config.location %}
+set system location "{{ configuration.system.config.location.value }}"
+{%- endif %}
+{%- if configuration.system.config.contact %}
+set system contact "{{ configuration.system.config.contact.value }}"
+{%- endif %}
+{#- DNS -#}
+{%- if configuration.system.dns and configuration.system.dns.dns_servers %}
+{%-   for _, dns in configuration.system.dns.dns_servers.items() %}
+{%-     if dns.address %}
+set system name-server {{ dns.address.value }}
+{%-     endif %}
+{%-   endfor %}
+{%- endif %}
+{#- NTP -#}
+{%- if configuration.system.ntp and configuration.system.ntp.servers %}
+{%-   for _, ntp in configuration.system.ntp.servers.items() %}
+set system ntp server {{ ntp.address.value }}{% if ntp.prefer and ntp.prefer.value %} prefer{% endif %}
+{%-   endfor %}
+{%- endif %}
+{#- SSH / NETCONF -#}
+{%- set ssh = configuration.system.ssh.config if configuration.system.ssh else None %}
+{%- if ssh and ssh.enable and ssh.enable.value %}
+set system services ssh
+{%-   if ssh.timeout %}
+set system services ssh idle-timeout {{ ssh.timeout.value }}
+{%-   endif %}
+{%- endif %}
+set system services netconf ssh
+{#- Management interface -#}
+{%- for _, intf in configuration.interfaces.items() %}
+{%-   if intf.type == "managementInterface" %}
+{%-     if intf.description %}
+set interfaces {{ intf.name }} description "{{ intf.description.value }}"
+{%-     endif %}
+{%-     if intf.ipv4 %}
+set interfaces {{ intf.name }} unit 0 family inet address {{ intf.ipv4.value }}
+{%-     endif %}
+{%-     if intf.enabled and not intf.enabled.value %}
+set interfaces {{ intf.name }} disable
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+{#- Loopback interfaces (lo0 with multiple units) -#}
+{%- for _, intf in configuration.interfaces.items() %}
+{%-   if intf.type == "softwareLoopback" %}
+{%-     if intf.ipv4 %}
+set interfaces {{ intf.name }} unit {{ intf.index.value }} family inet address {{ intf.ipv4.value }}
+{%-     endif %}
+{%-     if intf.description %}
+set interfaces {{ intf.name }} unit {{ intf.index.value }} description "{{ intf.description.value }}"
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+{#- Physical Ethernet interfaces -#}
+{%- for _, intf in configuration.interfaces.items() %}
+{%-   if intf.type == "ethernetCsmacd" %}
+{%-     if intf.description %}
+set interfaces {{ intf.name }} description "{{ intf.description.value }}"
+{%-     endif %}
+{%-     if intf.mtu %}
+set interfaces {{ intf.name }} mtu {{ intf.mtu.value }}
+{%-     endif %}
+{%-     if intf.ipv4 %}
+set interfaces {{ intf.name }} unit 0 family inet address {{ intf.ipv4.value }}
+{%-     endif %}
+{%-     if intf.switchport and intf.switchport.value %}
+{%-       if intf.switchport_mode and intf.switchport_mode.value == "access" %}
+set interfaces {{ intf.name }} unit 0 family ethernet-switching interface-mode access
+{%-         if intf.access_vlan %}
+set interfaces {{ intf.name }} unit 0 family ethernet-switching vlan members {{ intf.access_vlan.value }}
+{%-         endif %}
+{%-       endif %}
+{%-       if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
+set interfaces {{ intf.name }} unit 0 family ethernet-switching interface-mode trunk
+{%-         if intf.trunk_allowed_vlans %}
+{%-           for vlan in intf.trunk_allowed_vlans.value %}
+set interfaces {{ intf.name }} unit 0 family ethernet-switching vlan members {{ vlan }}
+{%-           endfor %}
+{%-         endif %}
+{%-         if intf.native_vlan %}
+set interfaces {{ intf.name }} native-vlan-id {{ intf.native_vlan.value }}
+{%-         endif %}
+{%-       endif %}
+{%-     endif %}
+{%-     if intf.aggregate_id %}
+set interfaces {{ intf.name }} ether-options 802.3ad ae{{ intf.aggregate_id.value }}
+{%-     endif %}
+{%-     if intf.enabled and not intf.enabled.value %}
+set interfaces {{ intf.name }} disable
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+{#- LAG interfaces (ae<N>) -#}
+{%- for _, intf in configuration.interfaces.items() %}
+{%-   if intf.type == "ieee8023adLag" %}
+{%-     if intf.description %}
+set interfaces {{ intf.name }} description "{{ intf.description.value }}"
+{%-     endif %}
+{%-     if intf.mtu %}
+set interfaces {{ intf.name }} mtu {{ intf.mtu.value }}
+{%-     endif %}
+{%-     if intf._lacp_enabled %}
+set interfaces {{ intf.name }} aggregated-ether-options lacp {{ intf._lacp_mode }}
+{%-       if intf._lacp_interval %}
+set interfaces {{ intf.name }} aggregated-ether-options lacp periodic {{ intf._lacp_interval }}
+{%-       endif %}
+{%-     endif %}
+{%-     if intf.switchport and intf.switchport.value %}
+{%-       if intf.switchport_mode and intf.switchport_mode.value == "access" %}
+set interfaces {{ intf.name }} unit 0 family ethernet-switching interface-mode access
+{%-       endif %}
+{%-       if intf.switchport_mode and intf.switchport_mode.value == "trunk" %}
+set interfaces {{ intf.name }} unit 0 family ethernet-switching interface-mode trunk
+{%-         if intf.trunk_allowed_vlans %}
+{%-           for vlan in intf.trunk_allowed_vlans.value %}
+set interfaces {{ intf.name }} unit 0 family ethernet-switching vlan members {{ vlan }}
+{%-           endfor %}
+{%-         endif %}
+{%-         if intf.native_vlan %}
+set interfaces {{ intf.name }} native-vlan-id {{ intf.native_vlan.value }}
+{%-         endif %}
+{%-       endif %}
+{%-     endif %}
+{%-     if intf.enabled and not intf.enabled.value %}
+set interfaces {{ intf.name }} disable
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+{#- VLANs (defined under network_instances.<ni>.vlans) -#}
+{%- for _, ni in configuration.network_instances.items() %}
+{%-   if ni.vlans %}
+{%-     for _, vlan in ni.vlans.items() %}
+{%-       set vname = vlan.vlan_name.value if vlan.vlan_name else vlan.name.value %}
+set vlans {{ vname }} vlan-id {{ vlan.vlan_id.value }}
+{%-     endfor %}
+{%-   endif %}
+{%- endfor %}
+{#- SNMP communities (with per-community augments such as juniper.snmp_community_clients) -#}
+{%- if configuration.system.snmp and configuration.system.snmp.communities %}
+{%-   for name, com in configuration.system.snmp.communities.items() %}
+set snmp community {{ name }} authorization {% if com.access and com.access.value == "READ_WRITE" %}read-write{% else %}read-only{% endif %}
+{%-     for line in configuration.augment_lines.get("system.snmp.communities." ~ name, []) %}
+{{ line }}
+{%-     endfor %}
+{%-   endfor %}
+{%- endif %}
+{#- Static routes (per network_instance) -#}
+{%- for ni_name, ni in configuration.network_instances.items() %}
+{%-   if ni.protocols and ni.protocols.static_routes %}
+{%-     for _, route in ni.protocols.static_routes.items() %}
+{%-       if route.next_hops %}
+{%-         for _, hop in route.next_hops.items() %}
+{%-           if ni_name == "global" %}
+set routing-options static route {{ route.prefix.value }} next-hop {{ hop.next_hop.value }}
+{%-           else %}
+set routing-instances {{ ni_name }} routing-options static route {{ route.prefix.value }} next-hop {{ hop.next_hop.value }}
+{%-           endif %}
+{%-         endfor %}
+{%-       endif %}
+{%-     endfor %}
+{%-   endif %}
+{%- endfor %}
