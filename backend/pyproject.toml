@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex"
-version = "5.16.0"
+version = "5.17.0"
 description = "ACE-X Backend - Core automation engine and API"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -34,6 +34,7 @@ pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
 acex-devkit = { path = "../devkit", develop = true }
 acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }
+acex-driver-juniper-junos-cli = { path = "../drivers/juniper/junos_cli", develop = true }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

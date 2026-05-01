@@ -11,6 +11,7 @@ from acex.configuration.components.interfaces import (
     Subinterface,
     Svi
 )
+from acex.configuration.components.augments import Augment
 from acex.configuration.components.system import (
     HostName,
     Contact,
@@ -193,6 +194,12 @@ class Configuration:
         # Lagra alla Reference object. Läggs till efter att komponenter lagts till
         self._references = []
 
+        # Augments are routed to a separate list and materialized on
+        # target.augments during as_model(). Tracked separately because they
+        # don't follow the normal COMPONENT_MAPPING path.
+        self._augments = []
+        self._augment_keys = set()  # (target_path, aug_type) for conflict detection
+
     
     def _get_nested_component(self, path: str):
         """Get a nested attribute using dot notation path."""
@@ -220,8 +227,12 @@ class Configuration:
                     attribute_value.metadata["attr_ptr"] = f"{base_path}.{k}"
 
 
+    def _lookup_mapping(self, component):
+        """Resolve a component's path via COMPONENT_MAPPING."""
+        return self.COMPONENT_MAPPING.get(type(component))
+
     def _get_component_path(self, component) -> str:
-        mapped_path = self.COMPONENT_MAPPING[type(component)]
+        mapped_path = self._lookup_mapping(component)
         return self._render_path(component, mapped_path)
 
     def _render_path(self, component, mapped_path: str):
@@ -256,7 +267,7 @@ class Configuration:
         for k,v in component.kwargs.items():
 
             if isinstance(v, (ReferenceFrom, ReferenceTo)):
-                self_component_path = self.COMPONENT_MAPPING[type(component)]
+                self_component_path = self._lookup_mapping(component)
                 rendered_self_component_path = self._render_path(component, self_component_path)
 
                 # use key if item in dict
@@ -287,9 +298,21 @@ class Configuration:
         Handles both dict-based and single-value components, sets external refs, and logs actions.
         Returns the added value or raises ValueError on error.
         """
-        component_type = type(component)
-        if component_type not in self.COMPONENT_MAPPING:
-            raise ValueError(f"Unknown component type: {component_type.__name__}")
+        # Augments are routed separately — they're materialized on their
+        # target's `augments` slot rather than placed at a tree path.
+        if isinstance(component, Augment):
+            key = (component._target_path, component.type)
+            if key in self._augment_keys:
+                raise ValueError(
+                    f"Duplicate augment {component.type} on {component._target_path} "
+                    f"(augment '{component.name}' conflicts with previously added one)"
+                )
+            self._augment_keys.add(key)
+            self._augments.append(component)
+            return
+
+        if self._lookup_mapping(component) is None:
+            raise ValueError(f"Unknown component type: {type(component).__name__}")
 
         # pop references
         self._pop_all_references(component)
@@ -298,7 +321,7 @@ class Configuration:
         self._set_attr_ptr_on_attributes(component)
 
         # modellen för composed talar om ifall vi behöver ett key för componenten:
-        # Fix composite path for mapped objects. 
+        # Fix composite path for mapped objects.
         composite_path = self._get_component_path(component)
 
         if composite_path is not None:
@@ -399,6 +422,24 @@ class Configuration:
             else:
             # Otherwise, just set the source key as insertion point:
                 setattr(ptr, insertion_attr, value)
+
+        # Materialize augments onto target nodes' `augments` slot.
+        # Targets are referenced by their tree path (e.g. "interfaces.Gi1/0/1");
+        # the augment payload is keyed by the augment's type discriminator.
+        for aug in self._augments:
+            path_parts = aug._target_path.split('.')
+            ptr = config
+            for part in path_parts:
+                if isinstance(ptr, dict):
+                    ptr = ptr.get(part)
+                else:
+                    ptr = getattr(ptr, part)
+                if ptr is None:
+                    raise ValueError(
+                        f"Augment '{aug.name}' targets '{aug._target_path}' "
+                        f"which does not exist in the composed configuration"
+                    )
+            ptr.augments[aug.type] = aug.model
 
         return config
 

@@ -34,8 +34,6 @@ class JunosCLI(NetworkElementDriver):
     renderer_class = JunosCLIRenderer
     transport_class = JunosCLITransport
 
-    def render(self, logical_node, asset):
+    def render(self, configuration, asset):
         """Render the configuration for a Junos CLI device."""
-        # Call the base class render method
-        config = self.renderer.render(logical_node, asset)
-        return config
+        return self.renderer.render(configuration, asset)

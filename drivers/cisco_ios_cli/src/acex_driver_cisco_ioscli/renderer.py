@@ -8,6 +8,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from .filters import cidr_to_addrmask
 from .hardware_models import match_hardware_model
+from .augment_renderers import resolve_augment_lines
 
 
 class GeneratorRegistry:
@@ -189,6 +190,11 @@ class CiscoIOSCLIRenderer(RendererBase):
         # self.add_vrf_to_intefaces(configuration)
         # self.ssh_interface(configuration)
         #self.lacp_load_balancing(configuration)
+
+        # Resolve augments: walk targetable nodes, dispatch each augment to
+        # its renderer, group by target path. Jinja just iterates lines for
+        # a given target.
+        configuration['augment_lines'] = resolve_augment_lines(configuration)
 
         if hasattr(asset, "assets"):
             os_version = asset.assets[0].os_version
