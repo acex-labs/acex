@@ -19,12 +19,12 @@ fi
 
 if [[ "$1" == "dev" ]]; then
     echo "Byter till path-beroenden (lokal utveckling)"
-    sed "${SED_INPLACE[@]}" 's|acex-devkit = .*|acex-devkit = { path = "../../../devkit", develop = true }|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-devkit = .*|acex-devkit = { path = "../../devkit", develop = true }|' "$PYPROJECT"
 elif [[ "$1" == "prod" ]]; then
     echo "Byter till versionsberoenden (för publicering)"
 
     # Läs version från varje beroendets egen pyproject.toml
-    DEVKIT_VERSION=$(grep 'version =' "$(dirname "$0")/../../../devkit/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+    DEVKIT_VERSION=$(grep 'version =' "$(dirname "$0")/../../devkit/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
 
     sed "${SED_INPLACE[@]}" 's|acex-devkit = .*|acex-devkit = "^'$DEVKIT_VERSION'"|' "$PYPROJECT"
 else

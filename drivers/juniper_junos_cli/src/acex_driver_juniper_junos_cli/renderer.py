@@ -1,13 +1,37 @@
 from collections import defaultdict
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from acex.plugins.neds.core import RendererBase
+from acex_devkit.configdiffer import Diff
+from acex_devkit.configdiffer.command import Command, Context
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 
 from .augment_renderers import resolve_augment_lines
+
+
+class GeneratorRegistry:
+    def __init__(self):
+        self._patterns: list[tuple[tuple, Callable]] = []
+
+    def register(self, pattern: tuple, generator: Callable):
+        self._patterns.append((pattern, generator))
+
+    def resolve(self, path: tuple):
+        for pattern, generator in self._patterns:
+            if self._match(path, pattern):
+                return generator
+        return None
+
+    def _match(self, path, pattern):
+        if len(path) < len(pattern):
+            return False
+        for p, pat in zip(path, pattern):
+            if pat != "*" and p != pat:
+                return False
+        return True
 
 
 # Junos uses different interface name prefixes per port speed.
@@ -40,6 +64,46 @@ class JunosCLIRenderer(RendererBase):
         processed_config = self.pre_process(configuration, asset)
         template = self._load_template_file()
         return template.render(configuration=processed_config)
+
+    # ── Patch rendering ─────────────────────────────────────────
+    # Junos `set` / `delete` lines are fully qualified per command, so
+    # there's no enter/exit context to track — generators emit complete
+    # lines and rendering is just a join.
+
+    def _register(self):
+        self.registry.register(('system', 'config'), self._generate_system_config_commands)
+        self.registry.register(('interfaces', '*'), self._generate_interface_config_commands)
+
+    def render_patch(self, diff: Diff, node_instance: "NodeInstance"):
+        """Render device commands for a Diff using registered generators."""
+        self.registry = GeneratorRegistry()
+        self._register()
+
+        commands: List[Command] = []
+        for change in diff.get_all_changes():
+            generator = self.registry.resolve(tuple(change.path))
+            if generator is None:
+                continue
+            commands.extend(generator(change, node_instance))
+
+        return "\n".join(c.command for c in commands)
+
+    def _generate_system_config_commands(self, component_change, node_instance) -> List[Command]:
+        ctx = Context(path=[])
+        commands: List[Command] = []
+        for attr in component_change.changed_attributes:
+            if attr.attribute_name == "hostname":
+                if component_change.op in ("add", "change"):
+                    commands.append(Command(context=ctx, command=f"set system host-name {attr.after.value}"))
+                elif component_change.op == "remove":
+                    commands.append(Command(context=ctx, command="delete system host-name"))
+        return commands
+
+    def _generate_interface_config_commands(self, component_change, node_instance) -> List[Command]:
+        # Stub mirroring the Cisco renderer's placeholder — real attribute
+        # mapping per change.op / attr.attribute_name lands here.
+        ctx = Context(path=component_change.path)
+        return [Command(context=ctx, command="set interfaces TODO description \"TODO\"")]
 
     def pre_process(self, configuration: dict, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""

@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "acex-driver-juniper-junos-cli"
+name = "acex-driver-juniper-junoscli"
 version = "1.0.0"
 description = "ACE-X Driver: Juniper Junos CLI"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
@@ -13,7 +13,8 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.13"
-acex-devkit = { path = "../../../devkit", develop = true }
+netmiko = "^4.6.0"
+acex-devkit = { path = "../../devkit", develop = true }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

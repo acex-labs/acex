@@ -34,7 +34,7 @@ pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
 acex-devkit = { path = "../devkit", develop = true }
 acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }
-acex-driver-juniper-junos-cli = { path = "../drivers/juniper/junos_cli", develop = true }
+acex-driver-juniper-junoscli = { path = "../drivers/juniper_junos_cli", develop = true }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

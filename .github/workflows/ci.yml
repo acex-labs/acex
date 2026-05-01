@@ -207,15 +207,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       cisco-ios-cli-should-publish: ${{ steps.check-cisco-ios-cli.outputs.should-publish }}
-      # juniper-junos-cli-should-publish: ${{ steps.check-juniper-junos-cli.outputs.should-publish }}
+      juniper-junos-cli-should-publish: ${{ steps.check-juniper-junos-cli.outputs.should-publish }}
     strategy:
       matrix:
-        driver: [cisco_ios_cli]
+        driver: [cisco_ios_cli, juniper_junos_cli]
         include:
           - driver: cisco_ios_cli
             pypi-name: acex-driver-cisco-ioscli
-          # - driver: juniper_junos_cli
-          #   pypi-name: acex-driver-juniper-junoscli
+          - driver: juniper_junos_cli
+            pypi-name: acex-driver-juniper-junoscli
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -256,10 +256,10 @@ jobs:
         id: check-cisco-ios-cli
         if: matrix.driver == 'cisco_ios_cli'
         run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
-      # - name: Set matrix output
-      #   id: check-juniper-junos-cli
-      #   if: matrix.driver == 'juniper_junos_cli'
-      #   run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
+      - name: Set matrix output
+        id: check-juniper-junos-cli
+        if: matrix.driver == 'juniper_junos_cli'
+        run: echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
 
   build-and-publish-drivers:
     name: Build & Publish Driver ${{ matrix.driver }}
@@ -272,14 +272,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        driver: [cisco_ios_cli]
+        driver: [cisco_ios_cli, juniper_junos_cli]
         include:
           - driver: cisco_ios_cli
             pypi-name: acex-driver-cisco-ioscli
             should-publish-output: cisco-ios-cli-should-publish
-          # - driver: juniper_junos_cli
-          #   pypi-name: acex-driver-juniper-junoscli
-          #   should-publish-output: juniper-junos-cli-should-publish
+          - driver: juniper_junos_cli
+            pypi-name: acex-driver-juniper-junoscli
+            should-publish-output: juniper-junos-cli-should-publish
     steps:
       - name: Check if should publish
         id: should-publish
@@ -321,8 +321,8 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Switch dependencies to version (prod)
-        if: steps.should-publish.outputs.should-publish == 'true' && matrix.driver == 'cisco_ios_cli'
-        working-directory: ./drivers/cisco_ios_cli
+        if: steps.should-publish.outputs.should-publish == 'true'
+        working-directory: ./drivers/${{ matrix.driver }}
         run: bash switch_deps.sh prod
 
       - name: Build driver package
