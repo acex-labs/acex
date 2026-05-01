@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-driver-juniper-junoscli"
-version = "1.0.0"
+version = "1.0.1"
 description = "ACE-X Driver: Juniper Junos CLI"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 license = "AGPL-3.0"

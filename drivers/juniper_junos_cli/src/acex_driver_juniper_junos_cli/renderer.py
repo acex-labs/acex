@@ -136,6 +136,8 @@ class JunosCLIRenderer(RendererBase):
         for intf in interfaces.values():
             if intf.get("type") != "ieee8023adLag":
                 continue
+            intf["_lacp_enabled"] = False
+            intf["_lacp_interval"] = None
             agg_id = (intf.get("aggregate_id") or {}).get("value")
             if agg_id is None:
                 continue
@@ -149,9 +151,7 @@ class JunosCLIRenderer(RendererBase):
                         intf["_lacp_interval"] = interval
                     break
 
-        lag_count = sum(1 for i in interfaces.values() if i.get("type") == "ieee8023adLag")
-        if lag_count > 0:
-            config["_lag_count"] = lag_count
+        config["_lag_count"] = sum(1 for i in interfaces.values() if i.get("type") == "ieee8023adLag")
 
     def _physical_interface_names(self, config: dict, asset) -> dict:
         """
