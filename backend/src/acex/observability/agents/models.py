@@ -14,6 +14,8 @@ class TelemetryAgent(TelemetryAgentBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     config_revision: int = Field(default=0)
     last_config_poll: Optional[str] = None
+    acked_revision: int = Field(default=0)
+    acked_at: Optional[str] = None
 
 
 class TelemetryAgentNodeLink(SQLModel, table=True):
@@ -102,10 +104,16 @@ class TelemetryAgentUpdate(SQLModel):
     capabilities: Optional[list[TelemetryCapability]] = None
 
 
+class TelemetryAgentAck(SQLModel):
+    config_revision: int
+
+
 class TelemetryAgentResponse(TelemetryAgentBase):
     id: int
     config_revision: int = 0
     last_config_poll: Optional[str] = None
+    acked_revision: int = 0
+    acked_at: Optional[str] = None
     capabilities: list[TelemetryCapability] = []
     nodes: list[int] = []
     rules: list[TelemetryAgentMatchRuleResponse] = []

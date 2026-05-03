@@ -403,3 +403,67 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-collection-agent:${{ steps.get-version.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/acex-collection-agent:latest
+
+  build-and-push-telemetry-agent:
+    name: Build & Push Telemetry Agent
+    needs: [build-and-publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get-version
+        working-directory: ./agents/telemetry-agent
+        run: |
+          pip install poetry
+          VERSION=$(poetry version -s)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if image exists
+        id: check-image
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          TOKEN=$(echo ${{ secrets.GITHUB_TOKEN }} | base64)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $TOKEN" \
+            "https://ghcr.io/v2/${{ github.repository_owner }}/acex-telemetry-agent/manifests/${VERSION}")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⏭️  Image version $VERSION already exists - skipping"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Image version $VERSION is new - will build and push"
+          fi
+
+      - name: Switch client dependencies to version (prod)
+        if: steps.check-image.outputs.exists == 'false'
+        working-directory: ./client
+        run: bash switch_deps.sh prod
+
+      - name: Set up Docker Buildx
+        if: steps.check-image.outputs.exists == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: steps.check-image.outputs.exists == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        if: steps.check-image.outputs.exists == 'false'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./agents/telemetry-agent/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/acex-telemetry-agent:${{ steps.get-version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/acex-telemetry-agent:latest

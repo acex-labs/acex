@@ -5,6 +5,7 @@ from fastapi import HTTPException
 
 from acex.observability.agents.models import (
     TelemetryAgent,
+    TelemetryAgentAck,
     TelemetryAgentCreate,
     TelemetryAgentUpdate,
     TelemetryAgentResponse,
@@ -105,6 +106,8 @@ class TelemetryAgentManager:
             id=agent.id,
             config_revision=agent.config_revision or 0,
             last_config_poll=agent.last_config_poll,
+            acked_revision=agent.acked_revision or 0,
+            acked_at=agent.acked_at,
             name=agent.name,
             description=agent.description,
             capabilities=[link.capability for link in cap_links],
@@ -410,6 +413,21 @@ class TelemetryAgentManager:
             session.delete(dest)
             self._bump_revision(session, id)
             session.commit()
+        finally:
+            session.close()
+
+    # --- Ack ---
+
+    def ack(self, id: int, payload: TelemetryAgentAck) -> dict:
+        session = next(self.db.get_session())
+        try:
+            agent = session.get(TelemetryAgent, id)
+            if not agent:
+                raise HTTPException(status_code=404, detail="TelemetryAgent not found")
+            agent.acked_revision = payload.config_revision
+            agent.acked_at = datetime.utcnow().isoformat()
+            session.commit()
+            return {"status": "ok", "acked_revision": agent.acked_revision}
         finally:
             session.close()
 
