@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "acex-telemetry-agent"
+version = "0.1.0"
+description = "ACE-X Telemetry Agent - Polls config manifest and writes telegraf.conf"
+authors = ["Johan Lahti <johan.lahti@acebit.se>"]
+readme = "README.md"
+license = "Apache-2.0"
+packages = [
+    { include = "acex_telemetry_agent", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+acex-client = { path = "../../client", develop = true }
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+
+[tool.poetry.scripts]
+acex-telemetry-agent = "acex_telemetry_agent.main:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

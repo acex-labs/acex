@@ -89,5 +89,11 @@ def create_router(automation_engine):
         response_class=PlainTextResponse,
         tags=tags,
     )
+    router.add_api_route(
+        "/agents/{id}/ack",
+        tam.ack,
+        methods=["POST"],
+        tags=tags,
+    )
 
     return router
