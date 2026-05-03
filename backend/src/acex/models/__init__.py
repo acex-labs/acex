@@ -9,7 +9,7 @@ from .device_config import StoredDeviceConfig, DeviceConfig, DeviceConfigRespons
 from .management_connections import ManagementConnection, ManagementConnectionResponse, ManagementConnectionBase
 from .sites import Site, SiteResponse
 from .contacts import Contact, ContactResponse, ContactAssignment
-from .telemetry_agent import TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination
+from acex.observability.agents.models import TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination
 from .collection_agent import CollectionAgent, CollectionAgentNodeLink, CollectionAgentMatchRule
 from .lldp_neighbor import LldpNeighbor
 from .credential import Credential, CredentialField, NodeCredential

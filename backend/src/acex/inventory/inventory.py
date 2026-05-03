@@ -8,8 +8,10 @@ from acex.inventory.site_service import SiteService
 from acex.inventory.contact_service import ContactService
 from acex.inventory.asset_cluster_manager import AssetClusterManager
 from acex.inventory.contact_assignment_manager import ContactAssignmentManager
-from acex.inventory.telemetry_agent_manager import TelemetryAgentManager
 from acex.inventory.collection_agent_manager import CollectionAgentManager
+from acex.observability import TelemetryRegistry
+from acex.observability.agents import TelemetryAgentManager
+from acex.observability.renderers import GrafanaRenderer
 
 class Inventory:
 
@@ -22,7 +24,9 @@ class Inventory:
             contacts_plugin = None,
             config_compiler = None,
             integrations = None,
+            influxdb_settings = None,
         ):
+        self.influxdb_settings = influxdb_settings
 
         # För presistent storage monteras en postgresql anslutning
         # Används inte specifika plugins för assets eller logical nodes
@@ -55,8 +59,17 @@ class Inventory:
         node_instances_adapter = NodeAdapter(node_instance_plugin)
         self.node_instances = NodeService(node_instances_adapter, self)
         self.asset_cluster_manager = AssetClusterManager(db_connection)
-        self.telemetry_agent_manager = TelemetryAgentManager(db_connection)
         self.collection_agent_manager = CollectionAgentManager(db_connection)
+
+        # Observability — intent-driven telemetry pipeline (telegraf + grafana)
+        # derived from registered TelemetryComponents. Built lazily per request,
+        # not persisted, so it always reflects current ACEX state. The
+        # TelemetryAgentManager uses it as input source for telegraf config.
+        self.telemetry_registry = TelemetryRegistry(db_connection)
+        self.telemetry_agent_manager = TelemetryAgentManager(
+            db_connection, self.telemetry_registry, influxdb_settings,
+        )
+        self.grafana_renderer = GrafanaRenderer(self.telemetry_registry, influxdb_settings)
 
         # Contacts
         if contacts_plugin:

@@ -2,10 +2,13 @@ from collections import defaultdict
 from ipaddress import IPv4Interface, IPv6Interface, IPv4Address
 from pydantic import BaseModel
 import json, hashlib
-from typing import Dict, Any, Type, Union, Optional, get_origin
+from typing import Dict, Any, Type, Union, Optional, get_origin, TYPE_CHECKING, List
 from types import NoneType
 from datetime import datetime
 from acex_devkit.models import ExternalValue, AttributeValue
+
+if TYPE_CHECKING:
+    from acex.observability.components.base import TelemetryComponent
 
 
 class ConfigComponent:
@@ -26,6 +29,16 @@ class ConfigComponent:
         # Set name for component, must always be unique.
         # For single attribute values, name is same as the single positional arg.
         self._set_name_attribute()
+
+    def telemetry(self) -> List["TelemetryComponent"]:
+        """
+        Default observability hook — return TelemetryComponents derived from
+        this config component (e.g. BgpNeighbor → BgpNeighborTelemetry).
+
+        Default is empty. Override in components that have operational state
+        worth collecting (mirrors YANG `config false` siblings).
+        """
+        return []
 
 
     def _validate_model(self, kwargs) -> BaseModel:

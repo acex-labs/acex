@@ -2,13 +2,7 @@ from typing import Optional
 from enum import Enum
 from sqlmodel import SQLModel, Field
 
-
-class TelemetryCapability(str, Enum):
-    icmp = "icmp"
-    mdt = "mdt"
-    snmp = "snmp"
-    snmp_trap = "snmp_trap"
-    syslog_rfc5424 = "syslog_rfc5424"
+from acex.observability.capability import TelemetryCapability
 
 
 class TelemetryAgentBase(SQLModel):
@@ -56,6 +50,7 @@ class TelemetryAgentMatchRuleResponse(TelemetryAgentMatchRuleBase):
 class InfluxDBVersion(str, Enum):
     v1 = "v1"
     v2 = "v2"
+    v3 = "v3"
 
 
 class OutputDestinationBase(SQLModel):
