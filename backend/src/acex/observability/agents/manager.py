@@ -586,7 +586,7 @@ class TelemetryAgentManager:
             # InfluxDB v3 (IOx / Cloud Dedicated / Enterprise) — native plugin.
             # v3 went back to "database" terminology; "organization" remains optional.
             lines.append("[[outputs.influxdb_v3]]")
-            lines.append(f'  host = "{url}"')
+            lines.append(f'  urls = ["{url}"]')
             if token:
                 lines.append(f'  token = "{token}"')
             if organization:
