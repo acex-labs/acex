@@ -2,9 +2,8 @@ from typing import Optional, List, Set
 from datetime import datetime
 
 from fastapi import HTTPException
-from sqlalchemy import or_
 
-from acex.models.telemetry_agent import (
+from acex.observability.agents.models import (
     TelemetryAgent,
     TelemetryAgentCreate,
     TelemetryAgentUpdate,
@@ -14,23 +13,25 @@ from acex.models.telemetry_agent import (
     TelemetryAgentMatchRule,
     TelemetryAgentMatchRuleCreate,
     TelemetryAgentMatchRuleResponse,
-    TelemetryCapability,
     OutputDestination,
     OutputDestinationCreate,
     OutputDestinationUpdate,
     OutputDestinationResponse,
     InfluxDBVersion,
 )
+from acex.observability.capability import TelemetryCapability
 from acex.models.node import Node
-from acex.models.asset import Asset, AssetCluster
+from acex.models.asset import Asset
 from acex.models.management_connections import ManagementConnection
 from acex.models.logical_node import LogicalNode
 
 
 class TelemetryAgentManager:
 
-    def __init__(self, db_manager):
+    def __init__(self, db_manager, telemetry_registry=None, influxdb_settings=None):
         self.db = db_manager
+        self.telemetry_registry = telemetry_registry
+        self.influxdb_settings = influxdb_settings
 
     def _bump_revision(self, session, agent_id: int):
         agent = session.get(TelemetryAgent, agent_id)
@@ -421,7 +422,6 @@ class TelemetryAgentManager:
             if not agent:
                 raise HTTPException(status_code=404, detail="TelemetryAgent not found")
 
-            # Hämta capabilities
             cap_links = (
                 session.query(TelemetryAgentCapabilityLink)
                 .filter(TelemetryAgentCapabilityLink.telemetry_agent_id == id)
@@ -429,7 +429,6 @@ class TelemetryAgentManager:
             )
             capabilities = [link.capability for link in cap_links]
 
-            # Hämta explicita noder
             node_links = (
                 session.query(TelemetryAgentNodeLink)
                 .filter(TelemetryAgentNodeLink.telemetry_agent_id == id)
@@ -437,7 +436,6 @@ class TelemetryAgentManager:
             )
             explicit_ids = {link.node_id for link in node_links}
 
-            # Hämta regelmatchade noder
             rules = (
                 session.query(TelemetryAgentMatchRule)
                 .filter(TelemetryAgentMatchRule.telemetry_agent_id == id)
@@ -445,40 +443,33 @@ class TelemetryAgentManager:
             )
             rule_ids = self._resolve_rule_nodes(session, rules)
 
-            # Union
             all_node_ids = sorted(explicit_ids | rule_ids)
 
-            # Hämta noder
             nodes = session.query(Node).filter(Node.id.in_(all_node_ids)).all() if all_node_ids else []
 
-            # Hämta management connections för nodernas IP-adresser
             mgmt_connections = (
                 session.query(ManagementConnection)
                 .filter(ManagementConnection.node_id.in_(all_node_ids))
                 .all()
             ) if all_node_ids else []
 
-            # Bygg lookup: node_id -> target_ip (primär connection)
             node_ip_map = {}
             for conn in mgmt_connections:
                 if conn.node_id not in node_ip_map or conn.primary:
                     node_ip_map[conn.node_id] = conn.target_ip
 
-            # Hämta hostnames via logical_node
             ln_ids = [n.logical_node_id for n in nodes]
             logical_nodes = (
                 session.query(LogicalNode).filter(LogicalNode.id.in_(ln_ids)).all()
             ) if ln_ids else []
             ln_map = {ln.id: ln.hostname for ln in logical_nodes}
 
-            # Hämta output destinations
             outputs = (
                 session.query(OutputDestination)
                 .filter(OutputDestination.telemetry_agent_id == id)
                 .all()
             )
 
-            # Update poll timestamp
             agent.last_config_poll = datetime.utcnow().isoformat()
             session.commit()
 
@@ -497,7 +488,6 @@ class TelemetryAgentManager:
     ) -> str:
         lines = []
 
-        # Agent section
         lines.append("# Telegraf configuration")
         lines.append(f"# Generated for telemetry agent: {agent.name}")
         lines.append("")
@@ -507,7 +497,7 @@ class TelemetryAgentManager:
         lines.append("  flush_interval = \"10s\"")
         lines.append("")
 
-        # SNMP inputs
+        # SNMP inputs (legacy hardcoded path — until SnmpTelemetry component exists)
         if TelemetryCapability.snmp in capabilities:
             for node in nodes:
                 ip = node_ip_map.get(node.id)
@@ -531,45 +521,80 @@ class TelemetryAgentManager:
                 lines.append("    is_tag = true")
                 lines.append("")
 
-        # Ping inputs
-        if TelemetryCapability.icmp in capabilities:
-            ping_urls = []
-            for node in nodes:
-                ip = node_ip_map.get(node.id)
-                if ip:
-                    ping_urls.append(f'    "{ip}"')
+        # Registry-driven inputs (currently: ICMP). Capabilities without a
+        # corresponding TelemetryComponent fall through to the legacy blocks
+        # above until they're migrated.
+        if self.telemetry_registry is not None:
+            from acex.observability.renderers import render_inputs
+            agent_node_ids = {n.id for n in nodes}
+            components = self.telemetry_registry.for_telegraf_agent(
+                node_ids=agent_node_ids,
+                capabilities=set(capabilities),
+            )
+            inputs_toml = render_inputs(components)
+            if inputs_toml.strip():
+                lines.append(inputs_toml)
 
-            if ping_urls:
-                lines.append("[[inputs.ping]]")
-                lines.append("  urls = [")
-                lines.append(",\n".join(ping_urls))
-                lines.append("  ]")
-                lines.append("  count = 3")
-                lines.append("  ping_interval = 1.0")
-                lines.append("  timeout = 5.0")
-                lines.append("")
+        # Backend-default outputs (set in app.py via set_influxdb / add_influxdb)
+        # apply to every agent, in addition to the agent's own OutputDestinations.
+        if self.influxdb_settings is not None:
+            for default in self.influxdb_settings.outputs:
+                lines.extend(self._render_output_block(default))
 
-        # Output destinations
+        # Agent-specific outputs
         for dest in outputs:
-            if dest.influxdb_version == InfluxDBVersion.v2:
-                lines.append("[[outputs.influxdb_v2]]")
-                lines.append(f'  urls = ["{dest.url}"]')
-                if dest.token:
-                    lines.append(f'  token = "{dest.token}"')
-                if dest.organization:
-                    lines.append(f'  organization = "{dest.organization}"')
-                if dest.bucket:
-                    lines.append(f'  bucket = "{dest.bucket}"')
-                lines.append("")
-            else:
-                lines.append("[[outputs.influxdb]]")
-                lines.append(f'  urls = ["{dest.url}"]')
-                if dest.database:
-                    lines.append(f'  database = "{dest.database}"')
-                if dest.username:
-                    lines.append(f'  username = "{dest.username}"')
-                if dest.password:
-                    lines.append(f'  password = "{dest.password}"')
-                lines.append("")
+            lines.extend(self._render_output_block(dest))
 
         return "\n".join(lines)
+
+    def _render_output_block(self, dest) -> List[str]:
+        """
+        Render one [[outputs.X]] block. Works for both OutputDestination
+        (DB row) and InfluxDBOutput (in-memory default) — both have the
+        same field names accessed via attribute lookup.
+        """
+        version = getattr(dest, "influxdb_version", None) or getattr(dest, "version")
+        url = dest.url
+        token = getattr(dest, "token", None)
+        organization = getattr(dest, "organization", None)
+        bucket = getattr(dest, "bucket", None)
+        database = getattr(dest, "database", None)
+        username = getattr(dest, "username", None)
+        password = getattr(dest, "password", None)
+        content_encoding = getattr(dest, "content_encoding", None)
+
+        lines: List[str] = []
+        if version == InfluxDBVersion.v3:
+            # InfluxDB v3 (IOx / Cloud Dedicated / Enterprise) — native plugin.
+            # v3 went back to "database" terminology; "organization" remains optional.
+            lines.append("[[outputs.influxdb_v3]]")
+            lines.append(f'  host = "{url}"')
+            if token:
+                lines.append(f'  token = "{token}"')
+            if organization:
+                lines.append(f'  organization = "{organization}"')
+            if database:
+                lines.append(f'  database = "{database}"')
+        elif version == InfluxDBVersion.v2:
+            lines.append("[[outputs.influxdb_v2]]")
+            lines.append(f'  urls = ["{url}"]')
+            if token:
+                lines.append(f'  token = "{token}"')
+            if organization:
+                lines.append(f'  organization = "{organization}"')
+            if bucket:
+                lines.append(f'  bucket = "{bucket}"')
+        else:
+            lines.append("[[outputs.influxdb]]")
+            lines.append(f'  urls = ["{url}"]')
+            if database:
+                lines.append(f'  database = "{database}"')
+            if username:
+                lines.append(f'  username = "{username}"')
+            if password:
+                lines.append(f'  password = "{password}"')
+
+        if content_encoding:
+            lines.append(f'  content_encoding = "{content_encoding}"')
+        lines.append("")
+        return lines

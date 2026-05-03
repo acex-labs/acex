@@ -26,7 +26,8 @@ class AutomationEngine:
         from acex.management_connections import ManagementConnectionManager
         from acex.automation_engine.integrations import Integrations
         from acex.inventory import Inventory
-        
+        from acex.observability.settings import InfluxDBSettings
+
         self.api = Api()
         self.plugin_manager = PluginManager()
         self.integrations = Integrations(self.plugin_manager)
@@ -35,6 +36,7 @@ class AutomationEngine:
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
         self.cors_settings_default = True
         self.cors_allowed_origins = []
+        self.influxdb_settings = InfluxDBSettings.from_env()
         
         # create plugin instances.
         if assets_plugin is not None:
@@ -58,6 +60,7 @@ class AutomationEngine:
             contacts_plugin=self.plugin_manager.get_plugin_for_object_type("contacts"),
             config_compiler=self.config_compiler,
             integrations=self.integrations,
+            influxdb_settings=self.influxdb_settings,
         )
         
         # Create DeviceConfigManager
@@ -135,6 +138,67 @@ class AutomationEngine:
     def add_cors_allowed_origin(self, origin: str):
         self.cors_settings_default = False
         self.cors_allowed_origins.append(origin)
+
+    def set_influxdb(
+        self,
+        url: str,
+        version: str = "v2",
+        token: str = None,
+        organization: str = None,
+        bucket: str = None,
+        database: str = None,
+        username: str = None,
+        password: str = None,
+        content_encoding: str = None,
+    ):
+        """
+        Replace backend-default InfluxDB outputs with a single one.
+
+        Backend defaults are applied to every TelemetryAgent in addition to
+        the agent's own OutputDestination rows. Use `add_influxdb(...)` to
+        append additional defaults (e.g. primary + replica).
+        """
+        self.influxdb_settings.outputs = [self._make_influxdb_output(
+            url=url, version=version, token=token, organization=organization,
+            bucket=bucket, database=database, username=username, password=password,
+            content_encoding=content_encoding,
+        )]
+
+    def add_influxdb(
+        self,
+        url: str,
+        version: str = "v2",
+        token: str = None,
+        organization: str = None,
+        bucket: str = None,
+        database: str = None,
+        username: str = None,
+        password: str = None,
+        content_encoding: str = None,
+    ):
+        """Append one more backend-default InfluxDB output."""
+        self.influxdb_settings.outputs.append(self._make_influxdb_output(
+            url=url, version=version, token=token, organization=organization,
+            bucket=bucket, database=database, username=username, password=password,
+            content_encoding=content_encoding,
+        ))
+
+    @staticmethod
+    def _make_influxdb_output(url, version, token, organization, bucket,
+                              database, username, password, content_encoding):
+        from acex.observability.settings import InfluxDBOutput
+        from acex.observability.agents.models import InfluxDBVersion
+        return InfluxDBOutput(
+            version=InfluxDBVersion(version),
+            url=url,
+            token=token,
+            organization=organization,
+            bucket=bucket,
+            database=database,
+            username=username,
+            password=password,
+            content_encoding=content_encoding,
+        )
 
     def register_datasource_plugin(self, name: str, plugin_factory: "IntegrationPluginFactoryBase"): 
         self.plugin_manager.register_generic_plugin(name, plugin_factory)
