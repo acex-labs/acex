@@ -50,6 +50,7 @@ class IcmpPingTelemetry(TelemetryComponent):
             "plugin": "ping",
             "config": {
                 "urls": [self.target_ip],
+                "method": "native",
                 "count": 3,
                 "ping_interval": 1.0,
                 "timeout": 5.0,
