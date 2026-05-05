@@ -44,13 +44,22 @@ def icmp_overview_dashboard(registry: TelemetryRegistry) -> Optional[dict]:
         return None
 
     measurement = IcmpPingTelemetry.measurement
-    node_filter = '"node" =~ /^($node)$/'
+    tag_filter = '"node" =~ /^($node)$/ AND "site" =~ /^($site)$/'
 
     templating = [
         query_variable(
+            name="site",
+            label="Site",
+            query=f'SHOW TAG VALUES FROM "{measurement}" WITH KEY = "site"',
+            refresh=2,
+        ),
+        query_variable(
             name="node",
             label="Node",
-            query=f'SHOW TAG VALUES FROM "{measurement}" WITH KEY = "node"',
+            query=(
+                f'SHOW TAG VALUES FROM "{measurement}" WITH KEY = "node" '
+                f'WHERE "site" =~ /^($site)$/'
+            ),
             refresh=2,
         ),
     ]
@@ -58,54 +67,54 @@ def icmp_overview_dashboard(registry: TelemetryRegistry) -> Optional[dict]:
     nodes_seen_query = (
         f'SELECT count("v") FROM ('
         f'SELECT mean("average_response_ms") AS v FROM "{measurement}" '
-        f'WHERE time > now() - 5m AND {node_filter} GROUP BY "node")'
+        f'WHERE time > now() - 5m AND {tag_filter} GROUP BY "node")'
     )
     nodes_up_query = (
         f'SELECT count("v") FROM ('
         f'SELECT mean("percent_packet_loss") AS v FROM "{measurement}" '
-        f'WHERE time > now() - 5m AND {node_filter} GROUP BY "node") '
+        f'WHERE time > now() - 5m AND {tag_filter} GROUP BY "node") '
         f'WHERE "v" < 100'
     )
     avg_latency_query = (
         f'SELECT mean("average_response_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {node_filter}'
+        f'WHERE $timeFilter AND {tag_filter}'
     )
     avg_loss_query = (
         f'SELECT mean("percent_packet_loss") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {node_filter}'
+        f'WHERE $timeFilter AND {tag_filter}'
     )
     latency_query = (
         f'SELECT mean("average_response_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {node_filter} '
+        f'WHERE $timeFilter AND {tag_filter} '
         f'GROUP BY time($__interval), "node" fill(null)'
     )
     jitter_query = (
         f'SELECT mean("standard_deviation_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {node_filter} '
+        f'WHERE $timeFilter AND {tag_filter} '
         f'GROUP BY time($__interval), "node" fill(null)'
     )
     loss_query = (
         f'SELECT mean("percent_packet_loss") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {node_filter} '
+        f'WHERE $timeFilter AND {tag_filter} '
         f'GROUP BY time($__interval), "node" fill(null)'
     )
     latency_by_site_query = (
         f'SELECT mean("average_response_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {node_filter} '
+        f'WHERE $timeFilter AND {tag_filter} '
         f'GROUP BY time($__interval), "site" fill(null)'
     )
     loss_by_site_query = (
         f'SELECT mean("percent_packet_loss") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {node_filter} '
+        f'WHERE $timeFilter AND {tag_filter} '
         f'GROUP BY time($__interval), "site" fill(null)'
     )
     top_latency_query = (
         f'SELECT mean("average_response_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {node_filter} GROUP BY "node"'
+        f'WHERE $timeFilter AND {tag_filter} GROUP BY "node"'
     )
     top_loss_query = (
         f'SELECT mean("percent_packet_loss") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {node_filter} GROUP BY "node"'
+        f'WHERE $timeFilter AND {tag_filter} GROUP BY "node"'
     )
 
     panels = [
