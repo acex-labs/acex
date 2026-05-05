@@ -28,7 +28,7 @@ def main():
     config_path = os.environ.get("TELEGRAF_CONFIG_PATH", "/etc/telegraf/telegraf.conf")
     poll_interval = int(os.environ.get("POLL_INTERVAL_SECONDS", "60"))
 
-    client = Acex(baseurl=api_url, verify=verify_ssl)
+    client = Acex(baseurl=f"{api_url.rstrip('/')}/", verify=verify_ssl)
 
     agent = TelemetryAgent(
         client=client,

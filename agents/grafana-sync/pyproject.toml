@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "acex-grafana-sync"
+version = "0.1.0"
+description = "ACE-X Grafana Sync - Reconciles Grafana datasources and dashboards from the ACE-X API"
+authors = ["Johan Lahti <johan.lahti@acebit.se>"]
+readme = "README.md"
+license = "Apache-2.0"
+packages = [
+    { include = "acex_grafana_sync", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+acex-client = { path = "../../client", develop = true }
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+
+[tool.poetry.scripts]
+acex-grafana-sync = "acex_grafana_sync.main:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
