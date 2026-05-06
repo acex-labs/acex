@@ -67,12 +67,12 @@ def icmp_overview_dashboard(registry: TelemetryRegistry) -> Optional[dict]:
     nodes_seen_query = (
         f'SELECT count("v") FROM ('
         f'SELECT mean("percent_packet_loss") AS v FROM "{measurement}" '
-        f'WHERE time > now() - 5m AND {tag_filter} GROUP BY "node_id")'
+        f'WHERE time > now() - 5m GROUP BY "node")'
     )
     nodes_up_query = (
         f'SELECT count("v") FROM ('
         f'SELECT mean("percent_packet_loss") AS v FROM "{measurement}" '
-        f'WHERE time > now() - 5m AND {tag_filter} GROUP BY "node_id") '
+        f'WHERE time > now() - 5m GROUP BY "node") '
         f'WHERE "v" < 100'
     )
     avg_latency_query = (

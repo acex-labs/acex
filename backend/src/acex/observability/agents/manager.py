@@ -39,6 +39,39 @@ class TelemetryAgentManager:
         if agent:
             agent.config_revision = (agent.config_revision or 0) + 1
 
+    def bump_revisions_for_node(self, node_id: int) -> None:
+        """Bump config_revision on every agent that covers `node_id`, via
+        explicit link or matching rule. Call AFTER node create and BEFORE
+        node delete — rule resolution joins on Node/LogicalNode/Asset.
+        """
+        session = next(self.db.get_session())
+        try:
+            affected: Set[int] = {
+                row[0] for row in (
+                    session.query(TelemetryAgentNodeLink.telemetry_agent_id)
+                    .filter(TelemetryAgentNodeLink.node_id == node_id)
+                    .all()
+                )
+            }
+
+            rules_by_agent: dict[int, List[TelemetryAgentMatchRule]] = {}
+            for r in session.query(TelemetryAgentMatchRule).all():
+                rules_by_agent.setdefault(r.telemetry_agent_id, []).append(r)
+            for agent_id, agent_rules in rules_by_agent.items():
+                if agent_id in affected:
+                    continue
+                if node_id in self._resolve_rule_nodes(session, agent_rules):
+                    affected.add(agent_id)
+
+            if not affected:
+                return
+
+            for agent_id in affected:
+                self._bump_revision(session, agent_id)
+            session.commit()
+        finally:
+            session.close()
+
     def _resolve_rule_nodes(self, session, rules: List[TelemetryAgentMatchRule]) -> Set[int]:
         """Resolve node IDs matching any of the given rules."""
         if not rules:
