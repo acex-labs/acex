@@ -1,3 +1,4 @@
+from sqlalchemy import Column, ForeignKey, Integer
 from sqlmodel import SQLModel, Field
 from typing import Optional, Dict
 from enum import Enum
@@ -15,6 +16,14 @@ class ManagementConnectionBase(SQLModel):
 class ManagementConnection(ManagementConnectionBase, table=True):
     __tablename__ = "mgmt_connection"
     id: int = Field(primary_key=True)
+    node_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("node.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
 
 class ManagementConnectionResponse(ManagementConnection):
     pass

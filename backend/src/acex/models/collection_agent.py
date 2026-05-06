@@ -1,4 +1,5 @@
 from typing import Optional
+from sqlalchemy import Column, ForeignKey, Integer
 from sqlmodel import SQLModel, Field
 
 
@@ -19,7 +20,13 @@ class CollectionAgent(CollectionAgentBase, table=True):
 
 class CollectionAgentNodeLink(SQLModel, table=True):
     collection_agent_id: int = Field(foreign_key="collectionagent.id", primary_key=True)
-    node_id: int = Field(foreign_key="node.id", primary_key=True)
+    node_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("node.id", ondelete="CASCADE"),
+            primary_key=True,
+        )
+    )
 
 
 class CollectionAgentMatchRuleBase(SQLModel):

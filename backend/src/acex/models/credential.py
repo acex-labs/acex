@@ -1,4 +1,5 @@
 from typing import Optional, List, Dict
+from sqlalchemy import Column, ForeignKey, Integer
 from sqlmodel import SQLModel, Field
 
 
@@ -23,7 +24,14 @@ class CredentialField(SQLModel, table=True):
 class NodeCredential(SQLModel, table=True):
     """Maps credentials to nodes. One credential per type per node."""
     id: Optional[int] = Field(default=None, primary_key=True)
-    node_id: int = Field(foreign_key="node.id", index=True)
+    node_id: int = Field(
+        sa_column=Column(
+            Integer,
+            ForeignKey("node.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
     credential_id: int = Field(foreign_key="credential.id", index=True)
 
 
