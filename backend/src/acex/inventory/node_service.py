@@ -84,6 +84,9 @@ class NodeService:
     
     async def create(self, logical_node: Node):
         result = await self._call_method(self.adapter.create, logical_node)
+        node_id = getattr(result, "id", None)
+        if node_id is not None:
+            self.inventory.telemetry_agent_manager.bump_revisions_for_node(node_id)
         return result
     
     async def get(self, id: str) -> NodeResponse:
@@ -160,6 +163,7 @@ class NodeService:
         return result
     
     async def delete(self, id: str):
+        self.inventory.telemetry_agent_manager.bump_revisions_for_node(int(id))
         result = await self._call_method(self.adapter.delete, id)
         return result
     
