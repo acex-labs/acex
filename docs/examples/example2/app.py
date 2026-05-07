@@ -28,6 +28,15 @@ ae = AutomationEngine(
     # logical_nodes_plugin=netbox,
 )
 
+ae.set_influxdb(
+    url="http://eru614:8181",
+    token="apiv3_lVnJoRcEfuAERSh_bmP1vj5uTY5V6_wq7mNuoZkKDFpDY-abn2Zvc5L-BDTHpjSL6yx0vW_1lg-xamJ5jixYoA",
+    database="acex",
+    content_encoding="gzip",
+    version="v3"
+)
+
+
 ae.add_integration("ipam", netbox)
 ae.add_configmap_dir("config_maps")
 
