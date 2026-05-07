@@ -33,7 +33,6 @@ def create_router(automation_engine):
     plug = getattr(automation_engine.inventory, "node_instances")
     for cap in plug.capabilities:
         func = getattr(plug, cap)
-        print(func)
         path = plug.path(cap)
         method = plug.http_verb(cap)
         response_model = get_response_model(func)
