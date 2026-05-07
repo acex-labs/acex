@@ -1,11 +1,17 @@
 
 from acex.configuration.components.base_component import ConfigComponent
 from acex_devkit.models import AttributeValue
+from acex_devkit.models.composed_configuration import SystemConfig as SystemConfigAttributes
 from pydantic import BaseModel
 
 
 class SingleAttributeString(BaseModel):
     value: AttributeValue[str]
+
+
+class SystemConfig(ConfigComponent):
+    type = "system_config"
+    model_cls = SystemConfigAttributes
 
 
 class HostName(ConfigComponent):

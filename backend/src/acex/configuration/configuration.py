@@ -18,7 +18,8 @@ from acex.configuration.components.system import (
     Location,
     DomainName,
     LoginBanner,
-    MotdBanner
+    MotdBanner,
+    SystemConfig,
 )
 
 from acex.configuration.components.system.logging import RemoteServer, Console, VtyLine, LoggingConfig, FileLogging
@@ -108,6 +109,7 @@ class Configuration:
     # must be referenced using its name attribute
     COMPONENT_MAPPING = {
         AuthorizedKey: "system.ssh.host_keys",
+        SystemConfig: "system.config",
         HostName: "system.config.hostname",
         Contact: "system.config.contact",
         Location: "system.config.location",

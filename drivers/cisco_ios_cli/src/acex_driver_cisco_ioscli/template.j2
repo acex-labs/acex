@@ -1,6 +1,12 @@
 service timestamps debug datetime msec
 service timestamps log datetime msec
+{%- set pwe = (configuration.system.config.augments or {}).get('cisco.service_password_encryption') %}
+{%- if pwe and pwe.enabled.value %}
+service password-encryption
+{%- else %}
 no service password-encryption
+{%- endif %}
+
 service compress-config
 !
 {%- if configuration.system.config.hostname %}
