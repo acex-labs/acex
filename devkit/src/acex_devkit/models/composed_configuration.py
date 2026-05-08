@@ -956,8 +956,18 @@ class Dns(BaseModel):
     #enabled: Optional[AttributeValue[bool]] = None
     dns_servers: Optional[Dict[str, DnsServerAttributes]] = {} # key is server name, value is IP address
 
+
+class ClockConfig(BaseModel):
+    timezone: Optional[AttributeValue[str]] = None
+
+
+class Clock(BaseModel):
+    config: Optional[ClockConfig] = None
+
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
+    clock: Optional[Clock] = Clock()
     aaa: Optional[TripleA] = TripleA()
     logging: Optional[LoggingComponents] = LoggingComponents() # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
     ntp: Optional[Ntp] = Ntp()

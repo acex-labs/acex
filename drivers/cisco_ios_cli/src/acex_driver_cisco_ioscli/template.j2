@@ -62,6 +62,9 @@ aaa group server radius {{ group_name }}
 no aaa new-model
 {%- endif %}
 !
+{%- if configuration.system.clock.config %}
+clock timezone {{ configuration.system.clock.config.timezone.value | upper }}
+{%- endif %}
 !
 !
 !
