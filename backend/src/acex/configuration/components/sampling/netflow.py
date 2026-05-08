@@ -19,16 +19,6 @@ class NetflowCollector(ConfigComponent):
     type = "NetflowCollector"
     model_cls = NetflowCollectorAttributes
 
-    def pre_init(self):
-        # Ensure that referenced components are added to the configuration before this component is added
-        if self.kwargs.get("netflow_record") is not None:
-            netflow_record = self.kwargs.pop("netflow_record")
-            self.kwargs["netflow_record"] = netflow_record.name
-
-        if self.kwargs.get("netflow_exporter") is not None:
-            netflow_exporter = self.kwargs.pop("netflow_exporter")
-            self.kwargs["netflow_exporter"] = netflow_exporter.name
-
 class NetflowExporter(ConfigComponent): 
     type = "NetflowExporter"
     model_cls = NetflowExporterAttributes
@@ -42,10 +32,7 @@ class NetflowExporter(ConfigComponent):
 
         # Resolve source_interface
         if "source_interface" in self.kwargs:
-            print(f"Resolving source_interface for NetflowExporter {self.kwargs}")
-            #print(self.kwargs.pop("source_interface"))
             si = self.kwargs.pop("source_interface")
-            print(type(si))
             if isinstance(si, type(None)):
                 pass
             elif isinstance(si, str):
@@ -55,6 +42,11 @@ class NetflowExporter(ConfigComponent):
             elif isinstance(si, Interface):
                 ref = ReferenceTo(pointer=f"interfaces.{si.name}")
                 self.kwargs["source_interface"] = ref
+                
+        if self.kwargs.get("netflow_collector") is not None:
+            netflow_collector = self.kwargs.pop("netflow_collector")
+            self.kwargs["netflow_collector"] = ReferenceFrom(pointer=f"sampling.netflow.collectors.{netflow_collector.name}.exporters")
+            
 
 class NetflowExporterOptions(ConfigComponent):
     type = "NetflowExporterOptions"
@@ -69,6 +61,11 @@ class NetflowExporterOptions(ConfigComponent):
 class NetflowRecord(ConfigComponent): 
     type = "NetflowRecord"
     model_cls = NetflowRecordAttributes
+
+    def pre_init(self):
+        if self.kwargs.get("netflow_collector") is not None:
+            netflow_collector = self.kwargs.pop("netflow_collector")
+            self.kwargs["netflow_collector"] = ReferenceFrom(pointer=f"sampling.netflow.collectors.{netflow_collector.name}.records")
 
 class NetflowRecordIpv4Match(ConfigComponent):
     type = "NetflowRecordIpv4Match"
