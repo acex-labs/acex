@@ -93,6 +93,7 @@ from acex.configuration.components.sampling.sflow import (
     SflowCollector
 )
 
+from acex.configuration.components.system.clock import Clock
 from acex.configuration.components.system.dns import DnsServer
 
 from acex_devkit.models import ExternalValue
@@ -119,6 +120,7 @@ class Configuration:
         DnsServer: "system.dns.dns_servers",
         RemoteServer: "system.logging.remote_servers.servers",
         Console: "system.logging.console",
+        Clock: "system.clock.config",
         VtyLine: "system.logging.vty.lines",
         LoggingConfig: "system.logging.config",
         FileLogging: "system.logging.files.files",
