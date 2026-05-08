@@ -389,7 +389,24 @@ class NetworkInstance(ContainerEntry, BaseModel):
 class LacpConfig(BaseModel):
     system_priority: Optional[AttributeValue[int]] = None
     system_id_mac: Optional[AttributeValue[str]] = None
-    load_balance_algorithm: Optional[AttributeValue[list[Literal["src-mac", "dst-mac", "src-dst-mac", "src-ip", "dst-ip", "src-dst-ip", "src-port", "dst-port", "src-dst-port"]]]] = None
+    load_balance_algorithm: Optional[
+        AttributeValue[
+            list[
+                Literal[
+                    "src-mac",
+                    "dst-mac",
+                    "src-dst-mac",
+                    "src-ip",
+                    "dst-ip",
+                    "src-dst-ip",
+                    "src-port",
+                    "dst-port",
+                    "src-dst-port",
+                ]
+            ]
+        ]
+    ] = None
+
 
 class Lacp(BaseModel):
     config: Optional[LacpConfig] = LacpConfig()
@@ -812,9 +829,12 @@ class NetflowFormat(str, Enum):
     NETFLOW_V9 = "NetFlow v9"
     NETFLOW_V5 = "NetFlow v5"
 
-class NetflowRecordIpv4Match(BaseModel):
+
+class NetflowRecordIpv4Match(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
     # Leaf-level ipv4 matches (Cisco style "match ipv4 <field>"). True = match this field, False = No. None = Ignore the field
-    netflow_record: Optional[AttributeValue[str]] = None # Reference to parent record, used for easier access in config component
+    netflow_record: Optional[AttributeValue[str]] = None  # Reference to parent record, used for easier access in config component
     dscp: Optional[AttributeValue[bool]] = None
     fragmentation: Optional[AttributeValue[bool]] = None
     header_length: Optional[AttributeValue[bool]] = None
@@ -829,35 +849,46 @@ class NetflowRecordIpv4Match(BaseModel):
     ttl: Optional[AttributeValue[bool]] = None
     version: Optional[AttributeValue[bool]] = None
 
-class NetflowRecordAttributes(BaseModel): # Cisco flow record
+
+class NetflowRecordAttributes(ContainerEntry, BaseModel):  # Cisco flow record
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
     match_ipv4: Optional[NetflowRecordIpv4Match] = None
-    #match_ipv4: Optional[Dict[str, NetflowRecordIpv4Match]] = {}
+    # match_ipv4: Optional[Dict[str, NetflowRecordIpv4Match]] = {}
     application_name: Optional[AttributeValue[bool]] = None
 
     # Escape hatch for vendor-specific match knobs not yet modeled
-    match_vendor_specific: Optional[AttributeValue[Dict[str, Any]]] = None # keeping a flexible option if needed. Not advertised to users.
+    match_vendor_specific: Optional[AttributeValue[Dict[str, Any]]] = None  # keeping a flexible option if needed. Not advertised to users.
 
     collect_timestamp_absolute_first: Optional[AttributeValue[bool]] = None
     collect_timestamp_absolute_last: Optional[AttributeValue[bool]] = None
 
-class NetflowCollectorAttributes(BaseModel): # Cisco flow monitor
-    netflow_record: Optional[AttributeValue[str]] = None # Reference to record, used for easier access in config component
-    netflow_exporter: Optional[AttributeValue[str]] = None # Reference to exporter, used for easier access in config component
+
+class NetflowCollectorAttributes(ContainerEntry, BaseModel):  # Cisco flow monitor
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
+    records: Optional[Dict[str, Reference]] = {} # References to records, used for easier access in config component
+    exporters: Optional[Dict[str, Reference]] = {} # References to exporters, used for easier access in config component
     cache_inactive: Optional[AttributeValue[int]] = None
     cache_active: Optional[AttributeValue[int]] = None
     interfaces: Optional[Dict[str, Reference]] = {} # allow for disabling netflow on specific interfaces
 
-class NetflowExporterOptions(BaseModel):
+
+class NetflowExporterOptions(ContainerEntry, BaseModel):
     # Mostly timeouts atm
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
     interface_table_timeout: Optional[AttributeValue[int]] = None
     vrf_table_timeout: Optional[AttributeValue[int]] = None
     sampler_table: Optional[AttributeValue[bool]] = None
     application_table_timeout: Optional[AttributeValue[int]] = None
     application_attributes_timeout: Optional[AttributeValue[int]] = None
-    netflow_exporter: Optional[AttributeValue[str]] = None # Reference to parent exporter, used for easier access in config component
+    netflow_exporter: Optional[AttributeValue[str]] = None  # Reference to parent exporter, used for easier access in config component
 
-class NetflowExporterAttributes(ContainerEntry, BaseModel): # Cisco flow exporter
-    identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+
+class NetflowExporterAttributes(ContainerEntry, BaseModel):  # Cisco flow exporter
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
     address: Optional[AttributeValue[str]] = None
     port: Optional[AttributeValue[int]] = None
     netflow_format: Optional[AttributeValue[str]] = None
@@ -865,9 +896,13 @@ class NetflowExporterAttributes(ContainerEntry, BaseModel): # Cisco flow exporte
     network_instance: Optional[AttributeValue[str]] = None
     options: Optional[NetflowExporterOptions] = None
 
-class NetflowGlobalConfigAttributes(BaseModel):
+
+class NetflowGlobalConfigAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
     enabled: Optional[AttributeValue[bool]] = None
     version: Optional[AttributeValue[int]] = None
+
 
 class Netflow(BaseModel):
     config: Optional[NetflowGlobalConfigAttributes] = None
