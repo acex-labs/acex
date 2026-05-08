@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.container_entry import ContainerEntry
+from acex_devkit.models.reference import Reference
 from enum import Enum
 from typing import ClassVar, Optional, Dict
 
@@ -34,8 +35,6 @@ class LoggingFacility(str, Enum):
     CONFLICTLOG = "CONFLICTLOG"
     CHANGELOG = "CHANGELOG"
     INTERACTIVE_COMMANDS = "INTERACTIVE_COMMANDS"
-
-class Reference(BaseModel): ...
 
 class LoggingConfig(BaseModel):
     rate_limit: Optional[AttributeValue[int]] = None
@@ -86,3 +85,4 @@ class LoggingEvent(BaseModel):
 
 class LoggingEvents(BaseModel):
     events: Optional[Dict[str, LoggingEvent]] = None
+
