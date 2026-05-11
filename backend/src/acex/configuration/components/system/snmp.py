@@ -7,9 +7,11 @@ from acex_devkit.models.composed_configuration import (
     SnmpServer as SnmpServerAttributes,
     TrapEvent,
     SnmpCommunity as SnmpCommunityAttributes,
+    SnmpView as SnmpViewAttributes,
     ReferenceTo, 
     ReferenceFrom
 )
+from acex.configuration.components.acl.acl import Ipv4Acl, Ipv6Acl
 
 class SnmpGlobal(ConfigComponent):
     type = "snmp"
@@ -37,7 +39,6 @@ class SnmpServer(ConfigComponent):
     #            self.kwargs["network_instance"] = ref
 
     def pre_init(self):
-        #self._add_vrf()
         # Resolve source_interface
         if "source_interface" in self.kwargs:
             si = self.kwargs.pop("source_interface")
@@ -50,6 +51,17 @@ class SnmpServer(ConfigComponent):
             elif isinstance(si, Interface):
                 ref = ReferenceTo(pointer=f"interfaces.{si.name}")
                 self.kwargs["source_interface"] = ref
+
+        if self.kwargs.get("ipv6acl") is not None:
+            acl = self.kwargs.pop("ipv6acl")
+            if isinstance(acl, type(None)):
+                pass
+            elif isinstance(acl, str):
+                self.kwargs["ipv6acl"] = ReferenceTo(pointer=f"acl.ipv6_acls.{acl}")
+            elif isinstance(acl, Ipv6Acl):
+                self.kwargs["ipv6acl"] = ReferenceTo(
+                    pointer=f"acl.ipv6_acls.{acl.name}"
+                )
 
 class SnmpTrap(ConfigComponent):
     type = "snmp_trap"
@@ -72,3 +84,31 @@ class SnmpCommunity(ConfigComponent):
             elif isinstance(si, Interface):
                 ref = ReferenceTo(pointer=f"interfaces.{si.name}")
                 self.kwargs["source_interface"] = ref
+        
+        # Resolve view
+        if "view" in self.kwargs:
+            v = self.kwargs.pop("view")
+            if isinstance(v, type(None)):
+                pass
+            elif isinstance(v, str):
+                ref = ReferenceTo(pointer=f"system.snmp.views.{v}")
+                self.kwargs["view"] = ref
+
+            elif isinstance(v, SnmpView):
+                ref = ReferenceTo(pointer=f"system.snmp.views.{v.name}")
+                self.kwargs["view"] = ref
+
+        if self.kwargs.get("ipv4acl") is not None:
+            acl = self.kwargs.pop("ipv4acl")
+            if isinstance(acl, type(None)):
+                pass
+            elif isinstance(acl, str):
+                self.kwargs["ipv4acl"] = ReferenceTo(pointer=f"acl.ipv4_acls.{acl}")
+            elif isinstance(acl, Ipv4Acl):
+                self.kwargs["ipv4acl"] = ReferenceTo(
+                    pointer=f"acl.ipv4_acls.{acl.name}"
+                )
+                
+class SnmpView(ConfigComponent):
+    type = "snmp_view"
+    model_cls = SnmpViewAttributes

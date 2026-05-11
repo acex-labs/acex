@@ -429,9 +429,9 @@ class SnmpCommunity(ContainerEntry, Augmentable):
     name: AttributeValue[str]
     community: Optional[AttributeValue[str]] = None # Community string
     access: Optional[AttributeValue[SnmpAccess]] = AttributeValue(value=SnmpAccess.READ_ONLY)
-    view: Optional[AttributeValue[str]] = None
-    ipv4_acl: Optional[AttributeValue[str]] = None # Cisco and "liknande" vendors
-    ipv6_acl: Optional[AttributeValue[str]] = None
+    view: Optional[AttributeValue[Reference]] = None
+    ipv4_acl: Optional[AttributeValue[Reference]] = None # Cisco and "liknande" vendors
+    ipv6_acl: Optional[AttributeValue[Reference]] = None
     source_interface: Optional[Reference] = None
 
 
