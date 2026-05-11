@@ -16,32 +16,7 @@ from acex_devkit.models.logging import (
 )
 from acex_devkit.models.spanning_tree import SpanningTree
 from acex_devkit.models.acl_model import Acl
-
-class MetadataValueType(str, Enum):
-    CONCRETE = "concrete"
-    EXTERNALVALUE = "externalValue"
-    REFERENCE = "reference"
-
-class Metadata(BaseModel):
-    type: Optional[str] = "str"
-    value_source: MetadataValueType = MetadataValueType.CONCRETE 
-
-class Reference(ContainerEntry, BaseModel):
-    identity_fields: ClassVar[tuple[str, ...]] = ("pointer",)
-    pointer: str
-    metadata: Metadata = Metadata(type="str", value_source="reference")
-
-class ReferenceTo(Reference):
-    pointer: str
-    metadata: Optional[Dict] = {}
-
-class ReferenceFrom(Reference):
-    pointer: str
-    metadata: Optional[Dict] = {}
-
-class RenderedReference(BaseModel):
-    from_ptr: str
-    to_ptr: str
+from acex_devkit.models.reference import MetadataValueType, Metadata, Reference, ReferenceTo, ReferenceFrom, RenderedReference
 
 class SystemConfig(BaseModel):
     contact: Optional[AttributeValue[str]] = None

@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.container_entry import ContainerEntry
+from acex_devkit.models.reference import Reference
 from enum import Enum
 from typing import ClassVar, Optional, Dict
 
@@ -35,8 +36,6 @@ class LoggingFacility(str, Enum):
     CHANGELOG = "CHANGELOG"
     INTERACTIVE_COMMANDS = "INTERACTIVE_COMMANDS"
 
-class Reference(BaseModel): ...
-
 class LoggingConfig(BaseModel):
     rate_limit: Optional[AttributeValue[int]] = None
     severity: Optional[AttributeValue[LoggingSeverity]] = None
@@ -64,6 +63,10 @@ class VtyLine(ContainerEntry, BaseModel):
     line_number: Optional[AttributeValue[int]] = None
     logging_synchronous: Optional[AttributeValue[bool]] = None
     transport_input: Optional[AttributeValue[str]] = None # default is SSH. Mostly used by Cisco.
+    ipv4acl: Optional[Reference] = None # reference to an ACL object. Only used by Cisco.
+    ipv6acl: Optional[Reference] = None # reference to an ACL object. Only used by Cisco.
+    acl_direction: Optional[AttributeValue[str]] = None # direction of ACL, either 'in' or 'out'
+    acl_network_instance: Optional[AttributeValue[str]] = None # network instance where ACL is
 
 class FileLogging(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("filename",)
@@ -82,3 +85,4 @@ class LoggingEvent(BaseModel):
 
 class LoggingEvents(BaseModel):
     events: Optional[Dict[str, LoggingEvent]] = None
+
