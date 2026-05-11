@@ -1,11 +1,59 @@
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.acl import Ipv4Acl, Ipv4AclEntry
-from acex.configuration.components.system.snmp import SnmpGlobal, SnmpServer, SnmpCommunity, SnmpUser, SnmpTrap, SnmpView
+from acex.configuration.components.system.snmp import SnmpGlobal, SnmpServer, SnmpCommunity, SnmpUser, SnmpTrap, SnmpView, SnmpGroup, SnmpViewOid
 from acex.configuration.components.network_instances import L3Vrf
 
 class ConfigSNMP(ConfigMap):
     def compile(self, context):
 
+        test_vrf = L3Vrf(
+            name="test_vrf",
+        )
+        context.configuration.add(test_vrf)
+
+        global_snmp = SnmpGlobal(
+            name="global_snmp",
+            contact="NOC@example.com",
+            location="Example city",
+        )
+        context.configuration.add(global_snmp)
+
+        snmp_server1 = SnmpServer(
+            name="snmp_server1",
+            address="192.168.123.10",
+            enabled=True,
+            version="v3",
+            #community="asdasdasd",
+            network_instance=test_vrf
+        )
+        context.configuration.add(snmp_server1)
+
+        snmp_server2 = SnmpServer(
+            name="snmp_server2",
+            address="192.168.123.11",
+            enabled=True,
+            version="v3",
+            #community="asdasdasd",
+        )
+        context.configuration.add(snmp_server2)
+        
+        #snmp_community = SnmpCommunity(
+        #    name="snmp_community1",
+        #    community_string="asdasdasd",
+        #    ipv4acl=ipv4acl
+        #)
+        #context.configuration.add(snmp_community)
+#
+        #snmp_community2 = SnmpCommunity(
+        #    name="snmp_community2",
+        #    access="READ_ONLY",
+        #    #view=snmp_view1,
+        #    ipv4acl=ipv4acl
+        #)
+        #context.configuration.add(snmp_community2)
+
+class SnmpViewConfig(ConfigMap):
+    def compile(self, context):
         # ACL FOR SNMP
         ipv4acl = Ipv4Acl(
             name="snmp_rw"
@@ -30,6 +78,7 @@ class ConfigSNMP(ConfigMap):
         # ACL entries
         for entry in acl_entry_settings:
             ipv4aclentry = Ipv4AclEntry(
+                name=f"entry{entry['sequence_id']}",
                 description=entry["description"],
                 ipv4_acl=ipv4acl,
                 action=entry["action"],
@@ -37,59 +86,56 @@ class ConfigSNMP(ConfigMap):
                 sequence_id=entry["sequence_id"]
             )
             context.configuration.add(ipv4aclentry)
-
-        test_vrf = L3Vrf(
-            name="test_vrf",
+            
+        snmp_group1 = SnmpGroup(
+            name="snmp_group1",
+            access="READ_ONLY",
+            ipv4acl=ipv4acl,
         )
-        context.configuration.add(test_vrf)
+        context.configuration.add(snmp_group1)
 
-        global_snmp = SnmpGlobal(
-            contact="NOC@example.com",
-            location="Example city",
+        snmp_user1 = SnmpUser(
+            name="snmp_user1",
+            group=snmp_group1,
+            username="snmpread",
+            security_level="AUTH_NO_PRIV",
+            auth_protocol="SHA",
+            auth_password="very_secure_password"
         )
-        context.configuration.add(global_snmp)
-
-        snmp_server1 = SnmpServer(
-            name="snmp_server1",
-            address="192.168.123.10",
-            enabled=True,
-            version="v3",
-            #community="asdasdasd",
-            network_instance=test_vrf
-        )
-        context.configuration.add(snmp_server1)
-
-        snmp_server2 = SnmpServer(
-            name="snmp_server2",
-            address="192.168.123.11",
-            enabled=True,
-            version="v3",
-            #community="asdasdasd",
-        )
-        context.configuration.add(snmp_server2)
+        context.configuration.add(snmp_user1)
 
         snmp_view1 = SnmpView(
             name="snmp_view1",
-            oid_="iso",
-            included=True
+            group=snmp_group1
         )
         context.configuration.add(snmp_view1)
         
-        snmp_community = SnmpCommunity(
-            name="snmp_community1",
-            community_string="asdasdasd",
-            acl=ipv4acl
-        )
-        context.configuration.add(snmp_community)
-
-        snmp_community2 = SnmpCommunity(
-            name="snmp_community2",
-            access="READ_ONLY",
-            view=snmp_view1,
-            ipv4_acl=ipv4acl
-        )
-        context.configuration.add(snmp_community2)
+        snmp_oids = [
+            {
+                "name": "oid1",
+                "oid": "iso",
+                "included": True
+            },
+            {
+                "name": "oid2",
+                "oid": "mib-2",
+                "included": True
+            }
+        ]
+        
+        for oid in snmp_oids:
+            snmp_oid = SnmpViewOid(
+                name=oid["name"],
+                oid=oid["oid"],
+                included=oid["included"],
+                view=snmp_view1
+            )
+            context.configuration.add(snmp_oid)
+            
 
 
 config = ConfigSNMP()
 config.filters = FilterAttribute("site").eq("/.*/")
+
+view_config = SnmpViewConfig()
+view_config.filters = FilterAttribute("site").eq("/.*/")

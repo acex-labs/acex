@@ -35,7 +35,9 @@ from acex.configuration.components.system.snmp import (
     SnmpServer,
     SnmpTrap,
     SnmpCommunity,
-    SnmpView
+    SnmpView,
+    SnmpGroup,
+    SnmpViewOid
 )
 
 from acex.configuration.components.system.aaa import (
@@ -124,6 +126,8 @@ class Configuration:
         SnmpCommunity: "system.snmp.communities",
         SnmpTrap: "system.snmp.trap_events",
         SnmpView: "system.snmp.views",
+        SnmpViewOid: Template("system.snmp.views.${view}.oids"),
+        SnmpGroup: "system.snmp.groups",
         aaaGlobal: "system.aaa.config",
         aaaServerGroup: "system.aaa.server_groups",
         aaaTacacs: Template("system.aaa.server_groups.${server_group}.tacacs"),
