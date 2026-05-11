@@ -37,20 +37,11 @@ class ConfigSNMP(ConfigMap):
         )
         context.configuration.add(snmp_server2)
         
-        #snmp_community = SnmpCommunity(
-        #    name="snmp_community1",
-        #    community_string="asdasdasd",
-        #    ipv4acl=ipv4acl
-        #)
-        #context.configuration.add(snmp_community)
-#
-        #snmp_community2 = SnmpCommunity(
-        #    name="snmp_community2",
-        #    access="READ_ONLY",
-        #    #view=snmp_view1,
-        #    ipv4acl=ipv4acl
-        #)
-        #context.configuration.add(snmp_community2)
+        snmp_community = SnmpCommunity(
+            name="snmp_community1",
+            community_string="asdasdasd",
+        )
+        context.configuration.add(snmp_community)
 
 class SnmpViewConfig(ConfigMap):
     def compile(self, context):
