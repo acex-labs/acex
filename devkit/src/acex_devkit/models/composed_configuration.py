@@ -416,26 +416,36 @@ class SnmpPrivProtocol(str, Enum):
 	AES256 = "AES256"
 
 
-class SnmpConfig(ContainerEntry, BaseModel):
-    identity_fields: ClassVar[tuple[str, ...]] = ()
+class SnmpConfigAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
     enabled: AttributeValue[bool] = AttributeValue(value=False)
     engine_id: Optional[AttributeValue[str]] = None
     location: Optional[AttributeValue[str]] = None
     contact: Optional[AttributeValue[str]] = None
 
 
-class SnmpCommunity(ContainerEntry, Augmentable):
+class SnmpCommunityAttributes(ContainerEntry, Augmentable):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     community: Optional[AttributeValue[str]] = None # Community string
+    #access: Optional[AttributeValue[SnmpAccess]] = AttributeValue(value=SnmpAccess.READ_ONLY)
+    #view: Optional[Reference] = None
+    ipv4acl: Optional[Reference] = None # Cisco and similar vendors
+    ipv6acl: Optional[Reference] = None
+    #source_interface: Optional[Reference] = None
+
+class SnmpGroupAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
     access: Optional[AttributeValue[SnmpAccess]] = AttributeValue(value=SnmpAccess.READ_ONLY)
-    view: Optional[AttributeValue[str]] = None
-    ipv4_acl: Optional[AttributeValue[str]] = None # Cisco and "liknande" vendors
-    ipv6_acl: Optional[AttributeValue[str]] = None
-    source_interface: Optional[Reference] = None
+    ipv4acl: Optional[Reference] = None # Cisco and similar vendors
+    ipv6acl: Optional[Reference] = None
+    #source_interface: Optional[Reference] = None
+    users: Optional[Dict[str, Reference]] = {} # Users that belong to this group. Only relevant for SNMPv3.
+    views: Optional[Dict[str, Reference]] = {} # Views that this group has access to.
 
-
-class SnmpUser(ContainerEntry, BaseModel):
+class SnmpUserAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("username",)
     username: AttributeValue[str]
     security_level: Optional[AttributeValue[SnmpSecurityLevel]] = AttributeValue(value=SnmpSecurityLevel.NO_AUTH_NO_PRIV)
@@ -444,15 +454,19 @@ class SnmpUser(ContainerEntry, BaseModel):
     priv_protocol: Optional[AttributeValue[SnmpPrivProtocol]] = None
     priv_password: Optional[AttributeValue[str]] = None
 
+class SnmpViewAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
+    oids: Optional[Dict[str, SnmpViewOidAttributes]] = {}
 
-class SnmpView(ContainerEntry, BaseModel):
+class SnmpViewOidAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     oid: AttributeValue[str]
     included: Optional[AttributeValue[bool]] = AttributeValue(value=True)
+    view: Optional[AttributeValue[str]] = None
 
-
-class SnmpServer(ContainerEntry, BaseModel):
+class SnmpServerAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     name: Optional[AttributeValue[str]] = None
     address: Optional[AttributeValue[str]] = None
@@ -464,6 +478,7 @@ class SnmpServer(ContainerEntry, BaseModel):
     security_level: Optional[AttributeValue[SnmpSecurityLevel]] = None
     source_interface: Optional[Reference] = None
     network_instance: Optional[AttributeValue[str]] = None
+    group: Optional[Reference] = None # Only relevant for SNMPv3.
 
 # ----------------------------
 # Enum-based trap groups
@@ -580,7 +595,7 @@ class TrapEventOptions(str, Enum):
 	BULKSTAT_COLLECTION = "bulkstat_collection"
 	BULKSTAT_TRANSFER = "bulkstat_transfer"
 
-class TrapEvent(ContainerEntry, BaseModel):
+class TrapEventAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("event_name",)
     name: Optional[AttributeValue[str]] = None
     event_name: Optional[AttributeValue[TrapEventOptions]] = None
@@ -588,12 +603,14 @@ class TrapEvent(ContainerEntry, BaseModel):
 #class SnmpTrap(BaseModel): ...
 
 class Snmp(BaseModel):
-    config: Optional[Dict[str, SnmpConfig]] = {}
-    communities: Optional[Dict[str, SnmpCommunity]] = {}
-    users: Optional[Dict[str, SnmpUser]] = {}
-    trap_servers: Optional[Dict[str, SnmpServer]] = {}
-    trap_events: Optional[Dict[str, TrapEvent]] = {}
-    views: Optional[Dict[str, SnmpView]] = {}
+    config: Optional[Dict[str, SnmpConfigAttributes]] = {}
+    communities: Optional[Dict[str, SnmpCommunityAttributes]] = {}
+    groups: Optional[Dict[str, SnmpGroupAttributes]] = {}
+    users: Optional[Dict[str, SnmpUserAttributes]] = {}
+    trap_servers: Optional[Dict[str, SnmpServerAttributes]] = {}
+    trap_events: Optional[Dict[str, TrapEventAttributes]] = {}
+    views: Optional[Dict[str, SnmpViewAttributes]] = {}
+    
 
 # AAA
 class aaaBaseClass(ContainerEntry, BaseModel):
