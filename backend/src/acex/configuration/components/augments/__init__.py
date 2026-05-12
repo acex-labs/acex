@@ -11,8 +11,11 @@ or the explicit per-vendor path::
 
     from acex.configuration.components.augments.cisco import CiscoDeviceTrackingPolicy
 """
+
 from .base import Augment
 from .cisco import (
+    CiscoAccessSession,
+    CiscoDeviceSensor,
     CiscoDeviceTrackingPolicy,
     CiscoServicePolicy,
     CiscoVtpPrimaryServer,
@@ -21,6 +24,8 @@ from .juniper import JuniperSnmpCommunityClients
 
 __all__ = [
     "Augment",
+    "CiscoAccessSession",
+    "CiscoDeviceSensor",
     "CiscoDeviceTrackingPolicy",
     "CiscoServicePolicy",
     "CiscoVtpPrimaryServer",

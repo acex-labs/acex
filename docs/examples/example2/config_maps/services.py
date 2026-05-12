@@ -11,5 +11,5 @@ class SetServices(ConfigMap):
 
         context.configuration.add(services)
 
-services = SetServices()
-services.filters = FilterAttribute("site").eq("CML")
+#services = SetServices()
+#services.filters = FilterAttribute("site").eq("CML")

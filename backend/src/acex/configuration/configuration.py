@@ -76,7 +76,7 @@ from acex.configuration.components.cdp import (
     CdpConfig,
 )
 
-from acex.configuration.components.system.services import Services
+from acex.configuration.components.system.services import Services, ServicesConfig
 
 from acex.configuration.components.sampling.netflow import (
     NetflowCollector,
@@ -170,6 +170,7 @@ class Configuration:
         LldpConfig: "lldp",
         CdpConfig: "cdp",
         Services: "system.services",
+        ServicesConfig: "system.services.config",
         NetflowGlobalConfig: "sampling.netflow.config",
         NetflowCollector: "sampling.netflow.collectors",
         NetflowExporter: "sampling.netflow.exporters",

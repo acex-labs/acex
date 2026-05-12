@@ -811,7 +811,12 @@ class Dhcp(BaseModel):
     snooping: Optional[DHCPSnoopingAttributes] = DHCPSnoopingAttributes()
     relay: Optional[DhcpRelay] = DhcpRelay()
 
+class ServicesConfig(Augmentable):
+    # Placeholder for future global service config options
+    pass
+
 class Services(BaseModel):
+    config: ServicesConfig = ServicesConfig()
     name: Optional[AttributeValue[str]] = None
     http: Optional[AttributeValue[bool]] = None # for webgui access
     https: Optional[AttributeValue[bool]] = None # for webgui access
