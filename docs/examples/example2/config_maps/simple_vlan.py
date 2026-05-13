@@ -22,4 +22,4 @@ class SimpleVlan(ConfigMap):
 
 
 vlan = SimpleVlan()
-vlan.filters = FilterAttribute("role").eq("lan_access")
+vlan.filters = FilterAttribute("role").eq("/.*/")
