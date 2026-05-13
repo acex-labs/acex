@@ -454,17 +454,17 @@ class SnmpUserAttributes(ContainerEntry, BaseModel):
     priv_protocol: Optional[AttributeValue[SnmpPrivProtocol]] = None
     priv_password: Optional[AttributeValue[str]] = None
 
-class SnmpViewAttributes(ContainerEntry, BaseModel):
-    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
-    name: AttributeValue[str]
-    oids: Optional[Dict[str, SnmpViewOidAttributes]] = {}
-
 class SnmpViewOidAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     oid: AttributeValue[str]
     included: Optional[AttributeValue[bool]] = AttributeValue(value=True)
     view: Optional[AttributeValue[str]] = None
+
+class SnmpViewAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    name: AttributeValue[str]
+    oids: Optional[Dict[str, SnmpViewOidAttributes]] = {}
 
 class SnmpServerAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
