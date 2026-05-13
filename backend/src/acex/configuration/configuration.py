@@ -441,6 +441,7 @@ class Configuration:
                 if isinstance(ptr, dict):
                     ptr = ptr.get(part)
                 else:
+                    print(f"Trying to access part '{part}' of object '{ptr}' for augment '{aug.name}'")
                     ptr = getattr(ptr, part)
                 if ptr is None:
                     raise ValueError(
