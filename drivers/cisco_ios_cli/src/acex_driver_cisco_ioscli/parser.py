@@ -5,17 +5,18 @@ from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
     EthernetCsmacdInterface, 
     L3IpvlanInterface,
+    SnmpViewOidAttributes,
     SoftwareLoopbackInterface,
     Ieee8023adLagInterface,
     SshServer,
     NtpServer,
     SystemConfig,
-    SnmpConfig,
-    SnmpCommunity,
-    SnmpUser,
-    SnmpServer,
-    TrapEvent,
-    SnmpView,
+    SnmpConfigAttributes,
+    SnmpCommunityAttributes,
+    SnmpUserAttributes,
+    SnmpServerAttributes,
+    TrapEventAttributes,
+    SnmpViewAttributes,
     SnmpSecurityLevel,
     ReferenceTo,
 )
@@ -355,7 +356,7 @@ class CiscoIOSCLIParser:
                 for i, trap in enumerate(entry.get('traps')):
                     snmp_trap_values_dict['name'] = f"trap_{i}"
                     snmp_trap_values_dict['event_name'] = trap
-                    snmp_traps_dict[entry.get('event_name')] = self.removekey(TrapEvent(**snmp_trap_values_dict), 'metadata')
+                    snmp_traps_dict[entry.get('event_name')] = self.removekey(TrapEventAttributes(**snmp_trap_values_dict), 'metadata')
 
         self.parsed_config.system.snmp.trap_events = snmp_traps_dict    
 
@@ -377,7 +378,7 @@ class CiscoIOSCLIParser:
                 snmp_view_values_dict['name'] = f"{entry.get('view_name')}_{i}" if entry.get("view_name") else None
                 snmp_view_values_dict['oid'] = entry.get("view_oid") if entry.get("view_oid") else None
                 snmp_view_values_dict['included'] = True if 'included' in entry.get("view_status") else False
-                snmp_views_dict[f"{entry.get('view_name')}_{i}"] = self.removekey(SnmpView(**snmp_view_values_dict), 'metadata')
+                snmp_views_dict[f"{entry.get('view_name')}_{i}"] = self.removekey(SnmpViewOidAttributes(**snmp_view_values_dict), 'metadata')
         
         self.parsed_config.system.snmp.views = snmp_views_dict
 
@@ -421,7 +422,7 @@ class CiscoIOSCLIParser:
                         snmp_server_values_dict['source_interface'] = None
             snmp_server_values_dict['network_instance'] = entry.get("vrf") if entry.get("vrf") else None
 
-            snmp_servers_dict[entry.get('host')] = self.removekey(SnmpServer(**snmp_server_values_dict), 'metadata')
+            snmp_servers_dict[entry.get('host')] = self.removekey(SnmpServerAttributes(**snmp_server_values_dict), 'metadata')
 
         self.parsed_config.system.snmp.trap_servers = snmp_servers_dict
 
@@ -458,7 +459,7 @@ class CiscoIOSCLIParser:
             snmp_user_values_dict['priv_protocol'] = entry.get("priv_protocol") if entry.get("priv_protocol") else None
             snmp_user_values_dict['priv_password'] = entry.get("priv_password") if entry.get("priv_password") else None
 
-            snmp_users_dict[f'user_{i}'] = self.removekey(SnmpUser(**snmp_user_values_dict), 'metadata')
+            snmp_users_dict[f'user_{i}'] = self.removekey(SnmpUserAttributes(**snmp_user_values_dict), 'metadata')
 
         self.parsed_config.system.snmp.users = snmp_users_dict
 
@@ -492,7 +493,7 @@ class CiscoIOSCLIParser:
                         break
                 snmp_community_values_dict['source_interface'] = intf_ref
 
-            snmp_communities_dict[f'community_{i}'] = self.removekey(SnmpCommunity(**snmp_community_values_dict), 'metadata')
+            snmp_communities_dict[f'community_{i}'] = self.removekey(SnmpCommunityAttributes(**snmp_community_values_dict), 'metadata')
         self.parsed_config.system.snmp.communities = snmp_communities_dict
 
     def parse_snmp(self) -> None:
@@ -517,6 +518,6 @@ class CiscoIOSCLIParser:
             snmp_config_values_dict['contact'] = entry.get("contact") if entry.get("contact") else None
             snmp_config_values_dict['engine_id'] = entry.get("engine_id") if entry.get("engine_id") else None
 
-            snmp_config = self.removekey(SnmpConfig(**snmp_config_values_dict), 'metadata')
+            snmp_config = self.removekey(SnmpConfigAttributes(**snmp_config_values_dict), 'metadata')
 
         self.parsed_config.system.snmp.config = snmp_config
