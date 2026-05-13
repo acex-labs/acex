@@ -97,7 +97,7 @@ class Ntp(BaseModel):
     config: Optional[NtpConfig] = None
     servers: Optional[Dict[str, NtpServer]] = {}
 
-class SshServer(BaseModel): 
+class SshServer(Augmentable): 
     enable: Optional[AttributeValue[bool]] = None
     protocol_version: Optional[AttributeValue[int]] = AttributeValue(value=2)
     timeout: Optional[AttributeValue[int]] = None
