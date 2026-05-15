@@ -122,7 +122,7 @@ class AuthorizedKey(ContainerEntry, BaseModel):
     public_key: Optional[AttributeValue[str]] = None
 
 class Ssh(BaseModel):
-    config: Optional[SshServer] = None
+    config: Optional[SshServer] = SshServer()
     host_keys: Optional[Dict[str, AuthorizedKey]] = {}
 
 class LldpConfigAttributes(BaseModel):

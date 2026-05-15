@@ -1,3 +1,21 @@
+{%- macro render_augments(augments, indent="") -%}
+{%- for aug_type, aug in (augments or {}).items() -%}
+{%-   if aug_type == "cisco.device_tracking_policy" %}
+{{ indent }}device-tracking attach-policy {{ aug.policy_name.value }}
+{%-   elif aug_type == "cisco.service_policy" %}
+{%-     if aug.input_policy %}
+{{ indent }}service-policy input {{ aug.input_policy.value }}
+{%-     endif %}
+{%-     if aug.output_policy %}
+{{ indent }}service-policy output {{ aug.output_policy.value }}
+{%-     endif %}
+{%-   elif aug_type == "cisco.vtp_primary_server" %}
+{%-     if aug.enabled and aug.enabled.value %}
+{{ indent }}vtp primary server
+{%-     endif %}
+{%-   endif %}
+{%- endfor -%}
+{%- endmacro -%}
 service timestamps debug datetime msec
 service timestamps log datetime msec
 {%- set pwe = (configuration.system.config.augments or {}).get('cisco.service_password_encryption') %}
@@ -101,9 +119,7 @@ vtp password {{ vtp.password.value }}
 {%-   elif vtp.password_hashed %}
 vtp password {{ vtp.password_hashed.value }} hidden
 {%-   endif %}
-{%-   for line in configuration.augment_lines.get("system.vtp.config", []) %}
-{{ line }}
-{%-   endfor %}
+{{- render_augments(vtp.get('augments')) -}}
 {%- endif %}
 !
 !
@@ -208,9 +224,7 @@ template {{ tmpl.name.value }}
 {%-    if tmpl.snmp_link_status_trap and tmpl.snmp_link_status_trap.value == False %}
  no snmp trap link-status
 {%-    endif %}
-{%-    for line in configuration.augment_lines.get("interface_templates." ~ tmpl_name, []) %}
- {{ line }}
-{%-    endfor %}
+{{- render_augments(tmpl.get('augments'), " ") -}}
 {%-    if tmpl.description %}
  description {{ tmpl.description.value }}
 {%-    endif %}
@@ -339,9 +353,7 @@ interface {{ intf.name }}
  storm-control action {{ intf.storm_control.action.value }}
 {%-    endif %}
 {%-  endif %}
-{%-  for line in configuration.augment_lines.get("interfaces." ~ intf_name, []) %}
- {{ line }}
-{%-  endfor %}
+{{- render_augments(intf.get('augments'), " ") -}}
 {%-  if intf.logging_link_status and intf.logging_link_status.value == False %}
  no logging event link-status
 {%-  endif %}
@@ -417,7 +429,7 @@ ip forward-protocol nd
 ip http server
 ip http secure-server
 !
-{% set ssh = configuration.system.ssh.config -%}
+{%- set ssh = configuration.system.ssh.config -%}
 {%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
 {%-   if ssh.get('protocol_version') %}
 ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
@@ -513,6 +525,11 @@ ntp server {{ server.address.value }} prefer
 ntp server {{ server.address.value }}
 {%-   endif %}
 {%- endfor %}
+{%- endif %}
+!
+{%- set dh_min_size = (configuration.system.ssh.config.augments or {}).get('cisco.dh_min_size') %}
+{%- if dh_min_size %}
+ip ssh dh min size {{ dh_min_size.dh_min_size.value }}
 {%- endif %}
 !
 {%- if configuration.system.logging -%}
