@@ -13,6 +13,20 @@ The integrator API stays simple::
         policy_name="...",
     ))
 
+For augments whose target is a singleton (its `COMPONENT_MAPPING` path ends
+in `.config`, e.g. `SshServer` → `system.ssh.config`), `target` may also be
+the class itself — the instance is then unambiguous::
+
+    context.configuration.add(CiscoSshDhMinSize(
+        target=SshServer,
+        dh_min_size=2048,
+    ))
+
+If the augment's `valid_targets` has exactly one entry AND that entry is a
+singleton, `target` may be omitted entirely — it's inferred::
+
+    context.configuration.add(CiscoSshDhMinSize(dh_min_size=2048))
+
 `name` and `target` are integrator-side fields used by `Configuration` to
 route the augment; they don't appear on the rendered `AugmentAttributes`
 payload (location IS target, dict key IS the type discriminator).
@@ -42,13 +56,20 @@ class Augment(ConfigComponent):
 
     def pre_init(self):
         target = self.kwargs.pop("target", None)
+        if target is None and len(self.valid_targets) == 1:
+            # Single valid target → infer it. Must be a singleton
+            target = self.valid_targets[0]
         if target is None:
             raise ValueError(f"{self.__class__.__name__} requires a 'target' kwarg")
 
-        if self.valid_targets and not isinstance(target, self.valid_targets):
+        target_is_class = isinstance(target, type)
+        target_type = target if target_is_class else type(target)
+
+        if self.valid_targets and not issubclass(target_type, self.valid_targets):
             valid_names = [c.__name__ for c in self.valid_targets]
+            label = f"class {target_type.__name__}" if target_is_class else target_type.__name__
             raise ValueError(
-                f"{self.__class__.__name__} cannot target {type(target).__name__}; "
+                f"{self.__class__.__name__} cannot target {label}; "
                 f"valid targets: {valid_names}"
             )
 
@@ -64,15 +85,17 @@ class Augment(ConfigComponent):
         # at module load would create a cycle.
         from acex.configuration.configuration import Configuration
 
-        mapped = Configuration.COMPONENT_MAPPING.get(type(target))
+        target_is_class = isinstance(target, type)
+        target_type = target if target_is_class else type(target)
+        mapped = Configuration.COMPONENT_MAPPING.get(target_type)
         if mapped is None:
             raise ValueError(
-                f"No COMPONENT_MAPPING entry for {type(target).__name__}; "
+                f"No COMPONENT_MAPPING entry for {target_type.__name__}; "
                 f"cannot use as augment target"
             )
         if isinstance(mapped, Template):
             raise ValueError(
-                f"{type(target).__name__}: Template-path targets not yet "
+                f"{target_type.__name__}: Template-path targets not yet "
                 f"supported for augments"
             )
         # Singletons (path ends in .config) use the path as-is; collections
@@ -80,4 +103,10 @@ class Augment(ConfigComponent):
         # used by Configuration._pop_all_references).
         if mapped.endswith(".config"):
             return mapped
+        if target_is_class:
+            raise ValueError(
+                f"{target_type.__name__} is not a singleton (path '{mapped}' "
+                f"doesn't end with '.config'); pass an instance, not the class, "
+                f"as target"
+            )
         return f"{mapped}.{target.name}"
