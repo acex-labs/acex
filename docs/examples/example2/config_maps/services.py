@@ -1,42 +1,53 @@
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.system.services import Services
 from acex.configuration.components.augments.cisco.access_session import (
-    CiscoAccessSessionFilterList,
-    CiscoAccessSessionFilterListOption
+    CiscoAccessSession,
+    AccessSessionFilterList,
+    AccessSessionAccountingSpec,
+    AccessSessionAuthenticationSpec,
 )
+
 
 class SetServices(ConfigMap):
     def compile(self, context):
         services = Services(
             name="system_services",
-            http=True, # activate http
-            https=True, # activate https
+            http=True,  # activate http
+            https=True,  # activate https
         )
 
         context.configuration.add(services)
 
-        #filter_list_options = CiscoAccessSessionFilterListOption(
-        #    name="access_session_options",
-        #    target=services,
-        #    item="cdp"
-        #)
-        #context.configuration.add(filter_list_options)
-
-        access_session_accounting_list = CiscoAccessSessionFilterList(
-            name="Def_Acct_List",
-            target=services,
-            items=["cdp", "lldp", "dhcp", "http"]
+        acct_list = AccessSessionFilterList(
+            items=["cdp", "lldp", "dhcp", "http"],
         )
 
-        context.configuration.add(access_session_accounting_list)
-        
-        access_session_auth_list = CiscoAccessSessionFilterList(
-            name="Def_Auth_List",
-            target=services,
-            items=["vlan-id"]
+        auth_list = AccessSessionFilterList(
+            items=["vlan-id"],
         )
 
-        context.configuration.add(access_session_auth_list)
+        acct_spec = AccessSessionAccountingSpec(
+            action="include",
+            filter_list="Def_Acct_List",
+        )
+
+        auth_spec = AccessSessionAuthenticationSpec(
+            action="include",
+            filter_list="Def_Auth_List",
+        )
+
+        access_session = CiscoAccessSession(
+            name="access_session",
+            target=services,
+            filter_lists={
+                "Def_Acct_List": acct_list,
+                "Def_Auth_List": auth_list,
+            },
+            accounting=acct_spec,
+            authentication=auth_spec,
+        )
+        context.configuration.add(access_session)
+
 
 services = SetServices()
 services.filters = FilterAttribute("site").eq("/.*/")

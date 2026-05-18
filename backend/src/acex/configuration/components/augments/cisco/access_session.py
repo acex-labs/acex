@@ -1,9 +1,6 @@
-"""
-Cisco IOS / IOS-XE access session attachment.
+"""Cisco IOS / IOS-XE access session attachment."""
 
-Attaches globally-defined access-session filter lists and filter specs by name
-"""
-from typing import Optional, Dict, List, Literal, ClassVar, Union, Any
+from typing import Dict, List, Literal, Optional
 
 from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.services import Services
@@ -11,80 +8,54 @@ from acex.configuration.components.system.services import Services
 from acex_devkit.models import AttributeValue
 from acex_devkit.models.composed_configuration import AugmentAttributes
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-class FilterListOptionsAttribute(AugmentAttributes):
-    """
-    access-session attributes filter-list list {list_name}
-      cdp
-      lldp << this is the data you set in this model
-      -- etc. --
-    """
-    type: Literal["cisco.access_session_filter_option"] = "cisco.access_session_filter_option"
-    #name: AttributeValue[str]
-    #protocol: AttributeValue[str]  # e.g. "cdp"
-    item: AttributeValue[str] # e.g. "cdp", "lldp", "dhcp", "http" -- this is the data you set in this model
- 
-class CiscoAccessSessionFilterListOption(Augment):
-    """
-    access-session attributes filter-spec include list {list_name}
-    """
-    #type: Literal["cisco.access_session_filter_list_option"] = "cisco.access_session_filter_list_option"
-    #name: AttributeValue[str]
-    type = "cisco.access_session_filter_option"
-    model_cls = FilterListOptionsAttribute
+
+class AccessSessionFilterList(BaseModel):
+    "Named access-session filter-list payload."
+
+    items: AttributeValue[List[str]]
+
+
+class AccessSessionFilterSpec(BaseModel):
+    "Shared filter-spec payload for authentication, authorization, and accounting."
+
+    action: AttributeValue[str]  # include / exclude
+    filter_list: AttributeValue[str]
+
+
+class AccessSessionAuthenticationSpec(AccessSessionFilterSpec):
+    pass
+
+
+class AccessSessionAuthorizationSpec(AccessSessionFilterSpec):
+    pass
+
+
+class AccessSessionAccountingSpec(AccessSessionFilterSpec):
+    pass
+
+
+class CiscoAccessSessionAttributes(AugmentAttributes):
+    type: Literal["cisco.access_session"] = "cisco.access_session"
+    filter_lists: Dict[str, AccessSessionFilterList] = Field(default_factory=dict)
+    authentication: Optional[AccessSessionAuthenticationSpec] = None
+    authorization: Optional[AccessSessionAuthorizationSpec] = None
+    accounting: Optional[AccessSessionAccountingSpec] = None
+
+
+class CiscoAccessSession(Augment):
+    type = "cisco.access_session"
+    model_cls = CiscoAccessSessionAttributes
     valid_targets = (Services,)
     default_vendor = "cisco"
 
-    
-    
-    
-#class CiscoAccessSessionFilterSpecAttributes(AugmentAttributes):
-#    """
-#    access-session attributes filter-spec {protocol} {action} list {list_name}
-#      cdp
-#      lldp << this is the data you set in this model
-#      -- etc. --
-#    """
-#    type: Literal["cisco.access_session"] = "cisco.access_session"
-#    protocol: AttributeValue[str]  # e.g. "cdp"
-#    action: AttributeValue[str]  # e.g. "include"
-#    filter_list: AttributeValue[str]  # name of the referenced filter-list
-    
 
-class FilterList(AugmentAttributes):
-    "Attaches named access-session filter lists and filter specs to Services."
-    type: Literal["cisco.access_session_filter_list"] = "cisco.access_session_filter_list"
-    #list_attributes: Dict[str, FilterListOptionsAttribute] = {}
-    items: AttributeValue[List[str]] # e.g. ["cdp", "lldp", "dhcp", "http"] -- this is the data you set in this model
-    
-class CiscoAccessSessionFilterList(Augment):
-    type = "cisco.access_session_filter_list"
-    model_cls = FilterList
-    valid_targets = (Services,)
-    default_vendor = "cisco"
-    
-
-#########
-
-# Authentication
-"""
-access-session attributes filter-list list Def_Auth_List
- vlan-id
-!
-access-session authentication attributes filter-spec include list Def_Auth_List
-"""
-#class 
-
-# Authorization
-
-# Accounting
-"""
-access-session attributes filter-list list Def_Acct_List
- cdp
- lldp
- dhcp
- http
-!
-access-session accounting attributes filter-spec include list Def_Acct_List
-"""
+#__all__ = [
+#    "AccessSessionAccountingSpec",
+#    "AccessSessionAuthenticationSpec",
+#    "AccessSessionAuthorizationSpec",
+#    "AccessSessionFilterList",
+#    "CiscoAccessSession",
+#    "CiscoAccessSessionAttributes",
+#]
