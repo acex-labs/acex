@@ -2,7 +2,7 @@ from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.system.services import Services
 from acex.configuration.components.augments.cisco.access_session import (
     CiscoAccessSessionFilterList,
-    CiscoAccessSessionFilterListOptions
+    CiscoAccessSessionFilterListOption
 )
 
 class SetServices(ConfigMap):
@@ -15,10 +15,10 @@ class SetServices(ConfigMap):
 
         context.configuration.add(services)
 
-        filter_list_options = CiscoAccessSessionFilterListOptions(
+        filter_list_options = CiscoAccessSessionFilterListOption(
             name="access_session_options",
             target=services,
-            items=["cdp", "lldp"],
+            item="cdp"
         )
         context.configuration.add(filter_list_options)
 
