@@ -17,7 +17,7 @@ from .cisco import (
     CiscoServicePolicy,
     CiscoVtpPrimaryServer,
     CiscoAccessSessionFilterList,
-    CiscoAccessSessionFilterListOptions,
+    CiscoAccessSessionFilterListOption
 )
 from .juniper import JuniperSnmpCommunityClients
 
@@ -27,6 +27,6 @@ __all__ = [
     "CiscoServicePolicy",
     "CiscoVtpPrimaryServer",
     "CiscoAccessSessionFilterList",
-    "CiscoAccessSessionFilterListOptions",
+    "CiscoAccessSessionFilterListOption",
     "JuniperSnmpCommunityClients",
 ]

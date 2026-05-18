@@ -13,23 +13,31 @@ from acex_devkit.models.composed_configuration import AugmentAttributes
 
 from pydantic import BaseModel
 
-class FilterListOptionsAttributes(AugmentAttributes):
+class FilterListOptionsAttribute(AugmentAttributes):
     """
     access-session attributes filter-list list {list_name}
       cdp
       lldp << this is the data you set in this model
       -- etc. --
     """
-    type: Literal["cisco.access_session_filter_list_options"] = "cisco.access_session_filter_list_options"
-    name: AttributeValue[str]
+    type: Literal["cisco.access_session_filter_option"] = "cisco.access_session_filter_option"
+    #name: AttributeValue[str]
     #protocol: AttributeValue[str]  # e.g. "cdp"
-    items: list[AttributeValue[str]] = []
+    item: AttributeValue[str] # e.g. "cdp", "lldp", "dhcp", "http" -- this is the data you set in this model
  
-class CiscoAccessSessionFilterListOptions(Augment):
-    type = "cisco.access_session_filter_list_options"
-    model_cls = FilterListOptionsAttributes
+class CiscoAccessSessionFilterListOption(Augment):
+    """
+    access-session attributes filter-spec include list {list_name}
+    """
+    #type: Literal["cisco.access_session_filter_list_option"] = "cisco.access_session_filter_list_option"
+    #name: AttributeValue[str]
+    type = "cisco.access_session_filter_option"
+    model_cls = FilterListOptionsAttribute
     valid_targets = (Services,)
     default_vendor = "cisco"
+
+    
+    
     
 #class CiscoAccessSessionFilterSpecAttributes(AugmentAttributes):
 #    """
@@ -47,10 +55,35 @@ class CiscoAccessSessionFilterListOptions(Augment):
 class FilterList(AugmentAttributes):
     "Attaches named access-session filter lists and filter specs to Services."
     type: Literal["cisco.access_session_filter_list"] = "cisco.access_session_filter_list"
-    list_attributes: dict[str, FilterListOptionsAttributes] = {}
+    list_attributes: dict[str, FilterListOptionsAttribute] = {}
     
 class CiscoAccessSessionFilterList(Augment):
     type = "cisco.access_session_filter_list"
     model_cls = FilterList
     valid_targets = (Services,)
     default_vendor = "cisco"
+    
+
+#########
+
+# Authentication
+"""
+access-session attributes filter-list list Def_Auth_List
+ vlan-id
+!
+access-session authentication attributes filter-spec include list Def_Auth_List
+"""
+#class 
+
+# Authorization
+
+# Accounting
+"""
+access-session attributes filter-list list Def_Acct_List
+ cdp
+ lldp
+ dhcp
+ http
+!
+access-session accounting attributes filter-spec include list Def_Acct_List
+"""
