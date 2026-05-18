@@ -811,10 +811,16 @@ class Dhcp(BaseModel):
     snooping: Optional[DHCPSnoopingAttributes] = DHCPSnoopingAttributes()
     relay: Optional[DhcpRelay] = DhcpRelay()
 
-class Services(Augmentable):
+class ServicesAttributes(Augmentable):
     name: Optional[AttributeValue[str]] = None
     http: Optional[AttributeValue[bool]] = None # for webgui access
     https: Optional[AttributeValue[bool]] = None # for webgui access
+    
+class Services(BaseModel):
+    config: Optional[ServicesAttributes] = ServicesAttributes()
+    #name: Optional[AttributeValue[str]] = None
+    #http: Optional[AttributeValue[bool]] = None # for webgui access
+    #https: Optional[AttributeValue[bool]] = None # for webgui access
 
 class NetflowFormat(str, Enum):
     IPFIX = "IPFIX"

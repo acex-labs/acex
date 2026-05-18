@@ -169,7 +169,7 @@ class Configuration:
         DhcpRelayServer: "system.dhcp.relay.relay_servers", 
         LldpConfig: "lldp",
         CdpConfig: "cdp",
-        Services: "system.services",
+        Services: "system.services.config",
         NetflowGlobalConfig: "sampling.netflow.config",
         NetflowCollector: "sampling.netflow.collectors",
         NetflowExporter: "sampling.netflow.exporters",
@@ -441,7 +441,6 @@ class Configuration:
                 if isinstance(ptr, dict):
                     ptr = ptr.get(part)
                 else:
-                    print(f"Trying to access part '{part}' of object '{ptr}' for augment '{aug.name}'")
                     ptr = getattr(ptr, part)
                 if ptr is None:
                     raise ValueError(
