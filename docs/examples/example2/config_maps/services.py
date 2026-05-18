@@ -15,19 +15,28 @@ class SetServices(ConfigMap):
 
         context.configuration.add(services)
 
-        filter_list_options = CiscoAccessSessionFilterListOption(
-            name="access_session_options",
-            target=services,
-            item="cdp"
-        )
-        context.configuration.add(filter_list_options)
+        #filter_list_options = CiscoAccessSessionFilterListOption(
+        #    name="access_session_options",
+        #    target=services,
+        #    item="cdp"
+        #)
+        #context.configuration.add(filter_list_options)
 
-        access_session = CiscoAccessSessionFilterList(
-            name="access_session",
+        access_session_accounting_list = CiscoAccessSessionFilterList(
+            name="Def_Acct_List",
             target=services,
+            items=["cdp", "lldp", "dhcp", "http"]
         )
 
-        context.configuration.add(access_session)
+        context.configuration.add(access_session_accounting_list)
+        
+        access_session_auth_list = CiscoAccessSessionFilterList(
+            name="Def_Auth_List",
+            target=services,
+            items=["vlan-id"]
+        )
+
+        context.configuration.add(access_session_auth_list)
 
 services = SetServices()
 services.filters = FilterAttribute("site").eq("/.*/")

@@ -3,7 +3,7 @@ Cisco IOS / IOS-XE access session attachment.
 
 Attaches globally-defined access-session filter lists and filter specs by name
 """
-from typing import Literal
+from typing import Optional, Dict, List, Literal, ClassVar, Union, Any
 
 from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.services import Services
@@ -55,7 +55,8 @@ class CiscoAccessSessionFilterListOption(Augment):
 class FilterList(AugmentAttributes):
     "Attaches named access-session filter lists and filter specs to Services."
     type: Literal["cisco.access_session_filter_list"] = "cisco.access_session_filter_list"
-    list_attributes: dict[str, FilterListOptionsAttribute] = {}
+    #list_attributes: Dict[str, FilterListOptionsAttribute] = {}
+    items: AttributeValue[List[str]] # e.g. ["cdp", "lldp", "dhcp", "http"] -- this is the data you set in this model
     
 class CiscoAccessSessionFilterList(Augment):
     type = "cisco.access_session_filter_list"
