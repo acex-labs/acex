@@ -4,8 +4,11 @@ from .service_policy import CiscoServicePolicy
 from .ssh_dh_min_size import CiscoSshDhMinSize
 from .vtp_primary_server import CiscoVtpPrimaryServer
 from .access_session import (
-    CiscoAccessSessionFilterList,
-    CiscoAccessSessionFilterListOption,
+    #CiscoAccessSessionFilterList,
+    #CiscoAccessSessionFilterListOption,
+    AccessSessionFilterList,
+    AccessSessionAccountingSpec,
+    AccessSessionAuthenticationSpec
 )
 
 __all__ = [
@@ -13,6 +16,10 @@ __all__ = [
     "CiscoServicePolicy",
     "CiscoVtpPrimaryServer",
     "CiscoSshDhMinSize",
-    "CiscoServicePasswordEncryption" "CiscoAccessSessionFilterList",
-    "CiscoAccessSessionFilterListOption",
+    "CiscoServicePasswordEncryption",
+    #"CiscoAccessSessionFilterList",
+    #"CiscoAccessSessionFilterListOption",
+    "AccessSessionFilterList",
+    "AccessSessionAccountingSpec",
+    "AccessSessionAuthenticationSpec",
 ]
