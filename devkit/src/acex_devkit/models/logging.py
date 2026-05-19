@@ -69,7 +69,7 @@ class VtyLine(ContainerEntry, BaseModel):
     acl_direction: Optional[AttributeValue[str]] = None # direction of ACL, either 'in' or 'out'
     acl_network_instance: Optional[AttributeValue[str]] = None # network instance where ACL is
 
-class FileLogging(ContainerEntry, BaseModel):
+class FileLogging(ContainerEntry, Augmentable):
     identity_fields: ClassVar[tuple[str, ...]] = ("filename",)
     name: Optional[AttributeValue[str]] = None # object name
     filename: Optional[AttributeValue[str]] = None # name of the file

@@ -7,6 +7,8 @@ from acex.configuration.components.system.logging import (
     VtyLine
 )
 
+from acex.configuration.components.augments.cisco.archive import CiscoArchive
+
 from acex.configuration.components.acl import Ipv4Acl, Ipv4AclEntry
 
 class GlobalConfig(ConfigMap):
@@ -93,6 +95,20 @@ class FileLoggingConfig(ConfigMap):
         )
     
         context.configuration.add(file_logging)
+        
+        archive_config = CiscoArchive(
+            name='archive1',
+            enabled=True,
+            log_config=True,
+            path='flash:',
+            write_memory=True,
+            rollback_filter=True,
+            rollback_retry=60,
+            #maximum=5,
+            #time_period=1440,
+            target=file_logging
+        )
+        context.configuration.add(archive_config)
 
 globalconfig = GlobalConfig()
 globalconfig.filters = FilterAttribute("hostname").eq("/.*/")
