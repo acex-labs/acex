@@ -18,7 +18,7 @@ class CiscoLoggingTrapAttributes(AugmentAttributes):
     """
     logging trap notifications
     """
-    type: Literal["cisco.trap_logging"] = "cisco.logging"
+    type: Literal["cisco.trap_logging"] = "cisco.trap_logging"
     severity: Optional[AttributeValue[LoggingSeverity]] = None # Ex. INFORMATIONAL
 
 class CiscoLoggingTrap(Augment):

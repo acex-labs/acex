@@ -13,7 +13,7 @@ class SetCiscoLogging(ConfigMap):
     def compile(self, context):
 
         traplogging = CiscoLoggingTrap(
-            name="traplogging",
+            #name="traplogging",
             severity="NOTICE",
             target=LoggingConfig(),
         )
@@ -21,7 +21,7 @@ class SetCiscoLogging(ConfigMap):
         context.configuration.add(traplogging)
         
         traplogging = CiscoLoggingConsole(
-            name="consolelogging",
+            #name="consolelogging",
             enabled=False,
             target=LoggingConfig(),
         )
@@ -29,7 +29,7 @@ class SetCiscoLogging(ConfigMap):
         context.configuration.add(traplogging)
         
         traplogging = CiscoLoggingSsh(
-            name="sshlogging",
+            #name="sshlogging",
             enabled=True,
             target=LoggingConfig(),
         )
