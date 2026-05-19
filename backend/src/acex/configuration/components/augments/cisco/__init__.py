@@ -10,6 +10,14 @@ from .access_session import (
 )
 from .archive import CiscoArchive
 from .cisco_logging import CiscoLoggingTrap, CiscoLoggingConsole, CiscoLoggingSsh
+from .control_policy import (
+    CiscoControlSubscriberPolicyMap,
+    CiscoServicePolicyControlSubscriber,
+    CiscoAccessSessionMonitor,
+    PolicyMapAction,
+    PolicyMapClass,
+    PolicyMapEvent,
+)
 
 #__all__ = ["CiscoAccessSessionFilterList", "CiscoAccessSessionAuthentication"]
 

@@ -91,6 +91,21 @@ access-session attributes filter-list list {{ aug.name }}
 {%-   endif %}
 {%- endfor %}
 {%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type.startswith("cisco_control_subscriber_policy_map") %}
+policy-map type control subscriber {{ aug.name }}
+{%-     for event_type, event in aug.events.items() %}
+ event {{ event_type }} {{ event.match_type }}
+{%-       for prio, cls in event.classes.items() %}
+  {{ prio }} class {{ cls.class_name }} {{ cls.mode }}
+{%-         for action_prio, act in cls.actions.items() %}
+   {{ action_prio }} {{ act.action }}
+{%-         endfor %}
+{%-       endfor %}
+{%-     endfor %}
+!
+{%-   endif %}
+{%- endfor %}
+{%- for aug_type, aug in svc_augments.items() %}
 {%-   if aug_type == "cisco_access_session_authentication" %}
 {%-     for list_name in aug.filter_lists.keys() %}
 access-session authentication attributes filter-spec include list {{ list_name }}
@@ -99,6 +114,12 @@ access-session authentication attributes filter-spec include list {{ list_name }
 {%-     for list_name in aug.filter_lists.keys() %}
 access-session accounting attributes filter-spec include list {{ list_name }}
 {%-     endfor %}
+{%-   elif aug_type == "cisco_service_policy_control_subscriber" %}
+service-policy type control subscriber {{ aug.policy_name }}
+{%-   elif aug_type == "cisco_access_session_monitor" %}
+{%-     if aug.enabled %}
+access-session monitor
+{%-     endif %}
 {%-   endif %}
 {%- endfor %}
 !
