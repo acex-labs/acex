@@ -39,6 +39,28 @@ aaa new-model
 {%- else %}
 no aaa new-model
 {%- endif %}
+!
+{%- set svc_augments = (configuration.system.services.config.augments or {}) %}
+{%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type.startswith("cisco_access_session_filter_list") %}
+access-session attributes filter-list list {{ aug.name }}
+{%-     for item in aug['items'] %}
+ {{ item }}
+{%-     endfor %}
+!
+{%-   endif %}
+{%- endfor %}
+{%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type == "cisco_access_session_authentication" %}
+{%-     for list_name in aug.filter_lists.keys() %}
+access-session authentication attributes filter-spec include list {{ list_name }}
+{%-     endfor %}
+{%-   elif aug_type == "cisco_access_session_accounting" %}
+{%-     for list_name in aug.filter_lists.keys() %}
+access-session accounting attributes filter-spec include list {{ list_name }}
+{%-     endfor %}
+{%-   endif %}
+{%- endfor %}
 no process cpu extended history
 no process cpu autoprofile hog
 !
