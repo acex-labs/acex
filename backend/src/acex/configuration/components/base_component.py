@@ -38,7 +38,8 @@ def _coerce_reference(val, ref_type):
         # Augment instance — path is target_path + augments slot
         from acex.configuration.components.augments.base import Augment
         if isinstance(v, Augment):
-            return ReferenceTo(pointer=f"{v._target_path}.augments.{v.type}")
+            aug_key = v.type if v.name is None else f"{v.type}__{v.name}"
+            return ReferenceTo(pointer=f"{v._target_path}.augments.{aug_key}")
         # Regular ConfigComponent — walk MRO to find a non-Template path
         if isinstance(v, ConfigComponent):
             from acex.configuration.configuration import Configuration

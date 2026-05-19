@@ -53,14 +53,19 @@ class Augment(ConfigComponent):
     """
     valid_targets: ClassVar[Tuple[Type[ConfigComponent], ...]] = ()
     default_vendor: ClassVar[str] = None
+    singleton: ClassVar[bool] = True
 
     def pre_init(self):
         target = self.kwargs.pop("target", None)
         if target is None and len(self.valid_targets) == 1:
-            # Single valid target → infer it. Must be a singleton
             target = self.valid_targets[0]
         if target is None:
             raise ValueError(f"{self.__class__.__name__} requires a 'target' kwarg")
+
+        if not self.__class__.singleton and self.kwargs.get("name") is None:
+            raise ValueError(
+                f"{self.__class__.__name__} is not a singleton — 'name' is required"
+            )
 
         target_is_class = isinstance(target, type)
         target_type = target if target_is_class else type(target)

@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 class CiscoAccessSessionFilterListAttributes(AugmentAttributes):
     type: Literal["cisco_access_session_filter_list"] = "cisco_access_session_filter_list"
-
+    name: str
 
 class CiscoAccessSessionFilterList(Augment):
     "Named access-session filter-list payload."
@@ -22,16 +22,29 @@ class CiscoAccessSessionFilterList(Augment):
     model_cls = CiscoAccessSessionFilterListAttributes
     valid_targets = (Services, )
     default_vendor = "cisco"
+    singleton = False
 
 
-class CiscoAccessSessionAttributes(AugmentAttributes):
+class CiscoAccessSessionAuthAttributes(AugmentAttributes):
     type: Literal["cisco_access_session"] = "cisco_access_session"
     filter_lists: Dict[str, ReferenceTo] = Field(default_factory=dict)
 
 
 class CiscoAccessSessionAuthentication(Augment):
     type = "cisco_access_session_authentication"
-    model_cls = CiscoAccessSessionAttributes
+    model_cls = CiscoAccessSessionAuthAttributes
+    valid_targets = (Services,)
+    default_vendor = "cisco"
+
+
+class CiscoAccessSessionAccountingAttributes(AugmentAttributes):
+    type: Literal["cisco_access_session_accounting"] = "cisco_access_session"
+    filter_lists: Dict[str, ReferenceTo] = Field(default_factory=dict)
+
+
+class CiscoAccessSessionAccounting(Augment):
+    type = "cisco_access_session_accounting"
+    model_cls = CiscoAccessSessionAccountingAttributes
     valid_targets = (Services,)
     default_vendor = "cisco"
 

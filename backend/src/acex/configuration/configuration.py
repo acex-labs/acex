@@ -311,11 +311,11 @@ class Configuration:
         # Augments are routed separately — they're materialized on their
         # target's `augments` slot rather than placed at a tree path.
         if isinstance(component, Augment):
-            key = (component._target_path, component.type)
+            key = (component._target_path, component.type, component.name)
             if key in self._augment_keys:
                 raise ValueError(
-                    f"Duplicate augment {component.type} on {component._target_path} "
-                    f"(augment '{component.name}' conflicts with previously added one)"
+                    f"Duplicate augment {component.type!r} on {component._target_path}"
+                    + (f" (name={component.name!r})" if component.name else "")
                 )
             self._augment_keys.add(key)
             self._augments.append(component)
@@ -451,7 +451,8 @@ class Configuration:
                         f"Augment '{aug.name}' targets '{aug._target_path}' "
                         f"which does not exist in the composed configuration"
                     )
-            ptr.augments[aug.type] = aug.model
+            aug_key = aug.type if aug.name is None else f"{aug.type}__{aug.name}"
+            ptr.augments[aug_key] = aug.model
 
         return config
 
