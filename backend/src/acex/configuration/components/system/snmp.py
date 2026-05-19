@@ -2,14 +2,14 @@ from acex.configuration.components.base_component import ConfigComponent
 from acex.configuration.components.interfaces import Interface
 from acex.configuration.components.network_instances import L3Vrf
 from acex_devkit.models.composed_configuration import (
-    SnmpConfigAttributes, 
-    SnmpUserAttributes,
-    SnmpServerAttributes,
-    TrapEventAttributes,
-    SnmpCommunityAttributes,
+    SnmpConfig as SnmpConfigAttributes,
+    SnmpUser as SnmpUserAttributes,
+    SnmpServer as SnmpServerAttributes,
+    TrapEvent as TrapEventAttributes,
+    SnmpCommunity as SnmpCommunityAttributes,
     SnmpViewAttributes,
-    SnmpViewOidAttributes,
-    SnmpGroupAttributes,
+    SnmpView as SnmpViewOidAttributes,
+    SnmpGroup as SnmpGroupAttributes,
     ReferenceTo, 
     ReferenceFrom
 )

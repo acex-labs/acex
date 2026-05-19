@@ -417,7 +417,7 @@ class SnmpPrivProtocol(str, Enum):
 	AES256 = "AES256"
 
 
-class SnmpConfigAttributes(ContainerEntry, BaseModel):
+class SnmpConfig(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     enabled: AttributeValue[bool] = AttributeValue(value=False)
@@ -426,7 +426,7 @@ class SnmpConfigAttributes(ContainerEntry, BaseModel):
     contact: Optional[AttributeValue[str]] = None
 
 
-class SnmpCommunityAttributes(ContainerEntry, Augmentable):
+class SnmpCommunity(ContainerEntry, Augmentable):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     community: Optional[AttributeValue[str]] = None # Community string
@@ -436,7 +436,7 @@ class SnmpCommunityAttributes(ContainerEntry, Augmentable):
     ipv6acl: Optional[Reference] = None
     #source_interface: Optional[Reference] = None
 
-class SnmpGroupAttributes(ContainerEntry, BaseModel):
+class SnmpGroup(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     access: Optional[AttributeValue[SnmpAccess]] = AttributeValue(value=SnmpAccess.READ_ONLY)
@@ -446,7 +446,7 @@ class SnmpGroupAttributes(ContainerEntry, BaseModel):
     users: Optional[Dict[str, Reference]] = {} # Users that belong to this group. Only relevant for SNMPv3.
     views: Optional[Dict[str, Reference]] = {} # Views that this group has access to.
 
-class SnmpUserAttributes(ContainerEntry, BaseModel):
+class SnmpUser(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("username",)
     username: AttributeValue[str]
     security_level: Optional[AttributeValue[SnmpSecurityLevel]] = AttributeValue(value=SnmpSecurityLevel.NO_AUTH_NO_PRIV)
@@ -455,7 +455,7 @@ class SnmpUserAttributes(ContainerEntry, BaseModel):
     priv_protocol: Optional[AttributeValue[SnmpPrivProtocol]] = None
     priv_password: Optional[AttributeValue[str]] = None
 
-class SnmpViewOidAttributes(ContainerEntry, BaseModel):
+class SnmpView(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     oid: AttributeValue[str]
@@ -465,9 +465,9 @@ class SnmpViewOidAttributes(ContainerEntry, BaseModel):
 class SnmpViewAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
-    oids: Optional[Dict[str, SnmpViewOidAttributes]] = {}
+    oids: Optional[Dict[str, SnmpView]] = {}
 
-class SnmpServerAttributes(ContainerEntry, BaseModel):
+class SnmpServer(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     name: Optional[AttributeValue[str]] = None
     address: Optional[AttributeValue[str]] = None
@@ -596,7 +596,7 @@ class TrapEventOptions(str, Enum):
 	BULKSTAT_COLLECTION = "bulkstat_collection"
 	BULKSTAT_TRANSFER = "bulkstat_transfer"
 
-class TrapEventAttributes(ContainerEntry, BaseModel):
+class TrapEvent(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("event_name",)
     name: Optional[AttributeValue[str]] = None
     event_name: Optional[AttributeValue[TrapEventOptions]] = None
@@ -604,12 +604,12 @@ class TrapEventAttributes(ContainerEntry, BaseModel):
 #class SnmpTrap(BaseModel): ...
 
 class Snmp(BaseModel):
-    config: Optional[Dict[str, SnmpConfigAttributes]] = {}
-    communities: Optional[Dict[str, SnmpCommunityAttributes]] = {}
-    groups: Optional[Dict[str, SnmpGroupAttributes]] = {}
-    users: Optional[Dict[str, SnmpUserAttributes]] = {}
-    trap_servers: Optional[Dict[str, SnmpServerAttributes]] = {}
-    trap_events: Optional[Dict[str, TrapEventAttributes]] = {}
+    config: Optional[Dict[str, SnmpConfig]] = {}
+    communities: Optional[Dict[str, SnmpCommunity]] = {}
+    groups: Optional[Dict[str, SnmpGroup]] = {}
+    users: Optional[Dict[str, SnmpUser]] = {}
+    trap_servers: Optional[Dict[str, SnmpServer]] = {}
+    trap_events: Optional[Dict[str, TrapEvent]] = {}
     views: Optional[Dict[str, SnmpViewAttributes]] = {}
     
 
