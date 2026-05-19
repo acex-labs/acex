@@ -8,7 +8,12 @@ from .access_session import (
     #CiscoAccessSessionFilterListOption,
     AccessSessionFilterList,
     AccessSessionAccountingSpec,
-    AccessSessionAuthenticationSpec
+    AccessSessionAuthenticationSpec,
+)
+from .cisco_logging import (
+    CiscoLoggingTrap,
+    CiscoLoggingConsole,
+    CiscoLoggingSsh
 )
 
 __all__ = [
@@ -22,4 +27,7 @@ __all__ = [
     "AccessSessionFilterList",
     "AccessSessionAccountingSpec",
     "AccessSessionAuthenticationSpec",
+    "CiscoLoggingTrap",
+    "CiscoLoggingConsole",
+    "CiscoLoggingSsh"
 ]

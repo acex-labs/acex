@@ -20,7 +20,10 @@ from .cisco import (
     #CiscoAccessSessionFilterListOption
     AccessSessionFilterList,
     AccessSessionAccountingSpec,
-    AccessSessionAuthenticationSpec
+    AccessSessionAuthenticationSpec,
+    CiscoLoggingTrap,
+    CiscoLoggingConsole,
+    CiscoLoggingSsh
 )
 from .juniper import JuniperSnmpCommunityClients
 
@@ -34,5 +37,8 @@ __all__ = [
     "AccessSessionFilterList",
     "AccessSessionAccountingSpec",
     "AccessSessionAuthenticationSpec",
+    "CiscoLoggingTrap",
+    "CiscoLoggingConsole",
+    "CiscoLoggingSsh",
     "JuniperSnmpCommunityClients",
 ]

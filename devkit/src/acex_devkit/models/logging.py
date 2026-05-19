@@ -5,6 +5,7 @@ from acex_devkit.models.reference import Reference
 from enum import Enum
 from typing import ClassVar, Optional, Dict
 
+from acex_devkit.models.augment import AugmentAttributes, Augmentable
 
 class LoggingServerBase(BaseModel): ...
     #name: str = None
@@ -36,12 +37,12 @@ class LoggingFacility(str, Enum):
     CHANGELOG = "CHANGELOG"
     INTERACTIVE_COMMANDS = "INTERACTIVE_COMMANDS"
 
-class LoggingConfig(BaseModel):
+class LoggingConfig(Augmentable):
     rate_limit: Optional[AttributeValue[int]] = None
     severity: Optional[AttributeValue[LoggingSeverity]] = None
     buffer_size: Optional[AttributeValue[int]] = None
 
-class Console(BaseModel):
+class Console(Augmentable):
     name: Optional[AttributeValue[str]] = None
     line_number: Optional[AttributeValue[int]] = None
     logging_synchronous: Optional[AttributeValue[bool]] = None
