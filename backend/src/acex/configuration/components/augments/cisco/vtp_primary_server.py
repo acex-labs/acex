@@ -17,12 +17,12 @@ from acex_devkit.models.composed_configuration import AugmentAttributes
 
 class CiscoVtpPrimaryServerAttributes(AugmentAttributes):
     "Marks this VTP node as primary server (Cisco VTPv3 proprietary)."
-    type: Literal["cisco.vtp_primary_server"] = "cisco.vtp_primary_server"
+    type: Literal["cisco_vtp_primary_server"] = "cisco_vtp_primary_server"
     enabled: Optional[AttributeValue[bool]] = None
 
 
 class CiscoVtpPrimaryServer(Augment):
-    type = "cisco.vtp_primary_server"
+    type = "cisco_vtp_primary_server"
     model_cls = CiscoVtpPrimaryServerAttributes
     valid_targets = (Vtp,)
     default_vendor = "cisco"

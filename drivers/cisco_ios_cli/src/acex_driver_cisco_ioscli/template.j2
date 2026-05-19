@@ -1,15 +1,15 @@
 {%- macro render_augments(augments, indent="") -%}
 {%- for aug_type, aug in (augments or {}).items() -%}
-{%-   if aug_type == "cisco.device_tracking_policy" %}
+{%-   if aug_type == "cisco_device_tracking_policy" %}
 {{ indent }}device-tracking attach-policy {{ aug.policy_name.value }}
-{%-   elif aug_type == "cisco.service_policy" %}
+{%-   elif aug_type == "cisco_service_policy" %}
 {%-     if aug.input_policy %}
 {{ indent }}service-policy input {{ aug.input_policy.value }}
 {%-     endif %}
 {%-     if aug.output_policy %}
 {{ indent }}service-policy output {{ aug.output_policy.value }}
 {%-     endif %}
-{%-   elif aug_type == "cisco.vtp_primary_server" %}
+{%-   elif aug_type == "cisco_vtp_primary_server" %}
 {%-     if aug.enabled and aug.enabled.value %}
 {{ indent }}vtp primary server
 {%-     endif %}
@@ -18,7 +18,7 @@
 {%- endmacro -%}
 service timestamps debug datetime msec
 service timestamps log datetime msec
-{%- set pwe = (configuration.system.config.augments or {}).get('cisco.service_password_encryption') %}
+{%- set pwe = (configuration.system.config.augments or {}).get('cisco_service_password_encryption') %}
 {%- if pwe and pwe.enabled.value %}
 service password-encryption
 {%- else %}
@@ -527,7 +527,7 @@ ntp server {{ server.address.value }}
 {%- endfor %}
 {%- endif %}
 !
-{%- set dh_min_size = (configuration.system.ssh.config.augments or {}).get('cisco.dh_min_size') %}
+{%- set dh_min_size = (configuration.system.ssh.config.augments or {}).get('cisco_dh_min_size') %}
 {%- if dh_min_size %}
 ip ssh dh min size {{ dh_min_size.dh_min_size.value }}
 {%- endif %}

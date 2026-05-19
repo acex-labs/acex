@@ -6,56 +6,65 @@ from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.services import Services
 
 from acex_devkit.models import AttributeValue
-from acex_devkit.models.composed_configuration import AugmentAttributes
+from acex_devkit.models.composed_configuration import AugmentAttributes, ReferenceTo
 
 from pydantic import BaseModel, Field
 
 
-class AccessSessionFilterList(BaseModel):
+
+class CiscoAccessSessionFilterListAttributes(AugmentAttributes):
+    type: Literal["cisco_access_session_filter_list"] = "cisco_access_session_filter_list"
+
+
+class CiscoAccessSessionFilterList(Augment):
     "Named access-session filter-list payload."
-
-    items: AttributeValue[List[str]]
-
-
-class AccessSessionFilterSpec(BaseModel):
-    "Shared filter-spec payload for authentication, authorization, and accounting."
-
-    action: AttributeValue[str]  # include / exclude
-    filter_list: AttributeValue[str]
-
-
-class AccessSessionAuthenticationSpec(AccessSessionFilterSpec):
-    pass
-
-
-class AccessSessionAuthorizationSpec(AccessSessionFilterSpec):
-    pass
-
-
-class AccessSessionAccountingSpec(AccessSessionFilterSpec):
-    pass
+    type: Literal["cisco_access_session_filter_list"] = "cisco_access_session_filter_list"
+    model_cls = CiscoAccessSessionFilterListAttributes
+    valid_targets = (Services, )
+    default_vendor = "cisco"
 
 
 class CiscoAccessSessionAttributes(AugmentAttributes):
-    type: Literal["cisco.access_session"] = "cisco.access_session"
-    filter_lists: Dict[str, AccessSessionFilterList] = Field(default_factory=dict)
-    authentication: Optional[AccessSessionAuthenticationSpec] = None
-    authorization: Optional[AccessSessionAuthorizationSpec] = None
-    accounting: Optional[AccessSessionAccountingSpec] = None
+    type: Literal["cisco_access_session"] = "cisco_access_session"
+    filter_lists: Dict[str, ReferenceTo] = Field(default_factory=dict)
 
 
-class CiscoAccessSession(Augment):
-    type = "cisco.access_session"
+class CiscoAccessSessionAuthentication(Augment):
+    type = "cisco_access_session_authentication"
     model_cls = CiscoAccessSessionAttributes
     valid_targets = (Services,)
     default_vendor = "cisco"
 
 
-#__all__ = [
-#    "AccessSessionAccountingSpec",
-#    "AccessSessionAuthenticationSpec",
-#    "AccessSessionAuthorizationSpec",
-#    "AccessSessionFilterList",
-#    "CiscoAccessSession",
-#    "CiscoAccessSessionAttributes",
-#]
+
+
+
+
+
+
+# class AccessSessionAuthenticationSpec(AccessSessionFilterSpec):
+#     pass
+
+
+# class AccessSessionAuthorizationSpec(AccessSessionFilterSpec):
+#     pass
+
+
+# class AccessSessionAccountingSpec(AccessSessionFilterSpec):
+#     pass
+
+
+# class CiscoAccessSessionAttributes(AugmentAttributes):
+#     type: Literal["cisco_access_session"] = "cisco_access_session"
+#     filter_lists: Dict[str, CiscoAccessSessionFilterList] = Field(default_factory=dict)
+#     authentication: Optional[AccessSessionAuthenticationSpec] = None
+#     authorization: Optional[AccessSessionAuthorizationSpec] = None
+#     accounting: Optional[AccessSessionAccountingSpec] = None
+
+
+# class CiscoAccessSession(Augment):
+#     type = "cisco_access_session"
+#     model_cls = CiscoAccessSessionAttributes
+#     valid_targets = (Services,)
+#     default_vendor = "cisco"
+
