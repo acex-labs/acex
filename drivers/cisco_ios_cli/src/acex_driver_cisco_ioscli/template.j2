@@ -1,9 +1,30 @@
-{%- if configuration.asset.version -%}
-version {{ configuration.asset.version | default('15.2') }}
-{%- endif %}
+{%- macro render_augments(augments, indent="") -%}
+{%- for aug_type, aug in (augments or {}).items() -%}
+{%-   if aug_type == "cisco_device_tracking_policy" %}
+{{ indent }}device-tracking attach-policy {{ aug.policy_name.value }}
+{%-   elif aug_type == "cisco_service_policy" %}
+{%-     if aug.input_policy %}
+{{ indent }}service-policy input {{ aug.input_policy.value }}
+{%-     endif %}
+{%-     if aug.output_policy %}
+{{ indent }}service-policy output {{ aug.output_policy.value }}
+{%-     endif %}
+{%-   elif aug_type == "cisco_vtp_primary_server" %}
+{%-     if aug.enabled and aug.enabled.value %}
+{{ indent }}vtp primary server
+{%-     endif %}
+{%-   endif %}
+{%- endfor -%}
+{%- endmacro -%}
 service timestamps debug datetime msec
 service timestamps log datetime msec
+{%- set pwe = (configuration.system.config.augments or {}).get('cisco_service_password_encryption') %}
+{%- if pwe and pwe.enabled.value %}
+service password-encryption
+{%- else %}
 no service password-encryption
+{%- endif %}
+
 service compress-config
 !
 {%- if configuration.system.config.hostname %}
@@ -18,7 +39,16 @@ boot-end-marker
 {%-   if configuration.system.logging.config and configuration.system.logging.config.get('buffer_size') %}
 logging buffered {{ configuration.system.logging.config['buffer_size'].value | default(4096) }}
 {%-   endif %}
+{%-   set logging_console = (configuration.system.logging.config.augments or {}).get('cisco.console_logging') %}
+{%-   if logging_console and logging_console.enabled and not logging_console.enabled.value %}
+no logging console
+{%-   endif %}
+{%-   set logging_trap = (configuration.system.logging.config.augments or {}).get('cisco.trap_logging') %}
+{%-   if logging_trap %}
+logging trap {{ logging_trap.severity.value }}
+{%-   endif %}
 {%- endif %}
+!
 {%- for ni in configuration.network_instances.values() %}
 {%-   if ni.name.value != "global" %}
 vrf definition {{ ni.name.value }}
@@ -59,6 +89,74 @@ aaa group server radius {{ group_name }}
 no aaa new-model
 {%- endif %}
 !
+{%- set svc_augments = (configuration.system.services.config.augments or {}) %}
+{%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type.startswith("cisco_access_session_filter_list") %}
+access-session attributes filter-list list {{ aug.name }}
+{%-     for item in aug['items'] %}
+ {{ item }}
+{%-     endfor %}
+!
+{%-   endif %}
+{%- endfor %}
+{%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type.startswith("cisco_control_subscriber_policy_map") %}
+policy-map type control subscriber {{ aug.name }}
+{%-     for event_type, event in aug.events.items() %}
+ event {{ event_type }} {{ event.match_type }}
+{%-       for prio, cls in event.classes.items() %}
+  {{ prio }} class {{ cls.class_name }} {{ cls.mode }}
+{%-         for action_prio, act in cls.actions.items() %}
+   {{ action_prio }} {{ act.action }}
+{%-         endfor %}
+{%-       endfor %}
+{%-     endfor %}
+!
+{%-   endif %}
+{%- endfor %}
+{%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type.startswith("cisco_device_sensor_filter_list") %}
+device-sensor filter-list {{ aug.protocol }} list {{ aug.name }}
+{%-     for item in aug['items'] %}
+{%-       if aug.protocol == "dhcp" %}
+ option name {{ item }}
+{%-       else %}
+ tlv name {{ item }}
+{%-       endif %}
+{%-     endfor %}
+!
+{%-   endif %}
+{%- endfor %}
+{%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type.startswith("cisco_device_sensor_filter_spec") %}
+device-sensor filter-spec {{ aug.protocol }} include list {{ aug.filter_list_name }}
+{%-   endif %}
+{%- endfor %}
+{%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type == "cisco_access_session_authentication" %}
+{%-     for list_name in aug.filter_lists.keys() %}
+access-session authentication attributes filter-spec include list {{ list_name }}
+{%-     endfor %}
+{%-   elif aug_type == "cisco_access_session_accounting" %}
+{%-     for list_name in aug.filter_lists.keys() %}
+access-session accounting attributes filter-spec include list {{ list_name }}
+{%-     endfor %}
+{%-   elif aug_type == "cisco_service_policy_control_subscriber" %}
+service-policy type control subscriber {{ aug.policy_name }}
+{%-   elif aug_type == "cisco_access_session_monitor" %}
+{%-     if aug.enabled and aug.enabled.value %}
+access-session monitor
+{%-     endif %}
+{%-   elif aug_type == "cisco_device_sensor_notify" %}
+{%-     if aug.all_changes %}
+device-sensor notify all-changes
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+!
+{%- if configuration.system.clock.config %}
+clock timezone {{ configuration.system.clock.config.timezone.value | upper }}
+{%- endif %}
 !
 !
 !
@@ -74,7 +172,24 @@ ip cef
 {%- endif %}
 no ipv6 cef
 !
-!
+{%- set dhcp_snoop = configuration.system.dhcp.snooping %}
+{%- if dhcp_snoop and dhcp_snoop.enabled and dhcp_snoop.enabled.value %}
+ip dhcp snooping
+{%-   for vlan_id in dhcp_snoop.vlans.keys() %}
+ip dhcp snooping vlan {{ vlan_id }}
+{%-   endfor %}
+{%-   if dhcp_snoop.option82 and not dhcp_snoop.option82.value %}
+no ip dhcp snooping information option
+{%-   endif %}
+{%-   set track = (dhcp_snoop.augments or {}).get('cisco_dhcp_snooping_track_server') %}
+{%-   if track %}
+{%-     if track.all_dhcp_acks %}
+ip dhcp snooping track server all-dhcp-acks
+{%-     else %}
+ip dhcp snooping track server
+{%-     endif %}
+{%-   endif %}
+{%- endif %}
 !
 spanning-tree mode pvst
 spanning-tree extend system-id
@@ -95,13 +210,43 @@ vtp password {{ vtp.password.value }}
 {%-   elif vtp.password_hashed %}
 vtp password {{ vtp.password_hashed.value }} hidden
 {%-   endif %}
-{%-   for line in configuration.augment_lines.get("system.vtp.config", []) %}
-{{ line }}
-{%-   endfor %}
+{{- render_augments(vtp.get('augments')) -}}
 {%- endif %}
 !
 !
-!
+{%- if configuration.system.logging.files.files -%}
+{%-   for file in configuration.system.logging.files.files.values() %}
+{%-     if file.augments %}
+{%-       for archive in file.augments.values() %}
+{%-         if archive.type == 'cisco.archive' and ((archive.enabled is not defined) or archive.enabled.value) %}
+archive
+{%-         if archive.log_config and archive.log_config.value %}
+ log config
+  logging enable
+{%-         endif %}
+{%-         if archive.path and archive.path.value %}
+ path {{ archive.path.value }}
+{%-         endif %}
+{%-         if archive.write_memory and archive.write_memory.value %}
+ write-memory
+{%-         endif %}
+{%-         if archive.time_period and archive.time_period.value %}
+ time-period {{ archive.time_period.value }}
+{%-         endif %}
+{%-         if archive.maximum and archive.maximum.value %}
+ maximum {{ archive.maximum.value }}
+{%-         endif %}
+{%-         if archive.rollback_filter and archive.rollback_filter.value %}
+ rollback filter adaptive
+{%-         endif %}
+{%-         if archive.rollback_retry and archive.rollback_retry.value %}
+ rollback retry {{ archive.rollback_retry.value }}
+{%-         endif %}
+{%-       endif %}
+{%-       endfor %}
+{%-     endif %}
+{%-   endfor %}
+{%- endif %}
 !
 !
 !
@@ -202,9 +347,7 @@ template {{ tmpl.name.value }}
 {%-    if tmpl.snmp_link_status_trap and tmpl.snmp_link_status_trap.value == False %}
  no snmp trap link-status
 {%-    endif %}
-{%-    for line in configuration.augment_lines.get("interface_templates." ~ tmpl_name, []) %}
- {{ line }}
-{%-    endfor %}
+{{- render_augments(tmpl.get('augments'), " ") -}}
 {%-    if tmpl.description %}
  description {{ tmpl.description.value }}
 {%-    endif %}
@@ -333,9 +476,7 @@ interface {{ intf.name }}
  storm-control action {{ intf.storm_control.action.value }}
 {%-    endif %}
 {%-  endif %}
-{%-  for line in configuration.augment_lines.get("interfaces." ~ intf_name, []) %}
- {{ line }}
-{%-  endfor %}
+{{- render_augments(intf.get('augments'), " ") -}}
 {%-  if intf.logging_link_status and intf.logging_link_status.value == False %}
  no logging event link-status
 {%-  endif %}
@@ -411,10 +552,34 @@ ip forward-protocol nd
 ip http server
 ip http secure-server
 !
-{% set ssh = configuration.system.ssh.config -%}
+{%- if configuration.acl.ipv4_acls %}
+{%- for acl_name, acl in configuration.acl.ipv4_acls.items() %}
+{%-   set acl_type = acl.type.value | default('standard') %}
+ip access-list {{ acl_type }} {{ acl_name }}
+{%-   for entry in acl.acl_entries.values() %}
+  {%-     set seq = entry.sequence_id.value if entry.sequence_id else none %}
+  {%-     set src = entry.source_address.value if entry.source_address else 'any' %}
+  {%-     set dst = entry.destination_address.value if entry.destination_address else 'any' %}
+  {%-     if entry.description %}
+ {{ seq }} remark {{ entry.description.value }}
+  {%-     endif %}
+  {%-     if acl_type == 'standard' %}
+ {{ seq }} {{ entry.action.value }} {% if src == 'any' %}any{% elif src is string and src.endswith('/32') %}{{ src.split('/') | first }}{% else %}{{ src | cidr_to_addrmask }}{% endif %}
+  {%-     else %}
+ {{ seq }} {{ entry.action.value }} {% if entry.protocol and entry.protocol.value != 'ip' %}{{ entry.protocol.value }}{% else %}ip{% endif %} {% if src == 'any' %}any{% elif src is string and src.endswith('/32') %}host {{ src.split('/') | first }}{% else %}{{ src | cidr_to_addrmask }}{% endif %} {% if dst == 'any' %}any{% elif dst is string and dst.endswith('/32') %}host {{ dst.split('/') | first }}{% else %}{{ dst | cidr_to_addrmask }}{% endif %}
+  {%-     endif %}
+  {%-   endfor %}
+{%-   endfor %}
+{%- endif %}
+!
+{%- set ssh = configuration.system.ssh.config -%}
 {%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
 {%-   if ssh.get('protocol_version') %}
 ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
+{%-   endif %}
+{%-   set ssh_logging_events = (configuration.system.logging.config.augments or {}).get('cisco.ssh_logging') %}
+{%-   if ssh_logging_events and ssh_logging_events.enabled and ssh_logging_events.enabled.value %}
+ip ssh logging events
 {%-   endif %}
 {%-   if ssh.get('timeout') %}
 ip ssh time-out {{ ssh.get('timeout').value }}
@@ -425,6 +590,45 @@ ip ssh authentication-retries {{ ssh.get('auth_retries').value }}
 {%-   if ssh.get('source_interface') %}
 ip ssh source-interface {{ ssh['source_interface'] }}
 {%-   endif %}
+{%- endif %}
+!
+{%- set snmp = configuration.system.snmp if configuration.system is defined and configuration.system.snmp is defined else none %}
+{%- if snmp %}
+{%-   set default_snmp_user = (snmp.users.values() | first) if snmp.users else none %}
+{%-   for _, group in (snmp.groups or {}).items() %}
+{%-     set group_name = group.name.value if group.name else none %}
+{%-     set group_view = (group.views.values() | first) if group.views else none %}
+{%-     set view_name = group_view.pointer.split('.') | last if group_view and group_view.pointer else none %}
+{%-     set access_name = group.access.value if group.access else 'READ_ONLY' %}
+{%-     if group_name %}
+snmp-server group {{ group_name }} v3 auth{% if view_name %} read {{ view_name }}{% endif %}{% if view_name and access_name in ['READ_WRITE', 'READ_CREATE'] %} write {{ view_name }}{% endif %}{% if group.ipv4acl and group.ipv4acl.pointer %} access {{ group.ipv4acl.pointer.split('.') | last }}{% endif %}
+{%-     endif %}
+{%-   endfor %}
+{%-   for _, view in (snmp.views or {}).items() %}
+{%-     for _, oid in (view.oids or {}).items() %}
+{%-       if view.name and oid.oid %}
+snmp-server view {{ view.name.value }} {{ oid.oid.value }} {% if oid.included and oid.included.value %}included{% else %}excluded{% endif %}
+{%-       endif %}
+{%-     endfor %}
+{%-   endfor %}
+{%-   for _, cfg in (snmp.config or {}).items() %}
+{%-     if cfg.location %}
+snmp-server location {{ cfg.location.value }}
+{%-     endif %}
+{%-     if cfg.contact %}
+snmp-server contact {{ cfg.contact.value }}
+{%-     endif %}
+{%-   endfor %}
+{%-   for _, community in (snmp.communities or {}).items() %}
+{%-     if community.community %}
+snmp-server community {{ community.community.value }}{% if community.ipv4acl and community.ipv4acl.pointer %} {{ community.ipv4acl.pointer.split('.') | last }}{% endif %}
+{%-     endif %}
+{%-   endfor %}
+{%-   for _, server in (snmp.trap_servers or {}).items() %}
+{%-     if server.enabled and server.enabled.value and server.address %}
+snmp-server host {{ server.address.value }}{% if server.network_instance and server.network_instance.value != 'global' %} vrf {{ server.network_instance.value }}{% endif %}{% if server.version %} version {{ '3' if server.version.value == 'v3' else server.version.value }}{% endif %}{% if server.version and server.version.value == 'v3' %} auth {% if server.username %}{{ server.username.value }}{% elif default_snmp_user and default_snmp_user.username %}{{ default_snmp_user.username.value }}{% endif %}{% elif server.community %} {{ server.community.value }}{% endif %}
+{%-     endif %}
+{%-   endfor %}
 {%- endif %}
 !
 {%- for _, group in configuration.system.aaa.server_groups.items() %}
@@ -487,18 +691,6 @@ port-channel load-balance {{ alg }}
 {%-   endif %}
 {%- endif %}
 !
-{%- if "snmp" in configuration -%}
-{%- if configuration.snmp.community %}
-snmp-server community {{ configuration.snmp.community }} {{ configuration.snmp.access | default('RO') }}
-{%- endif %}
-{%- if configuration.snmp.location %}
-snmp-server location {{ configuration.snmp.location }}
-{%- endif %}
-{%- if configuration.snmp.contact %}
-snmp-server contact {{ configuration.snmp.contact }}
-{%- endif %}
-{%- endif %}
-!
 {%- if configuration.system.ntp.servers -%}
 {%- for server in configuration.system.ntp.servers.values() %}
 {%-   if server.prefer %}
@@ -507,6 +699,11 @@ ntp server {{ server.address.value }} prefer
 ntp server {{ server.address.value }}
 {%-   endif %}
 {%- endfor %}
+{%- endif %}
+!
+{%- set dh_min_size = (configuration.system.ssh.config.augments or {}).get('cisco_dh_min_size') %}
+{%- if dh_min_size %}
+ip ssh dh min size {{ dh_min_size.dh_min_size.value }}
 {%- endif %}
 !
 {%- if configuration.system.logging -%}

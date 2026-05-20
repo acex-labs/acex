@@ -1,6 +1,7 @@
 from acex import AutomationEngine
 
-from acex.plugins.integrations import Sqlite, Netbox
+from acex.plugins.integrations.netbox import Netbox
+from acex.plugins.integrations.netbox_mock import Netbox as Mock
 from acex.database import Connection
 import os
 
@@ -15,7 +16,7 @@ db = Connection(
 
 
 # # External datasources
-netbox = Netbox(
+netbox = Mock(
     url="https://netbox.ngninfra.net/",
     token=os.getenv("NETBOX_TOKEN"),
     verify_ssl=False,
@@ -26,6 +27,15 @@ ae = AutomationEngine(
     # assets_plugin=netbox,
     # logical_nodes_plugin=netbox,
 )
+
+ae.set_influxdb(
+    url="http://eru614:8181",
+    token="apiv3_lVnJoRcEfuAERSh_bmP1vj5uTY5V6_wq7mNuoZkKDFpDY-abn2Zvc5L-BDTHpjSL6yx0vW_1lg-xamJ5jixYoA",
+    database="acex",
+    content_encoding="gzip",
+    version="v3"
+)
+
 
 ae.add_integration("ipam", netbox)
 ae.add_configmap_dir("config_maps")
@@ -41,6 +51,10 @@ ae.ai_ops(
 # CORS
 ae.add_cors_allowed_origin("*")
 
+# Encryption key for device credentials
+# ae.set_encryption_key(os.getenv("ACEX_ENCRYPTION_KEY", ""))
+ae.set_encryption_key("9VfRDg1KSH4U6-Kv5dG7e59f1iKeGEQHWUAKPnZO4hk=")
+
 # Create the api app!
 app = ae.create_app()
 
@@ -52,4 +66,3 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=80,
     )
-    

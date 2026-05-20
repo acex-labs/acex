@@ -11,18 +11,33 @@ or the explicit per-vendor path::
 
     from acex.configuration.components.augments.cisco import CiscoDeviceTrackingPolicy
 """
-from .base import Augment
-from .cisco import (
-    CiscoDeviceTrackingPolicy,
-    CiscoServicePolicy,
-    CiscoVtpPrimaryServer,
-)
-from .juniper import JuniperSnmpCommunityClients
 
-__all__ = [
-    "Augment",
-    "CiscoDeviceTrackingPolicy",
-    "CiscoServicePolicy",
-    "CiscoVtpPrimaryServer",
-    "JuniperSnmpCommunityClients",
-]
+from .base import Augment
+
+#
+# Vi behöver inte importera dessa här, man får importera med specifik path i configmap
+#
+# from .cisco import (
+#     CiscoDeviceTrackingPolicy,
+#     CiscoServicePolicy,
+#     CiscoVtpPrimaryServer,
+#     CiscoAccessSessionFilterList,
+#     #CiscoAccessSessionFilterListOption
+#     AccessSessionFilterList,
+#     AccessSessionAccountingSpec,
+#     AccessSessionAuthenticationSpec
+# )
+# from .juniper import JuniperSnmpCommunityClients
+
+# __all__ = [
+#     "Augment",
+#     "CiscoDeviceTrackingPolicy",
+#     "CiscoServicePolicy",
+#     "CiscoVtpPrimaryServer",
+#     "CiscoAccessSessionFilterList",
+#     #"CiscoAccessSessionFilterListOption",
+#     "AccessSessionFilterList",
+#     "AccessSessionAccountingSpec",
+#     "AccessSessionAuthenticationSpec",
+#     "JuniperSnmpCommunityClients",
+# ]

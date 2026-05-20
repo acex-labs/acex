@@ -1,6 +1,6 @@
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.interfaces import FrontpanelPort, InterfaceTemplate
-from acex.configuration.components.augments import (
+from acex.configuration.components.augments.cisco import (
     CiscoDeviceTrackingPolicy,
     CiscoServicePolicy,
 )
@@ -59,4 +59,4 @@ class ConfigureAccessPorts(ConfigMap):
 
 
 config = ConfigureAccessPorts()
-config.filters = FilterAttribute("role").eq("lan_access")
+config.filters = FilterAttribute("role").eq("/.*/")

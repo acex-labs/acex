@@ -18,7 +18,8 @@ from acex.configuration.components.system import (
     Location,
     DomainName,
     LoginBanner,
-    MotdBanner
+    MotdBanner,
+    SystemConfig,
 )
 
 from acex.configuration.components.system.logging import RemoteServer, Console, VtyLine, LoggingConfig, FileLogging
@@ -92,6 +93,7 @@ from acex.configuration.components.sampling.sflow import (
     SflowCollector
 )
 
+from acex.configuration.components.system.clock import Clock
 from acex.configuration.components.system.dns import DnsServer
 
 from acex_devkit.models import ExternalValue
@@ -108,6 +110,7 @@ class Configuration:
     # must be referenced using its name attribute
     COMPONENT_MAPPING = {
         AuthorizedKey: "system.ssh.host_keys",
+        SystemConfig: "system.config",
         HostName: "system.config.hostname",
         Contact: "system.config.contact",
         Location: "system.config.location",
@@ -117,6 +120,7 @@ class Configuration:
         DnsServer: "system.dns.dns_servers",
         RemoteServer: "system.logging.remote_servers.servers",
         Console: "system.logging.console",
+        Clock: "system.clock.config",
         VtyLine: "system.logging.vty.lines",
         LoggingConfig: "system.logging.config",
         FileLogging: "system.logging.files.files",
@@ -169,7 +173,7 @@ class Configuration:
         DhcpRelayServer: "system.dhcp.relay.relay_servers", 
         LldpConfig: "lldp",
         CdpConfig: "cdp",
-        Services: "system.services",
+        Services: "system.services.config",
         NetflowGlobalConfig: "sampling.netflow.config",
         NetflowCollector: "sampling.netflow.collectors",
         NetflowExporter: "sampling.netflow.exporters",
@@ -307,11 +311,11 @@ class Configuration:
         # Augments are routed separately — they're materialized on their
         # target's `augments` slot rather than placed at a tree path.
         if isinstance(component, Augment):
-            key = (component._target_path, component.type)
+            key = (component._target_path, component.type, component.name)
             if key in self._augment_keys:
                 raise ValueError(
-                    f"Duplicate augment {component.type} on {component._target_path} "
-                    f"(augment '{component.name}' conflicts with previously added one)"
+                    f"Duplicate augment {component.type!r} on {component._target_path}"
+                    + (f" (name={component.name!r})" if component.name else "")
                 )
             self._augment_keys.add(key)
             self._augments.append(component)
@@ -447,7 +451,8 @@ class Configuration:
                         f"Augment '{aug.name}' targets '{aug._target_path}' "
                         f"which does not exist in the composed configuration"
                     )
-            ptr.augments[aug.type] = aug.model
+            aug_key = aug.type if aug.name is None else f"{aug.type}__{aug.name}"
+            ptr.augments[aug_key] = aug.model
 
         return config
 

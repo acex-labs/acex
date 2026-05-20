@@ -17,8 +17,47 @@ from acex_devkit.models.logging import (
 from acex_devkit.models.spanning_tree import SpanningTree
 from acex_devkit.models.acl_model import Acl
 from acex_devkit.models.reference import MetadataValueType, Metadata, Reference, ReferenceTo, ReferenceFrom, RenderedReference
+from acex_devkit.models.augment import AugmentAttributes, Augmentable
 
-class SystemConfig(BaseModel):
+# --- Augments --------------------------------------------------------------
+# Vendor/os-specific augments mount on target tree components via the
+# `Augmentable` mixin. Devkit only knows about `AugmentAttributes` — the
+# generic base — and uses `extra='allow'` to round-trip subclass-specific
+# fields. Concrete augment payload classes (CiscoDeviceTrackingPolicy-
+# Attributes, etc.) live in the backend alongside their ConfigComponent
+# classes, so adding a new vendor augment requires no devkit edit.
+
+#class AugmentAttributes(BaseModel):
+#    """
+#    Base for vendor/os-specific augments that mount on target tree components.
+#
+#    Subclasses live in the backend (next to their ConfigComponent) and add
+#    typed payload fields. `extra='allow'` lets those fields round-trip
+#    through serialize → JSON → re-validate without devkit knowing about them.
+#
+#    Augments live on a target node's `augments` dict, keyed by `type`. The
+#    target itself is implicit (it's the node carrying this augment).
+#    """
+#    model_config = ConfigDict(extra="allow")
+#    type: str
+#
+#
+#class Augmentable(BaseModel):
+#    """
+#    Mixin that gives a target node a slot for vendor/os-specific augments.
+#    Drivers walk `augments` per target and dispatch by augment type; targets
+#    that no driver augments simply carry an empty dict.
+#
+#    `SerializeAsAny[AugmentAttributes]` makes Pydantic serialize each value
+#    using its runtime type (the concrete subclass defined in backend),
+#    not the declared base type. Combined with `extra='allow'` on
+#    AugmentAttributes, this round-trips subclass-declared fields through
+#    serialize → JSON → re-validate without devkit knowing the subclasses.
+#    """
+#    augments: Dict[str, SerializeAsAny[AugmentAttributes]] = {}
+
+
+class SystemConfig(Augmentable):
     contact: Optional[AttributeValue[str]] = None
     domain_name: Optional[AttributeValue[str]] = None
     hostname: Optional[AttributeValue[str]] = None
@@ -59,7 +98,7 @@ class Ntp(BaseModel):
     config: Optional[NtpConfig] = None
     servers: Optional[Dict[str, NtpServer]] = {}
 
-class SshServer(BaseModel): 
+class SshServer(Augmentable): 
     enable: Optional[AttributeValue[bool]] = None
     protocol_version: Optional[AttributeValue[int]] = AttributeValue(value=2)
     timeout: Optional[AttributeValue[int]] = None
@@ -84,7 +123,7 @@ class AuthorizedKey(ContainerEntry, BaseModel):
     public_key: Optional[AttributeValue[str]] = None
 
 class Ssh(BaseModel):
-    config: Optional[SshServer] = None
+    config: Optional[SshServer] = SshServer()
     host_keys: Optional[Dict[str, AuthorizedKey]] = {}
 
 class LldpConfigAttributes(BaseModel):
@@ -120,44 +159,6 @@ class StormControlAttributes(BaseModel):
     multicast_pps: Optional[AttributeValue[int]] = None
     unknown_unicast_pps: Optional[AttributeValue[int]] = None
     action: Optional[AttributeValue[Literal["trap", "shutdown"]]] = None
-
-
-# --- Augments --------------------------------------------------------------
-# Vendor/os-specific augments mount on target tree components via the
-# `Augmentable` mixin. Devkit only knows about `AugmentAttributes` — the
-# generic base — and uses `extra='allow'` to round-trip subclass-specific
-# fields. Concrete augment payload classes (CiscoDeviceTrackingPolicy-
-# Attributes, etc.) live in the backend alongside their ConfigComponent
-# classes, so adding a new vendor augment requires no devkit edit.
-
-class AugmentAttributes(BaseModel):
-    """
-    Base for vendor/os-specific augments that mount on target tree components.
-
-    Subclasses live in the backend (next to their ConfigComponent) and add
-    typed payload fields. `extra='allow'` lets those fields round-trip
-    through serialize → JSON → re-validate without devkit knowing about them.
-
-    Augments live on a target node's `augments` dict, keyed by `type`. The
-    target itself is implicit (it's the node carrying this augment).
-    """
-    model_config = ConfigDict(extra="allow")
-    type: str
-
-
-class Augmentable(BaseModel):
-    """
-    Mixin that gives a target node a slot for vendor/os-specific augments.
-    Drivers walk `augments` per target and dispatch by augment type; targets
-    that no driver augments simply carry an empty dict.
-
-    `SerializeAsAny[AugmentAttributes]` makes Pydantic serialize each value
-    using its runtime type (the concrete subclass defined in backend),
-    not the declared base type. Combined with `extra='allow'` on
-    AugmentAttributes, this round-trips subclass-declared fields through
-    serialize → JSON → re-validate without devkit knowing the subclasses.
-    """
-    augments: Dict[str, SerializeAsAny[AugmentAttributes]] = {}
 
 
 class InterfaceTemplateAttributes(ContainerEntry, Augmentable):
@@ -416,7 +417,7 @@ class SnmpPrivProtocol(str, Enum):
 	AES256 = "AES256"
 
 
-class SnmpConfigAttributes(ContainerEntry, BaseModel):
+class SnmpConfig(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     enabled: AttributeValue[bool] = AttributeValue(value=False)
@@ -425,7 +426,7 @@ class SnmpConfigAttributes(ContainerEntry, BaseModel):
     contact: Optional[AttributeValue[str]] = None
 
 
-class SnmpCommunityAttributes(ContainerEntry, Augmentable):
+class SnmpCommunity(ContainerEntry, Augmentable):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     community: Optional[AttributeValue[str]] = None # Community string
@@ -435,7 +436,7 @@ class SnmpCommunityAttributes(ContainerEntry, Augmentable):
     ipv6acl: Optional[Reference] = None
     #source_interface: Optional[Reference] = None
 
-class SnmpGroupAttributes(ContainerEntry, BaseModel):
+class SnmpGroup(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     access: Optional[AttributeValue[SnmpAccess]] = AttributeValue(value=SnmpAccess.READ_ONLY)
@@ -445,7 +446,7 @@ class SnmpGroupAttributes(ContainerEntry, BaseModel):
     users: Optional[Dict[str, Reference]] = {} # Users that belong to this group. Only relevant for SNMPv3.
     views: Optional[Dict[str, Reference]] = {} # Views that this group has access to.
 
-class SnmpUserAttributes(ContainerEntry, BaseModel):
+class SnmpUser(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("username",)
     username: AttributeValue[str]
     security_level: Optional[AttributeValue[SnmpSecurityLevel]] = AttributeValue(value=SnmpSecurityLevel.NO_AUTH_NO_PRIV)
@@ -454,7 +455,7 @@ class SnmpUserAttributes(ContainerEntry, BaseModel):
     priv_protocol: Optional[AttributeValue[SnmpPrivProtocol]] = None
     priv_password: Optional[AttributeValue[str]] = None
 
-class SnmpViewOidAttributes(ContainerEntry, BaseModel):
+class SnmpView(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     oid: AttributeValue[str]
@@ -464,9 +465,9 @@ class SnmpViewOidAttributes(ContainerEntry, BaseModel):
 class SnmpViewAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
-    oids: Optional[Dict[str, SnmpViewOidAttributes]] = {}
+    oids: Optional[Dict[str, SnmpView]] = {}
 
-class SnmpServerAttributes(ContainerEntry, BaseModel):
+class SnmpServer(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
     name: Optional[AttributeValue[str]] = None
     address: Optional[AttributeValue[str]] = None
@@ -595,7 +596,7 @@ class TrapEventOptions(str, Enum):
 	BULKSTAT_COLLECTION = "bulkstat_collection"
 	BULKSTAT_TRANSFER = "bulkstat_transfer"
 
-class TrapEventAttributes(ContainerEntry, BaseModel):
+class TrapEvent(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("event_name",)
     name: Optional[AttributeValue[str]] = None
     event_name: Optional[AttributeValue[TrapEventOptions]] = None
@@ -603,12 +604,12 @@ class TrapEventAttributes(ContainerEntry, BaseModel):
 #class SnmpTrap(BaseModel): ...
 
 class Snmp(BaseModel):
-    config: Optional[Dict[str, SnmpConfigAttributes]] = {}
-    communities: Optional[Dict[str, SnmpCommunityAttributes]] = {}
-    groups: Optional[Dict[str, SnmpGroupAttributes]] = {}
-    users: Optional[Dict[str, SnmpUserAttributes]] = {}
-    trap_servers: Optional[Dict[str, SnmpServerAttributes]] = {}
-    trap_events: Optional[Dict[str, TrapEventAttributes]] = {}
+    config: Optional[Dict[str, SnmpConfig]] = {}
+    communities: Optional[Dict[str, SnmpCommunity]] = {}
+    groups: Optional[Dict[str, SnmpGroup]] = {}
+    users: Optional[Dict[str, SnmpUser]] = {}
+    trap_servers: Optional[Dict[str, SnmpServer]] = {}
+    trap_events: Optional[Dict[str, TrapEvent]] = {}
     views: Optional[Dict[str, SnmpViewAttributes]] = {}
     
 
@@ -792,7 +793,7 @@ class VTPAttributes(Augmentable):
 class VTP(BaseModel):
     config: VTPAttributes = VTPAttributes()
 
-class DHCPSnoopingAttributes(BaseModel):
+class DHCPSnoopingAttributes(Augmentable):
     enabled: Optional[AttributeValue[bool]] = None
     vlans: Optional[Dict[str, Reference]] = {} # VLANs where DHCP snooping is enabled, key is VLAN ID, value is reference to VLAN
     trust_interfaces: Optional[Dict[str, Reference]] = {} # Interfaces that are trusted for DHCP snooping, key is interface name, value is reference to interface
@@ -811,10 +812,16 @@ class Dhcp(BaseModel):
     snooping: Optional[DHCPSnoopingAttributes] = DHCPSnoopingAttributes()
     relay: Optional[DhcpRelay] = DhcpRelay()
 
-class Services(BaseModel):
+class ServicesAttributes(Augmentable):
     name: Optional[AttributeValue[str]] = None
     http: Optional[AttributeValue[bool]] = None # for webgui access
     https: Optional[AttributeValue[bool]] = None # for webgui access
+    
+class Services(BaseModel):
+    config: Optional[ServicesAttributes] = ServicesAttributes()
+    #name: Optional[AttributeValue[str]] = None
+    #http: Optional[AttributeValue[bool]] = None # for webgui access
+    #https: Optional[AttributeValue[bool]] = None # for webgui access
 
 class NetflowFormat(str, Enum):
     IPFIX = "IPFIX"
@@ -950,8 +957,18 @@ class Dns(BaseModel):
     #enabled: Optional[AttributeValue[bool]] = None
     dns_servers: Optional[Dict[str, DnsServerAttributes]] = {} # key is server name, value is IP address
 
+
+class ClockConfig(BaseModel):
+    timezone: Optional[AttributeValue[str]] = None
+
+
+class Clock(BaseModel):
+    config: Optional[ClockConfig] = None
+
+
 class System(BaseModel):
     config: SystemConfig = SystemConfig()
+    clock: Optional[Clock] = Clock()
     aaa: Optional[TripleA] = TripleA()
     logging: Optional[LoggingComponents] = LoggingComponents() # Trying to avoid using "Logging" or "logging" as names for anything due to conflicts with standard lib.
     ntp: Optional[Ntp] = Ntp()

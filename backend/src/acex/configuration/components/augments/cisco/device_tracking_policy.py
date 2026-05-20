@@ -25,12 +25,12 @@ from acex_devkit.models.composed_configuration import AugmentAttributes
 
 class CiscoDeviceTrackingPolicyAttributes(AugmentAttributes):
     "Attaches a named Cisco device-tracking policy to an interface or interface template."
-    type: Literal["cisco.device_tracking_policy"] = "cisco.device_tracking_policy"
+    type: Literal["cisco_device_tracking_policy"] = "cisco_device_tracking_policy"
     policy_name: AttributeValue[str]
 
 
 class CiscoDeviceTrackingPolicy(Augment):
-    type = "cisco.device_tracking_policy"
+    type = "cisco_device_tracking_policy"
     model_cls = CiscoDeviceTrackingPolicyAttributes
     valid_targets = (
         InterfaceTemplate,

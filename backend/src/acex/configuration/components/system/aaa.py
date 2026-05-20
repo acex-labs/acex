@@ -1,7 +1,6 @@
 from acex.configuration.components.base_component import ConfigComponent
 from acex.configuration.components.interfaces import Interface, Svi
 from acex_devkit.models.composed_configuration import (
-    ReferenceTo,
     aaaTacacsAttributes,
     aaaRadiusAttributes,
     aaaServerGroupAttributes,
@@ -20,50 +19,20 @@ class aaaGlobal(ConfigComponent):
 class aaaTacacs(ConfigComponent):
     type = "aaaTacacs"
     model_cls = aaaTacacsAttributes
- 
+    references = {"source_interface": Interface}
+
     def pre_init(self):
-        # Resolve source_interface
-        if "source_interface" in self.kwargs:
-            si = self.kwargs.pop("source_interface")
-            if isinstance(si, type(None)):
-                pass
-
-            elif isinstance(si, str):
-                ref = ReferenceTo(pointer=f"interfaces.{si}")
-                self.kwargs["source_interface"] = ref
-
-            elif isinstance(si, Interface) or isinstance(si, Svi):
-                ref = ReferenceTo(pointer=f"interfaces.{si.name}")
-                self.kwargs["source_interface"] = ref
-
-        # Normalize server_group to its name
         if "server_group" in self.kwargs:
-            server_group = self.kwargs.pop("server_group")
-            self.kwargs["server_group"] = server_group.name
+            self.kwargs["server_group"] = self.kwargs.pop("server_group").name
 
 class aaaRadius(ConfigComponent):
     type = "aaaRadius"
     model_cls = aaaRadiusAttributes
+    references = {"source_interface": Interface}
 
     def pre_init(self):
-        # Resolve source_interface
-        if "source_interface" in self.kwargs:
-            si = self.kwargs.pop("source_interface")
-            if isinstance(si, type(None)):
-                pass
-
-            elif isinstance(si, str):
-                ref = ReferenceTo(pointer=f"interfaces.{si}")
-                self.kwargs["source_interface"] = ref
-
-            elif isinstance(si, Interface) or isinstance(si, Svi):
-                ref = ReferenceTo(pointer=f"interfaces.{si.name}")
-                self.kwargs["source_interface"] = ref
-
-        # Normalize server_group to its name
         if "server_group" in self.kwargs:
-            server_group = self.kwargs.pop("server_group")
-            self.kwargs["server_group"] = server_group.name
+            self.kwargs["server_group"] = self.kwargs.pop("server_group").name
 
 class aaaServerGroup(ConfigComponent):
     type = "aaaServerGroup"

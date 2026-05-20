@@ -29,13 +29,13 @@ from acex_devkit.models.composed_configuration import AugmentAttributes
 
 class CiscoServicePolicyAttributes(AugmentAttributes):
     "Attaches Cisco MQC service-policy maps (input/output) to an interface or interface template."
-    type: Literal["cisco.service_policy"] = "cisco.service_policy"
+    type: Literal["cisco_service_policy"] = "cisco_service_policy"
     input_policy: Optional[AttributeValue[str]] = None
     output_policy: Optional[AttributeValue[str]] = None
 
 
 class CiscoServicePolicy(Augment):
-    type = "cisco.service_policy"
+    type = "cisco_service_policy"
     model_cls = CiscoServicePolicyAttributes
     valid_targets = (
         InterfaceTemplate,

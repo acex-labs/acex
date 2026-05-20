@@ -13,6 +13,20 @@ The integrator API stays simple::
         policy_name="...",
     ))
 
+For augments whose target is a singleton (its `COMPONENT_MAPPING` path ends
+in `.config`, e.g. `SshServer` → `system.ssh.config`), `target` may also be
+the class itself — the instance is then unambiguous::
+
+    context.configuration.add(CiscoSshDhMinSize(
+        target=SshServer,
+        dh_min_size=2048,
+    ))
+
+If the augment's `valid_targets` has exactly one entry AND that entry is a
+singleton, `target` may be omitted entirely — it's inferred::
+
+    context.configuration.add(CiscoSshDhMinSize(dh_min_size=2048))
+
 `name` and `target` are integrator-side fields used by `Configuration` to
 route the augment; they don't appear on the rendered `AugmentAttributes`
 payload (location IS target, dict key IS the type discriminator).
@@ -39,16 +53,28 @@ class Augment(ConfigComponent):
     """
     valid_targets: ClassVar[Tuple[Type[ConfigComponent], ...]] = ()
     default_vendor: ClassVar[str] = None
+    singleton: ClassVar[bool] = True
 
     def pre_init(self):
         target = self.kwargs.pop("target", None)
+        if target is None and len(self.valid_targets) == 1:
+            target = self.valid_targets[0]
         if target is None:
             raise ValueError(f"{self.__class__.__name__} requires a 'target' kwarg")
 
-        if self.valid_targets and not isinstance(target, self.valid_targets):
-            valid_names = [c.__name__ for c in self.valid_targets]
+        if not self.__class__.singleton and self.kwargs.get("name") is None:
             raise ValueError(
-                f"{self.__class__.__name__} cannot target {type(target).__name__}; "
+                f"{self.__class__.__name__} is not a singleton — 'name' is required"
+            )
+
+        target_is_class = isinstance(target, type)
+        target_type = target if target_is_class else type(target)
+
+        if self.valid_targets and not issubclass(target_type, self.valid_targets):
+            valid_names = [c.__name__ for c in self.valid_targets]
+            label = f"class {target_type.__name__}" if target_is_class else target_type.__name__
+            raise ValueError(
+                f"{self.__class__.__name__} cannot target {label}; "
                 f"valid targets: {valid_names}"
             )
 
@@ -58,26 +84,68 @@ class Augment(ConfigComponent):
         self._target_path = self._compute_target_path(target)
 
     @staticmethod
+    def _is_singleton_path(mapped: str) -> bool:
+        """Return True if the path resolves to a single model object.
+
+        In ComposedConfiguration every field is one of three things:
+          - Dict[str, Model]  → collection (return False)
+          - AttributeValue[T] → leaf value, not a valid target (return False)
+          - BaseModel         → singleton object (continue traversal)
+        """
+        import typing
+        from pydantic import BaseModel
+        from acex_devkit.models import AttributeValue
+        from acex_devkit.models.composed_configuration import ComposedConfiguration
+
+        current_type = ComposedConfiguration
+        for part in mapped.split("."):
+            fields = getattr(current_type, "model_fields", {})
+            if part not in fields:
+                return False
+            annotation = fields[part].annotation
+            # Unwrap Optional[X] → X
+            if getattr(annotation, "__origin__", None) is typing.Union:
+                args = [a for a in annotation.__args__ if a is not type(None)]
+                annotation = args[0] if args else annotation
+            origin = getattr(annotation, "__origin__", None)
+            # Dict → collection
+            if origin is dict:
+                return False
+            # AttributeValue[T] → leaf value, not a traversable model
+            base = origin or annotation
+            if base is AttributeValue or (isinstance(base, type) and issubclass(base, AttributeValue)):
+                return False
+            current_type = annotation
+        return True
+
+    @staticmethod
     def _compute_target_path(target):
         """Resolve target's tree path via COMPONENT_MAPPING (lazy-import)."""
         # Lazy import: configuration.py imports Augment, so importing it
         # at module load would create a cycle.
         from acex.configuration.configuration import Configuration
 
-        mapped = Configuration.COMPONENT_MAPPING.get(type(target))
+        target_is_class = isinstance(target, type)
+        target_type = target if target_is_class else type(target)
+        mapped = Configuration.COMPONENT_MAPPING.get(target_type)
         if mapped is None:
             raise ValueError(
-                f"No COMPONENT_MAPPING entry for {type(target).__name__}; "
+                f"No COMPONENT_MAPPING entry for {target_type.__name__}; "
                 f"cannot use as augment target"
             )
         if isinstance(mapped, Template):
             raise ValueError(
-                f"{type(target).__name__}: Template-path targets not yet "
+                f"{target_type.__name__}: Template-path targets not yet "
                 f"supported for augments"
             )
-        # Singletons (path ends in .config) use the path as-is; collections
-        # append the target's name as the dict key (matches the convention
-        # used by Configuration._pop_all_references).
-        if mapped.endswith(".config"):
+        # If the path resolves to a single model object (not a Dict) in the
+        # composed configuration tree, treat it as a singleton.
+        if Augment._is_singleton_path(mapped):
             return mapped
+        if target_is_class:
+            raise ValueError(
+                f"{target_type.__name__} is not a singleton (path '{mapped}' "
+                f"resolves to a collection); pass an instance, not the class, "
+                f"as target"
+            )
         return f"{mapped}.{target.name}"
