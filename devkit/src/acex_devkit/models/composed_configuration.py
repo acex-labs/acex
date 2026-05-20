@@ -793,7 +793,7 @@ class VTPAttributes(Augmentable):
 class VTP(BaseModel):
     config: VTPAttributes = VTPAttributes()
 
-class DHCPSnoopingAttributes(BaseModel):
+class DHCPSnoopingAttributes(Augmentable):
     enabled: Optional[AttributeValue[bool]] = None
     vlans: Optional[Dict[str, Reference]] = {} # VLANs where DHCP snooping is enabled, key is VLAN ID, value is reference to VLAN
     trust_interfaces: Optional[Dict[str, Reference]] = {} # Interfaces that are trusted for DHCP snooping, key is interface name, value is reference to interface

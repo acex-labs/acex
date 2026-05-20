@@ -1,11 +1,12 @@
 """Cisco IOS / IOS-XE subscriber control policy augments."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.services import Services
+from acex_devkit.models import AttributeValue
 from acex_devkit.models.composed_configuration import AugmentAttributes
 
 
@@ -117,7 +118,7 @@ class CiscoServicePolicyControlSubscriber(Augment):
 
 class CiscoAccessSessionMonitorAttributes(AugmentAttributes):
     type: Literal["cisco_access_session_monitor"] = "cisco_access_session_monitor"
-    enabled: bool = True
+    enabled: Optional[AttributeValue[bool]] = AttributeValue(value=True)
 
 
 class CiscoAccessSessionMonitor(Augment):

@@ -84,6 +84,41 @@ class Augment(ConfigComponent):
         self._target_path = self._compute_target_path(target)
 
     @staticmethod
+    def _is_singleton_path(mapped: str) -> bool:
+        """Return True if the path resolves to a single model object.
+
+        In ComposedConfiguration every field is one of three things:
+          - Dict[str, Model]  → collection (return False)
+          - AttributeValue[T] → leaf value, not a valid target (return False)
+          - BaseModel         → singleton object (continue traversal)
+        """
+        import typing
+        from pydantic import BaseModel
+        from acex_devkit.models import AttributeValue
+        from acex_devkit.models.composed_configuration import ComposedConfiguration
+
+        current_type = ComposedConfiguration
+        for part in mapped.split("."):
+            fields = getattr(current_type, "model_fields", {})
+            if part not in fields:
+                return False
+            annotation = fields[part].annotation
+            # Unwrap Optional[X] → X
+            if getattr(annotation, "__origin__", None) is typing.Union:
+                args = [a for a in annotation.__args__ if a is not type(None)]
+                annotation = args[0] if args else annotation
+            origin = getattr(annotation, "__origin__", None)
+            # Dict → collection
+            if origin is dict:
+                return False
+            # AttributeValue[T] → leaf value, not a traversable model
+            base = origin or annotation
+            if base is AttributeValue or (isinstance(base, type) and issubclass(base, AttributeValue)):
+                return False
+            current_type = annotation
+        return True
+
+    @staticmethod
     def _compute_target_path(target):
         """Resolve target's tree path via COMPONENT_MAPPING (lazy-import)."""
         # Lazy import: configuration.py imports Augment, so importing it
@@ -103,15 +138,14 @@ class Augment(ConfigComponent):
                 f"{target_type.__name__}: Template-path targets not yet "
                 f"supported for augments"
             )
-        # Singletons (path ends in .config) use the path as-is; collections
-        # append the target's name as the dict key (matches the convention
-        # used by Configuration._pop_all_references).
-        if mapped.endswith(".config"):
+        # If the path resolves to a single model object (not a Dict) in the
+        # composed configuration tree, treat it as a singleton.
+        if Augment._is_singleton_path(mapped):
             return mapped
         if target_is_class:
             raise ValueError(
                 f"{target_type.__name__} is not a singleton (path '{mapped}' "
-                f"doesn't end with '.config'); pass an instance, not the class, "
+                f"resolves to a collection); pass an instance, not the class, "
                 f"as target"
             )
         return f"{mapped}.{target.name}"

@@ -40,4 +40,4 @@ class SetControlPolicy(ConfigMap):
 
 
 config = SetControlPolicy()
-config.filters = FilterAttribute("role").eq("/.*/")
+config.filters = FilterAttribute("role").eq("ise_visibility")

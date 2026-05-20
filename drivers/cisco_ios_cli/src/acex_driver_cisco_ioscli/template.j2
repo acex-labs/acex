@@ -126,7 +126,7 @@ access-session accounting attributes filter-spec include list {{ list_name }}
 {%-   elif aug_type == "cisco_service_policy_control_subscriber" %}
 service-policy type control subscriber {{ aug.policy_name }}
 {%-   elif aug_type == "cisco_access_session_monitor" %}
-{%-     if aug.enabled %}
+{%-     if aug.enabled and aug.enabled.value %}
 access-session monitor
 {%-     endif %}
 {%-   endif %}
@@ -150,7 +150,24 @@ ip cef
 {%- endif %}
 no ipv6 cef
 !
-!
+{%- set dhcp_snoop = configuration.system.dhcp.snooping %}
+{%- if dhcp_snoop and dhcp_snoop.enabled and dhcp_snoop.enabled.value %}
+ip dhcp snooping
+{%-   for vlan_id in dhcp_snoop.vlans.keys() %}
+ip dhcp snooping vlan {{ vlan_id }}
+{%-   endfor %}
+{%-   if dhcp_snoop.option82 and not dhcp_snoop.option82.value %}
+no ip dhcp snooping information option
+{%-   endif %}
+{%-   set track = (dhcp_snoop.augments or {}).get('cisco_dhcp_snooping_track_server') %}
+{%-   if track %}
+{%-     if track.all_dhcp_acks %}
+ip dhcp snooping track server all-dhcp-acks
+{%-     else %}
+ip dhcp snooping track server
+{%-     endif %}
+{%-   endif %}
+{%- endif %}
 !
 spanning-tree mode pvst
 spanning-tree extend system-id
