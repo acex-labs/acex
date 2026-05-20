@@ -180,11 +180,28 @@ class CiscoIOSCLIRenderer(RendererBase):
         commands.append(cmd)
         return commands
 
-
+    def _ssh_interface(self, config):
+        #ip ssh source-interface {'pointer': 'interfaces.vlan123_svi', 'metadata': {'type': 'str', 'value_source': 'reference'}}
+        ssh_config = config.get('system', {}).get('ssh')
+        ssh_raw_interface = ssh_config.get('config', {}).get('source_interface') if ssh_config else None
+        if ssh_raw_interface and isinstance(ssh_raw_interface, dict):
+            ref_path = ssh_raw_interface.get('pointer')
+            if ref_path:
+                ref_name = ref_path.split('.')[1]
+                intf = config.get('interfaces', {}).get(ref_name)
+                if intf:
+                    vlan_id = intf.get('vlan_id')
+                    if vlan_id is not None:
+                        ssh_interface = f"Vlan{vlan_id.get('value')}"
+                        # replace current source interface with formatted one for template use
+                        ssh_config['config']['source_interface'] = ssh_interface
+        
+        return config
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
         configuration = self._physical_interface_names(configuration, asset)
+        self._ssh_interface(configuration)
         # print('configuration after physical interface name resolution: ', configuration)
         # self.add_vrf_to_intefaces(configuration)
         # self.ssh_interface(configuration)

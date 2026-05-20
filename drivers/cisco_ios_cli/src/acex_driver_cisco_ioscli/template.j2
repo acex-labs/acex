@@ -509,6 +509,10 @@ ip http secure-server
 {%-   if ssh.get('protocol_version') %}
 ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
 {%-   endif %}
+{%-   set ssh_logging_events = (configuration.system.logging.config.augments or {}).get('cisco.ssh_logging') %}
+{%-   if ssh_logging_events %}
+ip ssh logging events
+{%-   endif %}
 {%-   if ssh.get('timeout') %}
 ip ssh time-out {{ ssh.get('timeout').value }}
 {%-   endif %}
