@@ -39,7 +39,16 @@ boot-end-marker
 {%-   if configuration.system.logging.config and configuration.system.logging.config.get('buffer_size') %}
 logging buffered {{ configuration.system.logging.config['buffer_size'].value | default(4096) }}
 {%-   endif %}
+{%-   set logging_console = (configuration.system.logging.config.augments or {}).get('cisco.console_logging') %}
+{%-   if logging_console and logging_console.enabled and not logging_console.enabled.value %}
+no logging console
+{%-   endif %}
+{%-   set logging_trap = (configuration.system.logging.config.augments or {}).get('cisco.trap_logging') %}
+{%-   if logging_trap %}
+logging trap {{ logging_trap.severity.value }}
+{%-   endif %}
 {%- endif %}
+!
 {%- for ni in configuration.network_instances.values() %}
 {%-   if ni.name.value != "global" %}
 vrf definition {{ ni.name.value }}
@@ -510,7 +519,7 @@ ip http secure-server
 ip ssh version {{ ssh.get('protocol_version').value | default(2) }}
 {%-   endif %}
 {%-   set ssh_logging_events = (configuration.system.logging.config.augments or {}).get('cisco.ssh_logging') %}
-{%-   if ssh_logging_events %}
+{%-   if ssh_logging_events and ssh_logging_events.enabled and ssh_logging_events.enabled.value %}
 ip ssh logging events
 {%-   endif %}
 {%-   if ssh.get('timeout') %}

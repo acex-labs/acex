@@ -1,8 +1,10 @@
+from logging import config
 from typing import Any, Dict, Optional, Callable, List
 from acex_devkit.configdiffer import Diff
 from acex_devkit.configdiffer.command import Command, Context
 from acex.plugins.neds.core import RendererBase
 from acex_devkit.models.composed_configuration import ComposedConfiguration
+from acex_devkit.models.logging import LoggingSeverity
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -197,11 +199,24 @@ class CiscoIOSCLIRenderer(RendererBase):
                         ssh_config['config']['source_interface'] = ssh_interface
         
         return config
+    
+    def _logging_trap_severity(self, config):
+        logging_trap = (config.get('system', {}).get('logging', {}).get('config', {}).get('augments') or {}).get('cisco.trap_logging')
+        if logging_trap and logging_trap.get('severity'):
+            # Translate severity to Cisco IOS format
+            raw_severity = LoggingSeverity(logging_trap['severity'].get('value'))
+            if "NOTICE" in raw_severity.value:
+                logging_trap['severity']['value'] = "informational"
+            else:
+                logging_trap['severity']['value'] = raw_severity.value.lower()
+        
+        return config
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
         configuration = self._physical_interface_names(configuration, asset)
         self._ssh_interface(configuration)
+        self._logging_trap_severity(configuration)
         # print('configuration after physical interface name resolution: ', configuration)
         # self.add_vrf_to_intefaces(configuration)
         # self.ssh_interface(configuration)
