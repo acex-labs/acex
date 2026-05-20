@@ -166,7 +166,39 @@ vtp password {{ vtp.password_hashed.value }} hidden
 {%- endif %}
 !
 !
-!
+{%- if configuration.system.logging.files.files -%}
+{%-   for file in configuration.system.logging.files.files.values() %}
+{%-     if file.augments %}
+{%-       for archive in file.augments.values() %}
+{%-         if archive.type == 'cisco.archive' and ((archive.enabled is not defined) or archive.enabled.value) %}
+archive
+{%-         if archive.log_config and archive.log_config.value %}
+ log config
+  logging enable
+{%-         endif %}
+{%-         if archive.path and archive.path.value %}
+ path {{ archive.path.value }}
+{%-         endif %}
+{%-         if archive.write_memory and archive.write_memory.value %}
+ write-memory
+{%-         endif %}
+{%-         if archive.time_period and archive.time_period.value %}
+ time-period {{ archive.time_period.value }}
+{%-         endif %}
+{%-         if archive.maximum and archive.maximum.value %}
+ maximum {{ archive.maximum.value }}
+{%-         endif %}
+{%-         if archive.rollback_filter and archive.rollback_filter.value %}
+ rollback filter adaptive
+{%-         endif %}
+{%-         if archive.rollback_retry and archive.rollback_retry.value %}
+ rollback retry {{ archive.rollback_retry.value }}
+{%-         endif %}
+{%-       endif %}
+{%-       endfor %}
+{%-     endif %}
+{%-   endfor %}
+{%- endif %}
 !
 !
 !
