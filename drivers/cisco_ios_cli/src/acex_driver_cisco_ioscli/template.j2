@@ -592,6 +592,45 @@ ip ssh source-interface {{ ssh['source_interface'] }}
 {%-   endif %}
 {%- endif %}
 !
+{%- set snmp = configuration.system.snmp if configuration.system is defined and configuration.system.snmp is defined else none %}
+{%- if snmp %}
+{%-   set default_snmp_user = (snmp.users.values() | first) if snmp.users else none %}
+{%-   for _, group in (snmp.groups or {}).items() %}
+{%-     set group_name = group.name.value if group.name else none %}
+{%-     set group_view = (group.views.values() | first) if group.views else none %}
+{%-     set view_name = group_view.pointer.split('.') | last if group_view and group_view.pointer else none %}
+{%-     set access_name = group.access.value if group.access else 'READ_ONLY' %}
+{%-     if group_name %}
+snmp-server group {{ group_name }} v3 auth{% if view_name %} read {{ view_name }}{% endif %}{% if view_name and access_name in ['READ_WRITE', 'READ_CREATE'] %} write {{ view_name }}{% endif %}{% if group.ipv4acl and group.ipv4acl.pointer %} access {{ group.ipv4acl.pointer.split('.') | last }}{% endif %}
+{%-     endif %}
+{%-   endfor %}
+{%-   for _, view in (snmp.views or {}).items() %}
+{%-     for _, oid in (view.oids or {}).items() %}
+{%-       if view.name and oid.oid %}
+snmp-server view {{ view.name.value }} {{ oid.oid.value }} {% if oid.included and oid.included.value %}included{% else %}excluded{% endif %}
+{%-       endif %}
+{%-     endfor %}
+{%-   endfor %}
+{%-   for _, cfg in (snmp.config or {}).items() %}
+{%-     if cfg.location %}
+snmp-server location {{ cfg.location.value }}
+{%-     endif %}
+{%-     if cfg.contact %}
+snmp-server contact {{ cfg.contact.value }}
+{%-     endif %}
+{%-   endfor %}
+{%-   for _, community in (snmp.communities or {}).items() %}
+{%-     if community.community %}
+snmp-server community {{ community.community.value }}{% if community.ipv4acl and community.ipv4acl.pointer %} {{ community.ipv4acl.pointer.split('.') | last }}{% endif %}
+{%-     endif %}
+{%-   endfor %}
+{%-   for _, server in (snmp.trap_servers or {}).items() %}
+{%-     if server.enabled and server.enabled.value and server.address %}
+snmp-server host {{ server.address.value }}{% if server.network_instance and server.network_instance.value != 'global' %} vrf {{ server.network_instance.value }}{% endif %}{% if server.version %} version {{ '3' if server.version.value == 'v3' else server.version.value }}{% endif %}{% if server.version and server.version.value == 'v3' %} auth {% if server.username %}{{ server.username.value }}{% elif default_snmp_user and default_snmp_user.username %}{{ default_snmp_user.username.value }}{% endif %}{% elif server.community %} {{ server.community.value }}{% endif %}
+{%-     endif %}
+{%-   endfor %}
+{%- endif %}
+!
 {%- for _, group in configuration.system.aaa.server_groups.items() %}
 {%-   if group.tacacs %}
 {%-     for server_name, server in group.tacacs.items() %}
@@ -650,18 +689,6 @@ port-channel load-balance {{ alg[0] }}
 port-channel load-balance {{ alg }}
 {%-     endif %}
 {%-   endif %}
-{%- endif %}
-!
-{%- if "snmp" in configuration -%}
-{%- if configuration.snmp.community %}
-snmp-server community {{ configuration.snmp.community }} {{ configuration.snmp.access | default('RO') }}
-{%- endif %}
-{%- if configuration.snmp.location %}
-snmp-server location {{ configuration.snmp.location }}
-{%- endif %}
-{%- if configuration.snmp.contact %}
-snmp-server contact {{ configuration.snmp.contact }}
-{%- endif %}
 {%- endif %}
 !
 {%- if configuration.system.ntp.servers -%}
