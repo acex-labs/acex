@@ -513,6 +513,26 @@ ip forward-protocol nd
 ip http server
 ip http secure-server
 !
+{%- if configuration.acl.ipv4_acls %}
+{%- for acl_name, acl in configuration.acl.ipv4_acls.items() %}
+{%-   set acl_type = acl.type.value | default('standard') %}
+ip access-list {{ acl_type }} {{ acl_name }}
+{%-   for entry in acl.acl_entries.values() %}
+  {%-     set seq = entry.sequence_id.value if entry.sequence_id else none %}
+  {%-     set src = entry.source_address.value if entry.source_address else 'any' %}
+  {%-     set dst = entry.destination_address.value if entry.destination_address else 'any' %}
+  {%-     if entry.description %}
+ {{ seq }} remark {{ entry.description.value }}
+  {%-     endif %}
+  {%-     if acl_type == 'standard' %}
+ {{ seq }} {{ entry.action.value }} {% if src == 'any' %}any{% elif src is string and src.endswith('/32') %}{{ src.split('/') | first }}{% else %}{{ src | cidr_to_addrmask }}{% endif %}
+  {%-     else %}
+ {{ seq }} {{ entry.action.value }} {% if entry.protocol and entry.protocol.value != 'ip' %}{{ entry.protocol.value }}{% else %}ip{% endif %} {% if src == 'any' %}any{% elif src is string and src.endswith('/32') %}host {{ src.split('/') | first }}{% else %}{{ src | cidr_to_addrmask }}{% endif %} {% if dst == 'any' %}any{% elif dst is string and dst.endswith('/32') %}host {{ dst.split('/') | first }}{% else %}{{ dst | cidr_to_addrmask }}{% endif %}
+  {%-     endif %}
+  {%-   endfor %}
+{%-   endfor %}
+{%- endif %}
+!
 {%- set ssh = configuration.system.ssh.config -%}
 {%- if ssh and ssh.get('enable') and ssh.get('enable').value %}
 {%-   if ssh.get('protocol_version') %}

@@ -47,7 +47,8 @@ class SnmpViewConfig(ConfigMap):
     def compile(self, context):
         # ACL FOR SNMP
         ipv4acl = Ipv4Acl(
-            name="snmp_rw"
+            name="snmp_rw",
+            type="standard"
         )
         context.configuration.add(ipv4acl)
 

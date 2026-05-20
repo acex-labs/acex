@@ -57,7 +57,8 @@ class VtyConfig(ConfigMap):
     def compile(self, context):
         # ACL FOR VTY
         ipv4acl = Ipv4Acl(
-            name="vty_acl"
+            name="vty_acl",
+            type="standard"
         )
         context.configuration.add(ipv4acl)
 
