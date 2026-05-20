@@ -115,6 +115,24 @@ policy-map type control subscriber {{ aug.name }}
 {%-   endif %}
 {%- endfor %}
 {%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type.startswith("cisco_device_sensor_filter_list") %}
+device-sensor filter-list {{ aug.protocol }} list {{ aug.name }}
+{%-     for item in aug['items'] %}
+{%-       if aug.protocol == "dhcp" %}
+ option name {{ item }}
+{%-       else %}
+ tlv name {{ item }}
+{%-       endif %}
+{%-     endfor %}
+!
+{%-   endif %}
+{%- endfor %}
+{%- for aug_type, aug in svc_augments.items() %}
+{%-   if aug_type.startswith("cisco_device_sensor_filter_spec") %}
+device-sensor filter-spec {{ aug.protocol }} include list {{ aug.filter_list_name }}
+{%-   endif %}
+{%- endfor %}
+{%- for aug_type, aug in svc_augments.items() %}
 {%-   if aug_type == "cisco_access_session_authentication" %}
 {%-     for list_name in aug.filter_lists.keys() %}
 access-session authentication attributes filter-spec include list {{ list_name }}
@@ -128,6 +146,10 @@ service-policy type control subscriber {{ aug.policy_name }}
 {%-   elif aug_type == "cisco_access_session_monitor" %}
 {%-     if aug.enabled and aug.enabled.value %}
 access-session monitor
+{%-     endif %}
+{%-   elif aug_type == "cisco_device_sensor_notify" %}
+{%-     if aug.all_changes %}
+device-sensor notify all-changes
 {%-     endif %}
 {%-   endif %}
 {%- endfor %}
