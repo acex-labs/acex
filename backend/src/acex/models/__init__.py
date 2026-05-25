@@ -14,5 +14,10 @@ from .collection_agent import CollectionAgent, CollectionAgentNodeLink, Collecti
 from .lldp_neighbor import LldpNeighbor
 from .credential import Credential, CredentialField, NodeCredential
 from .pagination import PaginatedResponse
+from .physical import (
+    Building, Room, Rack, PhysPanel, PhysPanelPort,
+    PhysFiberTrunk, PhysFiber, PhysFiberTermination, BulkTerminationCreate, PhysCrossConnection,
+    PhysSiteLayout,
+)
 
-system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment, TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination, CollectionAgent, CollectionAgentNodeLink, CollectionAgentMatchRule, LldpNeighbor, Credential, CredentialField, NodeCredential]
+system_models = [Asset, Ned, LogicalNode, Node, Site, Contact, ContactAssignment, TelemetryAgent, TelemetryAgentNodeLink, TelemetryAgentCapabilityLink, TelemetryAgentMatchRule, OutputDestination, CollectionAgent, CollectionAgentNodeLink, CollectionAgentMatchRule, LldpNeighbor, Credential, CredentialField, NodeCredential, Building, Room, Rack, PhysPanel, PhysPanelPort, PhysFiberTrunk, PhysFiber, PhysFiberTermination, PhysCrossConnection, PhysSiteLayout]

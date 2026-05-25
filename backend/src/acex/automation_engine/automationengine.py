@@ -70,6 +70,10 @@ class AutomationEngine:
         from acex.lldp.lldp_neighbor_manager import LldpNeighborManager
         self.lldp_neighbor_manager = LldpNeighborManager(self.db)
 
+        # Create PhysicalManager
+        from acex.physical import PhysicalManager
+        self.physical_manager = PhysicalManager(self.db)
+
         # Create CredentialManager
         from acex.credentials.credential_manager import CredentialManager
         self._encryption_key = None
