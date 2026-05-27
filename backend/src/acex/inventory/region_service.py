@@ -51,6 +51,7 @@ class RegionService:
         display_name: str = None,
         limit: int = 100,
         offset: int = 0,
+        include_sites: bool = False,
     ) -> PaginatedResponse[RegionResponse]:
 
         query_filters = {
@@ -61,7 +62,10 @@ class RegionService:
         }
 
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
-        items = [await self._enrich_data(r) for r in result["items"]]
+        if include_sites:
+            items = [await self._enrich_data(r) for r in result["items"]]
+        else:
+            items = [RegionResponse(**r.model_dump()) for r in result["items"]]
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, region: Region):
