@@ -124,15 +124,19 @@ class CollectionAgent:
             logger.info("No targets in manifest, nothing to collect")
             return
 
+        logger.info(f"Starting collection for {len(targets)} nodes")
+        t0 = time.time()
+
         results = self.collector.collect_all(targets)
 
+        elapsed = time.time() - t0
         succeeded = sum(1 for r in results if r["status"] == "ok")
         unchanged = sum(1 for r in results if r["status"] == "unchanged")
         failed = sum(1 for r in results if r["status"] == "error")
 
         logger.info(
-            f"Collection complete: {succeeded} collected, "
-            f"{unchanged} unchanged, {failed} failed"
+            f"Collection complete in {elapsed:.1f}s: "
+            f"{succeeded} collected, {unchanged} unchanged, {failed} failed"
         )
 
         for r in results:

@@ -11,6 +11,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+logging.getLogger("paramiko").setLevel(logging.WARNING)
 logger = logging.getLogger("acex_collection_agent")
 
 
