@@ -1,5 +1,6 @@
 """Core agent loop — polls manifest frequently, runs collection on interval."""
 
+import asyncio
 import time
 import logging
 
@@ -23,17 +24,21 @@ class CollectionAgent:
         self._last_collection = 0
 
     def run(self):
+        """Entry point — delegates to async loop."""
+        asyncio.run(self._run())
+
+    async def _run(self):
         """Main loop — poll manifest every 60s, collect on interval or revision change."""
         logger.info(f"Collection Agent started (agent_id={self.agent_id})")
 
-        self._ensure_neds()
+        await asyncio.to_thread(self._ensure_neds)
 
         while True:
             try:
-                manifest = self._fetch_manifest()
+                manifest = await asyncio.to_thread(self._fetch_manifest)
                 if manifest is None:
                     logger.warning("Failed to fetch manifest, retrying in 60s")
-                    time.sleep(POLL_INTERVAL)
+                    await asyncio.sleep(POLL_INTERVAL)
                     continue
 
                 interval = manifest.get("interval_seconds", 21600)
@@ -48,18 +53,18 @@ class CollectionAgent:
                 if should_collect:
                     if revision_changed:
                         logger.info(f"Config revision changed ({self._last_revision} -> {revision})")
-                    self._collect(manifest)
+                    await self._collect(manifest)
                     self._last_collection = now
 
                 self._last_revision = revision
-                time.sleep(POLL_INTERVAL)
+                await asyncio.sleep(POLL_INTERVAL)
 
             except KeyboardInterrupt:
                 logger.info("Shutting down")
                 break
             except Exception as e:
                 logger.error(f"Unexpected error: {e}", exc_info=True)
-                time.sleep(POLL_INTERVAL)
+                await asyncio.sleep(POLL_INTERVAL)
 
     def _fetch_manifest(self) -> dict | None:
         """Fetch manifest from ACEX API."""
@@ -117,7 +122,7 @@ class CollectionAgent:
             except Exception as e:
                 logger.error(f"Failed to install NED {ned.name}: {e}")
 
-    def _collect(self, manifest: dict):
+    async def _collect(self, manifest: dict):
         """Run config collection for all targets."""
         targets = manifest.get("targets", [])
         if not targets:
@@ -127,7 +132,7 @@ class CollectionAgent:
         logger.info(f"Starting collection for {len(targets)} nodes")
         t0 = time.time()
 
-        results = self.collector.collect_all(targets)
+        results = await self.collector.collect_all(targets)
 
         elapsed = time.time() - t0
         succeeded = sum(1 for r in results if r["status"] == "ok")
