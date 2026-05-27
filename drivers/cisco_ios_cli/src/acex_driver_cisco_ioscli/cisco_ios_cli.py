@@ -1,10 +1,10 @@
 
-from contextlib import contextmanager
-from typing import Any, Dict, Optional, Callable
+from contextlib import asynccontextmanager
+from typing import Optional
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.management_connection import ManagementConnection
-from netmiko import ConnectHandler
+from scrapli.driver.core import AsyncIOSXEDriver
 
 from acex_devkit.drivers import NetworkElementDriver, TransportBase
 from acex_devkit.configdiffer import Diff
@@ -13,93 +13,99 @@ from .renderer import CiscoIOSCLIRenderer
 from .parser import CiscoIOSCLIParser
 from .normalizer import CiscoIOSNormalizer
 
+# Legacy KEX/ciphers for older IOS devices that don't support modern algorithms
+_LEGACY_ASYNCSSH_OPTIONS = {
+    "kex_algs": [
+        "diffie-hellman-group-exchange-sha256",
+        "diffie-hellman-group-exchange-sha1",
+        "diffie-hellman-group14-sha256",
+        "diffie-hellman-group14-sha1",
+        "diffie-hellman-group1-sha1",
+    ],
+}
+
 
 class CiscoIOSTransport(TransportBase):
 
     def __init__(self):
-        self._session_conn: Optional[ConnectHandler] = None
+        self._session_conn: Optional[AsyncIOSXEDriver] = None
 
-    def _open_connection(self, connection: ManagementConnection, **kwargs) -> ConnectHandler:
+    async def _open_connection(self, connection: ManagementConnection, **kwargs) -> AsyncIOSXEDriver:
         username = kwargs.get("username")
         password = kwargs.get("password")
         if not username or not password:
             raise ValueError("Credentials required: username and password must be provided")
-        device = {
-            "device_type": "cisco_ios",
-            "host": connection.target_ip,
-            "username": username,
-            "password": password,
-            "secret": kwargs.get("enable_password") or password,
-            "port": 22,
-            "disabled_algorithms": {},
-            "conn_timeout": 30,
-        }
-        # Allow legacy KEX/ciphers for older IOS devices
-        import paramiko
-        paramiko.Transport._preferred_kex = (
-            "diffie-hellman-group-exchange-sha256",
-            "diffie-hellman-group-exchange-sha1",
-            "diffie-hellman-group14-sha256",
-            "diffie-hellman-group14-sha1",
-            "diffie-hellman-group1-sha1",
+        driver = AsyncIOSXEDriver(
+            host=connection.target_ip,
+            auth_username=username,
+            auth_password=password,
+            auth_secondary=kwargs.get("enable_password") or password,
+            auth_strict_key=False,
+            port=22,
+            timeout_socket=30,
+            timeout_ops=120,
+            transport="asyncssh",
+            transport_options={"asyncssh": _LEGACY_ASYNCSSH_OPTIONS},
         )
-        conn = ConnectHandler(**device)
-        conn.enable()
-        return conn
+        await driver.open()
+        return driver
 
-    @contextmanager
-    def session(self, connection: ManagementConnection, **kwargs):
+    @asynccontextmanager
+    async def session(self, connection: ManagementConnection, **kwargs):
         """Hold one SSH session open for the duration of the block."""
-        conn = self._open_connection(connection, **kwargs)
+        conn = await self._open_connection(connection, **kwargs)
         self._session_conn = conn
         try:
             yield self
         finally:
             self._session_conn = None
             try:
-                conn.disconnect()
+                await conn.close()
             except Exception:
                 pass
 
-    @contextmanager
-    def _conn(self, connection: ManagementConnection, **kwargs):
+    @asynccontextmanager
+    async def _conn(self, connection: ManagementConnection, **kwargs):
         """Yield active session conn or open a one-shot, closing what we own."""
         if self._session_conn is not None:
             yield self._session_conn
             return
-        conn = self._open_connection(connection, **kwargs)
+        conn = await self._open_connection(connection, **kwargs)
         try:
             yield conn
         finally:
             try:
-                conn.disconnect()
+                await conn.close()
             except Exception:
                 pass
 
-    def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
-        with self._conn(connection, **kwargs) as conn:
-            return conn.send_command("show running-config", read_timeout=120)
+    async def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
+        async with self._conn(connection, **kwargs) as conn:
+            response = await conn.send_command("show running-config", timeout_ops=120)
+            return response.result
 
-    def send_config(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> str:
-        with self._conn(connection, **kwargs) as conn:
-            return conn.send_config_set(commands)
+    async def send_config(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> str:
+        async with self._conn(connection, **kwargs) as conn:
+            response = await conn.send_configs(commands)
+            return response.result
 
-    def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
-        with self._conn(connection, **kwargs) as conn:
-            return [conn.send_command(cmd, read_timeout=120) for cmd in commands]
+    async def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
+        async with self._conn(connection, **kwargs) as conn:
+            responses = await conn.send_commands(commands, timeout_ops=120)
+            return [r.result for r in responses]
 
-    def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> list[dict]:
-        with self._conn(connection, **kwargs) as conn:
+    async def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> list[dict]:
+        async with self._conn(connection, **kwargs) as conn:
             neighbors = []
             try:
-                raw = conn.send_command("show lldp neighbors detail", read_timeout=60)
-                neighbors.extend(self._parse_lldp_detail(raw))
+                response = await conn.send_command("show lldp neighbors detail", timeout_ops=60)
+                neighbors.extend(self._parse_lldp_detail(response.result))
             except Exception:
                 pass
             try:
-                raw = conn.send_command("show cdp neighbors detail", read_timeout=60)
+                response = await conn.send_command("show cdp neighbors detail", timeout_ops=60)
                 seen = {(n["local_interface"], n["remote_device"]) for n in neighbors}
-                for entry in self._parse_cdp_detail(raw):
+                for entry in self._parse_cdp_detail(response.result):
                     if (entry["local_interface"], entry["remote_device"]) not in seen:
                         neighbors.append(entry)
             except Exception:
@@ -152,8 +158,7 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     normalizer_class = CiscoIOSNormalizer
 
     def render(self, configuration: ComposedConfiguration, asset):
-        config = self.renderer.render(configuration, asset)
-        return config
+        return self.renderer.render(configuration, asset)
 
     def parse(self, configuration: str) -> ComposedConfiguration:
         return self.parser.parse(configuration)
@@ -161,7 +166,7 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     def render_patch(self, diff: Diff, node_instance: "NodeInstance"):
         return self.renderer.render_patch(diff, node_instance)
 
-    def apply_patch(self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnection, **kwargs):
+    async def apply_patch(self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnection, **kwargs):
         commands = self.render_patch(diff, node_instance=node_instance)
         commands = [c.lstrip() for c in commands.splitlines() if c.strip() != "!"]
-        return self.transport.send_config(node, connection, commands, **kwargs)
+        return await self.transport.send_config(node, connection, commands, **kwargs)
