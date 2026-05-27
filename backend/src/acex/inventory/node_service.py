@@ -41,6 +41,7 @@ class NodeService:
         ln = await self.inventory.logical_nodes.get(node["logical_node_id"])
         if ln is not None:
             node["logical_node"] = ln.model_dump()
+            node["regions"] = ln.regions if ln.regions else []
 
         return NodeResponse(**node)
 
@@ -99,6 +100,7 @@ class NodeService:
     async def query(
         self,
         site: str = None,
+        region: str = None,
         hostname: str = None,
         logical_node_id: int = None,
         asset_ref_id: int = None,
@@ -109,13 +111,22 @@ class NodeService:
 
         query_filters = {
             k: v for k, v in {
-                "logical_node.site": site,
                 "logical_node.hostname": hostname,
                 "logical_node_id": logical_node_id,
                 "asset_ref_id": asset_ref_id,
                 "status": status,
             }.items() if v is not None
         }
+
+        if region:
+            assignments = self.inventory.region_assignment_manager.list_assignments(region_name=region)
+            site_names = [a.site_name for a in assignments]
+            if not site_names:
+                return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
+            query_filters["logical_node.site"] = site_names
+        elif site is not None:
+            query_filters["logical_node.site"] = site
+
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
 
         # Bulk-fetch unique assets and clusters to avoid N+1
@@ -154,6 +165,17 @@ class NodeService:
                 os=os_val,
                 ned_id=ned_id,
             ))
+
+        # Enrich with region memberships
+        unique_sites = list({item.site for item in items if item.site})
+        site_region_map: dict = {}
+        if unique_sites and hasattr(self.inventory, 'region_assignment_manager'):
+            assignments = self.inventory.region_assignment_manager.list_assignments(site_names=unique_sites)
+            for a in assignments:
+                site_region_map.setdefault(a.site_name, []).append(a.region_name)
+        for item in items:
+            if item.site and item.site in site_region_map:
+                item.regions = site_region_map[item.site]
 
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 

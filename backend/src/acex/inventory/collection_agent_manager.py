@@ -19,6 +19,7 @@ from acex.models.asset import Asset, AssetCluster
 from acex.models.management_connections import ManagementConnection
 from acex.models.logical_node import LogicalNode
 from acex.models.credential import NodeCredential, Credential
+from acex.models.regions import SiteRegionAssignment
 
 
 class CollectionAgentManager:
@@ -39,13 +40,23 @@ class CollectionAgentManager:
         for rule in rules:
             query = session.query(Node.id)
 
-            needs_ln = any([rule.site, rule.role])
+            needs_ln = any([rule.site, rule.role, rule.region])
             if needs_ln:
                 query = query.join(LogicalNode, Node.logical_node_id == LogicalNode.id)
                 if rule.site:
                     query = query.filter(LogicalNode.site.ilike(f"{rule.site}%"))
                 if rule.role:
                     query = query.filter(LogicalNode.role.ilike(f"{rule.role}%"))
+                if rule.region:
+                    site_names = [
+                        row[0] for row in session.query(SiteRegionAssignment.site_name)
+                        .filter(SiteRegionAssignment.region_name == rule.region)
+                        .all()
+                    ]
+                    if site_names:
+                        query = query.filter(LogicalNode.site.in_(site_names))
+                    else:
+                        continue
 
             needs_asset = any([rule.vendor, rule.os])
             if needs_asset:

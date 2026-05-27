@@ -1,13 +1,15 @@
-from acex.plugins.adaptors import AssetAdapter, LogicalNodeAdapter, NodeAdapter, SiteAdapter, ContactAdapter
+from acex.plugins.adaptors import AssetAdapter, LogicalNodeAdapter, NodeAdapter, SiteAdapter, ContactAdapter, RegionAdapter
 from acex.plugins.integrations import IntegrationPluginBase, DatabasePlugin
-from acex.models import Asset, LogicalNode, Node, Site, Contact
+from acex.models import Asset, LogicalNode, Node, Site, Contact, Region
 from acex.inventory.asset_service import AssetService
 from acex.inventory.logical_node_service import LogicalNodeService
 from acex.inventory.node_service import NodeService
 from acex.inventory.site_service import SiteService
 from acex.inventory.contact_service import ContactService
+from acex.inventory.region_service import RegionService
 from acex.inventory.asset_cluster_manager import AssetClusterManager
 from acex.inventory.contact_assignment_manager import ContactAssignmentManager
+from acex.inventory.region_assignment_manager import RegionAssignmentManager
 from acex.inventory.collection_agent_manager import CollectionAgentManager
 from acex.observability import TelemetryRegistry
 from acex.observability.agents import TelemetryAgentManager
@@ -52,7 +54,7 @@ class Inventory:
             default_logical_nodes_plugin = DatabasePlugin(db_connection, LogicalNode)
             logical_nodes_adapter = LogicalNodeAdapter(default_logical_nodes_plugin)
 
-        self.logical_nodes = LogicalNodeService(logical_nodes_adapter, config_compiler, integrations)
+        self.logical_nodes = LogicalNodeService(logical_nodes_adapter, config_compiler, integrations, db_manager=db_connection)
 
         # Node instances
         node_instance_plugin = DatabasePlugin(db_connection, Node)
@@ -89,3 +91,9 @@ class Inventory:
             default_sites_plugin = DatabasePlugin(db_connection, Site)
             site_adapter = SiteAdapter(default_sites_plugin)
         self.sites = SiteService(site_adapter, inventory=self)
+
+        # Regions
+        default_regions_plugin = DatabasePlugin(db_connection, Region)
+        region_adapter = RegionAdapter(default_regions_plugin)
+        self.regions = RegionService(region_adapter, inventory=self)
+        self.region_assignment_manager = RegionAssignmentManager(db_connection, self)

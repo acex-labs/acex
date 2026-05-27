@@ -8,3 +8,4 @@ from .logical_node_adapter import LogicalNodeAdapter
 from .node_adapter import NodeAdapter
 from .site_adapter import SiteAdapter
 from .contact_adapter import ContactAdapter
+from .region_adapter import RegionAdapter

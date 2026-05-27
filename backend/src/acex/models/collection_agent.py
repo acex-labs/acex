@@ -30,6 +30,7 @@ class CollectionAgentNodeLink(SQLModel, table=True):
 
 
 class CollectionAgentMatchRuleBase(SQLModel):
+    region: Optional[str] = None
     site: Optional[str] = None
     vendor: Optional[str] = None
     os: Optional[str] = None

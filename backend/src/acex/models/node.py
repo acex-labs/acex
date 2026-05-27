@@ -42,6 +42,7 @@ class NodeListResponse(NodeBase):
     # Denormalized from logical_node
     hostname: Optional[str] = None
     site: Optional[str] = None
+    regions: list[str] = []
     # Denormalized from asset
     vendor: Optional[str] = None
     os: Optional[str] = None
@@ -52,5 +53,6 @@ class NodeListResponse(NodeBase):
 class NodeResponse(NodeBase):
     asset: Union[AssetClusterResponse, AssetResponse]
     logical_node: LogicalNodeResponse
+    regions: list[str] = []
     created_at: datetime
     updated_at: Optional[datetime] = None

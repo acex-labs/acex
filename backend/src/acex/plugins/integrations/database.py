@@ -58,10 +58,20 @@ class DatabasePlugin(IntegrationPluginBase):
                             query = query.join(related_table)
                             joined_tables.add(related_table)
                         col = getattr(related_table, col_name)
-                        query = query.filter(col.ilike(f"{value}%") if isinstance(value, str) else col == value)
+                        if isinstance(value, list):
+                            query = query.filter(col.in_(value))
+                        elif isinstance(value, str):
+                            query = query.filter(col.ilike(f"{value}%"))
+                        else:
+                            query = query.filter(col == value)
                     else:
                         col = getattr(self.table, key)
-                        query = query.filter(col.ilike(f"{value}%") if isinstance(value, str) else col == value)
+                        if isinstance(value, list):
+                            query = query.filter(col.in_(value))
+                        elif isinstance(value, str):
+                            query = query.filter(col.ilike(f"{value}%"))
+                        else:
+                            query = query.filter(col == value)
             if extra_filters:
                 for f in extra_filters:
                     query = query.filter(f)
