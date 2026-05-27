@@ -29,6 +29,7 @@ class TelemetryAgentCapabilityLink(SQLModel, table=True):
 
 
 class TelemetryAgentMatchRuleBase(SQLModel):
+    region: Optional[str] = None
     site: Optional[str] = None
     vendor: Optional[str] = None
     os: Optional[str] = None

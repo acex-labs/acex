@@ -38,6 +38,7 @@ class RegionAssignmentManager:
         self,
         region_name: str = None,
         site_name: str = None,
+        site_names: list = None,
     ) -> list[SiteRegionAssignment]:
         session = next(self.db.get_session())
         try:
@@ -46,6 +47,8 @@ class RegionAssignmentManager:
                 query = query.filter(SiteRegionAssignment.region_name == region_name)
             if site_name:
                 query = query.filter(SiteRegionAssignment.site_name == site_name)
+            if site_names:
+                query = query.filter(SiteRegionAssignment.site_name.in_(site_names))
             return query.all()
         finally:
             session.close()

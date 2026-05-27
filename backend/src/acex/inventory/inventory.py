@@ -54,7 +54,7 @@ class Inventory:
             default_logical_nodes_plugin = DatabasePlugin(db_connection, LogicalNode)
             logical_nodes_adapter = LogicalNodeAdapter(default_logical_nodes_plugin)
 
-        self.logical_nodes = LogicalNodeService(logical_nodes_adapter, config_compiler, integrations)
+        self.logical_nodes = LogicalNodeService(logical_nodes_adapter, config_compiler, integrations, db_manager=db_connection)
 
         # Node instances
         node_instance_plugin = DatabasePlugin(db_connection, Node)

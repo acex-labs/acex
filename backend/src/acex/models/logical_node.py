@@ -18,6 +18,8 @@ class LogicalNodeResponse(LogicalNodeBase):
     id: Optional[int] = Field(default=None)
     configuration: ComposedConfiguration = ComposedConfiguration()
     meta_data: Dict = Field(default_factory=dict)
+    regions: list[str] = Field(default_factory=list)
 
 class LogicalNodeListResponse(LogicalNodeBase):
     id: int
+    regions: list[str] = Field(default_factory=list)
