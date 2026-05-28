@@ -12,6 +12,8 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logging.getLogger("paramiko").setLevel(logging.WARNING)
+logging.getLogger("scrapli").setLevel(logging.WARNING)
+logging.getLogger("asyncssh").setLevel(logging.WARNING)
 logger = logging.getLogger("acex_collection_agent")
 
 
