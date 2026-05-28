@@ -364,9 +364,8 @@ jobs:
         id: check-image
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
-          TOKEN=$(echo ${{ secrets.GITHUB_TOKEN }} | base64)
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer $TOKEN" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-collection-agent/manifests/${VERSION}")
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -428,9 +427,8 @@ jobs:
         id: check-image
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
-          TOKEN=$(echo ${{ secrets.GITHUB_TOKEN }} | base64)
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer $TOKEN" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-telemetry-agent/manifests/${VERSION}")
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
