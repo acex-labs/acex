@@ -99,23 +99,20 @@ class CiscoIOSTransport(TransportBase):
         async with self._conn(connection, **kwargs) as conn:
             neighbors = []
             try:
-                response = await conn.send_command("show lldp neighbors detail", timeout_ops=10)
+                response = await asyncio.wait_for(conn.send_command("show lldp neighbors detail"), timeout=10)
                 if "%" not in response.result[:40]:
                     neighbors.extend(self._parse_lldp_detail(response.result))
-            except ScrapliTimeout:
-                pass
-            except Exception:
-                pass
+            except (asyncio.TimeoutError, ScrapliTimeout, Exception):
+                # Connection state is unknown after timeout — skip CDP on this session
+                return neighbors
             try:
-                response = await conn.send_command("show cdp neighbors detail", timeout_ops=10)
+                response = await asyncio.wait_for(conn.send_command("show cdp neighbors detail"), timeout=10)
                 if "%" not in response.result[:40]:
                     seen = {(n["local_interface"], n["remote_device"]) for n in neighbors}
                     for entry in self._parse_cdp_detail(response.result):
                         if (entry["local_interface"], entry["remote_device"]) not in seen:
                             neighbors.append(entry)
-            except ScrapliTimeout:
-                pass
-            except Exception:
+            except (asyncio.TimeoutError, ScrapliTimeout, Exception):
                 pass
             return neighbors
 
