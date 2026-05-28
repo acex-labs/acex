@@ -146,4 +146,4 @@ class CollectionAgent:
 
         for r in results:
             if r["status"] == "error":
-                logger.warning(f"  Node #{r['node_id']}: {r['message']}")
+                logger.warning(f"  Node #{r['node_id']} ({r.get('hostname', '?')}): {r['message']}")

@@ -41,10 +41,13 @@ class Collector:
         target_ip = target.get("target_ip")
         ned_id = target.get("ned_id")
 
+        def err(message: str) -> dict:
+            return {"node_id": node_id, "hostname": hostname, "status": "error", "message": message}
+
         if not target_ip:
-            return {"node_id": node_id, "status": "error", "message": "No management IP"}
+            return err("No management IP")
         if not ned_id:
-            return {"node_id": node_id, "status": "error", "message": "No NED configured"}
+            return err("No NED configured")
 
         credentials = target.get("credentials", {})
         creds = {}
@@ -54,7 +57,7 @@ class Collector:
             if secret:
                 creds = secret.get("fields", {})
             else:
-                return {"node_id": node_id, "status": "error", "message": "Failed to fetch credentials"}
+                return err("Failed to fetch credentials")
 
         escalation_id = credentials.get("privilege_escalation")
         if escalation_id:
@@ -66,7 +69,7 @@ class Collector:
 
         driver = self.client.neds.get_driver_instance(ned_id)
         if driver is None:
-            return {"node_id": node_id, "status": "error", "message": f"NED '{ned_id}' not loaded"}
+            return err(f"NED '{ned_id}' not loaded")
 
         node = NodeListItem(
             id=node_id,
@@ -92,16 +95,16 @@ class Collector:
                     self._run_sync_driver, driver, node, connection, node_id, hostname, **creds
                 )
         except Exception as e:
-            return {"node_id": node_id, "status": "error", "message": str(e)}
+            return err(str(e))
 
     async def _run_async_driver(self, driver, node, connection, node_id: int, hostname: str, **creds) -> dict:
         """Transport path for async-native drivers."""
         async with driver.transport.session(connection, **creds):
             running_config = await driver.transport.get_config(node, connection, **creds)
             if not running_config:
-                return {"node_id": node_id, "status": "error", "message": "Empty config returned"}
+                return {"node_id": node_id, "hostname": hostname, "status": "error", "message": "Empty config returned"}
 
-            config_result = await asyncio.to_thread(self._upload_config, node_id, running_config)
+            config_result = await asyncio.to_thread(self._upload_config, node_id, hostname, running_config)
 
             try:
                 neighbors = await driver.transport.get_lldp_neighbors(node, connection, **creds)
@@ -120,9 +123,9 @@ class Collector:
         with driver.transport.session(connection, **creds):
             running_config = driver.transport.get_config(node, connection, **creds)
             if not running_config:
-                return {"node_id": node_id, "status": "error", "message": "Empty config returned"}
+                return {"node_id": node_id, "hostname": hostname, "status": "error", "message": "Empty config returned"}
 
-            config_result = self._upload_config(node_id, running_config)
+            config_result = self._upload_config(node_id, hostname, running_config)
 
             try:
                 neighbors = driver.transport.get_lldp_neighbors(node, connection, **creds)
@@ -136,7 +139,7 @@ class Collector:
 
         return config_result
 
-    def _upload_config(self, node_id: int, config_content: str) -> dict:
+    def _upload_config(self, node_id: int, hostname: str, config_content: str) -> dict:
         """Upload collected config to ACEX device_configs API."""
         encoded = base64.b64encode(config_content.encode()).decode()
         url = f"{self.client.rest.url}/operations/device_configs/"
@@ -148,11 +151,11 @@ class Collector:
         )
 
         if response.status_code == 409:
-            return {"node_id": node_id, "status": "unchanged", "message": "Config not changed"}
+            return {"node_id": node_id, "hostname": hostname, "status": "unchanged", "message": "Config not changed"}
         elif response.ok:
-            return {"node_id": node_id, "status": "ok", "message": "Config uploaded"}
+            return {"node_id": node_id, "hostname": hostname, "status": "ok", "message": "Config uploaded"}
         else:
-            return {"node_id": node_id, "status": "error", "message": f"Upload failed ({response.status_code})"}
+            return {"node_id": node_id, "hostname": hostname, "status": "error", "message": f"Upload failed ({response.status_code})"}
 
     def _upload_neighbors(self, node_id: int, neighbors: list[dict]):
         """Upload LLDP/CDP neighbors to ACEX API."""
