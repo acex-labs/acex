@@ -101,7 +101,7 @@ class CollectionAgentManager:
             nodes=explicit_node_ids,
             rules=[
                 CollectionAgentMatchRuleResponse(
-                    id=r.id, site=r.site, vendor=r.vendor,
+                    id=r.id, region=r.region, site=r.site, vendor=r.vendor,
                     os=r.os, status=r.status, role=r.role,
                 )
                 for r in rules
@@ -252,7 +252,7 @@ class CollectionAgentManager:
 
             rule = CollectionAgentMatchRule(
                 collection_agent_id=id,
-                site=payload.site, vendor=payload.vendor,
+                region=payload.region, site=payload.site, vendor=payload.vendor,
                 os=payload.os, status=payload.status, role=payload.role,
             )
             session.add(rule)
@@ -260,7 +260,7 @@ class CollectionAgentManager:
             session.commit()
             session.refresh(rule)
             return CollectionAgentMatchRuleResponse(
-                id=rule.id, site=rule.site, vendor=rule.vendor,
+                id=rule.id, region=rule.region, site=rule.site, vendor=rule.vendor,
                 os=rule.os, status=rule.status, role=rule.role,
             )
         finally:
