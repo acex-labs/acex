@@ -137,13 +137,19 @@ class CollectionAgent:
         elapsed = time.time() - t0
         succeeded = sum(1 for r in results if r["status"] == "ok")
         unchanged = sum(1 for r in results if r["status"] == "unchanged")
-        failed = sum(1 for r in results if r["status"] == "error")
+        errors = [r for r in results if r["status"] == "error"]
 
         logger.info(
             f"Collection complete in {elapsed:.1f}s: "
-            f"{succeeded} collected, {unchanged} unchanged, {failed} failed"
+            f"{succeeded} collected, {unchanged} unchanged, {len(errors)} failed"
         )
 
-        for r in results:
-            if r["status"] == "error":
-                logger.warning(f"  Node #{r['node_id']} ({r.get('hostname', '?')}): {r['message']}")
+        for r in errors:
+            logger.warning(f"  Node #{r['node_id']} ({r.get('hostname', '?')}): {r['message']}")
+
+        if errors:
+            from collections import Counter
+            counts = Counter(r["message"] for r in errors)
+            logger.info("Error summary:")
+            for msg, count in counts.most_common():
+                logger.info(f"  {count:>4}x  {msg}")
