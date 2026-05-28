@@ -1,5 +1,6 @@
 
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from typing import Optional
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.node_response import NodeListItem
@@ -26,10 +27,10 @@ _LEGACY_ASYNCSSH_OPTIONS = {
 }
 
 
-class CiscoIOSTransport(TransportBase):
+_session_conn: ContextVar[Optional[AsyncIOSXEDriver]] = ContextVar("_session_conn", default=None)
 
-    def __init__(self):
-        self._session_conn: Optional[AsyncIOSXEDriver] = None
+
+class CiscoIOSTransport(TransportBase):
 
     async def _open_connection(self, connection: ManagementConnection, **kwargs) -> AsyncIOSXEDriver:
         username = kwargs.get("username")
@@ -55,11 +56,11 @@ class CiscoIOSTransport(TransportBase):
     async def session(self, connection: ManagementConnection, **kwargs):
         """Hold one SSH session open for the duration of the block."""
         conn = await self._open_connection(connection, **kwargs)
-        self._session_conn = conn
+        token = _session_conn.set(conn)
         try:
             yield self
         finally:
-            self._session_conn = None
+            _session_conn.reset(token)
             try:
                 await conn.close()
             except Exception:
@@ -68,8 +69,9 @@ class CiscoIOSTransport(TransportBase):
     @asynccontextmanager
     async def _conn(self, connection: ManagementConnection, **kwargs):
         """Yield active session conn or open a one-shot, closing what we own."""
-        if self._session_conn is not None:
-            yield self._session_conn
+        conn = _session_conn.get()
+        if conn is not None:
+            yield conn
             return
         conn = await self._open_connection(connection, **kwargs)
         try:
