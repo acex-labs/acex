@@ -5,6 +5,7 @@ from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.management_connection import ManagementConnection
 from scrapli.driver.core import AsyncIOSXEDriver
+from scrapli.exceptions import ScrapliTimeout
 
 from acex_devkit.drivers import NetworkElementDriver, TransportBase
 from acex_devkit.configdiffer import Diff
@@ -98,16 +99,22 @@ class CiscoIOSTransport(TransportBase):
         async with self._conn(connection, **kwargs) as conn:
             neighbors = []
             try:
-                response = await conn.send_command("show lldp neighbors detail", timeout_ops=60)
-                neighbors.extend(self._parse_lldp_detail(response.result))
+                response = await conn.send_command("show lldp neighbors detail", timeout_ops=10)
+                if "%" not in response.result[:40]:
+                    neighbors.extend(self._parse_lldp_detail(response.result))
+            except ScrapliTimeout:
+                pass
             except Exception:
                 pass
             try:
-                response = await conn.send_command("show cdp neighbors detail", timeout_ops=60)
-                seen = {(n["local_interface"], n["remote_device"]) for n in neighbors}
-                for entry in self._parse_cdp_detail(response.result):
-                    if (entry["local_interface"], entry["remote_device"]) not in seen:
-                        neighbors.append(entry)
+                response = await conn.send_command("show cdp neighbors detail", timeout_ops=10)
+                if "%" not in response.result[:40]:
+                    seen = {(n["local_interface"], n["remote_device"]) for n in neighbors}
+                    for entry in self._parse_cdp_detail(response.result):
+                        if (entry["local_interface"], entry["remote_device"]) not in seen:
+                            neighbors.append(entry)
+            except ScrapliTimeout:
+                pass
             except Exception:
                 pass
             return neighbors

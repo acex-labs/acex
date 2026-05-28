@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-collection-agent"
-version = "0.8.1"
+version = "0.8.2"
 description = "ACE-X Collection Agent - Collects device data via NEDs"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
