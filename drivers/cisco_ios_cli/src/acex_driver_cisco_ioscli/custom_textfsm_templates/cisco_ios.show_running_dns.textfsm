@@ -1,0 +1,18 @@
+Value ADDRESS (\S+)
+Value VRF (\S+)
+
+Start
+  ^ip\s+name-server\s+vrf\s+${VRF}\s+(?:\S+\s+){6}${ADDRESS}\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+vrf\s+${VRF}\s+(?:\S+\s+){5}${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+vrf\s+${VRF}\s+(?:\S+\s+){4}${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+vrf\s+${VRF}\s+(?:\S+\s+){3}${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+vrf\s+${VRF}\s+(?:\S+\s+){2}${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+vrf\s+${VRF}\s+\S+\s+${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+vrf\s+${VRF}\s+${ADDRESS}(?:\s+\S+)*\s*$$ -> Record
+  ^ip\s+name-server\s+(?:\S+\s+){6}${ADDRESS}\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+(?:\S+\s+){5}${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+(?:\S+\s+){4}${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+(?:\S+\s+){3}${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+(?:\S+\s+){2}${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+\S+\s+${ADDRESS}(?:\s+\S+)*\s*$$ -> Continue.Record
+  ^ip\s+name-server\s+${ADDRESS}(?:\s+\S+)*\s*$$ -> Record

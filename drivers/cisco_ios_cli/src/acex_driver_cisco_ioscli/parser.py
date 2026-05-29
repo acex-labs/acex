@@ -19,11 +19,13 @@ from acex_devkit.models.composed_configuration import (
     SnmpViewAttributes,
     SnmpServer,
     TrapEvent,
+    DnsServerAttributes,
     ReferenceTo,
 )
 from ntc_templates.parse import parse_output
 import os
 
+from pydantic import BaseModel
 
 def map_enabled(enabled_value: str) -> bool:
     """
@@ -104,11 +106,12 @@ class CiscoIOSCLIParser:
         self.parse_l3_interfaces()
         self.parse_ntp()
         self.parse_ssh()
-        self.parse_snmp()
-        self.parse_snmp_servers()
-        self.parse_snmp_views()
-        self.parse_snmp_communities()
-        self.parse_snmp_users()
+        self.parse_dns()
+        #self.parse_snmp()
+        #self.parse_snmp_servers()
+        #self.parse_snmp_views()
+        #self.parse_snmp_communities()
+        #self.parse_snmp_users()
 
         return self._parsed_config
 
@@ -287,6 +290,42 @@ class CiscoIOSCLIParser:
         self.parsed_config.system.config = self.removekey(
             SystemConfig(**system_settings), "metadata"
         )
+
+    def parse_dns(self) -> None:
+        """Parse DNS configuration."""
+        command = "show running dns"
+
+        parsed_data = parse_output(
+            platform=self.platform,
+            template_dir=self.custom_templates_dir,
+            command=command,
+            data=self.running_config,
+        )
+        
+        #print('='*100)
+        #print('self.running_config:', self.running_config)
+        #print('='*100)
+        #with open("/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt", "w") as f:
+        #    f.write(self.running_config)
+        #
+        #print('parsed_data: ',parsed_data)
+
+        ## DNS parsing logic would go here, similar to NTP and SSH parsing
+        #address
+        #network_instance
+        dns_config = {}
+        for i, entry in enumerate(parsed_data):
+            dns_server_values = {}
+            if not entry.get("address"):
+                continue
+            
+            dns_server_values['address'] = entry.get("address") if entry.get("address") else None
+            dns_server_values['network_instance'] = entry.get("vrf") if entry.get("vrf") else None
+            
+            dns_config[f"DNS Server {i+1}"] = self.removekey(
+                DnsServerAttributes(**dns_server_values), "metadata"
+            )
+        self.parsed_config.system.dns.dns_servers = dns_config
 
     def parse_ntp(self) -> None:
         """Parse NTP configuration."""
