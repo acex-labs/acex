@@ -20,6 +20,7 @@ from acex_devkit.models.composed_configuration import (
     SnmpServer,
     TrapEvent,
     DnsServerAttributes,
+    ClockConfig,
     ReferenceTo,
 )
 from ntc_templates.parse import parse_output
@@ -149,6 +150,7 @@ class CiscoIOSCLIParser:
         self.parse_ntp()
         self.parse_ssh()
         self.parse_dns()
+        self.parse_clock()
         # self.parse_snmp()
         # self.parse_snmp_servers()
         # self.parse_snmp_views()
@@ -500,6 +502,26 @@ class CiscoIOSCLIParser:
         #)
         self.parsed_config.system.ssh.config = SshServer(**ssh_values_dict)
         self.parsed_config.system.ssh.host_keys = {}
+
+    def parse_clock(self) -> None:
+        """Parse clock configuration."""
+        command = "show running clock"
+
+        parsed_data = parse_output(
+            platform=self.platform,
+            template_dir=self.custom_templates_dir,
+            command=command,
+            data=self.running_config,
+        )
+
+        print('clock parsed_data: ', parsed_data)
+        clock_config_values_dict = {}
+        for entry in parsed_data:
+            clock_config_values_dict["timezone"] = entry.get("timezone") if entry.get("timezone") else None
+            #clock_config_values_dict["hours"] = entry.get("hours") if entry.get("hours") else None # prepared for future when support is added
+            #clock_config_values_dict["minutes"] = entry.get("minutes") if entry.get("minutes") else None # prepared for future when support is added
+        clock_config = ClockConfig(**clock_config_values_dict)
+        self.parsed_config.system.clock.config = clock_config
 
     # Only used for local testing with static config file
     def load_running_config(self, filepath: str) -> str:

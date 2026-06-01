@@ -17,6 +17,7 @@ cisco_ios.show_running_lag_interfaces.textfsm, .*, cisco_ios, show running lag i
 cisco_ios.show_running_ntp.textfsm, .*, cisco_ios, show running ntp
 cisco_ios.show_running_dns.textfsm, .*, cisco_ios, show running dns
 cisco_ios.show_running_ssh.textfsm, .*, cisco_ios, show running ssh
+cisco_ios.show_running_clock.textfsm, .*, cisco_ios, show running clock
 cisco_ios.show_running_snmp.textfsm, .*, cisco_ios, ^show running snmp$
 cisco_ios.show_running_snmp_servers.textfsm, .*, cisco_ios, ^show running snmp servers$
 cisco_ios.show_running_snmp_traps.textfsm, .*, cisco_ios, ^show running snmp traps$
