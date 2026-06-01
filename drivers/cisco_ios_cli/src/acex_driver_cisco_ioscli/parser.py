@@ -77,24 +77,18 @@ class CiscoIOSCLIParser:
     def removekey(self, d, key):
         if hasattr(d, "model_dump"):  # Pydantic v2
             r = d.model_dump()
-            # print('model_dump: ', r)
         elif hasattr(d, "dict"):  # Pydantic v1
             r = d.dict()
-            # print('dict: ', r)
         else:
             r = dict(d)  # Fallback for regular dicts or other types
-            # print('dict fallback: ', r)
 
         def _remove(obj):
             if isinstance(obj, dict):
-                # print('removing key from dict: ', obj)
                 return {k: _remove(v) for k, v in obj.items() if k != key}
             elif isinstance(
                 obj, list
             ):  # supporting in case we use lists of dicts in the future
-                # print('removing key from list: ', obj)
                 return [_remove(item) for item in obj]
-            # print('returning obj: ', obj)
             return obj
 
         return _remove(r)
@@ -114,7 +108,7 @@ class CiscoIOSCLIParser:
                 return {
                     key: _remove_none(value)
                     for key, value in obj.items()
-                    if value is not None
+                    if value is not None and key != "metadata"
                 }
             if isinstance(obj, list):
                 return [_remove_none(item) for item in obj if item is not None]
@@ -122,7 +116,29 @@ class CiscoIOSCLIParser:
 
         return _remove_none(r)
 
-    # print(remove_none_values(test_dict))
+    # If we can reference an interface, we return the reference
+    # Otherwise we return None 
+    def find_interface(self, data):
+        if data.get("source_interface"):
+            for intf_name, intf in self.parsed_config.interfaces.items():
+                intf_type = (
+                    intf.get("type")
+                    if isinstance(intf, dict)
+                    else getattr(intf, "type", None)
+                )
+                intf_vlan_id = (
+                    intf["vlan_id"].get("value")
+                    if isinstance(intf, dict) and intf.get("vlan_id")
+                    else getattr(intf, "vlan_id", None)
+                )
+                if intf_type == "l3ipvlan" and intf_vlan_id == int(
+                    data.get("source_interface").replace("Vlan", "")
+                ):
+                    intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
+                    return intf_ref
+                    #break
+        else:
+            return None
 
     def parse(self, configuration: str) -> dict:
         """Parse the Cisco IOS CLI configuration content."""
@@ -139,11 +155,6 @@ class CiscoIOSCLIParser:
         # self.parse_snmp_communities()
         # self.parse_snmp_users()
 
-        #print('#'*50)
-        #print('#'*50)
-        #print(self.remove_none_values(self._parsed_config))
-        #print('#'*50)
-        #print('#'*50)
         #return self._parsed_config
         return self.remove_none_values(self._parsed_config)
 
@@ -165,13 +176,17 @@ class CiscoIOSCLIParser:
             # intf['ipv6_address'] = intf.get('ipv6_address') or None
             intf["vlan_id"] = int(intf["name"].replace("Vlan", ""))
 
+        #interfaces_dict = {
+        #    intf["name"]: self.removekey(
+        #        L3IpvlanInterface(index=index, **intf), "metadata"
+        #    )
+        #    for index, intf in enumerate(parsed_data)
+        #}
         interfaces_dict = {
-            intf["name"]: self.removekey(
-                L3IpvlanInterface(index=index, **intf), "metadata"
-            )
+            intf["name"]: L3IpvlanInterface(index=index, **intf)
             for index, intf in enumerate(parsed_data)
         }
-
+        
         self.parsed_config.interfaces.update(interfaces_dict)
 
     def parse_interfaces(self) -> None:
@@ -218,10 +233,14 @@ class CiscoIOSCLIParser:
             intf["description"] = intf.get("description") or None
             intf["negotiation"] = True if intf.get("negotiation") else False
 
+        #interfaces_dict = {
+        #    intf["name"]: self.removekey(
+        #        EthernetCsmacdInterface(index=index, **intf), "metadata"
+        #    )
+        #    for index, intf in enumerate(parsed_data)
+        #}
         interfaces_dict = {
-            intf["name"]: self.removekey(
-                EthernetCsmacdInterface(index=index, **intf), "metadata"
-            )
+            intf["name"]: EthernetCsmacdInterface(index=index, **intf)
             for index, intf in enumerate(parsed_data)
         }
         self.parsed_config.interfaces.update(interfaces_dict)
@@ -265,10 +284,14 @@ class CiscoIOSCLIParser:
 
             intf["description"] = intf.get("description") or None
 
+        #interfaces_dict = {
+        #    intf["name"]: self.removekey(
+        #        Ieee8023adLagInterface(index=index, **intf), "metadata"
+        #    )
+        #    for index, intf in enumerate(parsed_data)
+        #}
         interfaces_dict = {
-            intf["name"]: self.removekey(
-                Ieee8023adLagInterface(index=index, **intf), "metadata"
-            )
+            intf["name"]: Ieee8023adLagInterface(index=index, **intf)
             for index, intf in enumerate(parsed_data)
         }
         self.parsed_config.interfaces.update(interfaces_dict)
@@ -319,9 +342,10 @@ class CiscoIOSCLIParser:
             parsed_data[0].get("contact") if parsed_data[0].get("contact") else None
         )
 
-        self.parsed_config.system.config = self.removekey(
-            SystemConfig(**system_settings), "metadata"
-        )
+        #self.parsed_config.system.config = self.removekey(
+        #    SystemConfig(**system_settings), "metadata"
+        #)
+        self.parsed_config.system.config = SystemConfig(**system_settings)
 
     def parse_dns(self) -> None:
         """Parse DNS configuration."""
@@ -358,9 +382,10 @@ class CiscoIOSCLIParser:
                 entry.get("vrf") if entry.get("vrf") else None
             )
 
-            dns_config[f"DNS Server {i+1}"] = self.removekey(
-                DnsServerAttributes(**dns_server_values), "metadata"
-            )
+            #dns_config[f"DNS Server {i+1}"] = self.removekey(
+            #    DnsServerAttributes(**dns_server_values), "metadata"
+            #)
+            dns_config[f"DNS Server {i+1}"] = DnsServerAttributes(**dns_server_values)
         self.parsed_config.system.dns.dns_servers = dns_config
 
     def parse_ntp(self) -> None:
@@ -395,27 +420,29 @@ class CiscoIOSCLIParser:
             else:
                 ntp_server["prefer"] = False
 
-            if ntp_server.get("source_interface"):
-                for intf_name, intf in self.parsed_config.interfaces.items():
-                    intf_type = (
-                        intf.get("type")
-                        if isinstance(intf, dict)
-                        else getattr(intf, "type", None)
-                    )
-                    intf_vlan_id = (
-                        intf["vlan_id"].get("value")
-                        if isinstance(intf, dict) and intf.get("vlan_id")
-                        else getattr(intf, "vlan_id", None)
-                    )
-                    if intf_type == "l3ipvlan" and intf_vlan_id == int(
-                        ntp_server.get("source_interface").replace("Vlan", "")
-                    ):
-                        intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
-                        break
-                ntp_server["source_interface"] = intf_ref
-            ntp_servers[ntp_server["address"]] = self.removekey(
-                NtpServer(**ntp_server), "metadata"
-            )
+            #if ntp_server.get("source_interface"):
+            #    for intf_name, intf in self.parsed_config.interfaces.items():
+            #        intf_type = (
+            #            intf.get("type")
+            #            if isinstance(intf, dict)
+            #            else getattr(intf, "type", None)
+            #        )
+            #        intf_vlan_id = (
+            #            intf["vlan_id"].get("value")
+            #            if isinstance(intf, dict) and intf.get("vlan_id")
+            #            else getattr(intf, "vlan_id", None)
+            #        )
+            #        if intf_type == "l3ipvlan" and intf_vlan_id == int(
+            #            ntp_server.get("source_interface").replace("Vlan", "")
+            #        ):
+            #            intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
+            #            break
+            #    ntp_server["source_interface"] = intf_ref
+            ntp_server["source_interface"] = self.find_interface(ntp_server)
+            #ntp_servers[ntp_server["address"]] = self.removekey(
+            #    NtpServer(**ntp_server), "metadata"
+            #)
+            ntp_servers[ntp_server["address"]] = NtpServer(**ntp_server)
 
         self.parsed_config.system.ntp.servers = ntp_servers
 
@@ -448,28 +475,30 @@ class CiscoIOSCLIParser:
                 ssh_auth_retries = {"value": entry.get("authentication_retries")}
                 ssh_values_dict["authentication_retries"] = ssh_auth_retries
 
-            if entry.get("source_interface"):
-                for intf_name, intf in self.parsed_config.interfaces.items():
-                    intf_type = (
-                        intf.get("type")
-                        if isinstance(intf, dict)
-                        else getattr(intf, "type", None)
-                    )
-                    intf_vlan_id = (
-                        intf["vlan_id"].get("value")
-                        if isinstance(intf, dict) and intf.get("vlan_id")
-                        else getattr(intf, "vlan_id", None)
-                    )
-                    if intf_type == "l3ipvlan" and intf_vlan_id == int(
-                        entry.get("source_interface").replace("Vlan", "")
-                    ):
-                        intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
-                        break
-                ssh_values_dict["source_interface"] = intf_ref
+            ssh_values_dict["source_interface"] = self.find_interface(entry)
+            #if entry.get("source_interface"):
+            #    for intf_name, intf in self.parsed_config.interfaces.items():
+            #        intf_type = (
+            #            intf.get("type")
+            #            if isinstance(intf, dict)
+            #            else getattr(intf, "type", None)
+            #        )
+            #        intf_vlan_id = (
+            #            intf["vlan_id"].get("value")
+            #            if isinstance(intf, dict) and intf.get("vlan_id")
+            #            else getattr(intf, "vlan_id", None)
+            #        )
+            #        if intf_type == "l3ipvlan" and intf_vlan_id == int(
+            #            entry.get("source_interface").replace("Vlan", "")
+            #        ):
+            #            intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
+            #            break
+            #    ssh_values_dict["source_interface"] = intf_ref
 
-        self.parsed_config.system.ssh.config = self.removekey(
-            SshServer(**ssh_values_dict), "metadata"
-        )
+        #self.parsed_config.system.ssh.config = self.removekey(
+        #    SshServer(**ssh_values_dict), "metadata"
+        #)
+        self.parsed_config.system.ssh.config = SshServer(**ssh_values_dict)
         self.parsed_config.system.ssh.host_keys = {}
 
     # Only used for local testing with static config file
@@ -497,8 +526,11 @@ class CiscoIOSCLIParser:
                 for i, trap in enumerate(entry.get("traps")):
                     snmp_trap_values_dict["name"] = f"trap_{i}"
                     snmp_trap_values_dict["event_name"] = trap
-                    snmp_traps_dict[entry.get("event_name")] = self.removekey(
-                        TrapEvent(**snmp_trap_values_dict), "metadata"
+                    #snmp_traps_dict[entry.get("event_name")] = self.removekey(
+                    #    TrapEvent(**snmp_trap_values_dict), "metadata"
+                    #)
+                    snmp_traps_dict[entry.get("event_name")] = TrapEvent(
+                        **snmp_trap_values_dict
                     )
 
         self.parsed_config.system.snmp.trap_events = snmp_traps_dict
@@ -527,8 +559,11 @@ class CiscoIOSCLIParser:
                 snmp_view_values_dict["included"] = (
                     True if "included" in entry.get("view_status") else False
                 )
-                snmp_views_dict[f"{entry.get('view_name')}_{i}"] = self.removekey(
-                    SnmpView(**snmp_view_values_dict), "metadata"
+                #snmp_views_dict[f"{entry.get('view_name')}_{i}"] = self.removekey(
+                #    SnmpView(**snmp_view_values_dict), "metadata"
+                #)
+                snmp_views_dict[f"{entry.get('view_name')}_{i}"] = SnmpView(
+                    **snmp_view_values_dict
                 )
 
         self.parsed_config.system.snmp.views = snmp_views_dict
@@ -575,32 +610,36 @@ class CiscoIOSCLIParser:
                 if entry.get("server_security_level")
                 else None
             )
-            if entry.get("source_interface"):
-                for intf_name, intf in self.parsed_config.interfaces.items():
-                    intf_type = (
-                        intf.get("type")
-                        if isinstance(intf, dict)
-                        else getattr(intf, "type", None)
-                    )
-                    intf_vlan_id = (
-                        intf["vlan_id"].get("value")
-                        if isinstance(intf, dict) and intf.get("vlan_id")
-                        else getattr(intf, "vlan_id", None)
-                    )
-                    if intf_type == "l3ipvlan" and intf_vlan_id == int(
-                        entry.get("source_interface").replace("Vlan", "")
-                    ):
-                        intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
-                        snmp_server_values_dict["source_interface"] = intf_ref
-                        break
-                    else:
-                        snmp_server_values_dict["source_interface"] = None
+            snmp_server_values_dict["source_interface"] = self.find_interface(entry)
+            #if entry.get("source_interface"):
+            #    for intf_name, intf in self.parsed_config.interfaces.items():
+            #        intf_type = (
+            #            intf.get("type")
+            #            if isinstance(intf, dict)
+            #            else getattr(intf, "type", None)
+            #        )
+            #        intf_vlan_id = (
+            #            intf["vlan_id"].get("value")
+            #            if isinstance(intf, dict) and intf.get("vlan_id")
+            #            else getattr(intf, "vlan_id", None)
+            #        )
+            #        if intf_type == "l3ipvlan" and intf_vlan_id == int(
+            #            entry.get("source_interface").replace("Vlan", "")
+            #        ):
+            #            intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
+            #            snmp_server_values_dict["source_interface"] = intf_ref
+            #            break
+            #        else:
+            #            snmp_server_values_dict["source_interface"] = None
             snmp_server_values_dict["network_instance"] = (
                 entry.get("vrf") if entry.get("vrf") else None
             )
 
-            snmp_servers_dict[entry.get("host")] = self.removekey(
-                SnmpServer(**snmp_server_values_dict), "metadata"
+            #snmp_servers_dict[entry.get("host")] = self.removekey(
+            #    SnmpServer(**snmp_server_values_dict), "metadata"
+            #)
+            snmp_servers_dict[entry.get("host")] = SnmpServer(
+                **snmp_server_values_dict
             )
 
         self.parsed_config.system.snmp.trap_servers = snmp_servers_dict
@@ -648,9 +687,10 @@ class CiscoIOSCLIParser:
                 entry.get("priv_password") if entry.get("priv_password") else None
             )
 
-            snmp_users_dict[f"user_{i}"] = self.removekey(
-                SnmpUser(**snmp_user_values_dict), "metadata"
-            )
+            #snmp_users_dict[f"user_{i}"] = self.removekey(
+            #    SnmpUser(**snmp_user_values_dict), "metadata"
+            #)
+            snmp_users_dict[f"user_{i}"] = SnmpUser(**snmp_user_values_dict)
 
         self.parsed_config.system.snmp.users = snmp_users_dict
 
@@ -683,27 +723,31 @@ class CiscoIOSCLIParser:
             snmp_community_values_dict["ipv6_acl"] = (
                 entry.get("ipv6_acl") if entry.get("ipv6_acl") else None
             )
-            if entry.get("source_interface"):
-                for intf_name, intf in self.parsed_config.interfaces.items():
-                    intf_type = (
-                        intf.get("type")
-                        if isinstance(intf, dict)
-                        else getattr(intf, "type", None)
-                    )
-                    intf_vlan_id = (
-                        intf["vlan_id"].get("value")
-                        if isinstance(intf, dict) and intf.get("vlan_id")
-                        else getattr(intf, "vlan_id", None)
-                    )
-                    if intf_type == "l3ipvlan" and intf_vlan_id == int(
-                        entry.get("source_interface").replace("Vlan", "")
-                    ):
-                        intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
-                        break
-                snmp_community_values_dict["source_interface"] = intf_ref
+            snmp_community_values_dict["source_interface"] = self.find_interface(entry)
+            #if entry.get("source_interface"):
+            #    for intf_name, intf in self.parsed_config.interfaces.items():
+            #        intf_type = (
+            #            intf.get("type")
+            #            if isinstance(intf, dict)
+            #            else getattr(intf, "type", None)
+            #        )
+            #        intf_vlan_id = (
+            #            intf["vlan_id"].get("value")
+            #            if isinstance(intf, dict) and intf.get("vlan_id")
+            #            else getattr(intf, "vlan_id", None)
+            #        )
+            #        if intf_type == "l3ipvlan" and intf_vlan_id == int(
+            #            entry.get("source_interface").replace("Vlan", "")
+            #        ):
+            #            intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
+            #            break
+            #    snmp_community_values_dict["source_interface"] = intf_ref
 
-            snmp_communities_dict[f"community_{i}"] = self.removekey(
-                SnmpCommunity(**snmp_community_values_dict), "metadata"
+            #snmp_communities_dict[f"community_{i}"] = self.removekey(
+            #    SnmpCommunity(**snmp_community_values_dict), "metadata"
+            #)
+            snmp_communities_dict[f"community_{i}"] = SnmpCommunity(
+                **snmp_community_values_dict
             )
         self.parsed_config.system.snmp.communities = snmp_communities_dict
 
@@ -735,8 +779,9 @@ class CiscoIOSCLIParser:
                 entry.get("engine_id") if entry.get("engine_id") else None
             )
 
-            snmp_config = self.removekey(
-                SnmpConfig(**snmp_config_values_dict), "metadata"
-            )
+            #snmp_config = self.removekey(
+            #    SnmpConfig(**snmp_config_values_dict), "metadata"
+            #)
+            snmp_config = SnmpConfig(**snmp_config_values_dict)
 
         self.parsed_config.system.snmp.config = snmp_config
