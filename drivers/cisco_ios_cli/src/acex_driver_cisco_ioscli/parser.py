@@ -21,7 +21,10 @@ from acex_devkit.models.composed_configuration import (
     TrapEvent,
     DnsServerAttributes,
     ClockConfig,
+    DhcpRelayServerAttributes,
+    DHCPSnoopingAttributes,
     ReferenceTo,
+    ReferenceFrom
 )
 from ntc_templates.parse import parse_output
 import os
@@ -151,6 +154,8 @@ class CiscoIOSCLIParser:
         self.parse_ssh()
         self.parse_dns()
         self.parse_clock()
+        #self.parse_dhcp_relay()
+        #self.parse_dhcp_snooping()
         # self.parse_snmp()
         # self.parse_snmp_servers()
         # self.parse_snmp_views()
@@ -160,7 +165,60 @@ class CiscoIOSCLIParser:
         #return self._parsed_config
         return self.remove_none_values(self._parsed_config)
 
-    def parse_l3_interfaces(self):
+    # Only used for local testing with static config file
+    def load_running_config(self, filepath: str) -> str:
+        with open(filepath, "r") as f:
+            return f.read()
+
+    def parse_dhcp_relay(self) -> None:
+        """Parse DHCP relay configuration."""
+        command = "show running dhcp relay"
+
+        parsed_data = parse_output(
+            platform=self.platform,
+            template_dir=self.custom_templates_dir,
+            command=command,
+            data=self.running_config,
+        )
+
+        dhcp_relay_servers_dict = {}
+        for i, entry in enumerate(parsed_data):
+            dhcp_relay_server_values_dict = {}
+            if entry.get("dhcp_relay_servers"):
+                for j, server in enumerate(entry.get("dhcp_relay_servers")):
+                    dhcp_relay_server_values_dict["name"] = f"dhcp_relay_server_{i}_{j}"
+                    dhcp_relay_server_values_dict["address"] = (
+                        server.get("address") if server.get("address") else None
+                    )
+                    dhcp_relay_servers_dict[f"dhcp_relay_server_{i}_{j}"] = DhcpRelayServerAttributes(
+                        **dhcp_relay_server_values_dict
+                    )
+
+        self.parsed_config.system.dhcp_relay.servers = dhcp_relay_servers_dict
+        
+    def parse_dhcp_snooping(self) -> None:
+        """Parse DHCP snooping configuration."""
+        command = "show running dhcp snooping"
+
+        parsed_data = parse_output(
+            platform=self.platform,
+            template_dir=self.custom_templates_dir,
+            command=command,
+            data=self.running_config,
+        )
+
+        # ip dhcp snooping trust 
+        # is configured on the interface
+        dhcp_snooping_dict = {}
+        for entry in parsed_data:
+            dhcp_snooping_values_dict = {}
+            dhcp_snooping_values_dict["enabled"] = True if entry.get("enabled") else False
+            dhcp_snooping_values_dict["trusted_interfaces"] = entry.get("trusted_interfaces") if entry.get("trusted_interfaces") else []
+            dhcp_snooping_dict["dhcp_snooping"] = DHCPSnoopingAttributes(**dhcp_snooping_values_dict)
+
+        self.parsed_config.system.dhcp_snooping = dhcp_snooping_dict
+
+    def parse_l3_interfaces(self) -> None:
         """Parse L3 interfaces."""
         command = "show running svi interfaces"
 
@@ -195,13 +253,25 @@ class CiscoIOSCLIParser:
         """Parse physical interfaces."""
         command = "show running physical interfaces"
 
+        test_running = self.load_running_config("/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt")
+
         parsed_data = parse_output(
             platform=self.platform,
             template_dir=self.custom_templates_dir,
             command=command,
-            data=self.running_config,
+            #data=self.running_config,
+            data=test_running # Using this for testing with a static config file, replace with self.running_config for actual use
         )
-
+        
+        #print('&'*100)
+        #print('&'*100)
+        #print('parsed_data: ', parsed_data)
+        #print('&'*100)
+        #print('&'*100)
+        dhcp_snooping_dict = {}
+        dhcp_snooping_dict["snooping"] = {}
+        dhcp_snooping_dict["snooping"]['trust_interfaces'] = {}
+        dhcp_trusted_interfaces = {}
         for intf in parsed_data:
             intf["enabled"] = map_enabled(intf.get("ENABLED", ""))
             if intf["switchport_mode"] == "trunk":
@@ -234,13 +304,22 @@ class CiscoIOSCLIParser:
 
             intf["description"] = intf.get("description") or None
             intf["negotiation"] = True if intf.get("negotiation") else False
-
+            
+            # DHCP snooping trust
+            if intf.get("snooping"):
+                print('intf.name: ', intf["name"])
+                #dhcp_trusted_interfaces.update(ReferenceTo(pointer=f"interfaces.{intf['name']}"))
+                ReferenceFrom(pointer="system.dhcp.snooping.trust_interfaces")
+                #dhcp_snooping_dict["snooping"] = DHCPSnoopingAttributes(**dhcp_snooping_values_dict)
+                
         #interfaces_dict = {
         #    intf["name"]: self.removekey(
         #        EthernetCsmacdInterface(index=index, **intf), "metadata"
         #    )
         #    for index, intf in enumerate(parsed_data)
         #}
+        #dhcp_snooping_dict["snooping"]['trust_interfaces'] = dhcp_trusted_interfaces#DHCPSnoopingAttributes(**dhcp_trusted_interfaces)
+        #self.parsed_config.system.dhcp.snooping.trust_interfaces = dhcp_trusted_interfaces
         interfaces_dict = {
             intf["name"]: EthernetCsmacdInterface(index=index, **intf)
             for index, intf in enumerate(parsed_data)
@@ -514,7 +593,6 @@ class CiscoIOSCLIParser:
             data=self.running_config,
         )
 
-        print('clock parsed_data: ', parsed_data)
         clock_config_values_dict = {}
         for entry in parsed_data:
             clock_config_values_dict["timezone"] = entry.get("timezone") if entry.get("timezone") else None
@@ -522,11 +600,6 @@ class CiscoIOSCLIParser:
             #clock_config_values_dict["minutes"] = entry.get("minutes") if entry.get("minutes") else None # prepared for future when support is added
         clock_config = ClockConfig(**clock_config_values_dict)
         self.parsed_config.system.clock.config = clock_config
-
-    # Only used for local testing with static config file
-    def load_running_config(self, filepath: str) -> str:
-        with open(filepath, "r") as f:
-            return f.read()
 
     def parse_snmp_traps(self) -> None:
         """Parse SNMP trap configuration."""

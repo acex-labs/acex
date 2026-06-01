@@ -1,4 +1,4 @@
-Value NAME (\S+Ethernet\S+)
+Value NAME (\S*(?:Ethernet|GigE)\S*)
 Value SWITCHPORT_MODE (\S+)
 Value NATIVE_VLAN (\d+)
 Value ACCESS_VLAN (\d+)
@@ -7,6 +7,7 @@ Value DESCRIPTION (.+)
 Value TRUNK_ALLOWED_VLANS (\S+)
 Value ENABLED (shutdown|no shutdown)
 Value NEGOTIATION (\S+)
+Value SNOOPING (\S+)
 
 Start
   ^interface\s+${NAME} -> Interface
@@ -20,5 +21,6 @@ Interface
   ^\s+switchport voice vlan ${VOICE_VLAN}
   ^\s+${ENABLED}
   ^\s+negotiation ${NEGOTIATION}
+  ^\s+ip dhcp snooping ${SNOOPING}
   ^! -> Record Start
   ^interface\s+${NAME} -> Record Interface
