@@ -27,6 +27,7 @@ import os
 
 from pydantic import BaseModel
 
+
 def map_enabled(enabled_value: str) -> bool:
     """
     Map TextFSM 'ENABLED' field to boolean.
@@ -57,7 +58,7 @@ class CiscoIOSCLIParser:
         self._parsed_config = ComposedConfiguration()
 
     @property
-    def parsed_config(self):
+    def parsed_config(self) -> BaseModel:
         """Return the model class for the parser."""
         return self._parsed_config
 
@@ -98,6 +99,31 @@ class CiscoIOSCLIParser:
 
         return _remove(r)
 
+    # Removes any key with None value from the dict recursively so that the final output 
+    # only contains keys with actual values. This makes the diff easier later on as composed also doesnt' have None values.
+    def remove_none_values(self, d):
+        if hasattr(d, "model_dump"):  # Pydantic v2
+            r = d.model_dump()
+        elif hasattr(d, "dict"):  # Pydantic v1
+            r = d.dict()
+        else:
+            r = d
+
+        def _remove_none(obj):
+            if isinstance(obj, dict):
+                return {
+                    key: _remove_none(value)
+                    for key, value in obj.items()
+                    if value is not None
+                }
+            if isinstance(obj, list):
+                return [_remove_none(item) for item in obj if item is not None]
+            return obj
+
+        return _remove_none(r)
+
+    # print(remove_none_values(test_dict))
+
     def parse(self, configuration: str) -> dict:
         """Parse the Cisco IOS CLI configuration content."""
         self.running_config = configuration
@@ -107,13 +133,19 @@ class CiscoIOSCLIParser:
         self.parse_ntp()
         self.parse_ssh()
         self.parse_dns()
-        #self.parse_snmp()
-        #self.parse_snmp_servers()
-        #self.parse_snmp_views()
-        #self.parse_snmp_communities()
-        #self.parse_snmp_users()
+        # self.parse_snmp()
+        # self.parse_snmp_servers()
+        # self.parse_snmp_views()
+        # self.parse_snmp_communities()
+        # self.parse_snmp_users()
 
-        return self._parsed_config
+        #print('#'*50)
+        #print('#'*50)
+        #print(self.remove_none_values(self._parsed_config))
+        #print('#'*50)
+        #print('#'*50)
+        #return self._parsed_config
+        return self.remove_none_values(self._parsed_config)
 
     def parse_l3_interfaces(self):
         """Parse L3 interfaces."""
@@ -301,27 +333,31 @@ class CiscoIOSCLIParser:
             command=command,
             data=self.running_config,
         )
-        
-        #print('='*100)
-        #print('self.running_config:', self.running_config)
-        #print('='*100)
-        #with open("/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt", "w") as f:
+
+        # print('='*100)
+        # print('self.running_config:', self.running_config)
+        # print('='*100)
+        # with open("/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt", "w") as f:
         #    f.write(self.running_config)
         #
-        #print('parsed_data: ',parsed_data)
+        # print('parsed_data: ',parsed_data)
 
         ## DNS parsing logic would go here, similar to NTP and SSH parsing
-        #address
-        #network_instance
+        # address
+        # network_instance
         dns_config = {}
         for i, entry in enumerate(parsed_data):
             dns_server_values = {}
             if not entry.get("address"):
                 continue
-            
-            dns_server_values['address'] = entry.get("address") if entry.get("address") else None
-            dns_server_values['network_instance'] = entry.get("vrf") if entry.get("vrf") else None
-            
+
+            dns_server_values["address"] = (
+                entry.get("address") if entry.get("address") else None
+            )
+            dns_server_values["network_instance"] = (
+                entry.get("vrf") if entry.get("vrf") else None
+            )
+
             dns_config[f"DNS Server {i+1}"] = self.removekey(
                 DnsServerAttributes(**dns_server_values), "metadata"
             )
