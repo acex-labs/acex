@@ -24,7 +24,7 @@ from acex_devkit.models.composed_configuration import (
     DhcpRelayServerAttributes,
     DHCPSnoopingAttributes,
     ReferenceTo,
-    ReferenceFrom
+    ReferenceFrom,
 )
 from ntc_templates.parse import parse_output
 import os
@@ -97,7 +97,7 @@ class CiscoIOSCLIParser:
 
         return _remove(r)
 
-    # Removes any key with None value from the dict recursively so that the final output 
+    # Removes any key with None value from the dict recursively so that the final output
     # only contains keys with actual values. This makes the diff easier later on as composed also doesnt' have None values.
     def remove_none_values(self, d):
         if hasattr(d, "model_dump"):  # Pydantic v2
@@ -121,32 +121,51 @@ class CiscoIOSCLIParser:
         return _remove_none(r)
 
     # If we can reference an interface, we return the reference
-    # Otherwise we return None 
+    # Otherwise we return None
     def find_interface(self, data):
         if data.get("source_interface"):
+            source_interface = data.get("source_interface")
+            source_vlan_id = None
+
+            if source_interface.startswith("Vlan"):
+                source_vlan_id = int(source_interface.replace("Vlan", ""))
+
             for intf_name, intf in self.parsed_config.interfaces.items():
+                print('intf: ', intf)
                 intf_type = (
                     intf.get("type")
                     if isinstance(intf, dict)
                     else getattr(intf, "type", None)
                 )
-                intf_vlan_id = (
-                    intf["vlan_id"].get("value")
-                    if isinstance(intf, dict) and intf.get("vlan_id")
-                    else getattr(intf, "vlan_id", None)
-                )
-                if intf_type == "l3ipvlan" and intf_vlan_id == int(
-                    data.get("source_interface").replace("Vlan", "")
+                if isinstance(intf, dict):
+                    intf_vlan_id = intf.get("vlan_id")
+                    if isinstance(intf_vlan_id, dict):
+                        intf_vlan_id = intf_vlan_id.get("value")
+                else:
+                    intf_vlan_id = getattr(intf, "vlan_id", None)
+                    if hasattr(intf_vlan_id, "value"):
+                        intf_vlan_id = intf_vlan_id.value
+
+                if (
+                    intf_type == "l3ipvlan"
+                    and source_vlan_id is not None
+                    and intf_vlan_id == source_vlan_id
                 ):
                     intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
                     return intf_ref
-                    #break
+                else:
+                    intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
+                    return intf_ref
         else:
             return None
 
     def parse(self, configuration: str) -> dict:
         """Parse the Cisco IOS CLI configuration content."""
-        self.running_config = configuration
+        test_running = self.load_running_config(
+            "/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt"
+        )
+        # self.running_config = configuration
+        self.running_config = test_running  # Using this for testing with a static config file, replace with configuration for actual use
         self.parse_system_settings()
         self.parse_interfaces()
         self.parse_l3_interfaces()
@@ -154,15 +173,15 @@ class CiscoIOSCLIParser:
         self.parse_ssh()
         self.parse_dns()
         self.parse_clock()
-        #self.parse_dhcp_relay()
-        #self.parse_dhcp_snooping()
+        # self.parse_dhcp_relay()
+        # self.parse_dhcp_snooping()
         # self.parse_snmp()
         # self.parse_snmp_servers()
         # self.parse_snmp_views()
         # self.parse_snmp_communities()
         # self.parse_snmp_users()
 
-        #return self._parsed_config
+        # return self._parsed_config
         return self.remove_none_values(self._parsed_config)
 
     # Only used for local testing with static config file
@@ -190,12 +209,12 @@ class CiscoIOSCLIParser:
                     dhcp_relay_server_values_dict["address"] = (
                         server.get("address") if server.get("address") else None
                     )
-                    dhcp_relay_servers_dict[f"dhcp_relay_server_{i}_{j}"] = DhcpRelayServerAttributes(
-                        **dhcp_relay_server_values_dict
+                    dhcp_relay_servers_dict[f"dhcp_relay_server_{i}_{j}"] = (
+                        DhcpRelayServerAttributes(**dhcp_relay_server_values_dict)
                     )
 
         self.parsed_config.system.dhcp_relay.servers = dhcp_relay_servers_dict
-        
+
     def parse_dhcp_snooping(self) -> None:
         """Parse DHCP snooping configuration."""
         command = "show running dhcp snooping"
@@ -207,14 +226,22 @@ class CiscoIOSCLIParser:
             data=self.running_config,
         )
 
-        # ip dhcp snooping trust 
+        # ip dhcp snooping trust
         # is configured on the interface
         dhcp_snooping_dict = {}
         for entry in parsed_data:
             dhcp_snooping_values_dict = {}
-            dhcp_snooping_values_dict["enabled"] = True if entry.get("enabled") else False
-            dhcp_snooping_values_dict["trusted_interfaces"] = entry.get("trusted_interfaces") if entry.get("trusted_interfaces") else []
-            dhcp_snooping_dict["dhcp_snooping"] = DHCPSnoopingAttributes(**dhcp_snooping_values_dict)
+            dhcp_snooping_values_dict["enabled"] = (
+                True if entry.get("enabled") else False
+            )
+            dhcp_snooping_values_dict["trusted_interfaces"] = (
+                entry.get("trusted_interfaces")
+                if entry.get("trusted_interfaces")
+                else []
+            )
+            dhcp_snooping_dict["dhcp_snooping"] = DHCPSnoopingAttributes(
+                **dhcp_snooping_values_dict
+            )
 
         self.parsed_config.system.dhcp_snooping = dhcp_snooping_dict
 
@@ -236,41 +263,43 @@ class CiscoIOSCLIParser:
             # intf['ipv6_address'] = intf.get('ipv6_address') or None
             intf["vlan_id"] = int(intf["name"].replace("Vlan", ""))
 
-        #interfaces_dict = {
+        # interfaces_dict = {
         #    intf["name"]: self.removekey(
         #        L3IpvlanInterface(index=index, **intf), "metadata"
         #    )
         #    for index, intf in enumerate(parsed_data)
-        #}
+        # }
         interfaces_dict = {
             intf["name"]: L3IpvlanInterface(index=index, **intf)
             for index, intf in enumerate(parsed_data)
         }
-        
+
         self.parsed_config.interfaces.update(interfaces_dict)
 
     def parse_interfaces(self) -> None:
         """Parse physical interfaces."""
         command = "show running physical interfaces"
 
-        test_running = self.load_running_config("/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt")
+        test_running = self.load_running_config(
+            "/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt"
+        )
 
         parsed_data = parse_output(
             platform=self.platform,
             template_dir=self.custom_templates_dir,
             command=command,
-            #data=self.running_config,
-            data=test_running # Using this for testing with a static config file, replace with self.running_config for actual use
+            # data=self.running_config,
+            data=test_running,  # Using this for testing with a static config file, replace with self.running_config for actual use
         )
-        
-        #print('&'*100)
-        #print('&'*100)
-        #print('parsed_data: ', parsed_data)
-        #print('&'*100)
-        #print('&'*100)
+
+        # print('&'*100)
+        # print('&'*100)
+        # print('parsed_data: ', parsed_data)
+        # print('&'*100)
+        # print('&'*100)
         dhcp_snooping_dict = {}
         dhcp_snooping_dict["snooping"] = {}
-        dhcp_snooping_dict["snooping"]['trust_interfaces'] = {}
+        dhcp_snooping_dict["snooping"]["trust_interfaces"] = {}
         dhcp_trusted_interfaces = {}
         for intf in parsed_data:
             intf["enabled"] = map_enabled(intf.get("ENABLED", ""))
@@ -304,22 +333,34 @@ class CiscoIOSCLIParser:
 
             intf["description"] = intf.get("description") or None
             intf["negotiation"] = True if intf.get("negotiation") else False
-            
+
             # DHCP snooping trust
             if intf.get("snooping"):
-                print('intf.name: ', intf["name"])
-                #dhcp_trusted_interfaces.update(ReferenceTo(pointer=f"interfaces.{intf['name']}"))
-                ReferenceFrom(pointer="system.dhcp.snooping.trust_interfaces")
-                #dhcp_snooping_dict["snooping"] = DHCPSnoopingAttributes(**dhcp_snooping_values_dict)
-                
-        #interfaces_dict = {
+                trust_inter_dict = {}
+                print("intf.name: ", intf["name"])
+                trust_inter_dict[intf["name"]] = ReferenceTo(
+                    pointer=f"interfaces.{intf['name']}"
+                )
+                dhcp_snooping_dict["snooping"]["trust_interfaces"].update(
+                    trust_inter_dict
+                )
+                # dhcp_trusted_interfaces.update(ReferenceTo(pointer=f"interfaces.{intf['name']}"))
+                # ReferenceFrom(pointer="system.dhcp.snooping.trust_interfaces")
+                # dhcp_snooping_dict["snooping"] = DHCPSnoopingAttributes(**dhcp_snooping_values_dict)
+
+        # interfaces_dict = {
         #    intf["name"]: self.removekey(
         #        EthernetCsmacdInterface(index=index, **intf), "metadata"
         #    )
         #    for index, intf in enumerate(parsed_data)
-        #}
-        #dhcp_snooping_dict["snooping"]['trust_interfaces'] = dhcp_trusted_interfaces#DHCPSnoopingAttributes(**dhcp_trusted_interfaces)
-        #self.parsed_config.system.dhcp.snooping.trust_interfaces = dhcp_trusted_interfaces
+        # }
+        # dhcp_snooping_dict["snooping"]['trust_interfaces'] = dhcp_trusted_interfaces#DHCPSnoopingAttributes(**dhcp_trusted_interfaces)
+        # self.parsed_config.system.dhcp.snooping.trust_interfaces = dhcp_trusted_interfaces
+        print("+" * 100)
+        print("+" * 100)
+        print("dhcp_snooping_dict: ", dhcp_snooping_dict)
+        print("+" * 100)
+        print("+" * 100)
         interfaces_dict = {
             intf["name"]: EthernetCsmacdInterface(index=index, **intf)
             for index, intf in enumerate(parsed_data)
@@ -365,12 +406,12 @@ class CiscoIOSCLIParser:
 
             intf["description"] = intf.get("description") or None
 
-        #interfaces_dict = {
+        # interfaces_dict = {
         #    intf["name"]: self.removekey(
         #        Ieee8023adLagInterface(index=index, **intf), "metadata"
         #    )
         #    for index, intf in enumerate(parsed_data)
-        #}
+        # }
         interfaces_dict = {
             intf["name"]: Ieee8023adLagInterface(index=index, **intf)
             for index, intf in enumerate(parsed_data)
@@ -423,9 +464,9 @@ class CiscoIOSCLIParser:
             parsed_data[0].get("contact") if parsed_data[0].get("contact") else None
         )
 
-        #self.parsed_config.system.config = self.removekey(
+        # self.parsed_config.system.config = self.removekey(
         #    SystemConfig(**system_settings), "metadata"
-        #)
+        # )
         self.parsed_config.system.config = SystemConfig(**system_settings)
 
     def parse_dns(self) -> None:
@@ -463,9 +504,9 @@ class CiscoIOSCLIParser:
                 entry.get("vrf") if entry.get("vrf") else None
             )
 
-            #dns_config[f"DNS Server {i+1}"] = self.removekey(
+            # dns_config[f"DNS Server {i+1}"] = self.removekey(
             #    DnsServerAttributes(**dns_server_values), "metadata"
-            #)
+            # )
             dns_config[f"DNS Server {i+1}"] = DnsServerAttributes(**dns_server_values)
         self.parsed_config.system.dns.dns_servers = dns_config
 
@@ -501,7 +542,7 @@ class CiscoIOSCLIParser:
             else:
                 ntp_server["prefer"] = False
 
-            #if ntp_server.get("source_interface"):
+            # if ntp_server.get("source_interface"):
             #    for intf_name, intf in self.parsed_config.interfaces.items():
             #        intf_type = (
             #            intf.get("type")
@@ -520,9 +561,9 @@ class CiscoIOSCLIParser:
             #            break
             #    ntp_server["source_interface"] = intf_ref
             ntp_server["source_interface"] = self.find_interface(ntp_server)
-            #ntp_servers[ntp_server["address"]] = self.removekey(
+            # ntp_servers[ntp_server["address"]] = self.removekey(
             #    NtpServer(**ntp_server), "metadata"
-            #)
+            # )
             ntp_servers[ntp_server["address"]] = NtpServer(**ntp_server)
 
         self.parsed_config.system.ntp.servers = ntp_servers
@@ -557,7 +598,7 @@ class CiscoIOSCLIParser:
                 ssh_values_dict["authentication_retries"] = ssh_auth_retries
 
             ssh_values_dict["source_interface"] = self.find_interface(entry)
-            #if entry.get("source_interface"):
+            # if entry.get("source_interface"):
             #    for intf_name, intf in self.parsed_config.interfaces.items():
             #        intf_type = (
             #            intf.get("type")
@@ -576,9 +617,9 @@ class CiscoIOSCLIParser:
             #            break
             #    ssh_values_dict["source_interface"] = intf_ref
 
-        #self.parsed_config.system.ssh.config = self.removekey(
+        # self.parsed_config.system.ssh.config = self.removekey(
         #    SshServer(**ssh_values_dict), "metadata"
-        #)
+        # )
         self.parsed_config.system.ssh.config = SshServer(**ssh_values_dict)
         self.parsed_config.system.ssh.host_keys = {}
 
@@ -595,9 +636,11 @@ class CiscoIOSCLIParser:
 
         clock_config_values_dict = {}
         for entry in parsed_data:
-            clock_config_values_dict["timezone"] = entry.get("timezone") if entry.get("timezone") else None
-            #clock_config_values_dict["hours"] = entry.get("hours") if entry.get("hours") else None # prepared for future when support is added
-            #clock_config_values_dict["minutes"] = entry.get("minutes") if entry.get("minutes") else None # prepared for future when support is added
+            clock_config_values_dict["timezone"] = (
+                entry.get("timezone") if entry.get("timezone") else None
+            )
+            # clock_config_values_dict["hours"] = entry.get("hours") if entry.get("hours") else None # prepared for future when support is added
+            # clock_config_values_dict["minutes"] = entry.get("minutes") if entry.get("minutes") else None # prepared for future when support is added
         clock_config = ClockConfig(**clock_config_values_dict)
         self.parsed_config.system.clock.config = clock_config
 
@@ -621,9 +664,9 @@ class CiscoIOSCLIParser:
                 for i, trap in enumerate(entry.get("traps")):
                     snmp_trap_values_dict["name"] = f"trap_{i}"
                     snmp_trap_values_dict["event_name"] = trap
-                    #snmp_traps_dict[entry.get("event_name")] = self.removekey(
+                    # snmp_traps_dict[entry.get("event_name")] = self.removekey(
                     #    TrapEvent(**snmp_trap_values_dict), "metadata"
-                    #)
+                    # )
                     snmp_traps_dict[entry.get("event_name")] = TrapEvent(
                         **snmp_trap_values_dict
                     )
@@ -654,9 +697,9 @@ class CiscoIOSCLIParser:
                 snmp_view_values_dict["included"] = (
                     True if "included" in entry.get("view_status") else False
                 )
-                #snmp_views_dict[f"{entry.get('view_name')}_{i}"] = self.removekey(
+                # snmp_views_dict[f"{entry.get('view_name')}_{i}"] = self.removekey(
                 #    SnmpView(**snmp_view_values_dict), "metadata"
-                #)
+                # )
                 snmp_views_dict[f"{entry.get('view_name')}_{i}"] = SnmpView(
                     **snmp_view_values_dict
                 )
@@ -706,7 +749,7 @@ class CiscoIOSCLIParser:
                 else None
             )
             snmp_server_values_dict["source_interface"] = self.find_interface(entry)
-            #if entry.get("source_interface"):
+            # if entry.get("source_interface"):
             #    for intf_name, intf in self.parsed_config.interfaces.items():
             #        intf_type = (
             #            intf.get("type")
@@ -730,12 +773,10 @@ class CiscoIOSCLIParser:
                 entry.get("vrf") if entry.get("vrf") else None
             )
 
-            #snmp_servers_dict[entry.get("host")] = self.removekey(
+            # snmp_servers_dict[entry.get("host")] = self.removekey(
             #    SnmpServer(**snmp_server_values_dict), "metadata"
-            #)
-            snmp_servers_dict[entry.get("host")] = SnmpServer(
-                **snmp_server_values_dict
-            )
+            # )
+            snmp_servers_dict[entry.get("host")] = SnmpServer(**snmp_server_values_dict)
 
         self.parsed_config.system.snmp.trap_servers = snmp_servers_dict
 
@@ -782,9 +823,9 @@ class CiscoIOSCLIParser:
                 entry.get("priv_password") if entry.get("priv_password") else None
             )
 
-            #snmp_users_dict[f"user_{i}"] = self.removekey(
+            # snmp_users_dict[f"user_{i}"] = self.removekey(
             #    SnmpUser(**snmp_user_values_dict), "metadata"
-            #)
+            # )
             snmp_users_dict[f"user_{i}"] = SnmpUser(**snmp_user_values_dict)
 
         self.parsed_config.system.snmp.users = snmp_users_dict
@@ -819,7 +860,7 @@ class CiscoIOSCLIParser:
                 entry.get("ipv6_acl") if entry.get("ipv6_acl") else None
             )
             snmp_community_values_dict["source_interface"] = self.find_interface(entry)
-            #if entry.get("source_interface"):
+            # if entry.get("source_interface"):
             #    for intf_name, intf in self.parsed_config.interfaces.items():
             #        intf_type = (
             #            intf.get("type")
@@ -838,9 +879,9 @@ class CiscoIOSCLIParser:
             #            break
             #    snmp_community_values_dict["source_interface"] = intf_ref
 
-            #snmp_communities_dict[f"community_{i}"] = self.removekey(
+            # snmp_communities_dict[f"community_{i}"] = self.removekey(
             #    SnmpCommunity(**snmp_community_values_dict), "metadata"
-            #)
+            # )
             snmp_communities_dict[f"community_{i}"] = SnmpCommunity(
                 **snmp_community_values_dict
             )
@@ -874,9 +915,9 @@ class CiscoIOSCLIParser:
                 entry.get("engine_id") if entry.get("engine_id") else None
             )
 
-            #snmp_config = self.removekey(
+            # snmp_config = self.removekey(
             #    SnmpConfig(**snmp_config_values_dict), "metadata"
-            #)
+            # )
             snmp_config = SnmpConfig(**snmp_config_values_dict)
 
         self.parsed_config.system.snmp.config = snmp_config
