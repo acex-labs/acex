@@ -144,9 +144,6 @@ class CollectionAgent:
             f"{succeeded} collected, {unchanged} unchanged, {len(errors)} failed"
         )
 
-        for r in errors:
-            logger.warning(f"  Node #{r['node_id']} ({r.get('hostname', '?')}): {r['message']}")
-
         if errors:
             from collections import Counter
             counts = Counter(r["message"] for r in errors)

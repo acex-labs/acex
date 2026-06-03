@@ -5,6 +5,7 @@ import logging
 import base64
 
 import requests
+from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_client.acex.acex import Acex
 from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.management_connection import ManagementConnection
@@ -17,10 +18,15 @@ class Collector:
     def __init__(self, client: Acex):
         self.client = client
 
-    async def collect_all(self, targets: list[dict]) -> list[dict]:
-        """Collect configs from all targets concurrently."""
-        tasks = [self._collect_one(target) for target in targets]
-        return list(await asyncio.gather(*tasks))
+    async def collect_all(self, targets: list[dict], max_concurrent: int = 20) -> list[dict]:
+        """Collect configs from all targets concurrently, bounded by max_concurrent."""
+        sem = asyncio.Semaphore(max_concurrent)
+
+        async def bounded(target):
+            async with sem:
+                return await self._collect_one(target)
+
+        return list(await asyncio.gather(*[bounded(t) for t in targets]))
 
     def _fetch_credential_secret(self, credential_id: int) -> dict | None:
         """Fetch decrypted credential fields from ACEX API."""
@@ -94,7 +100,14 @@ class Collector:
                 return await asyncio.to_thread(
                     self._run_sync_driver, driver, node, connection, node_id, hostname, **creds
                 )
+        except AuthenticationFailed:
+            logger.warning(f"  {hostname} ({target_ip}): Authentication failed")
+            return err("Authentication failed")
+        except ConnectionTimeout:
+            logger.warning(f"  {hostname} ({target_ip}): Connection timed out")
+            return err("Connection timed out")
         except Exception as e:
+            logger.warning(f"  {hostname} ({target_ip}): {e}")
             return err(str(e))
 
     async def _run_async_driver(self, driver, node, connection, node_id: int, hostname: str, **creds) -> dict:
