@@ -1,0 +1,67 @@
+from acex import AutomationEngine
+
+from acex.plugins.integrations.netbox import Netbox
+from acex.plugins.integrations.netbox_mock import Netbox as Mock
+from acex.database import Connection
+import os
+
+# Database (Postgres)
+db = Connection(
+    dbname="ace",
+    user="postgres",
+    password="",
+    host="localhost",
+    backend="postgresql"
+)
+
+ae = AutomationEngine(
+    db_connection=db,
+    # assets_plugin=netbox,
+    # logical_nodes_plugin=netbox,
+)
+
+ae.set_influxdb(
+    url="http://eru614:8181",
+    token="apiv3_lVnJoRcEfuAERSh_bmP1vj5uTY5V6_wq7mNuoZkKDFpDY-abn2Zvc5L-BDTHpjSL6yx0vW_1lg-xamJ5jixYoA",
+    database="acex",
+    content_encoding="gzip",
+    version="v3"
+)
+
+
+ae.add_configmap_dir("config_maps")
+
+# AI OPS
+ae.ai_ops(
+    enabled=True,
+    base_url=os.getenv("ACEX_AI_API_BASEURL"),
+    api_key=os.getenv("ACEX_AI_API_KEY"),
+    mcp_server_url=os.getenv("ACEX_MCP_URL")
+)
+
+# CORS
+ae.add_cors_allowed_origin("*")
+
+# # OIDC authentication
+# ae.set_oidc(
+#     issuer_url=os.getenv("OIDC_ISSUER_URL", "https://keycloak.auto.ngninfra.net/realms/acex"),
+#     audience=os.getenv("OIDC_AUDIENCE", "acex"),
+#     verify_ssl=False,
+# )
+
+# Encryption key for device credentials
+# ae.set_encryption_key(os.getenv("ACEX_ENCRYPTION_KEY", ""))
+ae.set_encryption_key("9VfRDg1KSH4U6-Kv5dG7e59f1iKeGEQHWUAKPnZO4hk=")
+
+# Create the api app!
+app = ae.create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=80,
+    )
+    
