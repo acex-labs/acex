@@ -54,6 +54,7 @@ def icmp_ping_provider(db_manager) -> List[TelemetryComponent]:
                     hostname=ln.hostname,
                     target_ip=ip,
                     site=ln.site,
+                    region=ln.region,
                 )
             )
         return components

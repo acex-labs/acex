@@ -6,6 +6,7 @@ class LogicalNodeBase(SQLModel):
     hostname: str = Field(default="R1")
     role: str = Field(default="core")
     site: Optional[str] = Field(default="HQ")
+    region: Optional[str] = Field(default=None)
     sequence: Optional[int] = Field(default=1)
 
 class LogicalNode(LogicalNodeBase, table=True):
