@@ -1,0 +1,10 @@
+models:
+- WS-C3750G-12S
+os:
+- cisco_ios
+interfaces:
+- prefix: GigabitEthernet
+  module_index: 0
+  first_index: 0
+  last_index: 12
+  speed: 1000000

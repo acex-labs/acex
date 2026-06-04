@@ -1,4 +1,5 @@
 from logging import config
+import os
 from typing import Any, Dict, Optional, Callable, List
 from acex_devkit.configdiffer import Diff
 from acex_devkit.configdiffer.command import Command, Context
@@ -11,6 +12,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from .filters import cidr_to_addrmask
 from .hardware_models import match_hardware_model
 
+from .device_types.resolver import parse_model
 
 class GeneratorRegistry:
     def __init__(self):
@@ -59,7 +61,11 @@ class CiscoIOSCLIRenderer(RendererBase):
         template = env.get_template(template_name)
         return template
 
-
+    def _model_directory(self) -> str:
+        """Return the directory path for Cisco models."""
+        package_dir = os.path.dirname(__file__)
+        return os.path.join(package_dir, "device_types/models")
+    
     def _register(self):
         """
         Registers patterns/generators to registry.
@@ -214,7 +220,9 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
-        configuration = self._physical_interface_names(configuration, asset)
+        model_data = parse_model(asset.hardware_model, self._model_directory()) # Testa att parsa modell, ta bort sen
+        #configuration = self._physical_interface_names(configuration, asset)
+        configuration = self._physical_interface_names(configuration, model_data)
         self._ssh_interface(configuration)
         self._logging_trap_severity(configuration)
         # print('configuration after physical interface name resolution: ', configuration)
@@ -232,6 +240,33 @@ class CiscoIOSCLIRenderer(RendererBase):
         }
         return configuration
 
+    def _new_phys_inter_names(self, config, model_data):
+        # First we need speed and the index info for interfaces
+        for key in model_data.get("interfaces", {}):
+            prefix = key.get("prefix")
+            first_index = key.get("first_index")
+            module_index = key.get("module_index")
+            last_index = key.get("last_index")
+            speed = key.get("speed")
+        
+        suffix_string = None
+        # something about asset cluster here
+        # if asset cluster contains 3 switches, then stack_index
+        # range woulde be 3, this is looped through when creating 
+        # interfaces in config
+        
+        #for _,intf in config.get("interfaces", {}).items():
+        for (counter,stuff) in enumerate(config.get("interfaces", {}).items()):
+            if counter > last_index:
+                break
+            if stuff["type"] == "ethernetCsmacd":
+                
+                for i in range(first_index, last_index+1):
+                    # stack_index/module_index/port_index
+                    suffix_string = f"0/{module_index}/{i}"
+                    stuff["name"] = f"{prefix}{suffix_string}"
+
+        return config
 
     def _physical_interface_names(self, config, asset):
         """

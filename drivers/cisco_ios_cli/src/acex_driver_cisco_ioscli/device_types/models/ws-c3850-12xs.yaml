@@ -1,0 +1,10 @@
+models:
+- WS-C3850-12XS
+os:
+- cisco_ios
+interfaces:
+- prefix: TenGigabitEthernet
+  module_index: 1
+  first_index: 1
+  last_index: 12
+  speed: 10000000

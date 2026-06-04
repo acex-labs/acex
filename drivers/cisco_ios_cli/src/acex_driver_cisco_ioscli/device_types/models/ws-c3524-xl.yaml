@@ -1,0 +1,5 @@
+models:
+- WS-C3524-XL
+os:
+- cisco_ios
+interfaces: []

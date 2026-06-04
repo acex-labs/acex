@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-driver-cisco-ioscli"
-version = "2.0.4"
+version = "2.0.5"
 description = "ACE-X Driver: Cisco IOS CLI SSH"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 license = "AGPL-3.0"
@@ -16,6 +16,7 @@ python = "^3.13"
 ntc-templates = "^8.1.0"
 scrapli = {version = "^2024.1.30", extras = ["asyncssh"]}
 asyncssh = "^2.14"
+pyyaml = "^6.0.2"
 acex-devkit = { path = "../../devkit", develop = true }
 
 [build-system]

@@ -1,0 +1,15 @@
+models:
+- C9500-24Y4C
+os:
+- cisco_iosxe
+interfaces:
+- prefix: TwentyFiveGigE
+  module_index: 1
+  first_index: 1
+  last_index: 24
+  speed: 25000000
+- prefix: HundredGigE
+  module_index: 1
+  first_index: 1
+  last_index: 4
+  speed: 100000000

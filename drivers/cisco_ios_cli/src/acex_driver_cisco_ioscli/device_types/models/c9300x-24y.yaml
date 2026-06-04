@@ -1,0 +1,15 @@
+models:
+- C9300X-24Y
+os:
+- cisco_iosxe
+interfaces:
+- prefix: TwentyFiveGigE
+  module_index: 0
+  first_index: 0
+  last_index: 24
+  speed: 25000000
+- prefix: TwentyFiveGigE
+  module_index: 1
+  first_index: 1
+  last_index: 24
+  speed: 25000000

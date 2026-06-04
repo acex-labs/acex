@@ -1,0 +1,10 @@
+models:
+- WS-C3850-24S
+os:
+- cisco_ios
+interfaces:
+- prefix: GigabitEthernet
+  module_index: 1
+  first_index: 1
+  last_index: 24
+  speed: 1000000
