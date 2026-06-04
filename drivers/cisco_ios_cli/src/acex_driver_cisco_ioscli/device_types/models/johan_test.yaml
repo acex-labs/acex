@@ -5,6 +5,9 @@ os:
 stack_index_start: 0
 module_index_start: 0
 interface_index_start: 1
+prefix_map:
+  1000000: GigabitEthernet
+  10000000: TenGigabitEthernet
 name_pattern: "{prefix}{stack_index}/{module_index}/{index}"
 interfaces:
 - stack_index: 0
