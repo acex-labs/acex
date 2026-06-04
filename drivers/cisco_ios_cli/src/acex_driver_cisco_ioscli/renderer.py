@@ -220,9 +220,11 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
-        model_data = parse_model(asset.hardware_model, self._model_directory()) # Testa att parsa modell, ta bort sen
+        test_model = "johan_test"
+        #proper_model = asset.hardware_model
+        model_data = parse_model(test_model, self._model_directory()) # Testa att parsa modell, ta bort sen
         #configuration = self._physical_interface_names(configuration, asset)
-        configuration = self._physical_interface_names(configuration, model_data)
+        configuration = self._new_phys_inter_names(configuration, model_data)
         self._ssh_interface(configuration)
         self._logging_trap_severity(configuration)
         # print('configuration after physical interface name resolution: ', configuration)
@@ -242,31 +244,41 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def _new_phys_inter_names(self, config, model_data):
         # First we need speed and the index info for interfaces
-        for key in model_data.get("interfaces", {}):
-            prefix = key.get("prefix")
-            first_index = key.get("first_index")
-            module_index = key.get("module_index")
-            last_index = key.get("last_index")
-            speed = key.get("speed")
+        #for key in model_data.get("interfaces", {}):
+        name_pattern = model_data.get("name_pattern") # "{prefix}{stack_index}/{module_index}/{index}"
+        interface_index_start = model_data.get("interface_index_start")
+        module_index_start = model_data.get("module_index_start")
+        #last_index = len(model_data.get('interfaces', {}))
         
-        suffix_string = None
         # something about asset cluster here
         # if asset cluster contains 3 switches, then stack_index
         # range woulde be 3, this is looped through when creating 
         # interfaces in config
         
-        #for _,intf in config.get("interfaces", {}).items():
-        for (counter,stuff) in enumerate(config.get("interfaces", {}).items()):
-            if counter > last_index:
-                break
-            if stuff["type"] == "ethernetCsmacd":
+        for _,intf in config.get("interfaces", {}).items():
+        #for (counter,stuff) in enumerate(config.get("interfaces", {}).items()):
+        #    if counter > last_index:
+        #        break
+            if intf["type"] == "ethernetCsmacd":
+                #print('intf before name resolution: ', intf)
+                #print('='*50)
+                #print("inter speed: ",(intf.get("speed") or {}).get("value") or {})
+                intf_speed = (intf.get("speed") or {}).get("value") or 1000000
+                # stack_index/module_index/port_index
+                inter_prefix = model_data.get('prefix_map').get(intf_speed)
+                # Need to start on correct number based on model, for example C9300L-24P-4X starts at 1, not 0
+                inter_stack_index = intf.get('stack_index')
+                # Need to start on correct number based on model, for example C9300L-24P-4X starts at 1, not 0
+                inter_module_index = intf.get("module_index")
+                # Need to start on correct number based on model, for example C9300L-24P-4X starts at 1, not 0
+                # First number comes from intf
+                inter_port_index = intf["index"]["value"]
                 
-                for i in range(first_index, last_index+1):
-                    # stack_index/module_index/port_index
-                    suffix_string = f"0/{module_index}/{i}"
-                    stuff["name"] = f"{prefix}{suffix_string}"
+                intf["name"] = f"{name_pattern.format(prefix=inter_prefix, stack_index=inter_stack_index, module_index=inter_module_index, index=inter_port_index)}"
 
-        return config
+        print(intf)
+
+        #return config
 
     def _physical_interface_names(self, config, asset):
         """
