@@ -3,6 +3,7 @@ from typing import Callable, List
 from acex.models.node import Node
 from acex.models.logical_node import LogicalNode
 from acex.models.management_connections import ManagementConnection
+from acex.models.regions import SiteRegionAssignment
 from acex.observability.components.base import TelemetryComponent
 from acex.observability.components.icmp_ping import IcmpPingTelemetry
 
@@ -29,6 +30,17 @@ def icmp_ping_provider(db_manager) -> List[TelemetryComponent]:
             .all()
         }
 
+        unique_sites = list({ln.site for ln in ln_map.values() if ln.site})
+        site_region_map: dict[str, str] = {}
+        if unique_sites:
+            assignments = (
+                session.query(SiteRegionAssignment)
+                .filter(SiteRegionAssignment.site_name.in_(unique_sites))
+                .all()
+            )
+            for a in assignments:
+                site_region_map.setdefault(a.site_name, a.region_name)
+
         node_ids = [n.id for n in nodes]
         conns = (
             session.query(ManagementConnection)
@@ -54,7 +66,7 @@ def icmp_ping_provider(db_manager) -> List[TelemetryComponent]:
                     hostname=ln.hostname,
                     target_ip=ip,
                     site=ln.site,
-                    region=ln.region,
+                    region=site_region_map.get(ln.site) if ln.site else None,
                 )
             )
         return components
