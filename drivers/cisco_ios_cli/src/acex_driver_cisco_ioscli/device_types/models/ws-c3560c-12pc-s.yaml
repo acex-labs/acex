@@ -2,14 +2,95 @@ models:
 - WS-C3560C-12PC-S
 os:
 - cisco_ios
+stack_index_start: 1
+module_index_start: 0
+interface_index_start: 0
+prefix_map:
+  1000000: GigabitEthernet
+name_pattern: '{prefix}{stack_index}/{module_index}/{index}'
 interfaces:
-- prefix: GigabitEthernet
+- stack_index: 0
   module_index: 0
-  first_index: 0
-  last_index: 12
-  speed: 1000000
-- prefix: GigabitEthernet
+  index: 0
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 1
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 2
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 3
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 4
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 5
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 6
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 7
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 8
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 9
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 10
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 11
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 0
+  index: 12
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
   module_index: 1
-  first_index: 1
-  last_index: 4
-  speed: 1000000
+  index: 1
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 1
+  index: 2
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 1
+  index: 3
+  speed_capabilities:
+  - 1000000
+- stack_index: 1
+  module_index: 1
+  index: 4
+  speed_capabilities:
+  - 1000000

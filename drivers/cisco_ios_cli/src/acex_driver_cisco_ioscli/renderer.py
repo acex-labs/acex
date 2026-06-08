@@ -256,233 +256,99 @@ class CiscoIOSCLIRenderer(RendererBase):
         return configuration
 
     def _new_phys_inter_names(self, config, model_data):
+        interfaces = config.get("interfaces", {})
         name_pattern = model_data.get(
             "name_pattern", "{prefix}{stack_index}/{module_index}/{index}"
         )
+        stack_index_start = model_data.get("stack_index_start", 0)
+        module_index_start = model_data.get("module_index_start", 0)
+        interface_index_start = model_data.get("interface_index_start", 0)
         model_interfaces = model_data.get("interfaces", [])
         prefix_map = model_data.get("prefix_map") or {}
         used_model_interfaces = set()
         ethernet_interfaces = [
             (intf_name, intf)
-            for intf_name, intf in config.get("interfaces", {}).items()
+            for intf_name, intf in interfaces.items()
             if intf["type"] == "ethernetCsmacd"
         ]
 
         for intf_name, intf in ethernet_interfaces:
-            intf_speed = self._get_attribute_value(intf, "speed")
-            if intf_speed is None:
-                config.get("interfaces", {}).pop(intf_name, None)
+            raw_stack_index = intf.get("stack_index")
+            intf_stack_index = (
+                raw_stack_index.get("value")
+                if isinstance(raw_stack_index, dict)
+                else raw_stack_index
+            )
+            raw_module_index = intf.get("module_index")
+            intf_module_index = (
+                raw_module_index.get("value")
+                if isinstance(raw_module_index, dict)
+                else raw_module_index
+            )
+            raw_index = intf.get("index")
+            intf_index = (
+                raw_index.get("value") if isinstance(raw_index, dict) else raw_index
+            )
+            raw_speed = intf.get("speed")
+            intf_speed = (
+                raw_speed.get("value") if isinstance(raw_speed, dict) else raw_speed
+            )
+
+            prefix = prefix_map.get(intf_speed)
+
+            if prefix is None:
+                if not isinstance(intf.get("name"), str):
+                    interfaces.pop(intf_name, None)
                 continue
 
-            inter_prefix = prefix_map.get(intf_speed)
-            if inter_prefix is None:
-                continue
+            for model_intf in model_interfaces:
+                if model_intf is None:
+                    continue
 
-            model_intf = self._match_model_interface(
-                intf, model_interfaces, used_model_interfaces, intf_speed
-            )
-            if model_intf is None:
-                config.get("interfaces", {}).pop(intf_name, None)
-                continue
+                model_interface_key = (
+                    model_intf.get("stack_index"),
+                    model_intf.get("module_index"),
+                    model_intf.get("index"),
+                )
+                if model_interface_key in used_model_interfaces:
+                    continue
 
-            self._set_attribute_value(intf, "index", model_intf.get("index"))
-            self._set_attribute_value(
-                intf, "stack_index", model_intf.get("stack_index")
-            )
-            self._set_attribute_value(
-                intf, "module_index", model_intf.get("module_index")
-            )
+                if intf_speed not in model_intf.get("speed_capabilities", []):
+                    continue
+                
+                #if "name_pattern" in model_intf:
+                    
 
-            intf["name"] = name_pattern.format(
-                prefix=inter_prefix,
-                stack_index=self._get_attribute_value(intf, "stack_index"),
-                module_index=self._get_attribute_value(intf, "module_index"),
-                index=self._get_attribute_value(intf, "index"),
-            )
+                if intf_stack_index is not None:
+                    expected_stack_index = intf_stack_index + stack_index_start
+                    if model_intf.get("stack_index") != expected_stack_index:
+                        continue
 
+                if intf_module_index is not None:
+                    expected_module_index = intf_module_index + module_index_start
+                    if model_intf.get("module_index") != expected_module_index:
+                        continue
+
+                if intf_index is not None:
+                    expected_index = intf_index + interface_index_start
+                    if model_intf.get("index") != expected_index:
+                        continue
+
+                intf["name"] = name_pattern.format(
+                    prefix=prefix,
+                    stack_index=model_intf.get("stack_index"),
+                    module_index=model_intf.get("module_index"),
+                    index=model_intf.get("index"),
+                )
+                used_model_interfaces.add(model_interface_key)
+                break
+
+            if not isinstance(intf.get("name"), str):
+                interfaces.pop(intf_name, None)
+
+        # if isinstance(intf['name'], dict):
+        #    stop
         return config
-
-    def _get_attribute_value(self, intf: Dict[str, Any], attr_name: str) -> Any:
-        attr = intf.get(attr_name)
-        if isinstance(attr, dict) and "value" in attr:
-            return attr.get("value")
-        return attr
-
-    def _match_model_interface(
-        self,
-        intf: Dict[str, Any],
-        model_interfaces: List[Dict[str, Any]],
-        used_model_interfaces: set[int],
-        intf_speed: int,
-    ) -> Optional[Dict[str, Any]]:
-        requested_fields = {
-            field_name: self._get_attribute_value(intf, field_name)
-            for field_name in ("stack_index", "module_index", "index")
-        }
-        requested_fields = {
-            field_name: requested_value
-            for field_name, requested_value in requested_fields.items()
-            if requested_value is not None
-        }
-
-        def supports_speed(model_intf: Dict[str, Any]) -> bool:
-            speed_capabilities = model_intf.get("speed_capabilities")
-            if speed_capabilities:
-                return intf_speed in speed_capabilities
-
-            model_speed = model_intf.get("speed")
-            return model_speed is None or model_speed == intf_speed
-
-        speed_matching_candidates = []
-        for idx, model_intf in enumerate(model_interfaces):
-            if idx in used_model_interfaces:
-                continue
-            if not supports_speed(model_intf):
-                continue
-
-            speed_matching_candidates.append((idx, model_intf))
-
-        if not requested_fields:
-            if speed_matching_candidates:
-                idx, model_intf = speed_matching_candidates[0]
-                used_model_interfaces.add(idx)
-                return model_intf
-            return None
-
-        for idx, model_intf in speed_matching_candidates:
-            if any(
-                model_intf.get(field_name) != requested_value
-                for field_name, requested_value in requested_fields.items()
-            ):
-                continue
-
-            used_model_interfaces.add(idx)
-            return model_intf
-
-        return None
-
-    def _set_attribute_value(
-        self, intf: Dict[str, Any], attr_name: str, value: Any
-    ) -> None:
-        if value is None:
-            return
-
-        attr = intf.get(attr_name)
-        if isinstance(attr, dict) and "value" in attr:
-            attr["value"] = value
-            return
-
-        intf[attr_name] = {
-            "value": value,
-            "metadata": {
-                "value_type": "concrete",
-                "type": type(value).__name__,
-            },
-        }
-
-    #    def _physical_interface_names(self, config, asset):
-    #        """
-    #        Resolve physical interface names.
-    #
-    #        For stacks, use asset.stack_index to determine stack
-    #        position in if-name. Otherwise always use 1.
-    #        """
-    #
-    #        if hasattr(asset, "assets"):
-    #            os = asset.assets[0].os
-    #        else:
-    #            os = asset.os
-    #
-    #        # TODO: Prefix
-    #        for _, intf in config.get("interfaces", {}).items():
-    #
-    #            if intf["type"] == "ethernetCsmacd":
-    #
-    #                speed = (intf.get("speed") or {}).get(
-    #                    "value"
-    #                ) or 1000000  # Default to gig
-    #
-    #                # Resolve prefix
-    #                intf_prefix = self._get_port_prefix(os, speed)
-    #
-    #                # Resolve stackindex
-    #                stack_index = (intf.get("stack_index") or {}).get("value")
-    #
-    #                # Resolve module
-    #                module_index = (intf.get("module_index") or {}).get("value")
-    #
-    #                # Index
-    #                port_index = intf["index"]["value"]
-    #
-    #                # Resolve port
-    #                full_name = self._resolve_full_name(
-    #                    intf_prefix, stack_index, module_index, port_index
-    #                )
-    #
-    #                intf["name"] = full_name
-    #            if intf["type"] == "ieee8023adLag":
-    #                # Handle LAG interface names here
-    #                index = intf["index"]["value"]
-    #                intf["name"] = f"Port-channel{index}"
-    #
-    #        return config
-    #
-    #    def _resolve_full_name(self, intf_prefix, stack_index, module_index, port_index):
-    #        return f"{intf_prefix}{stack_index or 0}/{module_index or 0}/{port_index}"
-    #
-    #    def _get_port_suffix(
-    #        self,
-    #        hardware_model: str,
-    #        index: int,
-    #        stack_index: int = None,
-    #        module_index: int = None,
-    #    ) -> Optional[str]:
-    #        max_index = match_hardware_model(hardware_model)
-    #        suffix_string = ""
-    #
-    #        if index <= max_index:
-    #            if stack_index is not None:
-    #                suffix_string = f"{stack_index}/0/{index+1}"
-    #                if module_index is not None:
-    #                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
-    #            else:
-    #                if module_index is not None:
-    #                    suffix_string = f"{module_index}/{index}"
-    #                else:
-    #                    suffix_string = f"0/{index}"
-    #        elif index > max_index:
-    #            if stack_index is not None:
-    #                suffix_string = f"{stack_index}/1/{index - max_index + 1}"
-    #                if module_index is not None:
-    #                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
-    #            else:
-    #                if module_index is not None:
-    #                    suffix_string = f"{module_index}/{index}"
-    #                else:
-    #                    suffix_string = f"0/{index - max_index + 1}"
-    #        return suffix_string
-
-    def _get_port_prefix(self, os: str, speed: int) -> Optional[str]:
-        PREFIX_MAP = {
-            "cisco_ios": {
-                1000000: "GigabitEthernet",
-                10000000: "TenGigabitEthernet",
-            },
-            "cisco_iosxe": {
-                1000000: "GigabitEthernet",
-                10000000: "TenGigabitEthernet",
-                25000000: "TwentyFiveGigE",
-                40000000: "FortyGigabitEthernet",
-                100000000: "HundredGigE",
-            },
-            "cisco_iosxr": {
-                1000000: "GigabitEthernet",
-            },
-            "cisco_nxos": {
-                1000000: "Ethernet",
-            },
-        }
-        return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
 
     def ssh_interface(self, configuration):
         """Process SSH interface configurations if needed."""
@@ -530,95 +396,3 @@ class CiscoIOSCLIRenderer(RendererBase):
                     if isinstance(ref_path, str) and ref_path:
                         intf = config["interfaces"][ref_path.split(".")[1]]
                         intf["vrf"] = vrf["name"]["value"]
-
-    # def physical_interface_names(self, configuration, asset) -> None:
-    #     """Assign physical interface names based on asset data."""
-
-    #     for _,intf in configuration.get("interfaces", {}).items():
-    #         if intf["type"] == "ethernetCsmacd":
-    #             index = intf["index"]["value"]
-    #             stack_index = (intf.get("stack_index") or {}).get("value")
-    #             module_index = (intf.get("module_index") or {}).get("value")
-    #             speed = (intf.get("speed") or {}).get("value") or 1000000 # Default to gig
-
-    #             intf_prefix = self.get_port_prefix(asset.os, speed)
-    #             intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index, module_index)
-
-    #             intf["name"] = f"{intf_prefix}{intf_suffix}"
-    #         if intf['type'] == "ieee8023adLag":
-    #             # Handle LAG interface names here
-    #             index = intf["index"]["value"]
-    #             intf["name"] = f"Port-channel{index}"
-    #     return configuration
-
-    # def get_port_prefix(self, os:str, speed:int) -> Optional[str]:
-    #     PREFIX_MAP = {
-    #         "cisco_ios": {
-    #             1000000: "GigabitEthernet",
-    #             10000000: "TenGigabitEthernet",
-
-    #         },
-    #         "cisco_iosxe": {
-    #             1000000: "GigabitEthernet",
-    #             10000000: "TenGigabitEthernet",
-    #             25000000: "TwentyFiveGigE",
-    #             40000000: "FortyGigabitEthernet",
-    #             100000000: "HundredGigE",
-    #         },
-    #         "cisco_iosxr": {
-    #             1000000: "GigabitEthernet",
-    #         },
-    #         "cisco_nxos": {
-    #             1000000: "Ethernet",
-    #         },
-    #     }
-    #     return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
-
-    def get_port_suffix(
-        self,
-        hardware_model: str,
-        index: int,
-        stack_index: int = None,
-        module_index: int = None,
-    ) -> Optional[str]:
-        max_index = 0
-        suffix_string = ""
-
-        # TODO: Utöka med fler modeller
-        match hardware_model:
-            case "C9300-48":
-                max_index = 48
-            case "C9300-48P":
-                max_index = 52
-            case "C9500-48Y4C":
-                max_index = 52
-
-        # TODO: Fungerar upp till max port, förutsätter sen att man är
-        # på en modul, stöd för en modul eftersom vi inte vet maxportar på
-        # tilläggsmodulen.
-        if index <= max_index:
-            if stack_index is not None:
-                suffix_string = f"{stack_index}/0/{index+1}"
-                if module_index is not None:
-                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
-            else:
-                if module_index is not None:
-                    suffix_string = f"{module_index}/{index}"
-                else:
-                    suffix_string = f"0/{index}"
-        elif index > max_index:
-            if stack_index is not None:
-                suffix_string = f"{stack_index}/1/{index - max_index + 1}"
-                if module_index is not None:
-                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
-            else:
-                if module_index is not None:
-                    suffix_string = f"{module_index}/{index}"
-                else:
-                    suffix_string = f"0/{index - max_index + 1}"
-        return suffix_string
-
-    # Create functions to handle ref paths
-
-    # Create functions to handle port channels
-    # def get_port_channel_suffix(self, hardware_model:str, index:int) -> Optional[str]:

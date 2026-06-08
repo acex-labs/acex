@@ -2,4 +2,9 @@ models:
 - WS-C4507R
 os:
 - cisco_ios
+stack_index_start: 1
+module_index_start: 0
+interface_index_start: 0
+prefix_map: {}
+name_pattern: '{prefix}{stack_index}/{module_index}/{index}'
 interfaces: []

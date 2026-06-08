@@ -1,0 +1,15 @@
+models:
+- C6832-X-LE
+os:
+- cisco_iosxe
+interfaces:
+- prefix: TenGigabitEthernet
+  module_index: 1
+  first_index: 1
+  last_index: 32
+  speed: 10000000
+- prefix: FortyGigabitEthernet
+  module_index: 1
+  first_index: 1
+  last_index: 8
+  speed: 40000000

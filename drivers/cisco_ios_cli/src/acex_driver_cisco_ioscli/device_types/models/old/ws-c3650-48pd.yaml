@@ -1,0 +1,15 @@
+models:
+- WS-C3650-48PD
+os:
+- cisco_ios
+interfaces:
+- prefix: GigabitEthernet
+  module_index: 0
+  first_index: 0
+  last_index: 48
+  speed: 1000000
+- prefix: TenGigabitEthernet
+  module_index: 1
+  first_index: 1
+  last_index: 2
+  speed: 10000000

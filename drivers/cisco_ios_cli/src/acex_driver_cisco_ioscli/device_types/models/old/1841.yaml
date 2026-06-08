@@ -1,0 +1,10 @@
+models:
+- '1841'
+os:
+- cisco_ios
+interfaces:
+- prefix: FastEthernet
+  module_index: 0
+  first_index: 0
+  last_index: 1
+  speed: 100000

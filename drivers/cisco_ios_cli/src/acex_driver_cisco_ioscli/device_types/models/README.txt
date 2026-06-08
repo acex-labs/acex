@@ -1,6 +1,10 @@
-WS-C4507R: modular chassis/placeholder; interfaces depend on installed supervisor/line cards or invalid model string.
-WS-C6509-E: modular chassis/placeholder; interfaces depend on installed supervisor/line cards or invalid model string.
-WS-C4503-E: modular chassis/placeholder; interfaces depend on installed supervisor/line cards or invalid model string.
-WS-C3524-XL: modular chassis/placeholder; interfaces depend on installed supervisor/line cards or invalid model string.
-C9407R: modular chassis/placeholder; interfaces depend on installed supervisor/line cards or invalid model string.
-WS-C4506: modular chassis/placeholder; interfaces depend on installed supervisor/line cards or invalid model string.
+Generated in requested expanded interface example format.
+Each previous interface range is expanded into one interface object per index.
+Placeholder/ambiguous entries:
+WS-C4507R: no fixed interfaces emitted; modular chassis/placeholder or ambiguous/invalid model string.
+WS-C6509-E: no fixed interfaces emitted; modular chassis/placeholder or ambiguous/invalid model string.
+WS-C4503-E: no fixed interfaces emitted; modular chassis/placeholder or ambiguous/invalid model string.
+WS-C3524-XL: no fixed interfaces emitted; modular chassis/placeholder or ambiguous/invalid model string.
+C9407R: no fixed interfaces emitted; modular chassis/placeholder or ambiguous/invalid model string.
+WS-C4506: no fixed interfaces emitted; modular chassis/placeholder or ambiguous/invalid model string.
+Cisco: no fixed interfaces emitted; modular chassis/placeholder or ambiguous/invalid model string.

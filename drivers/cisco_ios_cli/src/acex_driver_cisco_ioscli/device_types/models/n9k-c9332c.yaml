@@ -2,9 +2,170 @@ models:
 - N9K-C9332C
 os:
 - cisco_nxos
+stack_index_start: 1
+module_index_start: 1
+interface_index_start: 1
+prefix_map:
+  100000000: Ethernet
+name_pattern: '{prefix}{module_index}/{index}'
 interfaces:
-- prefix: Ethernet
+- stack_index: 1
   module_index: 1
-  first_index: 1
-  last_index: 32
-  speed: 100000000
+  index: 1
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 2
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 3
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 4
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 5
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 6
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 7
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 8
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 9
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 10
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 11
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 12
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 13
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 14
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 15
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 16
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 17
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 18
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 19
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 20
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 21
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 22
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 23
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 24
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 25
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 26
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 27
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 28
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 29
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 30
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 31
+  speed_capabilities:
+  - 100000000
+- stack_index: 1
+  module_index: 1
+  index: 32
+  speed_capabilities:
+  - 100000000
