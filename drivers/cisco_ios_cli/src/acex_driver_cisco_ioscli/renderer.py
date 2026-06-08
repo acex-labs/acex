@@ -14,6 +14,7 @@ from .hardware_models import match_hardware_model
 
 from .device_types.resolver import parse_model
 
+
 class GeneratorRegistry:
     def __init__(self):
         self._patterns: list[tuple[tuple, Callable]] = []
@@ -47,16 +48,16 @@ class CiscoIOSCLIRenderer(RendererBase):
         else:
             first_asset = asset
 
-
         if first_asset.hardware_model == "vios_l2":
             template_name = "template_virtual.j2"
         else:
             template_name = "template.j2"
 
-
         path = Path(__file__).parent
-        env = Environment(loader=FileSystemLoader(path),undefined=StrictUndefined) # StrictUndefined to catch undefined variables, testing
-        #env = Environment(loader=FileSystemLoader(path), trim_blocks=True, lstrip_blocks=True) # För att slippa ha "-" i "{%-"
+        env = Environment(
+            loader=FileSystemLoader(path), undefined=StrictUndefined
+        )  # StrictUndefined to catch undefined variables, testing
+        # env = Environment(loader=FileSystemLoader(path), trim_blocks=True, lstrip_blocks=True) # För att slippa ha "-" i "{%-"
         env.filters["cidr_to_addrmask"] = cidr_to_addrmask
         template = env.get_template(template_name)
         return template
@@ -65,16 +66,20 @@ class CiscoIOSCLIRenderer(RendererBase):
         """Return the directory path for Cisco models."""
         package_dir = os.path.dirname(__file__)
         return os.path.join(package_dir, "device_types/models")
-    
+
     def _register(self):
         """
         Registers patterns/generators to registry.
 
-        for specific command generators, register them each and 
+        for specific command generators, register them each and
         map them to a pattern in the generator-registry
         """
-        self.registry.register(('system', 'config'), self._generate_system_config_commands)
-        self.registry.register(('interfaces', '*'), self._generate_interface_config_commands)
+        self.registry.register(
+            ("system", "config"), self._generate_system_config_commands
+        )
+        self.registry.register(
+            ("interfaces", "*"), self._generate_interface_config_commands
+        )
 
     def flatten(self, commands):
         output = []
@@ -87,12 +92,12 @@ class CiscoIOSCLIRenderer(RendererBase):
             if target_ctx != current_ctx:
 
                 # Gå upp tills common prefix
-                while not target_ctx[:len(current_ctx)] == current_ctx:
+                while not target_ctx[: len(current_ctx)] == current_ctx:
                     output.append("exit")
                     current_ctx = current_ctx[:-1]
 
                 # Gå ner i nytt context
-                for part in target_ctx[len(current_ctx):]:
+                for part in target_ctx[len(current_ctx) :]:
                     output.append(part)
                     current_ctx += (part,)
 
@@ -105,9 +110,8 @@ class CiscoIOSCLIRenderer(RendererBase):
 
         return output
 
-
     # Render config patches from diff below, move to better place laterz
-    def render_patch(self, diff: Diff, node_instance: "NodeInstance"): 
+    def render_patch(self, diff: Diff, node_instance: "NodeInstance"):
         """
         Render specific commands for patching based on a diff.
         """
@@ -130,14 +134,12 @@ class CiscoIOSCLIRenderer(RendererBase):
         flat_commands = self.flatten(commands)
         cli_text = "!\r\n"
         for line in flat_commands:
-            cli_text += line+"\r\n"
+            cli_text += line + "\r\n"
         cli_text += "!"
         return cli_text
 
-
     def render(self, configuration: ComposedConfiguration, asset) -> Any:
         """Render the configuration model for Cisco IOS CLI devices."""
-
 
         """ TODO:
         - Interface preprocess
@@ -148,8 +150,9 @@ class CiscoIOSCLIRenderer(RendererBase):
         if isinstance(configuration, ComposedConfiguration):
             configuration = configuration.model_dump(mode="json")
         else:
-            raise ValueError(f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}")
-
+            raise ValueError(
+                f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}"
+            )
 
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)
@@ -158,12 +161,13 @@ class CiscoIOSCLIRenderer(RendererBase):
         template = self._load_template_file(asset)
         return template.render(configuration=processed_config)
 
-
-    def _generate_system_config_commands(self, component_change, node_instance) -> List[Command]:
+    def _generate_system_config_commands(
+        self, component_change, node_instance
+    ) -> List[Command]:
         """
         Generate config related to system config.
         """
-        ctx = Context(path=[]) # tom eftersom dessa körs i rootnivå
+        ctx = Context(path=[])  # tom eftersom dessa körs i rootnivå
         commands = []
 
         for attr in component_change.changed_attributes:
@@ -176,8 +180,9 @@ class CiscoIOSCLIRenderer(RendererBase):
                 commands.append(Command(context=ctx, command=cmd_txt))
         return commands
 
-
-    def _generate_interface_config_commands(self, component_change, node_instance) -> List[Command]:
+    def _generate_interface_config_commands(
+        self, component_change, node_instance
+    ) -> List[Command]:
         """
         Generate config related to interface config.
         """
@@ -189,176 +194,279 @@ class CiscoIOSCLIRenderer(RendererBase):
         return commands
 
     def _ssh_interface(self, config):
-        #ip ssh source-interface {'pointer': 'interfaces.vlan123_svi', 'metadata': {'type': 'str', 'value_source': 'reference'}}
-        ssh_config = config.get('system', {}).get('ssh')
-        ssh_raw_interface = ssh_config.get('config', {}).get('source_interface') if ssh_config else None
+        # ip ssh source-interface {'pointer': 'interfaces.vlan123_svi', 'metadata': {'type': 'str', 'value_source': 'reference'}}
+        ssh_config = config.get("system", {}).get("ssh")
+        ssh_raw_interface = (
+            ssh_config.get("config", {}).get("source_interface") if ssh_config else None
+        )
         if ssh_raw_interface and isinstance(ssh_raw_interface, dict):
-            ref_path = ssh_raw_interface.get('pointer')
+            ref_path = ssh_raw_interface.get("pointer")
             if ref_path:
-                ref_name = ref_path.split('.')[1]
-                intf = config.get('interfaces', {}).get(ref_name)
+                ref_name = ref_path.split(".")[1]
+                intf = config.get("interfaces", {}).get(ref_name)
                 if intf:
-                    vlan_id = intf.get('vlan_id')
+                    vlan_id = intf.get("vlan_id")
                     if vlan_id is not None:
                         ssh_interface = f"Vlan{vlan_id.get('value')}"
                         # replace current source interface with formatted one for template use
-                        ssh_config['config']['source_interface'] = ssh_interface
-        
+                        ssh_config["config"]["source_interface"] = ssh_interface
+
         return config
-    
+
     def _logging_trap_severity(self, config):
-        logging_trap = (config.get('system', {}).get('logging', {}).get('config', {}).get('augments') or {}).get('cisco.trap_logging')
-        if logging_trap and logging_trap.get('severity'):
+        logging_trap = (
+            config.get("system", {})
+            .get("logging", {})
+            .get("config", {})
+            .get("augments")
+            or {}
+        ).get("cisco.trap_logging")
+        if logging_trap and logging_trap.get("severity"):
             # Translate severity to Cisco IOS format
-            raw_severity = LoggingSeverity(logging_trap['severity'].get('value'))
+            raw_severity = LoggingSeverity(logging_trap["severity"].get("value"))
             if "NOTICE" in raw_severity.value:
-                logging_trap['severity']['value'] = "informational"
+                logging_trap["severity"]["value"] = "informational"
             else:
-                logging_trap['severity']['value'] = raw_severity.value.lower()
-        
+                logging_trap["severity"]["value"] = raw_severity.value.lower()
+
         return config
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
         test_model = "johan_test"
-        #proper_model = asset.hardware_model
-        model_data = parse_model(test_model, self._model_directory()) # Testa att parsa modell, ta bort sen
-        #configuration = self._physical_interface_names(configuration, asset)
+        # proper_model = asset.hardware_model
+        model_data = parse_model(
+            test_model, self._model_directory()
+        )  # Testa att parsa modell, ta bort sen
+        # configuration = self._physical_interface_names(configuration, asset)
         configuration = self._new_phys_inter_names(configuration, model_data)
         self._ssh_interface(configuration)
         self._logging_trap_severity(configuration)
         # print('configuration after physical interface name resolution: ', configuration)
         # self.add_vrf_to_intefaces(configuration)
         # self.ssh_interface(configuration)
-        #self.lacp_load_balancing(configuration)
+        # self.lacp_load_balancing(configuration)
 
         if hasattr(asset, "assets"):
             os_version = asset.assets[0].os_version
         else:
             os_version = asset.os_version
 
-        configuration['asset'] = {
-            'version': os_version
-        }
+        configuration["asset"] = {"version": os_version}
         return configuration
 
     def _new_phys_inter_names(self, config, model_data):
-        # First we need speed and the index info for interfaces
-        #for key in model_data.get("interfaces", {}):
-        name_pattern = model_data.get("name_pattern") # "{prefix}{stack_index}/{module_index}/{index}"
-        interface_index_start = model_data.get("interface_index_start")
-        module_index_start = model_data.get("module_index_start")
-        #last_index = len(model_data.get('interfaces', {}))
-        
-        # something about asset cluster here
-        # if asset cluster contains 3 switches, then stack_index
-        # range woulde be 3, this is looped through when creating 
-        # interfaces in config
-        
-        for _,intf in config.get("interfaces", {}).items():
-        #for (counter,stuff) in enumerate(config.get("interfaces", {}).items()):
-        #    if counter > last_index:
-        #        break
-            if intf["type"] == "ethernetCsmacd":
-                #print('intf before name resolution: ', intf)
-                #print('='*50)
-                #print("inter speed: ",(intf.get("speed") or {}).get("value") or {})
-                intf_speed = (intf.get("speed") or {}).get("value") or 1000000
-                # stack_index/module_index/port_index
-                inter_prefix = model_data.get('prefix_map').get(intf_speed)
-                # Need to start on correct number based on model, for example C9300L-24P-4X starts at 1, not 0
-                inter_stack_index = intf.get('stack_index')
-                # Need to start on correct number based on model, for example C9300L-24P-4X starts at 1, not 0
-                inter_module_index = intf.get("module_index")
-                # Need to start on correct number based on model, for example C9300L-24P-4X starts at 1, not 0
-                # First number comes from intf
-                inter_port_index = intf["index"]["value"]
-                
-                intf["name"] = f"{name_pattern.format(prefix=inter_prefix, stack_index=inter_stack_index, module_index=inter_module_index, index=inter_port_index)}"
+        name_pattern = model_data.get(
+            "name_pattern", "{prefix}{stack_index}/{module_index}/{index}"
+        )
+        model_interfaces = model_data.get("interfaces", [])
+        prefix_map = model_data.get("prefix_map") or {}
+        used_model_interfaces = set()
+        ethernet_interfaces = [
+            (intf_name, intf)
+            for intf_name, intf in config.get("interfaces", {}).items()
+            if intf["type"] == "ethernetCsmacd"
+        ]
 
-        print(intf)
+        for intf_name, intf in ethernet_interfaces:
+            intf_speed = self._get_attribute_value(intf, "speed")
+            if intf_speed is None:
+                config.get("interfaces", {}).pop(intf_name, None)
+                continue
 
-        #return config
+            inter_prefix = prefix_map.get(intf_speed)
+            if inter_prefix is None:
+                continue
 
-    def _physical_interface_names(self, config, asset):
-        """
-        Resolve physical interface names. 
+            model_intf = self._match_model_interface(
+                intf, model_interfaces, used_model_interfaces, intf_speed
+            )
+            if model_intf is None:
+                config.get("interfaces", {}).pop(intf_name, None)
+                continue
 
-        For stacks, use asset.stack_index to determine stack 
-        position in if-name. Otherwise always use 1. 
-        """
+            self._set_attribute_value(intf, "index", model_intf.get("index"))
+            self._set_attribute_value(
+                intf, "stack_index", model_intf.get("stack_index")
+            )
+            self._set_attribute_value(
+                intf, "module_index", model_intf.get("module_index")
+            )
 
-        if hasattr(asset, "assets"):
-            os = asset.assets[0].os
-        else:
-            os = asset.os
-
-
-        # TODO: Prefix
-        for _,intf in config.get("interfaces", {}).items():
-
-            if intf["type"] == "ethernetCsmacd":
-                
-                speed = (intf.get("speed") or {}).get("value") or 1000000 # Default to gig
-
-                # Resolve prefix
-                intf_prefix = self._get_port_prefix(os, speed)
-
-                # Resolve stackindex
-                stack_index = (intf.get("stack_index") or {}).get("value")
-
-                # Resolve module
-                module_index = (intf.get("module_index") or {}).get("value")
-
-                # Index
-                port_index = intf["index"]["value"]
-
-                # Resolve port
-                full_name = self._resolve_full_name(intf_prefix, stack_index, module_index, port_index)
-                
-                intf["name"] = full_name
-            if intf['type'] == "ieee8023adLag":
-                # Handle LAG interface names here
-                index = intf["index"]["value"]
-                intf["name"] = f"Port-channel{index}"
+            intf["name"] = name_pattern.format(
+                prefix=inter_prefix,
+                stack_index=self._get_attribute_value(intf, "stack_index"),
+                module_index=self._get_attribute_value(intf, "module_index"),
+                index=self._get_attribute_value(intf, "index"),
+            )
 
         return config
 
-    def _resolve_full_name(self, intf_prefix, stack_index, module_index, port_index):
-        return f"{intf_prefix}{stack_index or 0}/{module_index or 0}/{port_index}"
+    def _get_attribute_value(self, intf: Dict[str, Any], attr_name: str) -> Any:
+        attr = intf.get(attr_name)
+        if isinstance(attr, dict) and "value" in attr:
+            return attr.get("value")
+        return attr
 
-    def _get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
-        max_index = match_hardware_model(hardware_model)
-        suffix_string = ""
+    def _match_model_interface(
+        self,
+        intf: Dict[str, Any],
+        model_interfaces: List[Dict[str, Any]],
+        used_model_interfaces: set[int],
+        intf_speed: int,
+    ) -> Optional[Dict[str, Any]]:
+        requested_fields = {
+            field_name: self._get_attribute_value(intf, field_name)
+            for field_name in ("stack_index", "module_index", "index")
+        }
+        requested_fields = {
+            field_name: requested_value
+            for field_name, requested_value in requested_fields.items()
+            if requested_value is not None
+        }
 
-        if index <= max_index:
-            if stack_index is not None:
-                suffix_string = f"{stack_index}/0/{index+1}"
-                if module_index is not None:
-                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
-            else:
-                if module_index is not None:
-                    suffix_string = f"{module_index}/{index}"
-                else:
-                    suffix_string = f"0/{index}"
-        elif index > max_index:
-            if stack_index is not None:
-                suffix_string = f"{stack_index}/1/{index - max_index + 1}"
-                if module_index is not None:
-                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
-            else:
-                if module_index is not None:
-                    suffix_string = f"{module_index}/{index}"
-                else:
-                    suffix_string = f"0/{index - max_index + 1}"
-        return suffix_string
+        def supports_speed(model_intf: Dict[str, Any]) -> bool:
+            speed_capabilities = model_intf.get("speed_capabilities")
+            if speed_capabilities:
+                return intf_speed in speed_capabilities
 
-    def _get_port_prefix(self, os:str, speed:int) -> Optional[str]:
+            model_speed = model_intf.get("speed")
+            return model_speed is None or model_speed == intf_speed
+
+        speed_matching_candidates = []
+        for idx, model_intf in enumerate(model_interfaces):
+            if idx in used_model_interfaces:
+                continue
+            if not supports_speed(model_intf):
+                continue
+
+            speed_matching_candidates.append((idx, model_intf))
+
+        if not requested_fields:
+            if speed_matching_candidates:
+                idx, model_intf = speed_matching_candidates[0]
+                used_model_interfaces.add(idx)
+                return model_intf
+            return None
+
+        for idx, model_intf in speed_matching_candidates:
+            if any(
+                model_intf.get(field_name) != requested_value
+                for field_name, requested_value in requested_fields.items()
+            ):
+                continue
+
+            used_model_interfaces.add(idx)
+            return model_intf
+
+        return None
+
+    def _set_attribute_value(
+        self, intf: Dict[str, Any], attr_name: str, value: Any
+    ) -> None:
+        if value is None:
+            return
+
+        attr = intf.get(attr_name)
+        if isinstance(attr, dict) and "value" in attr:
+            attr["value"] = value
+            return
+
+        intf[attr_name] = {
+            "value": value,
+            "metadata": {
+                "value_type": "concrete",
+                "type": type(value).__name__,
+            },
+        }
+
+    #    def _physical_interface_names(self, config, asset):
+    #        """
+    #        Resolve physical interface names.
+    #
+    #        For stacks, use asset.stack_index to determine stack
+    #        position in if-name. Otherwise always use 1.
+    #        """
+    #
+    #        if hasattr(asset, "assets"):
+    #            os = asset.assets[0].os
+    #        else:
+    #            os = asset.os
+    #
+    #        # TODO: Prefix
+    #        for _, intf in config.get("interfaces", {}).items():
+    #
+    #            if intf["type"] == "ethernetCsmacd":
+    #
+    #                speed = (intf.get("speed") or {}).get(
+    #                    "value"
+    #                ) or 1000000  # Default to gig
+    #
+    #                # Resolve prefix
+    #                intf_prefix = self._get_port_prefix(os, speed)
+    #
+    #                # Resolve stackindex
+    #                stack_index = (intf.get("stack_index") or {}).get("value")
+    #
+    #                # Resolve module
+    #                module_index = (intf.get("module_index") or {}).get("value")
+    #
+    #                # Index
+    #                port_index = intf["index"]["value"]
+    #
+    #                # Resolve port
+    #                full_name = self._resolve_full_name(
+    #                    intf_prefix, stack_index, module_index, port_index
+    #                )
+    #
+    #                intf["name"] = full_name
+    #            if intf["type"] == "ieee8023adLag":
+    #                # Handle LAG interface names here
+    #                index = intf["index"]["value"]
+    #                intf["name"] = f"Port-channel{index}"
+    #
+    #        return config
+    #
+    #    def _resolve_full_name(self, intf_prefix, stack_index, module_index, port_index):
+    #        return f"{intf_prefix}{stack_index or 0}/{module_index or 0}/{port_index}"
+    #
+    #    def _get_port_suffix(
+    #        self,
+    #        hardware_model: str,
+    #        index: int,
+    #        stack_index: int = None,
+    #        module_index: int = None,
+    #    ) -> Optional[str]:
+    #        max_index = match_hardware_model(hardware_model)
+    #        suffix_string = ""
+    #
+    #        if index <= max_index:
+    #            if stack_index is not None:
+    #                suffix_string = f"{stack_index}/0/{index+1}"
+    #                if module_index is not None:
+    #                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
+    #            else:
+    #                if module_index is not None:
+    #                    suffix_string = f"{module_index}/{index}"
+    #                else:
+    #                    suffix_string = f"0/{index}"
+    #        elif index > max_index:
+    #            if stack_index is not None:
+    #                suffix_string = f"{stack_index}/1/{index - max_index + 1}"
+    #                if module_index is not None:
+    #                    suffix_string = f"{stack_index}/{module_index}/{index+1}"
+    #            else:
+    #                if module_index is not None:
+    #                    suffix_string = f"{module_index}/{index}"
+    #                else:
+    #                    suffix_string = f"0/{index - max_index + 1}"
+    #        return suffix_string
+
+    def _get_port_prefix(self, os: str, speed: int) -> Optional[str]:
         PREFIX_MAP = {
             "cisco_ios": {
                 1000000: "GigabitEthernet",
                 10000000: "TenGigabitEthernet",
-
             },
             "cisco_iosxe": {
                 1000000: "GigabitEthernet",
@@ -378,36 +486,36 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def ssh_interface(self, configuration):
         """Process SSH interface configurations if needed."""
-        ssh = configuration.get('system', {}).get('ssh')
+        ssh = configuration.get("system", {}).get("ssh")
         if not ssh:
             return
 
         # Resolve the referenced interface name from ref_path
         # Add checks for path as it might be that it has not been set
-        ssh_config = ssh.get('config') or {}
-        ref = ssh_config.get('source_interface')
+        ssh_config = ssh.get("config") or {}
+        ref = ssh_config.get("source_interface")
         if ref is not None:
-            ref_path = ref.get('pointer')
+            ref_path = ref.get("pointer")
             if isinstance(ref_path, str) and ref_path:
-            #if not ref_path:
-            #    return
+                # if not ref_path:
+                #    return
 
-                ref_name = ref_path.split('.')[1]
-                intf = configuration.get('interfaces', {}).get(ref_name)
+                ref_name = ref_path.split(".")[1]
+                intf = configuration.get("interfaces", {}).get(ref_name)
                 if not intf:
                     return
 
-                vlan_id = intf.get('vlan_id')
+                vlan_id = intf.get("vlan_id")
                 if vlan_id is None:
                     return
 
                 ssh_interface = f"Vlan{vlan_id}"
                 # Store resolved interface for template use if needed
-                ssh['config']['source_interface'] = ssh_interface
+                ssh["config"]["source_interface"] = ssh_interface
 
     def add_vrf_to_intefaces(self, config):
         """
-        Loops all network_instances and add vrf definition to 
+        Loops all network_instances and add vrf definition to
         referenced interfaces
         """
         vrfs = config["network_instances"]
@@ -415,12 +523,12 @@ class CiscoIOSCLIRenderer(RendererBase):
             if vrf["name"]["value"] == "global":
                 ...
             else:
-                for _,interface in vrf["interfaces"].items():
-                    #ref_path = interface["metadata"]["ref_path"]
+                for _, interface in vrf["interfaces"].items():
+                    # ref_path = interface["metadata"]["ref_path"]
                     metadata = interface.get("metadata") or {}
                     ref_path = metadata.get("ref_path")
                     if isinstance(ref_path, str) and ref_path:
-                        intf = config["interfaces"][ref_path.split('.')[1]]
+                        intf = config["interfaces"][ref_path.split(".")[1]]
                         intf["vrf"] = vrf["name"]["value"]
 
     # def physical_interface_names(self, configuration, asset) -> None:
@@ -435,7 +543,7 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     #             intf_prefix = self.get_port_prefix(asset.os, speed)
     #             intf_suffix = self.get_port_suffix(asset.hardware_model, index, stack_index, module_index)
-                
+
     #             intf["name"] = f"{intf_prefix}{intf_suffix}"
     #         if intf['type'] == "ieee8023adLag":
     #             # Handle LAG interface names here
@@ -466,8 +574,13 @@ class CiscoIOSCLIRenderer(RendererBase):
     #     }
     #     return PREFIX_MAP.get(os, {}).get(speed) or "UnknownIfPrefix"
 
-
-    def get_port_suffix(self, hardware_model:str, index:int, stack_index:int=None, module_index:int=None) -> Optional[str]:
+    def get_port_suffix(
+        self,
+        hardware_model: str,
+        index: int,
+        stack_index: int = None,
+        module_index: int = None,
+    ) -> Optional[str]:
         max_index = 0
         suffix_string = ""
 
@@ -480,7 +593,7 @@ class CiscoIOSCLIRenderer(RendererBase):
             case "C9500-48Y4C":
                 max_index = 52
 
-        # TODO: Fungerar upp till max port, förutsätter sen att man är 
+        # TODO: Fungerar upp till max port, förutsätter sen att man är
         # på en modul, stöd för en modul eftersom vi inte vet maxportar på
         # tilläggsmodulen.
         if index <= max_index:
@@ -504,7 +617,7 @@ class CiscoIOSCLIRenderer(RendererBase):
                 else:
                     suffix_string = f"0/{index - max_index + 1}"
         return suffix_string
-    
+
     # Create functions to handle ref paths
 
     # Create functions to handle port channels

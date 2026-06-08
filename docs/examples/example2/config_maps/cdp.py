@@ -6,18 +6,18 @@ class CdpConfigMap(ConfigMap):
     def compile(self, context):
         
         intf123 = FrontpanelPort(
-            name="Ethernet1/1",
+            name="access_port_48",
             description="Uplink to Core",
-            index=1,
+            index=48,
             cdp_enabled=True
         )
 
         context.configuration.add(intf123)
 
         intf321 = FrontpanelPort(
-            name="Ethernet1/2",
+            name="access_port_47",
             description="Uplink to Core",
-            index=2,
+            index=47,
             cdp_enabled=True
         )
 
