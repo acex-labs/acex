@@ -31,13 +31,13 @@ def icmp_ping_provider(db_manager) -> List[TelemetryComponent]:
         }
 
         unique_sites = list({ln.site for ln in ln_map.values() if ln.site})
-        site_region_map: dict[str, str] = {}
+        site_region_map: dict[str, list[str]] = {}
         if unique_sites:
             assignments = session.exec(
                 select(SiteRegionAssignment).where(SiteRegionAssignment.site_name.in_(unique_sites))
             ).all()
             for a in assignments:
-                site_region_map.setdefault(a.site_name, a.region_name)
+                site_region_map.setdefault(a.site_name, []).append(a.region_name)
 
         node_ids = [n.id for n in nodes]
         conns = session.exec(
@@ -56,15 +56,27 @@ def icmp_ping_provider(db_manager) -> List[TelemetryComponent]:
             ip = ip_map.get(n.id)
             if not ip or not ln:
                 continue
-            components.append(
-                IcmpPingTelemetry(
-                    node_id=n.id,
-                    hostname=ln.hostname,
-                    target_ip=ip,
-                    site=ln.site,
-                    region=site_region_map.get(ln.site) if ln.site else None,
+            regions = site_region_map.get(ln.site, []) if ln.site else []
+            if regions:
+                for region in regions:
+                    components.append(
+                        IcmpPingTelemetry(
+                            node_id=n.id,
+                            hostname=ln.hostname,
+                            target_ip=ip,
+                            site=ln.site,
+                            region=region,
+                        )
+                    )
+            else:
+                components.append(
+                    IcmpPingTelemetry(
+                        node_id=n.id,
+                        hostname=ln.hostname,
+                        target_ip=ip,
+                        site=ln.site,
+                    )
                 )
-            )
         return components
     finally:
         session.close()
