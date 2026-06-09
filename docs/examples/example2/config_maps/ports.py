@@ -25,7 +25,7 @@ class ConfigureAccessPorts(ConfigMap):
         for stack_index in range(2):
             for i in range(0, 48):  # will count 0 - 47
                 access_port = FrontpanelPort(
-                    name=f"access_port_{stack_index}_{i}",
+                    name=f"access_port_{stack_index}_0_{i}",
                     index=i,
                     stack_index=stack_index,
                     module_index=0,
@@ -45,7 +45,7 @@ class ConfigureAccessPorts(ConfigMap):
             # for stack_index in range(2):
             for i in range(0, 4):  # will count 48 - 51
                 trunk_port = FrontpanelPort(
-                    name=f"trunk_port_{stack_index}_{i}",
+                    name=f"trunk_port_{stack_index}_1_{i}",
                     index=i,
                     stack_index=stack_index,
                     module_index=1,

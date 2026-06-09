@@ -233,7 +233,7 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
-        test_model = "johan_test"
+        test_model = "test_model"
         # proper_model = asset.hardware_model
         model_data = parse_model(
             test_model, self._model_directory()
@@ -305,19 +305,21 @@ class CiscoIOSCLIRenderer(RendererBase):
                 if model_intf is None:
                     continue
 
-                model_interface_key = (
+                model_interface_values = (
                     model_intf.get("stack_index"),
                     model_intf.get("module_index"),
                     model_intf.get("index"),
                 )
-                if model_interface_key in used_model_interfaces:
+
+                if model_interface_values in used_model_interfaces:
                     continue
 
                 if intf_speed not in model_intf.get("speed_capabilities", []):
                     continue
                 
                 #if "name_pattern" in model_intf:
-                    
+                #if "mgmt_only" in model_intf and model_intf["mgmt_only"]:
+                #    continue
 
                 if intf_stack_index is not None:
                     expected_stack_index = intf_stack_index + stack_index_start
@@ -333,14 +335,14 @@ class CiscoIOSCLIRenderer(RendererBase):
                     expected_index = intf_index + interface_index_start
                     if model_intf.get("index") != expected_index:
                         continue
-
+                
                 intf["name"] = name_pattern.format(
                     prefix=prefix,
                     stack_index=model_intf.get("stack_index"),
                     module_index=model_intf.get("module_index"),
                     index=model_intf.get("index"),
                 )
-                used_model_interfaces.add(model_interface_key)
+                used_model_interfaces.add(model_interface_values)
                 break
 
             if not isinstance(intf.get("name"), str):
