@@ -235,14 +235,23 @@ class CiscoIOSCLIRenderer(RendererBase):
         """Pre-process the configuration model before rendering j2."""
         test_model = "test_model"
         # proper_model = asset.hardware_model
-        model_data = parse_model(
-            test_model, self._model_directory()
-        )  # Testa att parsa modell, ta bort sen
-        # configuration = self._physical_interface_names(configuration, asset)
-        configuration = self._new_phys_inter_names(configuration, model_data)
+        if hasattr(asset, "assets"):
+            for cl_asset in asset.assets:
+                model_data = parse_model(
+                    cl_asset.hardware_model, self._model_directory()
+                )
+                configuration = self.physical_interfaces(
+                    configuration, model_data, cl_asset
+                )
+        else:
+            model_data = parse_model(asset.hardware_model, self._model_directory())
+            configuration = self.physical_interfaces(configuration, model_data, asset)
+        # model_data = parse_model(
+        #    test_model, self._model_directory()
+        # )  # Testa att parsa modell, ta bort sen
+        # configuration = self.physical_interfaces(configuration, model_data, asset)
         self._ssh_interface(configuration)
         self._logging_trap_severity(configuration)
-        # print('configuration after physical interface name resolution: ', configuration)
         # self.add_vrf_to_intefaces(configuration)
         # self.ssh_interface(configuration)
         # self.lacp_load_balancing(configuration)
@@ -255,8 +264,24 @@ class CiscoIOSCLIRenderer(RendererBase):
         configuration["asset"] = {"version": os_version}
         return configuration
 
-    def _new_phys_inter_names(self, config, model_data):
-        interfaces = config.get("interfaces", {})
+    #def _get_speed_value(self, raw_speed, default=1000000):
+    #    if isinstance(raw_speed, dict):
+    #        return raw_speed.get("value", default)
+    #    if raw_speed is None:
+    #        return default
+    #    return raw_speed
+
+    def _get_field_value(self, raw_value, default=None):
+        if isinstance(raw_value, dict):
+            return raw_value.get("value", default)
+        if raw_value is None:
+            return default
+        return raw_value
+
+    def physical_interfaces(self, configuration: dict, model_data: dict, asset):
+        """
+        Pre-process physical interfaces to have correct names based on model definition and config.
+        """
         name_pattern = model_data.get(
             "name_pattern", "{prefix}{stack_index}/{module_index}/{index}"
         )
@@ -266,91 +291,115 @@ class CiscoIOSCLIRenderer(RendererBase):
         model_interfaces = model_data.get("interfaces", [])
         prefix_map = model_data.get("prefix_map") or {}
         used_model_interfaces = set()
-        ethernet_interfaces = [
-            (intf_name, intf)
-            for intf_name, intf in interfaces.items()
-            if intf["type"] == "ethernetCsmacd"
-        ]
+        interfaces_without_slots = []
 
-        for intf_name, intf in ethernet_interfaces:
-            raw_stack_index = intf.get("stack_index")
-            intf_stack_index = (
-                raw_stack_index.get("value")
-                if isinstance(raw_stack_index, dict)
-                else raw_stack_index
-            )
-            raw_module_index = intf.get("module_index")
-            intf_module_index = (
-                raw_module_index.get("value")
-                if isinstance(raw_module_index, dict)
-                else raw_module_index
-            )
-            raw_index = intf.get("index")
-            intf_index = (
-                raw_index.get("value") if isinstance(raw_index, dict) else raw_index
-            )
-            raw_speed = intf.get("speed")
-            intf_speed = (
-                raw_speed.get("value") if isinstance(raw_speed, dict) else raw_speed
-            )
+        for intf_name, intf in configuration.get("interfaces", {}).items():
+            if intf.get("type") == "ethernetCsmacd":
+                interface_stack_index = self._get_field_value(intf.get("stack_index"))
+                asset_cluster_index = getattr(asset, "cluster_index", None)
 
-            prefix = prefix_map.get(intf_speed)
-
-            if prefix is None:
-                if not isinstance(intf.get("name"), str):
-                    interfaces.pop(intf_name, None)
-                continue
-
-            for model_intf in model_interfaces:
-                if model_intf is None:
+                # If no asset cluster index, we skip below check.
+                # If asset cluster index is true, but doesn't match the interface stack index, we continue as we otherwise
+                # work on the wrong asset's interfaces.
+                if (
+                    asset_cluster_index is not None
+                    and interface_stack_index is not None
+                    and interface_stack_index != asset_cluster_index
+                ):
                     continue
 
-                model_interface_values = (
-                    model_intf.get("stack_index"),
-                    model_intf.get("module_index"),
-                    model_intf.get("index"),
+                # Cluster assets carry a stack index; standalone assets do not.
+                # For standalone asset we use the stack_index_start value from the model
+                sidx = interface_stack_index
+                if sidx is None:
+                    sidx = (
+                        asset_cluster_index
+                        if asset_cluster_index is not None
+                        else stack_index_start
+                    )
+                midx = (
+                    intf.get("module_index", {}).get("value") or 0
+                    if intf.get("module_index") is not None
+                    else 0
                 )
+                idx = intf.get("index", {}).get("value")
+                speed = self._get_field_value(intf.get("speed"))
 
-                if model_interface_values in used_model_interfaces:
+                prefix = self.get_prefix(intf, prefix_map)
+
+                if prefix is None:
+                    interfaces_without_slots.append(intf_name)
                     continue
 
-                if intf_speed not in model_intf.get("speed_capabilities", []):
-                    continue
-                
-                #if "name_pattern" in model_intf:
-                #if "mgmt_only" in model_intf and model_intf["mgmt_only"]:
-                #    continue
+                matched_model_interface = False
 
-                if intf_stack_index is not None:
-                    expected_stack_index = intf_stack_index + stack_index_start
-                    if model_intf.get("stack_index") != expected_stack_index:
+                for model_intf in model_interfaces:
+
+                    if model_intf is None:
                         continue
 
-                if intf_module_index is not None:
-                    expected_module_index = intf_module_index + module_index_start
-                    if model_intf.get("module_index") != expected_module_index:
+                    model_interface_values = (
+                        model_intf.get("module_index"),
+                        model_intf.get("index"),
+                    )
+
+                    if sidx is not None:
+                        model_interface_values = (sidx, *model_interface_values)
+
+                    if model_interface_values in used_model_interfaces:
                         continue
 
-                if intf_index is not None:
-                    expected_index = intf_index + interface_index_start
-                    if model_intf.get("index") != expected_index:
+                    if speed not in model_intf.get("speed_capabilities", []):
                         continue
-                
-                intf["name"] = name_pattern.format(
-                    prefix=prefix,
-                    stack_index=model_intf.get("stack_index"),
-                    module_index=model_intf.get("module_index"),
-                    index=model_intf.get("index"),
-                )
-                used_model_interfaces.add(model_interface_values)
-                break
+                    idx = idx + interface_index_start if idx is not None else None
+                    midx = midx + module_index_start if midx is not None else None
+                    if idx == model_intf.get("index") and midx == model_intf.get(
+                        "module_index"
+                    ):
+                        index_data = {
+                            "module_index": midx,
+                            "index": idx,
+                        }
+                        if sidx is not None:
+                            sidx = sidx + stack_index_start
+                            index_data["stack_index"] = sidx
 
-            if not isinstance(intf.get("name"), str):
-                interfaces.pop(intf_name, None)
+                        intf["name"] = self.generate_inter_name(
+                            index_data, name_pattern, prefix
+                        )
+                        used_model_interfaces.add(model_interface_values)
+                        matched_model_interface = True
+                        break
 
-        # if isinstance(intf['name'], dict):
-        #    stop
-        return config
+                if not matched_model_interface:
+                    interfaces_without_slots.append(intf_name)
+
+        for interface in interfaces_without_slots:
+            configuration["interfaces"].pop(interface, None)
+
+        return configuration
+
+    def get_prefix(self, intf, prefix_map):
+        for k, v in prefix_map.items():
+            if k == self._get_field_value(intf.get("speed")):
+                return v
+        return None
+
+    def generate_inter_name(self, index_data, name_pattern, prefix):
+        if "stack_index" in index_data:
+            name = name_pattern.format(
+                prefix=prefix,
+                stack_index=index_data.get("stack_index"),
+                module_index=index_data.get("module_index"),
+                index=index_data.get("index"),
+            )
+        else:
+            name = name_pattern.format(
+                prefix=prefix,
+                module_index=index_data.get("module_index"),
+                index=index_data.get("index"),
+            )
+        return name
 
     def ssh_interface(self, configuration):
         """Process SSH interface configurations if needed."""
