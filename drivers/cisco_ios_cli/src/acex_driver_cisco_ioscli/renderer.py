@@ -239,7 +239,20 @@ class CiscoIOSCLIRenderer(RendererBase):
             test_model, self._model_directory()
         )  # Testa att parsa modell, ta bort sen
         # configuration = self._physical_interface_names(configuration, asset)
-        configuration = self._new_phys_inter_names(configuration, model_data)
+
+        port_slots = self._render_frontpanel_port_slots(configuration, model_data)
+
+        configuration = self._update_frontpanel_ports(configuration, port_slots)
+
+
+
+
+
+
+
+
+
+        # configuration = self._new_phys_inter_names(configuration, model_data)
         self._ssh_interface(configuration)
         self._logging_trap_severity(configuration)
         # print('configuration after physical interface name resolution: ', configuration)
@@ -254,6 +267,104 @@ class CiscoIOSCLIRenderer(RendererBase):
 
         configuration["asset"] = {"version": os_version}
         return configuration
+
+
+
+    def _render_frontpanel_port_slots(self, configuration, model_data):
+        """
+        Build a list of "interface slots". These slots are to be filled with config
+        from configuration before passed to template rendering.
+        """
+
+        intf_slots = []
+
+        interface_pattern = model_data["name_pattern"]
+        prefix_map = model_data["prefix_map"]
+        for interface_slot in model_data["interfaces"]:
+
+            # Get prefix based on configured speed
+            speed = self._get_configured_speed(configuration, interface_slot)
+            prefix = prefix_map.get(speed)
+
+            # Compile full interface name
+            ifname = self._compile_interface_name(prefix, 1, interface_pattern, interface_slot)
+
+            intf_slots.append({
+                "name": ifname,
+                "index": interface_slot["index"],
+                "module_index": interface_slot["module_index"],
+                })
+
+        return intf_slots
+
+
+    def _update_frontpanel_ports(self, configuration, slots):
+        """
+        Fetch corresponding configuration for each frontpanel port slot.
+        """
+        interfaces_without_slots = []
+
+        for k,v in configuration["interfaces"].items():
+
+            if v["type"] == "ethernetCsmacd":
+                print(f" kollar int: {k}")
+                idx = v.get("index", {}).get("value")
+                midx = v.get("module_index") or 0
+
+                slot = self._get_slot(idx, midx, slots)
+
+                if slot is None:
+                    interfaces_without_slots.append(k)
+                else:
+                    v["name"] = slot["name"]
+
+        for interface in interfaces_without_slots:
+            configuration["interfaces"].pop(interface)
+
+        return configuration
+
+
+    def _get_slot(self, index, module_index, slots):
+        """ Extracts a slot definition or None"""
+        for slot in slots:
+            if slot["index"] == index and slot["module_index"] == module_index:
+                return slot
+        return None
+
+
+    def _compile_interface_name(self, prefix, stack_index, pattern, interface_slot):
+        """
+        Compiles full interface name from device_types/models file 
+        """
+
+        name = pattern.format_map({
+            "prefix": prefix,
+            "stack_index": stack_index,
+            "module_index":  interface_slot.get("module_index"),
+            "index":  interface_slot.get("index")
+        })
+
+        return name
+        
+
+    def _get_configured_speed(self, configuration: dict, interface_slot: dict):
+        """ extract configured interface speed from config map """
+
+        for k,v in configuration["interfaces"].items():
+            configured_speed = v.get('speed', {}).get('value', 1000000) 
+
+        return configured_speed
+
+
+
+
+
+
+
+
+
+
+
 
     def _new_phys_inter_names(self, config, model_data):
         interfaces = config.get("interfaces", {})
