@@ -233,7 +233,7 @@ class CiscoIOSCLIRenderer(RendererBase):
 
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
-        test_model = "test_model"
+        test_model = "johan_test"
         # proper_model = asset.hardware_model
         model_data = parse_model(
             test_model, self._model_directory()
@@ -243,14 +243,6 @@ class CiscoIOSCLIRenderer(RendererBase):
         port_slots = self._render_frontpanel_port_slots(configuration, model_data)
 
         configuration = self._update_frontpanel_ports(configuration, port_slots)
-
-
-
-
-
-
-
-
 
         # configuration = self._new_phys_inter_names(configuration, model_data)
         self._ssh_interface(configuration)
@@ -273,13 +265,15 @@ class CiscoIOSCLIRenderer(RendererBase):
     def _render_frontpanel_port_slots(self, configuration, model_data):
         """
         Build a list of "interface slots". These slots are to be filled with config
-        from configuration before passed to template rendering.
+        from configuration, such as speed, before passed to template rendering.
         """
 
         intf_slots = []
 
         interface_pattern = model_data["name_pattern"]
         prefix_map = model_data["prefix_map"]
+        idx_start = model_data["interface_index_start"]
+        midx_start = model_data["module_index_start"]
         for interface_slot in model_data["interfaces"]:
 
             # Get prefix based on configured speed
@@ -287,7 +281,7 @@ class CiscoIOSCLIRenderer(RendererBase):
             prefix = prefix_map.get(speed)
 
             # Compile full interface name
-            ifname = self._compile_interface_name(prefix, 1, interface_pattern, interface_slot)
+            ifname = self._compile_interface_name(prefix, 1, interface_pattern, idx_start, midx_start, interface_slot)
 
             intf_slots.append({
                 "name": ifname,
@@ -305,9 +299,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         interfaces_without_slots = []
 
         for k,v in configuration["interfaces"].items():
-
             if v["type"] == "ethernetCsmacd":
-                print(f" kollar int: {k}")
                 idx = v.get("index", {}).get("value")
                 midx = v.get("module_index") or 0
 
@@ -332,16 +324,18 @@ class CiscoIOSCLIRenderer(RendererBase):
         return None
 
 
-    def _compile_interface_name(self, prefix, stack_index, pattern, interface_slot):
+    def _compile_interface_name(self, prefix, stack_index, pattern, idx_start, midx_start, interface_slot):
         """
         Compiles full interface name from device_types/models file 
         """
 
         name = pattern.format_map({
             "prefix": prefix,
-            "stack_index": stack_index,
-            "module_index":  interface_slot.get("module_index"),
-            "index":  interface_slot.get("index")
+            "stack_index": stack_index, # Check whats configured in config map, check asset: number of assets in cluser
+            # stes max stack index. if configured stack index exceeds number of stacks in asst, skip rendering. 
+
+            "module_index":  interface_slot.get("module_index") + midx_start,
+            "index":  interface_slot.get("index") + idx_start
         })
 
         return name

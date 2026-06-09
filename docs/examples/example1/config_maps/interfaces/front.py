@@ -1,5 +1,5 @@
 from acex.config_map import ConfigMap, FilterAttribute
-from acex.configuration.components.interfaces import Physical
+from acex.configuration.components.interfaces import FrontpanelPort
 
 
 class Frontpanel(ConfigMap):
@@ -9,7 +9,7 @@ class Frontpanel(ConfigMap):
         ip = context.integrations.ipam.data.ip_addresses({"id": 27})
         # ip = 
         # routed uplink
-        if0 = Physical(
+        if0 = FrontpanelPort(
             index=0,
             name="if0",
             speed=1000000,
@@ -20,7 +20,7 @@ class Frontpanel(ConfigMap):
         context.configuration.add(if0)
 
         # routed uplink
-        if47 = Physical(
+        if47 = FrontpanelPort(
             index=47,
             name="if47",
             speed=1000000,
@@ -33,4 +33,4 @@ class Frontpanel(ConfigMap):
 
 
 fp = Frontpanel()
-fp.filters = FilterAttribute("role").eq("core")
+fp.filters = FilterAttribute("role").eq("lab")

@@ -4,7 +4,7 @@ os:
 - cisco_iosxe
 stack_index_start: 0
 module_index_start: 0
-interface_index_start: 0
+interface_index_start: 1
 prefix_map:
   1000000: GigabitEthernet
   10000000: TenGigabitEthernet
@@ -15,7 +15,6 @@ interfaces:
   speed_capabilities:
   - 1000000
   - 10000000
-  name_pattern: "{prefix}{module_index}/{index}"
 - module_index: 0
   index: 1
   speed_capabilities:
