@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-telemetry-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "ACE-X Telemetry Agent - Polls config manifest and writes telegraf.conf"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
