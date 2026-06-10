@@ -259,7 +259,8 @@ class CiscoIOSCLIRenderer(RendererBase):
         """Pre-process the configuration model before rendering j2."""
 
         if hasattr(asset, "assets"):
-            print("Pre-processing clustered asset")
+            # change to logging output later, print for testing
+            #print("Pre-processing clustered asset")
 
             original_interfaces = deepcopy(configuration.get("interfaces", {}))
 
@@ -272,7 +273,8 @@ class CiscoIOSCLIRenderer(RendererBase):
             }
 
             for cl_asset in asset.assets:
-                print(f"Pre-processing asset in cluster {cl_asset}")
+                # change to logging output later, print for testing
+                #print(f"Pre-processing asset in cluster {cl_asset}")
 
                 model_data = parse_model(
                     cl_asset.hardware_model,
@@ -283,7 +285,7 @@ class CiscoIOSCLIRenderer(RendererBase):
                 per_asset_configuration = deepcopy(configuration)
                 per_asset_configuration["interfaces"] = deepcopy(original_interfaces)
 
-                per_asset_configuration = self.physical_interfaces(
+                per_asset_configuration = self._physical_interfaces(
                     per_asset_configuration,
                     model_data,
                     cl_asset,
@@ -300,14 +302,15 @@ class CiscoIOSCLIRenderer(RendererBase):
             configuration["interfaces"] = merged_interfaces
 
         else:
-            print(f"Pre-processing single asset {asset}")
+            # change to logging output later, print for testing
+            #print(f"Pre-processing single asset {asset}")
 
             model_data = parse_model(
                 asset.hardware_model,
                 self._model_directory(),
             )
 
-            configuration = self.physical_interfaces(
+            configuration = self._physical_interfaces(
                 configuration,
                 model_data,
                 asset,
@@ -394,7 +397,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         return value - start
 
 
-    def physical_interfaces(self, configuration: dict, model_data: dict, asset):
+    def _physical_interfaces(self, configuration: dict, model_data: dict, asset):
         """
         Pre-process physical interfaces to have correct names based on model definition and config.
 
@@ -425,9 +428,6 @@ class CiscoIOSCLIRenderer(RendererBase):
             if intf.get("type") != "ethernetCsmacd":
                 continue
 
-            print("=" * 100)
-            print("Processing interface:", intf_name)
-
             interface_stack_index = self._get_field_value(intf.get("stack_index"))
             asset_cluster_index = getattr(asset, "cluster_index", None)
 
@@ -439,11 +439,6 @@ class CiscoIOSCLIRenderer(RendererBase):
             )
 
             if sidx is None:
-                print(
-                    f"Skipping interface {intf_name}: "
-                    f"interface stack index {interface_stack_index} "
-                    f"does not belong to asset cluster index {asset_cluster_index}"
-                )
                 interfaces_without_slots.append(intf_name)
                 continue
 
@@ -452,43 +447,20 @@ class CiscoIOSCLIRenderer(RendererBase):
             idx = self._get_field_value(intf.get("index"))
             speed = self._get_field_value(intf.get("speed"), default=1000000)
 
-            print(
-                "Internal config interface values:",
-                {
-                    "stack_index": sidx,
-                    "module_index": midx,
-                    "index": idx,
-                    "speed": speed,
-                },
-            )
-
             prefix = self._get_prefix(prefix_map, speed)
 
             if prefix is None:
-                print(
-                    "prefix is None, skipping interface and adding to remove list:",
-                    intf_name,
-                )
                 interfaces_without_slots.append(intf_name)
                 continue
 
             matched_model_interface = False
 
             for model_intf in model_interfaces:
-                print("Checking model interface:", model_intf)
 
                 if model_intf is None:
-                    print("Model interface is None, skipping")
                     continue
 
                 if speed not in model_intf.get("speed_capabilities", []):
-                    print(
-                        "Interface speed not supported by model interface, skipping. "
-                        "Interface speed:",
-                        speed,
-                        "Model interface speed capabilities:",
-                        model_intf.get("speed_capabilities", []),
-                    )
                     continue
 
                 # Convert internal config values to model/rendered-facing values.
@@ -513,23 +485,7 @@ class CiscoIOSCLIRenderer(RendererBase):
                 )
 
                 if model_interface_values in used_model_interfaces:
-                    print(
-                        "Model interface values already used, skipping:",
-                        model_interface_values,
-                    )
                     continue
-
-                print(
-                    "Checking rendered config values against model interface values. "
-                    "Rendered config:",
-                    (render_sidx, render_midx, render_idx),
-                    "Model:",
-                    (
-                        model_intf.get("stack_index"),
-                        model_intf.get("module_index"),
-                        model_intf.get("index"),
-                    ),
-                )
 
                 # model.yaml module_index/index are model/rendered-facing.
                 # Therefore compare rendered config values to model values.
@@ -537,7 +493,6 @@ class CiscoIOSCLIRenderer(RendererBase):
                     render_idx == model_intf.get("index")
                     and render_midx == model_intf.get("module_index")
                 ):
-                    print("Found matching model interface for config interface:", intf_name)
 
                     index_data = {
                         "stack_index": render_sidx,
@@ -551,15 +506,11 @@ class CiscoIOSCLIRenderer(RendererBase):
                         prefix,
                     )
 
-                    print("Generated interface name:", intf["name"])
-
                     used_model_interfaces.add(model_interface_values)
                     matched_model_interface = True
                     break
 
             if not matched_model_interface:
-                print("No matching model interface found for config interface:")
-                print("Adding to remove list:", intf_name)
                 interfaces_without_slots.append(intf_name)
 
         for interface in interfaces_without_slots:
@@ -567,18 +518,13 @@ class CiscoIOSCLIRenderer(RendererBase):
 
         return configuration
 
-    #def _get_prefix(self, intf, prefix_map, speed):
     def _get_prefix(self,prefix_map, speed):
         for k, v in prefix_map.items():
-            print('Checking prefix map for speed:', speed, 'k:', k, 'v:', v)
-            #if k == self._get_field_value(intf.get("speed")):
             if k == speed:
                 return v
         return None
 
     def _generate_inter_name(self, index_data, name_pattern, prefix):
-        # Maybe we should look for stack_index in name pattern as stack_index will always exist?
-        #if "stack_index" in index_data:
         if "stack_index" in name_pattern:
             name = name_pattern.format(
                 prefix=prefix,
