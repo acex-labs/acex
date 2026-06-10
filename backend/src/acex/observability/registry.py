@@ -2,7 +2,7 @@ from typing import Callable, Iterable, List, Optional
 
 from acex.observability.capability import TelemetryCapability
 from acex.observability.components.base import TelemetryComponent
-from acex.observability.providers import icmp_ping_provider
+from acex.observability.providers import icmp_ping_provider, snmp_provider
 
 
 Provider = Callable[["object"], List[TelemetryComponent]]
@@ -28,6 +28,7 @@ class TelemetryRegistry:
 
     def _register_defaults(self) -> None:
         self._providers.append(icmp_ping_provider)
+        self._providers.append(snmp_provider)
 
     def register_provider(self, provider: Provider) -> None:
         self._providers.append(provider)

@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, List, Optional, Protocol
 
 from sqlmodel import select
 
@@ -8,15 +8,32 @@ from acex.models.management_connections import ManagementConnection
 from acex.models.regions import SiteRegionAssignment
 from acex.observability.components.base import TelemetryComponent
 from acex.observability.components.icmp_ping import IcmpPingTelemetry
+from acex.observability.components.snmp import SnmpTelemetry
 
 
 Provider = Callable[["object"], List[TelemetryComponent]]
 
 
-def icmp_ping_provider(db_manager) -> List[TelemetryComponent]:
+class _NodeComponentFactory(Protocol):
+    def __call__(
+        self,
+        *,
+        node_id: int,
+        hostname: str,
+        target_ip: str,
+        site: Optional[str] = None,
+        region: Optional[str] = None,
+    ) -> TelemetryComponent: ...
+
+
+def _per_node_provider(
+    db_manager,
+    component_cls: _NodeComponentFactory,
+) -> List[TelemetryComponent]:
     """
-    Yield one IcmpPingTelemetry per node-instance that has a
-    management IP. Nodes without any management connection are skipped.
+    Build one component per node-instance (per region when assigned).
+    Shared logic for any TelemetryComponent that maps 1-to-1 with a
+    management IP and inherits site/region tags.
     """
     session = next(db_manager.get_session())
     try:
@@ -59,24 +76,22 @@ def icmp_ping_provider(db_manager) -> List[TelemetryComponent]:
             regions = site_region_map.get(ln.site, []) if ln.site else []
             if regions:
                 for region in regions:
-                    components.append(
-                        IcmpPingTelemetry(
-                            node_id=n.id,
-                            hostname=ln.hostname,
-                            target_ip=ip,
-                            site=ln.site,
-                            region=region,
-                        )
-                    )
+                    components.append(component_cls(
+                        node_id=n.id, hostname=ln.hostname, target_ip=ip,
+                        site=ln.site, region=region,
+                    ))
             else:
-                components.append(
-                    IcmpPingTelemetry(
-                        node_id=n.id,
-                        hostname=ln.hostname,
-                        target_ip=ip,
-                        site=ln.site,
-                    )
-                )
+                components.append(component_cls(
+                    node_id=n.id, hostname=ln.hostname, target_ip=ip, site=ln.site,
+                ))
         return components
     finally:
         session.close()
+
+
+def icmp_ping_provider(db_manager) -> List[TelemetryComponent]:
+    return _per_node_provider(db_manager, IcmpPingTelemetry)
+
+
+def snmp_provider(db_manager) -> List[TelemetryComponent]:
+    return _per_node_provider(db_manager, SnmpTelemetry)

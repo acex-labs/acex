@@ -30,12 +30,20 @@ def _render_kv_block(table: str, items: dict[str, Any], indent: str = "  ") -> l
     return lines
 
 
-def _render_input_block(plugin: str, config: dict[str, Any], tags: dict[str, str]) -> list[str]:
+def _render_input_block(
+    plugin: str,
+    config: dict[str, Any],
+    tags: dict[str, str],
+    subtables: list[dict] | None = None,
+) -> list[str]:
     lines = _render_kv_block(f"[[inputs.{plugin}]]", config)
     if tags:
         lines.append(f"  [inputs.{plugin}.tags]")
         for k, v in tags.items():
             lines.append(f"    {k} = {_format_value(v)}")
+    for sub in subtables or []:
+        lines.append("")
+        lines.extend(_render_kv_block(f"  [[inputs.{plugin}.{sub['name']}]]", sub["data"], indent="    "))
     lines.append("")
     return lines
 
@@ -68,5 +76,6 @@ def render_inputs(components: Iterable[TelemetryComponent]) -> str:
             plugin=block["plugin"],
             config=block.get("config", {}),
             tags=block.get("tags", {}),
+            subtables=block.get("subtables"),
         ))
     return "\n".join(lines)

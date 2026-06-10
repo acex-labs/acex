@@ -559,33 +559,6 @@ class TelemetryAgentManager:
         lines.append("  flush_interval = \"10s\"")
         lines.append("")
 
-        # SNMP inputs (legacy hardcoded path — until SnmpTelemetry component exists)
-        if TelemetryCapability.snmp in capabilities:
-            for node in nodes:
-                ip = node_ip_map.get(node.id)
-                hostname = ln_map.get(node.logical_node_id, f"node-{node.id}")
-                if not ip:
-                    continue
-
-                lines.append("[[inputs.snmp]]")
-                lines.append(f'  agents = ["udp://{ip}:161"]')
-                lines.append(f'  name = "{hostname}"')
-                lines.append("  version = 2")
-                lines.append('  community = "public"')
-                lines.append("")
-                lines.append("  [[inputs.snmp.field]]")
-                lines.append('    oid = "1.3.6.1.2.1.1.3.0"')
-                lines.append('    name = "uptime"')
-                lines.append("")
-                lines.append("  [[inputs.snmp.field]]")
-                lines.append('    oid = "1.3.6.1.2.1.1.5.0"')
-                lines.append('    name = "source"')
-                lines.append("    is_tag = true")
-                lines.append("")
-
-        # Registry-driven inputs (currently: ICMP). Capabilities without a
-        # corresponding TelemetryComponent fall through to the legacy blocks
-        # above until they're migrated.
         if self.telemetry_registry is not None:
             from acex.observability.renderers import render_inputs
             agent_node_ids = {n.id for n in nodes}
