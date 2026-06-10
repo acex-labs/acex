@@ -316,9 +316,6 @@ class CiscoIOSCLIRenderer(RendererBase):
                 asset,
             )
 
-
-
-
         self._ssh_interface(configuration)
         self._logging_trap_severity(configuration)
         # self.add_vrf_to_intefaces(configuration)
@@ -333,11 +330,12 @@ class CiscoIOSCLIRenderer(RendererBase):
         configuration["asset"] = {"version": os_version}
         return configuration
 
-    # Work with both raw values and ACEX {"value": ...} format
-    # if raw_value is a dict, we try to get "value" key, if it's not there we return default
-    # if raw_value is not a dict and not None, we return it as is, if it's None we return default
-    # default is set to None if not specified to a different value by the user
     def _get_field_value(self, raw_value, default=None):
+        """
+        This helper function is used to extract the actual value from a field that may be in 
+        the ACEX format {"value": ..., "metadata": ...} or may be a raw value. 
+        It also handles default values if the field is not set or is None.
+        """
         if isinstance(raw_value, dict):
             return raw_value.get("value", default)
         if raw_value is None:
@@ -382,20 +380,6 @@ class CiscoIOSCLIRenderer(RendererBase):
             return None
 
         return asset_cluster_index
-
-    def _model_value_to_internal(self, value, start):
-        """
-        Convert a model/device-facing index into an internal zero-based index.
-
-        Example:
-            value=1, start=1 -> internal=0
-            value=0, start=0 -> internal=0
-        """
-        if value is None:
-            return None
-
-        return value - start
-
 
     def _physical_interfaces(self, configuration: dict, model_data: dict, asset):
         """
@@ -453,6 +437,7 @@ class CiscoIOSCLIRenderer(RendererBase):
                 interfaces_without_slots.append(intf_name)
                 continue
 
+            # Used to track if we found a matching model interface for this config interface.
             matched_model_interface = False
 
             for model_intf in model_interfaces:
@@ -484,6 +469,7 @@ class CiscoIOSCLIRenderer(RendererBase):
                     model_intf.get("index"),
                 )
 
+                # If we've already matched a config interface to this model interface, skip to avoid duplicates in merged config.
                 if model_interface_values in used_model_interfaces:
                     continue
 
