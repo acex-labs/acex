@@ -1,5 +1,0 @@
-models:
-- WS-C4506
-os:
-- cisco_ios
-interfaces: []

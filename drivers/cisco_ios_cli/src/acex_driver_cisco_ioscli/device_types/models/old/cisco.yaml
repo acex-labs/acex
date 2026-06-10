@@ -1,5 +1,0 @@
-models:
-- Cisco
-os:
-- cisco_ios
-interfaces: []

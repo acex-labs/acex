@@ -1,5 +1,0 @@
-models:
-- WS-C4503-E
-os:
-- cisco_ios
-interfaces: []

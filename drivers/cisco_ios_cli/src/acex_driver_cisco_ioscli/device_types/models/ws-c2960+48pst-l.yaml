@@ -1,5 +1,5 @@
 models:
-- WS-C3560C-8PC-S
+- WS-C2960+48PST-L
 os:
 - cisco_ios
 stack_index_start: 1
@@ -53,5 +53,13 @@ interfaces:
   - 1000000
 - module_index: 0
   index: 10
+  speed_capabilities:
+  - 1000000
+- module_index: 0
+  index: 11
+  speed_capabilities:
+  - 1000000
+- module_index: 0
+  index: 12
   speed_capabilities:
   - 1000000

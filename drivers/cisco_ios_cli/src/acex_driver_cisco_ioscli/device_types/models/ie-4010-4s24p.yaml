@@ -4,148 +4,126 @@ os:
 - cisco_ios
 stack_index_start: 1
 module_index_start: 0
-interface_index_start: 0
+interface_index_start: 1
 prefix_map:
+  100000: FastEthernet
   1000000: GigabitEthernet
+  10000000: TenGigabitEthernet
+  25000000: TwentyFiveGigE
+  40000000: FortyGigabitEthernet
+  100000000: HundredGigE
+  400000000: FourHundredGigE
 name_pattern: '{prefix}{stack_index}/{module_index}/{index}'
 interfaces:
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 1
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 2
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 3
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 4
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 5
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 6
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 7
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 8
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 9
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 10
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 11
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 12
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 13
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 14
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 15
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 16
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 17
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 18
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 19
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 20
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 21
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 22
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 23
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 24
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 25
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 26
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 27
   speed_capabilities:
   - 1000000
-- stack_index: 1
-  module_index: 1
+- module_index: 0
   index: 28
   speed_capabilities:
   - 1000000

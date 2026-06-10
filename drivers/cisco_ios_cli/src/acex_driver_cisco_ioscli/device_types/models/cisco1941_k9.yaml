@@ -1,8 +1,8 @@
 models:
-- WS-C4503-E
+- CISCO1941/K9
 os:
 - cisco_ios
-stack_index_start: 1
+stack_index_start: 0
 module_index_start: 0
 interface_index_start: 1
 prefix_map:
@@ -13,7 +13,13 @@ prefix_map:
   40000000: FortyGigabitEthernet
   100000000: HundredGigE
   400000000: FourHundredGigE
-name_pattern: '{prefix}{stack_index}/{module_index}/{index}'
-interfaces: []
-notes: 'Modular chassis: interfaces depend on installed supervisor and line cards;
-  chassis alone has no fixed port map.'
+name_pattern: '{prefix}{module_index}/{index}'
+interfaces:
+- module_index: 0
+  index: 0
+  speed_capabilities:
+  - 1000000
+- module_index: 0
+  index: 1
+  speed_capabilities:
+  - 1000000

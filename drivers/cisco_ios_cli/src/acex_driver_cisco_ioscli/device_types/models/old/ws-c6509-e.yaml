@@ -1,5 +1,0 @@
-models:
-- WS-C6509-E
-os:
-- cisco_ios
-interfaces: []

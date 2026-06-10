@@ -1,5 +1,5 @@
 models:
-- WS-C3560C-8PC-S
+- WS-C2960+24TC-S
 os:
 - cisco_ios
 stack_index_start: 1
