@@ -6,9 +6,9 @@ class LldpConfigMap(ConfigMap):
     def compile(self, context):
         
         intf0 = FrontpanelPort(
-            name="Ethernet1/1",
+            name="access_port_48",
             description="Uplink to Core",
-            index=1,
+            index=48,
             lldp_enabled=True
         )
 

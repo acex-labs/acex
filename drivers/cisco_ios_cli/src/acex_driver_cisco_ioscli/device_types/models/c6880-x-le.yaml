@@ -1,0 +1,417 @@
+models:
+- C6880-X-LE
+os:
+- cisco_ios
+stack_index_start: 1
+module_index_start: 0
+interface_index_start: 1
+prefix_map:
+  100000: FastEthernet
+  1000000: GigabitEthernet
+  10000000: TenGigabitEthernet
+  25000000: TwentyFiveGigE
+  40000000: FortyGigabitEthernet
+  100000000: HundredGigE
+  400000000: FourHundredGigE
+name_pattern: '{prefix}{stack_index}/{module_index}/{index}'
+interfaces:
+- module_index: 0
+  index: 1
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 2
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 3
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 4
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 5
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 6
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 7
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 8
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 9
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 10
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 11
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 12
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 13
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 14
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 15
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 16
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 17
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 18
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 19
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 20
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 21
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 22
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 23
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 24
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 25
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 26
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 27
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 28
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 29
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 30
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 31
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 32
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 33
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 34
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 35
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 36
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 37
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 38
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 39
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 40
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 41
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 42
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 43
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 44
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 45
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 46
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 47
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 48
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 49
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 50
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 51
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 52
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 53
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 54
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 55
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 56
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 57
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 58
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 59
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 60
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 61
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 62
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 63
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 64
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 65
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 66
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 67
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 68
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 69
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 70
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 71
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 72
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 73
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 74
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 75
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 76
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 77
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 78
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 79
+  speed_capabilities:
+  - 1000000
+  - 10000000
+- module_index: 0
+  index: 80
+  speed_capabilities:
+  - 1000000
+  - 10000000

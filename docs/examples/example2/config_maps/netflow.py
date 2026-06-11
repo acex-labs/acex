@@ -107,8 +107,8 @@ class NetflowConfigRecord(ConfigMap):
         context.configuration.add(netflow_exporter_2)
 
         intf1_1 = FrontpanelPort(
-            name="1/1",
-            index=131073,
+            name="access_port_1",
+            index=1,
             network_instance=test_vrf,
             netflow_ingress_disabled=netflow_collector_1,
             netflow_egress_disabled=netflow_collector_1,

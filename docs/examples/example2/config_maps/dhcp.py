@@ -55,9 +55,9 @@ class SetDhcpConfig(ConfigMap):
 
         if0_test = FrontpanelPort(
             index=1,
-            stack_index=1,
-            module_index=1,
-            name="if0_test",
+            stack_index=0,
+            module_index=0,
+            name="access_port_0_1",
             speed=1000000,
             description="Switchport1",
             switchport=True,
@@ -72,7 +72,7 @@ class SetDhcpConfig(ConfigMap):
             dhcp_snooping_trust=True,  # This will add reference to DHCP snooping config
             relay_helper=hlp_1,  # This will add reference to DHCP relay helper address # does not work
         )
-        context.configuration.add(hlp_2)
+        context.configuration.add(if0_test)
 
 
 autolab_dhcp = SetDhcpConfig()
