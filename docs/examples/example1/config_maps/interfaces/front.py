@@ -5,26 +5,37 @@ from acex.configuration.components.interfaces import FrontpanelPort
 class Frontpanel(ConfigMap):
     def compile(self, context):
 
-        # routed uplink
-        if0 = FrontpanelPort(
-            index=0,
-            name="if0",
-            speed=1000000,
-            description="Routed uplink to core",
-            switchport = False,
-            ipv4 = context.integrations.ipam.data.ip_addresses({"id": 28})
-        )
-        context.configuration.add(if0)
+        # # routed uplink
+        # if0 = FrontpanelPort(
+        #     index=0,
+        #     name="if0",
+        #     speed=1000000,
+        #     description="Routed uplink to core",
+        #     switchport = False,
+        #     ipv4 = context.integrations.ipam.data.ip_addresses({"id": 28})
+        # )
+        # context.configuration.add(if0)
 
-        ip = context.integrations.ipam.data.ip_addresses({"id": 27})
-        # routed uplink
+        # ip = context.integrations.ipam.data.ip_addresses({"id": 27})
+        # # routed uplink
+        # if47 = FrontpanelPort(
+        #     index=47,
+        #     name="if47",
+        #     speed=1000000,
+        #     description="Routed uplink to core",
+        #     switchport = False,
+        #     ipv4 = ip,
+        #     enabled=False
+        # )
+        # context.configuration.add(if47)
         if47 = FrontpanelPort(
-            index=47,
+            index=4,
             name="if47",
             speed=1000000,
-            description="Routed uplink to core",
+            description="Second switch",
             switchport = False,
-            ipv4 = ip,
+            stack_index=1,
+            ipv4 = "192.0.2.1/24",
             enabled=False
         )
         context.configuration.add(if47)
