@@ -53,11 +53,7 @@ class NodeService:
         ln = await self.inventory.logical_nodes.get(ni.logical_node_id)
         composed_config = ln.configuration
 
-        asset = None
-        if getattr(ni, "asset_ref_type", "asset") == "asset_cluster":
-            asset = self.inventory.asset_cluster_manager.get_cluster(ni.asset_ref_id)
-        else:
-            asset = await self.inventory.assets.get(ni.asset_ref_id)
+        asset = ni.asset
 
         ned_manager = NEDManager()
         ned = ned_manager.get_driver_instance(asset.ned_id)
