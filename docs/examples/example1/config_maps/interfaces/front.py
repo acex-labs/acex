@@ -28,13 +28,15 @@ class Frontpanel(ConfigMap):
         #     enabled=False
         # )
         # context.configuration.add(if47)
+
         if47 = FrontpanelPort(
-            index=4,
-            name="if47",
+            index=0,
+            name="if1",
             speed=1000000,
             description="Second switch",
+            module_index=0,
             switchport = False,
-            stack_index=1,
+            stack_index=0,
             ipv4 = "192.0.2.1/24",
             enabled=False
         )

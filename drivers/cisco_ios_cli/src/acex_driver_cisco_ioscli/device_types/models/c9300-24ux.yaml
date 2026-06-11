@@ -16,6 +16,13 @@ prefix_map:
 name_pattern: '{prefix}{stack_index}/{module_index}/{index}'
 interfaces:
 - module_index: 0
+  index: 0
+  speed_capabilities:
+  - 1000000
+  - 2500000
+  - 5000000
+  - 10000000
+- module_index: 0
   index: 1
   speed_capabilities:
   - 1000000
@@ -171,13 +178,6 @@ interfaces:
   - 10000000
 - module_index: 0
   index: 23
-  speed_capabilities:
-  - 1000000
-  - 2500000
-  - 5000000
-  - 10000000
-- module_index: 0
-  index: 24
   speed_capabilities:
   - 1000000
   - 2500000
