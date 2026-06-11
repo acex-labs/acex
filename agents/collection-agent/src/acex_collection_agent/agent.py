@@ -16,8 +16,9 @@ POLL_INTERVAL = 60  # Poll manifest every 60s for liveness + change detection
 
 class CollectionAgent:
 
-    def __init__(self, api_url: str, agent_id: int, verify_ssl: bool = False):
+    def __init__(self, api_url: str, agent_id: int, verify_ssl: bool = False, max_concurrent: int = 20):
         self.agent_id = agent_id
+        self.max_concurrent = max_concurrent
         self.client = Acex(baseurl=api_url, verify=verify_ssl)
         self.collector = Collector(self.client)
         self._last_revision = None
@@ -29,7 +30,7 @@ class CollectionAgent:
 
     async def _run(self):
         """Main loop — poll manifest every 60s, collect on interval or revision change."""
-        logger.info(f"Collection Agent started (agent_id={self.agent_id})")
+        logger.info(f"Collection Agent started (agent_id={self.agent_id}, max_concurrent={self.max_concurrent})")
 
         await asyncio.to_thread(self._ensure_neds)
 
@@ -132,7 +133,7 @@ class CollectionAgent:
         logger.info(f"Starting collection for {len(targets)} nodes")
         t0 = time.time()
 
-        results = await self.collector.collect_all(targets)
+        results = await self.collector.collect_all(targets, max_concurrent=self.max_concurrent)
 
         elapsed = time.time() - t0
         succeeded = sum(1 for r in results if r["status"] == "ok")
@@ -143,9 +144,6 @@ class CollectionAgent:
             f"Collection complete in {elapsed:.1f}s: "
             f"{succeeded} collected, {unchanged} unchanged, {len(errors)} failed"
         )
-
-        for r in errors:
-            logger.warning(f"  Node #{r['node_id']} ({r.get('hostname', '?')}): {r['message']}")
 
         if errors:
             from collections import Counter

@@ -100,6 +100,8 @@ class NodeService:
         hostname: str = None,
         logical_node_id: int = None,
         asset_ref_id: int = None,
+        vendor: str = None,
+        os: str = None,
         status: Optional[NodeStatus] = None,
         limit: int = 100,
         offset: int = 0,
@@ -113,6 +115,21 @@ class NodeService:
                 "status": status,
             }.items() if v is not None
         }
+
+        if vendor or os:
+            asset_resp = await self._call_method(
+                self.inventory.assets.query, vendor=vendor, os=os, limit=10000
+            )
+            matching_ids = [a.id for a in asset_resp.items]
+            if not matching_ids:
+                return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
+            existing = query_filters.get("asset_ref_id")
+            if existing is not None:
+                query_filters["asset_ref_id"] = [existing] if existing in matching_ids else []
+                if not query_filters["asset_ref_id"]:
+                    return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
+            else:
+                query_filters["asset_ref_id"] = matching_ids
 
         if region:
             assignments = self.inventory.region_assignment_manager.list_assignments(region_name=region)

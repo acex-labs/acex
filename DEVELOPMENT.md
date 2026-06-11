@@ -21,28 +21,14 @@
 
    This installs all packages using Poetry and creates `.venv` in each package directory.
 
-3. **Work on a specific package:**
-   
-   **Poetry 2.0+** (recommended):
+3. **Activate a package environment:**
    ```bash
-   # Backend
-   cd backend
-   source $(poetry env info --path)/bin/activate
-   
-   # CLI
-   cd cli
-   source $(poetry env info --path)/bin/activate
-   
-   # Worker
-   cd worker
-   source $(poetry env info --path)/bin/activate
+   cd backend && source .venv/bin/activate
    ```
-   
-   **Or install the shell plugin** (optional):
+   Each package has its own `.venv/` after setup. Switch by deactivating first:
    ```bash
-   poetry self add poetry-plugin-shell
-   cd backend
-   poetry shell
+   deactivate
+   cd ../cli && source .venv/bin/activate
    ```
 
 4. **Verify installation:**
@@ -57,17 +43,34 @@
 acex/
 ├── backend/          # Core backend package (acex)
 │   ├── .venv/       # Backend virtual environment
-│   ├── src/acex/    # Source code
+│   ├── src/acex/
 │   └── pyproject.toml
 ├── cli/             # CLI package (acex-cli)
-│   ├── .venv/       # CLI virtual environment
+│   ├── .venv/
 │   ├── src/acex_cli/
 │   └── pyproject.toml
-└── worker/          # Worker package (acex-worker)
-    ├── .venv/       # Worker virtual environment
-    ├── src/acex_worker/
+├── worker/          # Worker package (acex-worker)
+│   ├── .venv/
+│   ├── src/acex_worker/
+│   └── pyproject.toml
+├── mcp/             # MCP server (acex-mcp-server)
+│   ├── .venv/
+│   └── pyproject.toml
+└── devkit/          # Shared models (acex-devkit)
+    ├── .venv/
     └── pyproject.toml
 ```
+
+## Switching Between Package Environments
+
+Each package has its own isolated `.venv`. To switch:
+
+```bash
+deactivate                               # leave current env
+cd ../cli && source .venv/bin/activate   # enter another
+```
+
+Or just open a new terminal per package.
 
 ## Development Workflow
 
@@ -78,53 +81,28 @@ All packages are installed in **editable mode** by Poetry, which means:
 - No need to reinstall after code changes
 - Just restart your Python process or reimport to see changes
 
-### Working on Backend
+### Working on a Package
 
-**Activate the environment:**
 ```bash
 cd backend
-source $(poetry env info --path)/bin/activate
-python               # Your changes are live!
-```
-
-**Or use poetry run without activating:**
-```bash
-cd backend
-poetry run python
-poetry run pytest
-```
-
-### Working on CLI
-
-```bash
-cd cli
-source $(poetry env info --path)/bin/activate
-python -c "import acex_cli; import acex"  # Both available
+source .venv/bin/activate
+python               # changes in src/ are live (editable install)
+pytest
 ```
 
 ### Running Examples
 
-From the backend environment:
+With env activated you can cd freely — the env stays active:
 ```bash
-cd backend
-poetry run python ../docs/examples/example1/app.py
-```
-
-Or activate the environment first:
-```bash
-cd backend
-source $(poetry env info --path)/bin/activate
+cd backend && source .venv/bin/activate
 cd ../docs/examples/example1
 python app.py
 ```
 
-### Running Commands Without Shell
-
-You can run commands without activating the shell:
+Or without activating:
 ```bash
 cd backend
-poetry run python script.py
-poetry run pytest
+poetry run python ../docs/examples/example1/app.py
 ```
 
 ## Rebuilding Environment
@@ -193,8 +171,8 @@ Distribution files will be in `dist/` folder of each package.
 
 ## Tips
 
-- Use `source $(poetry env info --path)/bin/activate` to activate the environment (Poetry 2.0+)
-- Or use `poetry run <command>` for one-off commands without activating
-- Install `poetry-plugin-shell` if you prefer the old `poetry shell` command
-- Changes in `backend/src/` are immediately visible in `cli` and `worker` (editable mode)
-- If you change `pyproject.toml`, run `poetry install` again
+- Activate with `source .venv/bin/activate` (after `dev-setup.sh` has been run)
+- Switch env: `deactivate && cd <pkg> && source .venv/bin/activate`
+- One-off commands without activating: `cd backend && poetry run pytest`
+- Changes in `src/` are immediately live — packages are installed in editable mode
+- If you change `pyproject.toml`, run `poetry install` again in that package

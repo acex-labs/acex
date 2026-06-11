@@ -7,9 +7,10 @@ from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.management_connection import ManagementConnection
 from scrapli.driver.core import AsyncIOSXEDriver
-from scrapli.exceptions import ScrapliTimeout
+from scrapli.exceptions import ScrapliAuthenticationFailed, ScrapliTimeout
 
 from acex_devkit.drivers import NetworkElementDriver, TransportBase
+from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_devkit.configdiffer import Diff
 
 from .renderer import CiscoIOSCLIRenderer
@@ -50,7 +51,14 @@ class CiscoIOSTransport(TransportBase):
             transport="asyncssh",
             transport_options={"asyncssh": _LEGACY_ASYNCSSH_OPTIONS},
         )
-        await driver.open()
+        try:
+            await driver.open()
+        except ScrapliAuthenticationFailed as e:
+            if isinstance(e.__cause__, asyncio.TimeoutError):
+                raise ConnectionTimeout("Connection timed out") from e
+            raise AuthenticationFailed("Authentication failed") from e
+        except ScrapliTimeout as e:
+            raise ConnectionTimeout("Connection timed out") from e
         return driver
 
     @asynccontextmanager
@@ -105,7 +113,7 @@ class CiscoIOSTransport(TransportBase):
                 response = await asyncio.wait_for(conn.send_command("show lldp neighbors detail"), timeout=10)
                 if "%" not in response.result[:40]:
                     neighbors.extend(self._parse_lldp_detail(response.result))
-            except (asyncio.TimeoutError, ScrapliTimeout, Exception):
+            except (asyncio.TimeoutError, ScrapliTimeout, ConnectionTimeout, Exception):
                 # Connection state is unknown after timeout — skip CDP on this session
                 return neighbors
             try:
@@ -115,7 +123,7 @@ class CiscoIOSTransport(TransportBase):
                     for entry in self._parse_cdp_detail(response.result):
                         if (entry["local_interface"], entry["remote_device"]) not in seen:
                             neighbors.append(entry)
-            except (asyncio.TimeoutError, ScrapliTimeout, Exception):
+            except (asyncio.TimeoutError, ScrapliTimeout, ConnectionTimeout, Exception):
                 pass
             return neighbors
 

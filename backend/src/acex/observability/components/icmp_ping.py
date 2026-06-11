@@ -24,11 +24,13 @@ class IcmpPingTelemetry(TelemetryComponent):
         hostname: str,
         target_ip: str,
         site: Optional[str] = None,
+        region: Optional[str] = None,
     ):
         self.node_id = node_id
         self.hostname = hostname
         self.target_ip = target_ip
         self.site = site
+        self.region = region
 
     def target_id(self) -> str:
         return f"node:{self.node_id}"
@@ -43,6 +45,8 @@ class IcmpPingTelemetry(TelemetryComponent):
         }
         if self.site:
             tags["site"] = self.site
+        if self.region:
+            tags["region"] = self.region
         return tags
 
     def telegraf_input(self) -> Optional[dict]:

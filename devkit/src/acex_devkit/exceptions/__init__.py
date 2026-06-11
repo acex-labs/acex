@@ -21,6 +21,16 @@ class ConnectionError(DriverException):
     pass
 
 
+class ConnectionTimeout(ConnectionError):
+    """Raised when a connection attempt or operation times out."""
+    pass
+
+
+class AuthenticationFailed(ConnectionError):
+    """Raised when device authentication is rejected."""
+    pass
+
+
 class ConfigurationError(DriverException):
     """Raised when configuration application fails."""
     pass

@@ -36,6 +36,10 @@ class AutomationEngine:
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
         self.cors_settings_default = True
         self.cors_allowed_origins = []
+        self.oidc_issuer_url: str | None = None
+        self.oidc_audience: str = "acex"
+        self.oidc_jwks_ttl: int = 3600
+        self.oidc_verify_ssl: bool = True
         self.influxdb_settings = InfluxDBSettings.from_env()
         
         # create plugin instances.
@@ -134,6 +138,13 @@ class AutomationEngine:
 
     def add_configmap_dir(self, dir_path: str):
         self.config_compiler.add_config_map_path(dir_path)
+
+    def set_oidc(self, issuer_url: str, audience: str = "acex", jwks_ttl: int = 3600, verify_ssl: bool = True):
+        """Configure OIDC/JWT authentication. Call before create_app()."""
+        self.oidc_issuer_url = issuer_url
+        self.oidc_audience = audience
+        self.oidc_jwks_ttl = jwks_ttl
+        self.oidc_verify_ssl = verify_ssl
 
     def add_cors_allowed_origin(self, origin: str):
         self.cors_settings_default = False
