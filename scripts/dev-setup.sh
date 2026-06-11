@@ -34,32 +34,25 @@ echo ""
 echo -e "${BLUE}Installing packages with Poetry${NC}"
 echo ""
 
-# Install backend
-echo -e "${YELLOW}Backend:${NC}"
-cd "$PROJECT_ROOT/backend"
-poetry install
-echo -e "${GREEN}✓ Backend installed${NC}"
-echo ""
+install_package() {
+    local name=$1
+    local dir=$2
+    echo -e "${YELLOW}${name}:${NC}"
+    cd "$dir"
+    # Remove any existing env outside the project dir (e.g. from before virtualenvs.in-project was set)
+    if [ ! -d ".venv" ]; then
+        poetry env remove --all 2>/dev/null || true
+    fi
+    poetry install
+    echo -e "${GREEN}✓ ${name} installed${NC}"
+    echo ""
+}
 
-# Install CLI
-echo -e "${YELLOW}CLI:${NC}"
-cd "$PROJECT_ROOT/cli"
-poetry install
-echo -e "${GREEN}✓ CLI installed${NC}"
-echo ""
-
-# Install Worker
-echo -e "${YELLOW}Worker:${NC}"
-cd "$PROJECT_ROOT/worker"
-poetry install
-echo -e "${GREEN}✓ Worker installed${NC}"
-echo ""
-
-# Install MCP Server
-echo -e "${YELLOW}MCP Server:${NC}"
-cd "$PROJECT_ROOT/mcp"
-poetry install
-echo -e "${GREEN}✓ MCP Server installed${NC}"
+install_package "Devkit"     "$PROJECT_ROOT/devkit"
+install_package "Backend"    "$PROJECT_ROOT/backend"
+install_package "CLI"        "$PROJECT_ROOT/cli"
+install_package "Worker"     "$PROJECT_ROOT/worker"
+install_package "MCP Server" "$PROJECT_ROOT/mcp"
 echo ""
 
 cd "$PROJECT_ROOT"
@@ -69,19 +62,13 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}Development environment setup complete!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
-echo "To work on a specific package:"
+echo "Activate a package environment:"
 echo ""
-echo -e "${BLUE}Backend:${NC}"
-echo "  cd backend && poetry shell"
+echo -e "${BLUE}  cd backend  && source .venv/bin/activate${NC}"
+echo -e "${BLUE}  cd cli      && source .venv/bin/activate${NC}"
+echo -e "${BLUE}  cd worker   && source .venv/bin/activate${NC}"
+echo -e "${BLUE}  cd mcp      && source .venv/bin/activate${NC}"
+echo -e "${BLUE}  cd devkit   && source .venv/bin/activate${NC}"
 echo ""
-echo -e "${BLUE}CLI:${NC}"
-echo "  cd cli && poetry shell"
-echo ""
-echo -e "${BLUE}Worker:${NC}"
-echo "  cd worker && poetry shell"
-echo ""
-echo -e "${BLUE}MCP Server:${NC}"
-echo "  cd mcp && poetry shell"
-echo ""
-echo "Or run commands directly with:"
-echo "  cd backend && poetry run python script.py"
+echo "Switch environment:  deactivate && cd <pkg> && source .venv/bin/activate"
+echo "Run without activating:  cd backend && poetry run python script.py"
