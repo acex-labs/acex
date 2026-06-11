@@ -19,11 +19,18 @@ test_path = os.path.abspath(os.getcwd())
 #        speed = intf_data.get("speed")
 #        print(f"Interface type: {intf_type}, Max index: {max_index}, Speed: {speed}")
         
-def parse_model(hardware_model: str, model_dir: str) -> Dict[str, Any]:
+def get_model(hardware_model: str, model_dir: str) -> Dict[str, Any]:
     hardware_model = hardware_model.lower()
-    # Default path is:
-    # acex/drivers/cisco_ios_cli/src/acex_driver_cisco_ioscli/device_types/models
-    with open(os.path.join(model_dir, f"{hardware_model}.yaml")) as f:
+
+    filename = f"{hardware_model}.yaml"
+    filepath = os.path.join(model_dir, filename)
+
+    if os.path.exists(filepath):
+        model_file = filepath
+    else:
+        model_file = f"{model_dir}/cisco.yaml"
+
+    with open(model_file) as f:
         device_data = pyyaml.safe_load(f)
     return device_data
 

@@ -10,9 +10,9 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from .filters import cidr_to_addrmask
-from copy import deepcopy
+from .hardware_models import match_hardware_model
 
-from .device_types.resolver import parse_model
+from .device_types.resolver import get_model
 
 
 class GeneratorRegistry:
@@ -40,32 +40,26 @@ class GeneratorRegistry:
 
 class CiscoIOSCLIRenderer(RendererBase):
 
+    @property
+    def _model_directory(self) -> str:
+        """Return the directory path for Cisco models."""
+        package_dir = os.path.dirname(__file__)
+        return os.path.join(package_dir, "device_types/models")
+
     def _load_template_file(self, asset) -> str:
         """Load a Jinja2 template file."""
         # handle cluster and single assets.
-        if hasattr(asset, "assets"):
-            first_asset = asset.assets[0]
-        else:
-            first_asset = asset
-
-        if first_asset.hardware_model == "vios_l2":
-            template_name = "template_virtual.j2"
-        else:
-            template_name = "template.j2"
+        template_name = "template.j2"
 
         path = Path(__file__).parent
         env = Environment(
             loader=FileSystemLoader(path), undefined=StrictUndefined
         )  # StrictUndefined to catch undefined variables, testing
-        # env = Environment(loader=FileSystemLoader(path), trim_blocks=True, lstrip_blocks=True) # För att slippa ha "-" i "{%-"
+
         env.filters["cidr_to_addrmask"] = cidr_to_addrmask
         template = env.get_template(template_name)
         return template
 
-    def _model_directory(self) -> str:
-        """Return the directory path for Cisco models."""
-        package_dir = os.path.dirname(__file__)
-        return os.path.join(package_dir, "device_types/models")
 
     def _register(self):
         """
@@ -231,93 +225,16 @@ class CiscoIOSCLIRenderer(RendererBase):
 
         return config
 
-    def _interface_merge_key(self, old_key, intf):
-        """
-        Return a safe dictionary key for merging interfaces.
-    
-        Prefer generated intf["name"], but fall back to old_key if name is missing
-        or is not a hashable/simple value.
-    
-        intf["name"] may sometimes be an ACEX-style dict:
-            {"value": "...", "metadata": ...}
-    
-        So we use _get_field_value() before using it as a key.
-        """
-    
-        name = self._get_field_value(intf.get("name"))
-    
-        if name is None:
-            return old_key
-    
-        if isinstance(name, (str, int)):
-            return str(name)
-    
-        # Defensive fallback for unexpected dict/list/etc.
-        return old_key
-
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
 
-        if hasattr(asset, "assets"):
-            # change to logging output later, print for testing
-            #print("Pre-processing clustered asset")
+        # Render physical interface config
+        self._render_frontpanel_ports(configuration, asset)
 
-            original_interfaces = deepcopy(configuration.get("interfaces", {}))
-
-            # Keep non-physical interfaces once.
-            # Example: VLANs, Port-channels, loopbacks, SVIs, etc.
-            merged_interfaces = {
-                old_key: deepcopy(intf)
-                for old_key, intf in original_interfaces.items()
-                if intf.get("type") != "ethernetCsmacd"
-            }
-
-            for cl_asset in asset.assets:
-                # change to logging output later, print for testing
-                #print(f"Pre-processing asset in cluster {cl_asset}")
-
-                model_data = parse_model(
-                    cl_asset.hardware_model,
-                    self._model_directory(),
-                )
-
-                # Work on a fresh copy for each stack member.
-                per_asset_configuration = deepcopy(configuration)
-                per_asset_configuration["interfaces"] = deepcopy(original_interfaces)
-
-                per_asset_configuration = self._physical_interfaces(
-                    per_asset_configuration,
-                    model_data,
-                    cl_asset,
-                )
-
-                # Merge only physical interfaces from this stack member.
-                for old_key, intf in per_asset_configuration.get("interfaces", {}).items():
-                    if intf.get("type") != "ethernetCsmacd":
-                        continue
-
-                    new_key = self._interface_merge_key(old_key, intf)
-                    merged_interfaces[new_key] = intf
-
-            configuration["interfaces"] = merged_interfaces
-
-        else:
-            # change to logging output later, print for testing
-            #print(f"Pre-processing single asset {asset}")
-
-            model_data = parse_model(
-                asset.hardware_model,
-                self._model_directory(),
-            )
-
-            configuration = self._physical_interfaces(
-                configuration,
-                model_data,
-                asset,
-            )
-
+        # configuration = self._new_phys_inter_names(configuration, model_data)
         self._ssh_interface(configuration)
         self._logging_trap_severity(configuration)
+        # print('configuration after physical interface name resolution: ', configuration)
         # self.add_vrf_to_intefaces(configuration)
         # self.ssh_interface(configuration)
         # self.lacp_load_balancing(configuration)
@@ -330,201 +247,221 @@ class CiscoIOSCLIRenderer(RendererBase):
         configuration["asset"] = {"version": os_version}
         return configuration
 
-    def _get_field_value(self, raw_value, default=None):
+    def _render_frontpanel_ports(self, configuration, asset):
         """
-        This helper function is used to extract the actual value from a field that may be in 
-        the ACEX format {"value": ..., "metadata": ...} or may be a raw value. 
-        It also handles default values if the field is not set or is None.
+        Entry method for rendering frontpanel interfaces. 
+        If asset.type is cluster or single asset, this 
+        method resolves and loops accordingly. 
         """
-        if isinstance(raw_value, dict):
-            return raw_value.get("value", default)
-        if raw_value is None:
-            return default
-        return raw_value
+        if asset.type == "asset":
+            model_data = get_model(asset.hardware_model, self._model_directory)
+            port_slots = self._render_frontpanel_port_slots(0, configuration, model_data)
+            configuration = self._update_frontpanel_ports(configuration, port_slots)
+        elif asset.type == "asset_cluster":
+            all_slots = []
+            for stack_index, asset in enumerate(asset.assets):
+                model_data = get_model(asset.hardware_model, self._model_directory)
+                all_slots.extend(self._render_frontpanel_port_slots(stack_index, configuration, model_data))
 
-    def _get_internal_stack_index_for_asset(
-        self,
-        interface_stack_index,
-        asset_cluster_index,
-    ):
+            configuration = self._update_frontpanel_ports(configuration, all_slots)
+
+
+
+    def _render_frontpanel_port_slots(self, stack_index, configuration, model_data):
         """
-        Decide whether the current interface belongs to the current asset.
-
-        Rules:
-        - configuration stack_index is always internal zero-based.
-        - standalone assets are treated as internal stack 0.
-        - stacked assets use asset.cluster_index: 0, 1, 2, ...
-
-        Returns:
-            int:
-                Internal stack index to use.
-
-            None:
-                Interface does not belong to this asset.
+        Build a list of "interface slots". These slots are to be filled with config
+        from configuration, such as speed, before passed to template rendering.
         """
 
-        # Standalone asset
-        if asset_cluster_index is None:
-            # If stack_index is missing, treat standalone as stack 0.
-            if interface_stack_index is None:
-                return 0
+        intf_slots = []
 
-            # Standalone asset should only process internal stack 0.
-            if interface_stack_index != 0:
-                return None
+        interface_pattern = model_data["name_pattern"]
+        prefix_map = model_data["prefix_map"]
+        idx_start = model_data["interface_index_start"]
+        midx_start = model_data["module_index_start"]
+        for interface_slot in model_data["interfaces"]:
 
-            return 0
+            # Get prefix based on configured speed
+            speed = self._get_configured_speed(configuration, interface_slot)
+            prefix = prefix_map.get(speed)
 
-        # Stacked asset
-        if interface_stack_index is not None and interface_stack_index != asset_cluster_index:
-            return None
+            # Compile full interface name
+            ifname = self._compile_interface_name(prefix, stack_index, interface_pattern, idx_start, midx_start, interface_slot)
 
-        return asset_cluster_index
+            intf_slots.append({
+                "name": ifname,
+                "index": interface_slot["index"],
+                "module_index": interface_slot["module_index"],
+                "stack_index": stack_index
+                })
 
-    def _physical_interfaces(self, configuration: dict, model_data: dict, asset):
+        return intf_slots
+
+
+    def _update_frontpanel_ports(self, configuration, slots):
         """
-        Pre-process physical interfaces to have correct names based on model definition and config.
+        Fetch corresponding configuration for each frontpanel port slot.
+        """
+        interfaces_without_slots = []
 
-        Important rules:
-        - configuration stack_index/module_index/index always start at 0.
-        - asset.cluster_index always starts at 0 for stacked assets.
-        - model.yaml module_index/index may start at 0 or 1 depending on the Cisco model.
-        - stack_index_start/module_index_start/interface_index_start are used to convert
-          internal config values into rendered/model-facing values.
+        for k,v in configuration["interfaces"].items():
+            if v["type"] == "ethernetCsmacd":
+                idx = v.get("index", {}).get("value")
+                midx = v.get("module_index") or 0
+                # sidx = v.get("stack_index") or 0
+                sidx = v["stack_index"]["value"]
+
+                slot = self._get_slot(idx, midx, sidx, slots)
+
+                if slot is None:
+                    interfaces_without_slots.append(k)
+                else:
+                    v["name"] = slot["name"]
+
+        for interface in interfaces_without_slots:
+            configuration["interfaces"].pop(interface)
+
+        return configuration
+
+
+    def _get_slot(self, index, module_index, stack_index, slots):
+        """ Extracts a slot definition or None"""
+        for slot in slots:
+            if slot["index"] == index and slot["module_index"] == module_index and slot["stack_index"] == stack_index:
+                return slot
+        return None
+
+
+    def _compile_interface_name(self, prefix, stack_index, pattern, idx_start, midx_start, interface_slot):
+        """
+        Compiles full interface name from device_types/models file 
         """
 
+        name = pattern.format_map({
+            "prefix": prefix,
+            "stack_index": stack_index+1,
+            "module_index":  interface_slot.get("module_index") + midx_start,
+            "index":  interface_slot.get("index")
+        })
+
+        return name
+        
+
+    def _get_configured_speed(self, configuration: dict, interface_slot: dict):
+        """ extract configured interface speed from config map """
+
+        for k,v in configuration["interfaces"].items():
+            configured_speed = v.get('speed', {}).get('value', 1000000) 
+
+        return configured_speed
+
+
+
+
+
+
+
+
+
+
+
+
+    def _new_phys_inter_names(self, config, model_data):
+        interfaces = config.get("interfaces", {})
         name_pattern = model_data.get(
-            "name_pattern",
-            "{prefix}{stack_index}/{module_index}/{index}",
+            "name_pattern", "{prefix}{stack_index}/{module_index}/{index}"
         )
-
         stack_index_start = model_data.get("stack_index_start", 0)
         module_index_start = model_data.get("module_index_start", 0)
         interface_index_start = model_data.get("interface_index_start", 0)
-
         model_interfaces = model_data.get("interfaces", [])
         prefix_map = model_data.get("prefix_map") or {}
-
         used_model_interfaces = set()
-        interfaces_without_slots = []
+        ethernet_interfaces = [
+            (intf_name, intf)
+            for intf_name, intf in interfaces.items()
+            if intf["type"] == "ethernetCsmacd"
+        ]
 
-        for intf_name, intf in configuration.get("interfaces", {}).items():
-            if intf.get("type") != "ethernetCsmacd":
-                continue
-
-            interface_stack_index = self._get_field_value(intf.get("stack_index"))
-            asset_cluster_index = getattr(asset, "cluster_index", None)
-
-            # Internal stack ownership check.
-            # This is NOT rendered/model-facing.
-            sidx = self._get_internal_stack_index_for_asset(
-                interface_stack_index,
-                asset_cluster_index,
+        for intf_name, intf in ethernet_interfaces:
+            raw_stack_index = intf.get("stack_index")
+            intf_stack_index = (
+                raw_stack_index.get("value")
+                if isinstance(raw_stack_index, dict)
+                else raw_stack_index
+            )
+            raw_module_index = intf.get("module_index")
+            intf_module_index = (
+                raw_module_index.get("value")
+                if isinstance(raw_module_index, dict)
+                else raw_module_index
+            )
+            raw_index = intf.get("index")
+            intf_index = (
+                raw_index.get("value") if isinstance(raw_index, dict) else raw_index
+            )
+            raw_speed = intf.get("speed")
+            intf_speed = (
+                raw_speed.get("value") if isinstance(raw_speed, dict) else raw_speed
             )
 
-            if sidx is None:
-                interfaces_without_slots.append(intf_name)
-                continue
-
-            # Configuration values are always internal zero-based.
-            midx = self._get_field_value(intf.get("module_index"), default=0)
-            idx = self._get_field_value(intf.get("index"))
-            speed = self._get_field_value(intf.get("speed"), default=1000000)
-
-            prefix = self._get_prefix(prefix_map, speed)
+            prefix = prefix_map.get(intf_speed)
 
             if prefix is None:
-                interfaces_without_slots.append(intf_name)
+                if not isinstance(intf.get("name"), str):
+                    interfaces.pop(intf_name, None)
                 continue
 
-            # Used to track if we found a matching model interface for this config interface.
-            matched_model_interface = False
-
             for model_intf in model_interfaces:
-
                 if model_intf is None:
                     continue
 
-                if speed not in model_intf.get("speed_capabilities", []):
-                    continue
-
-                # Convert internal config values to model/rendered-facing values.
-                render_sidx = sidx + stack_index_start
-                render_midx = (
-                    midx + module_index_start
-                    if midx is not None
-                    else None
-                )
-                render_idx = (
-                    idx + interface_index_start
-                    if idx is not None
-                    else None
-                )
-
-                # Duplicate tracking should use the same coordinate system as matching:
-                # rendered/model-facing values.
                 model_interface_values = (
-                    render_sidx,
+                    model_intf.get("stack_index"),
                     model_intf.get("module_index"),
                     model_intf.get("index"),
                 )
 
-                # If we've already matched a config interface to this model interface, skip to avoid duplicates in merged config.
                 if model_interface_values in used_model_interfaces:
                     continue
 
-                # model.yaml module_index/index are model/rendered-facing.
-                # Therefore compare rendered config values to model values.
-                if (
-                    render_idx == model_intf.get("index")
-                    and render_midx == model_intf.get("module_index")
-                ):
+                if intf_speed not in model_intf.get("speed_capabilities", []):
+                    continue
+                
+                #if "name_pattern" in model_intf:
+                #if "mgmt_only" in model_intf and model_intf["mgmt_only"]:
+                #    continue
 
-                    index_data = {
-                        "stack_index": render_sidx,
-                        "module_index": render_midx,
-                        "index": render_idx,
-                    }
+                if intf_stack_index is not None:
+                    expected_stack_index = intf_stack_index + stack_index_start
+                    if model_intf.get("stack_index") != expected_stack_index:
+                        continue
 
-                    intf["name"] = self._generate_inter_name(
-                        index_data,
-                        name_pattern,
-                        prefix,
-                    )
+                if intf_module_index is not None:
+                    expected_module_index = intf_module_index + module_index_start
+                    if model_intf.get("module_index") != expected_module_index:
+                        continue
 
-                    used_model_interfaces.add(model_interface_values)
-                    matched_model_interface = True
-                    break
+                if intf_index is not None:
+                    expected_index = intf_index + interface_index_start
+                    if model_intf.get("index") != expected_index:
+                        continue
+                
+                intf["name"] = name_pattern.format(
+                    prefix=prefix,
+                    stack_index=model_intf.get("stack_index"),
+                    module_index=model_intf.get("module_index"),
+                    index=model_intf.get("index"),
+                )
+                used_model_interfaces.add(model_interface_values)
+                break
 
-            if not matched_model_interface:
-                interfaces_without_slots.append(intf_name)
+            if not isinstance(intf.get("name"), str):
+                interfaces.pop(intf_name, None)
 
-        for interface in interfaces_without_slots:
-            configuration["interfaces"].pop(interface, None)
-
-        return configuration
-
-    def _get_prefix(self,prefix_map, speed):
-        for k, v in prefix_map.items():
-            if k == speed:
-                return v
-        return None
-
-    def _generate_inter_name(self, index_data, name_pattern, prefix):
-        if "stack_index" in name_pattern:
-            name = name_pattern.format(
-                prefix=prefix,
-                stack_index=index_data.get("stack_index"),
-                module_index=index_data.get("module_index"),
-                index=index_data.get("index"),
-            )
-        else:
-            name = name_pattern.format(
-                prefix=prefix,
-                module_index=index_data.get("module_index"),
-                index=index_data.get("index"),
-            )
-        return name
+        # if isinstance(intf['name'], dict):
+        #    stop
+        return config
 
     def ssh_interface(self, configuration):
         """Process SSH interface configurations if needed."""
