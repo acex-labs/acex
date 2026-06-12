@@ -89,6 +89,12 @@ class CredentialManager:
             ],
         )
 
+    def _remove_credential_link(self, session, model, filters: list) -> None:
+        deleted = session.query(model).filter(*filters).delete()
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        session.commit()
+
     def _save_fields(self, session, credential_id: int, credential_type: str, fields: Dict[str, str]) -> List[CredentialField]:
         """Save fields based on type definition. Sensitivity is derived from the type."""
         type_fields = self._get_type_fields(credential_type)
@@ -232,12 +238,6 @@ class CredentialManager:
             credential_type=cred.credential_type,
             fields=fields,
         )
-
-    def _remove_credential_link(self, session, model, filters: list) -> None:
-        deleted = session.query(model).filter(*filters).delete()
-        if not deleted:
-            raise HTTPException(status_code=404, detail="Assignment not found")
-        session.commit()
 
     # ── Node ↔ Credential mapping ────────────────────────────────
 
