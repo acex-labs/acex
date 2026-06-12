@@ -225,18 +225,30 @@ class CiscoIOSCLIRenderer(RendererBase):
 
         return config
 
+    def _add_vrf_to_intefaces(self, config):
+        """
+        Loops all network_instances and add vrf definition to
+        referenced interfaces
+        """
+        vrfs = config["network_instances"]
+        for vrf_name, vrf in vrfs.items():
+            if vrf["name"]["value"] == "global":
+                ...
+            else:
+                for _, interface in vrf["interfaces"].items():
+                    ref_path = interface['pointer']
+                    if isinstance(ref_path, str) and ref_path:
+                        intf = config["interfaces"][ref_path.split(".")[1]]
+                        intf["vrf"] = vrf["name"]["value"]
+
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
 
         # Render physical interface config
+        self._add_vrf_to_intefaces(configuration)
         self._render_frontpanel_ports(configuration, asset)
-
-        # configuration = self._new_phys_inter_names(configuration, model_data)
         self._ssh_interface(configuration)
         self._logging_trap_severity(configuration)
-        # print('configuration after physical interface name resolution: ', configuration)
-        # self.add_vrf_to_intefaces(configuration)
-        # self.ssh_interface(configuration)
         # self.lacp_load_balancing(configuration)
 
         if hasattr(asset, "assets"):
@@ -363,52 +375,3 @@ class CiscoIOSCLIRenderer(RendererBase):
             configured_speed = v.get('speed', {}).get('value', 1000000) 
 
         return configured_speed
-
-
-
-    def ssh_interface(self, configuration):
-        """Process SSH interface configurations if needed."""
-        ssh = configuration.get("system", {}).get("ssh")
-        if not ssh:
-            return
-
-        # Resolve the referenced interface name from ref_path
-        # Add checks for path as it might be that it has not been set
-        ssh_config = ssh.get("config") or {}
-        ref = ssh_config.get("source_interface")
-        if ref is not None:
-            ref_path = ref.get("pointer")
-            if isinstance(ref_path, str) and ref_path:
-                # if not ref_path:
-                #    return
-
-                ref_name = ref_path.split(".")[1]
-                intf = configuration.get("interfaces", {}).get(ref_name)
-                if not intf:
-                    return
-
-                vlan_id = intf.get("vlan_id")
-                if vlan_id is None:
-                    return
-
-                ssh_interface = f"Vlan{vlan_id}"
-                # Store resolved interface for template use if needed
-                ssh["config"]["source_interface"] = ssh_interface
-
-    def add_vrf_to_intefaces(self, config):
-        """
-        Loops all network_instances and add vrf definition to
-        referenced interfaces
-        """
-        vrfs = config["network_instances"]
-        for vrf_name, vrf in vrfs.items():
-            if vrf["name"]["value"] == "global":
-                ...
-            else:
-                for _, interface in vrf["interfaces"].items():
-                    # ref_path = interface["metadata"]["ref_path"]
-                    metadata = interface.get("metadata") or {}
-                    ref_path = metadata.get("ref_path")
-                    if isinstance(ref_path, str) and ref_path:
-                        intf = config["interfaces"][ref_path.split(".")[1]]
-                        intf["vrf"] = vrf["name"]["value"]
