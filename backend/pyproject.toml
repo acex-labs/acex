@@ -37,6 +37,9 @@ acex-devkit = { path = "../devkit", develop = true }
 acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }
 acex-driver-juniper-junoscli = { path = "../drivers/juniper_junos_cli", develop = true }
 
+[tool.pytest.ini_options]
+python_functions = ["test_*", "should_*", "when_*"]
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

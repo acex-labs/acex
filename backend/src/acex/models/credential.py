@@ -35,6 +35,13 @@ class NodeCredential(SQLModel, table=True):
     credential_id: int = Field(foreign_key="credential.id", index=True)
 
 
+class SiteCredential(SQLModel, table=True):
+    """Maps credentials to sites (e.g. SNMP community string per site)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    site_name: str = Field(index=True)
+    credential_id: int = Field(foreign_key="credential.id", index=True)
+
+
 # ── Type definitions (field_name → sensitive) ───────────────────
 
 CREDENTIAL_TYPE_FIELDS = {
@@ -112,6 +119,18 @@ class NodeCredentialCreate(SQLModel):
 class NodeCredentialResponse(SQLModel):
     id: int
     node_id: int
+    credential_id: int
+    credential_name: Optional[str] = None
+    credential_type: Optional[str] = None
+
+
+class SiteCredentialCreate(SQLModel):
+    credential_id: int
+
+
+class SiteCredentialResponse(SQLModel):
+    id: int
+    site_name: str
     credential_id: int
     credential_name: Optional[str] = None
     credential_type: Optional[str] = None
