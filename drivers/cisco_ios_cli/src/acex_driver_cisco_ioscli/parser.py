@@ -274,17 +274,11 @@ class CiscoIOSCLIParser:
     def parse_interfaces(self) -> None:
         """Parse physical interfaces."""
         command = "show running physical interfaces"
-
-        test_running = self.load_running_config(
-            "/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt"
-        )
-
         parsed_data = parse_output(
             platform=self.platform,
             template_dir=self.custom_templates_dir,
             command=command,
-            # data=self.running_config,
-            data=test_running,  # Using this for testing with a static config file, replace with self.running_config for actual use
+            data=self.running_config,
         )
 
         dhcp_snooping_dict = {}
@@ -873,7 +867,6 @@ class CiscoIOSCLIParser:
 #            template_dir=self.custom_templates_dir,
 #            command=command,
 #            data=self.running_config,
-#            # data=self.load_running_config("/Users/jani/scripts/acex/docs/examples/test_run/sample_running.txt") # Using this for testing with a static config file, replace with self.running_config for actual use
 #        )
 #
 #        # SNMP parsing logic would go here, similar to NTP and SSH parsing
