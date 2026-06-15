@@ -40,13 +40,16 @@ ae.set_influxdb(
 ae.add_integration("ipam", netbox)
 ae.add_configmap_dir("config_maps")
 
+
 # AI OPS
 ae.ai_ops(
     enabled=True,
     base_url=os.getenv("ACEX_AI_API_BASEURL"),
     api_key=os.getenv("ACEX_AI_API_KEY"),
-    mcp_server_url=os.getenv("ACEX_MCP_URL")
+    model="moonshotai/Kimi-K2.6",
+    mcp_server_url="http://localhost:8000/mcp"
 )
+
 
 # CORS
 ae.add_cors_allowed_origin("*")

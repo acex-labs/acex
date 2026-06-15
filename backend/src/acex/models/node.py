@@ -42,6 +42,7 @@ class NodeListResponse(NodeBase):
     # Denormalized from logical_node
     hostname: Optional[str] = None
     site: Optional[str] = None
+    role: Optional[str] = None
     regions: list[str] = []
     # Denormalized from asset
     vendor: Optional[str] = None

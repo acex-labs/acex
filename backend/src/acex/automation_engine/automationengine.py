@@ -130,6 +130,7 @@ class AutomationEngine:
     ):
         if enabled is True:
             if api_key is None or base_url is None or mcp_server_url is None:
+                print(api_key)
                 print("AI OPs is enabled, but missing parameters!")
                 return None
             # Lazy import - only load when AI ops is actually enabled

@@ -33,6 +33,12 @@ def create_router(automation_engine):
         tags=tags
     )
     router.add_api_route(
+        "/device_configs/{node_instance_id}/diff",
+        dcm.diff_configs,
+        methods=["GET"],
+        tags=tags
+    )
+    router.add_api_route(
         "/device_configs/{node_instance_id}/{hash}",
         dcm.get_config_by_hash,
         methods=["GET"],
