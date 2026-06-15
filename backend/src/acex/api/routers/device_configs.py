@@ -30,8 +30,7 @@ def create_router(automation_engine):
         "/device_configs/{node_instance_id}/latest",
         dcm.get_latest_config,
         methods=["GET"],
-        tags=tags,
-        response_model_exclude_none=True,
+        tags=tags
     )
     router.add_api_route(
         "/device_configs/{node_instance_id}/{hash}",
