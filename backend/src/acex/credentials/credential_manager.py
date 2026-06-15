@@ -354,6 +354,19 @@ class CredentialManager:
                 SiteCredential.credential_id == credential_id,
             ])
 
+    def get_node_community(self, node_id: int) -> Optional[str]:
+        """Return the SNMP community string assigned to a node, or None if not set."""
+        with self._session() as session:
+            link = session.query(NodeCredential).filter(
+                NodeCredential.node_id == node_id,
+            ).join(Credential, Credential.id == NodeCredential.credential_id).filter(
+                Credential.credential_type == "snmp_community",
+            ).first()
+            if link is None:
+                return None
+            secret = self.get_secret(link.credential_id)
+            return secret.fields.get("community")
+
     def get_site_community(self, site_name: str) -> str:
         """Return the SNMP community string assigned to a site, or 'public' if none."""
         with self._session() as session:
