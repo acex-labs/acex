@@ -131,7 +131,6 @@ class CiscoIOSCLIParser:
                 source_vlan_id = int(source_interface.replace("Vlan", ""))
 
             for intf_name, intf in self.parsed_config.interfaces.items():
-                print('intf: ', intf)
                 intf_type = (
                     intf.get("type")
                     if isinstance(intf, dict)
@@ -161,11 +160,7 @@ class CiscoIOSCLIParser:
 
     def parse(self, configuration: str) -> dict:
         """Parse the Cisco IOS CLI configuration content."""
-        test_running = self.load_running_config(
-            "/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt"
-        )
-        # self.running_config = configuration
-        self.running_config = test_running  # Using this for testing with a static config file, replace with configuration for actual use
+        self.running_config = configuration
         self.parse_system_settings()
         self.parse_interfaces()
         self.parse_l3_interfaces()
@@ -292,11 +287,6 @@ class CiscoIOSCLIParser:
             data=test_running,  # Using this for testing with a static config file, replace with self.running_config for actual use
         )
 
-        # print('&'*100)
-        # print('&'*100)
-        # print('parsed_data: ', parsed_data)
-        # print('&'*100)
-        # print('&'*100)
         dhcp_snooping_dict = {}
         dhcp_snooping_dict["snooping"] = {}
         dhcp_snooping_dict["snooping"]["trust_interfaces"] = {}
@@ -337,7 +327,6 @@ class CiscoIOSCLIParser:
             # DHCP snooping trust
             if intf.get("snooping"):
                 trust_inter_dict = {}
-                print("intf.name: ", intf["name"])
                 trust_inter_dict[intf["name"]] = ReferenceTo(
                     pointer=f"interfaces.{intf['name']}"
                 )
@@ -356,11 +345,7 @@ class CiscoIOSCLIParser:
         # }
         # dhcp_snooping_dict["snooping"]['trust_interfaces'] = dhcp_trusted_interfaces#DHCPSnoopingAttributes(**dhcp_trusted_interfaces)
         # self.parsed_config.system.dhcp.snooping.trust_interfaces = dhcp_trusted_interfaces
-        print("+" * 100)
-        print("+" * 100)
-        print("dhcp_snooping_dict: ", dhcp_snooping_dict)
-        print("+" * 100)
-        print("+" * 100)
+
         interfaces_dict = {
             intf["name"]: EthernetCsmacdInterface(index=index, **intf)
             for index, intf in enumerate(parsed_data)
@@ -479,14 +464,6 @@ class CiscoIOSCLIParser:
             command=command,
             data=self.running_config,
         )
-
-        # print('='*100)
-        # print('self.running_config:', self.running_config)
-        # print('='*100)
-        # with open("/Users/jani/scripts/acex/docs/examples/example2/node4_running.txt", "w") as f:
-        #    f.write(self.running_config)
-        #
-        # print('parsed_data: ',parsed_data)
 
         ## DNS parsing logic would go here, similar to NTP and SSH parsing
         # address
