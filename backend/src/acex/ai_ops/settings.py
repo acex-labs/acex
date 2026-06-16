@@ -2,6 +2,15 @@
 Default settings for AI Operations
 """
 
+# ── Token limits ─────────────────────────────────────────────────
+
+# Max tokens for config diff analysis. Reasoning models (e.g. Kimi-K2, DeepSeek-R1)
+# consume thinking tokens before producing output, so this needs to be generous.
+ANALYSIS_MAX_TOKENS = 4096
+
+# Max tokens for interactive chat (/ai/ask/). No limit by default — let the model decide.
+CHAT_MAX_TOKENS = None
+
 # ── Config analysis prompts ──────────────────────────────────────
 
 CONFIG_ANALYSIS_SYSTEM_PROMPT = """\

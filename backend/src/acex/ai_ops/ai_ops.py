@@ -2,11 +2,11 @@ import json
 from openai import AsyncOpenAI
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
-from .settings import DEFAULT_SYSTEM_PROMPTS, CONFIG_ANALYSIS_SYSTEM_PROMPT, CONFIG_ANALYSIS_TASK_PROMPTS
+from .settings import DEFAULT_SYSTEM_PROMPTS, CONFIG_ANALYSIS_SYSTEM_PROMPT, CONFIG_ANALYSIS_TASK_PROMPTS, ANALYSIS_MAX_TOKENS, CHAT_MAX_TOKENS
 
 class AIOpsManager:
     
-    def __init__(self, api_key: str = None, base_url: str = None, mcp_server_url: str = "http://localhost:8000/mcp", model: str = "openai/gpt-oss-120b", system_prompt: str | list[str] = None):
+    def __init__(self, api_key: str = None, base_url: str = None, mcp_server_url: str = "http://localhost:8000/mcp", model: str = "openai/gpt-oss-120b", system_prompt: str | list[str] = None, analysis_max_tokens: int = 4096):
         """
         Initialize AI Ops Manager with OpenAI client and MCP server.
 
@@ -80,18 +80,27 @@ class AIOpsManager:
             {"role": "user", "content": user_prompt},
         ]
 
-        stream = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            stream=True,
-            max_tokens=300,
-        )
+        import sys
+        print(f"[AI] analyze_config_diff: task={task} model={self.model} diff_len={len(diff)}", flush=True, file=sys.stderr)
+        try:
+            stream = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                stream=True,
+                max_tokens=ANALYSIS_MAX_TOKENS,
+            )
+        except Exception as exc:
+            print(f"[AI] create() failed: {type(exc).__name__}: {exc}", flush=True, file=sys.stderr)
+            raise
 
+        chunk_count = 0
         async for chunk in stream:
             if chunk.choices:
                 delta = chunk.choices[0].delta
                 if delta.content:
+                    chunk_count += 1
                     yield delta.content
+        print(f"[AI] stream done, yielded {chunk_count} chunks", flush=True, file=sys.stderr)
 
     async def ask(self, prompt: str, conversation_history: list[dict] = None):
         """Stream AI response with tool calling support and conversation history

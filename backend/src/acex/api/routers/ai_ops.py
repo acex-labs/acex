@@ -70,7 +70,7 @@ def create_router(automation_engine):
             try:
                 async for chunk in aiom.analyze_config_diff(request.task, request.diff, context):
                     yield f"data: {json.dumps({'content': chunk})}\n\n"
-            except ValueError as exc:
+            except Exception as exc:
                 yield f"data: {json.dumps({'error': str(exc)})}\n\n"
 
         return StreamingResponse(sse_stream(), media_type="text/event-stream")
