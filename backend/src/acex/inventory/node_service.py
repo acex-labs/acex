@@ -174,6 +174,7 @@ class NodeService:
                 **node.model_dump(),
                 hostname=node.logical_node.hostname if node.logical_node else None,
                 site=node.logical_node.site if node.logical_node else None,
+                role=node.logical_node.role if node.logical_node else None,
                 vendor=vendor,
                 os=os_val,
                 ned_id=ned_id,

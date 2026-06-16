@@ -47,6 +47,7 @@ class SiteService:
         display_name: str = None,
         city: str = None,
         country: str = None,
+        region: str = None,
         limit: int = 100,
         offset: int = 0,
     ) -> PaginatedResponse[SiteResponse]:
@@ -59,6 +60,13 @@ class SiteService:
                 "country": country,
             }.items() if v is not None
         }
+
+        if region and hasattr(self.inventory, "region_assignment_manager"):
+            assignments = self.inventory.region_assignment_manager.list_assignments(region_name=region)
+            site_names = [a.site_name for a in assignments]
+            if not site_names:
+                return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
+            query_filters["name"] = site_names
 
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
         items = [await self._enrich_data(s) for s in result["items"]]
