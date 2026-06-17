@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from sqlalchemy import select
 
-from acex.models import LogicalNode, LogicalNodeResponse, LogicalNodeListResponse, PaginatedResponse
+from acex.models import LogicalNode, LogicalNodeResponse, LogicalNodeListResponse, LogicalNodeConfigResponse, PaginatedResponse
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
 
@@ -37,21 +37,28 @@ class LogicalNodeService:
         result = await self._call_method(self.adapter.create, logical_node)
         return result
     
-    async def get(self, id: str, resolve: bool = False) -> LogicalNodeResponse:
+    async def _get_regions(self, site: str) -> list[str]:
+        if not site or not self.db_manager:
+            return []
+        session = next(self.db_manager.get_session())
+        try:
+            assignments = session.query(SiteRegionAssignment).filter(
+                SiteRegionAssignment.site_name == site
+            ).all()
+            return [a.region_name for a in assignments]
+        finally:
+            session.close()
+
+    async def get(self, id: str) -> LogicalNodeResponse:
         ln = await self._call_method(self.adapter.get, id)
-        ln = await self._apply_compilation(ln, resolve=resolve)
+        regions = await self._get_regions(ln.site if ln else None)
+        return LogicalNodeResponse(**ln.model_dump(), regions=regions)
 
-        if ln and ln.site and self.db_manager:
-            session = next(self.db_manager.get_session())
-            try:
-                assignments = session.query(SiteRegionAssignment).filter(
-                    SiteRegionAssignment.site_name == ln.site
-                ).all()
-                ln.regions = [a.region_name for a in assignments]
-            finally:
-                session.close()
-
-        return ln
+    async def get_configuration(self, id: str, resolve: bool = False) -> LogicalNodeConfigResponse:
+        ln = await self._call_method(self.adapter.get, id)
+        compiled = await self._apply_compilation(ln, resolve=resolve)
+        regions = await self._get_regions(ln.site if ln else None)
+        return compiled.config_response.model_copy(update={"regions": regions})
     
     async def query(
         self,

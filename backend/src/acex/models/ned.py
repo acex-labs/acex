@@ -1,9 +1,1 @@
-from pydantic import BaseModel
-
-
-class Ned(BaseModel):
-    name: str
-    package_name: str
-    version: str
-    description: str
-    filename: str
+from acex_devkit.models.ned import Ned  # noqa: F401

@@ -1,26 +1,16 @@
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional, Dict, Union, TYPE_CHECKING
-from enum import Enum
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 
-from acex.models import LogicalNodeResponse
-from acex.models import AssetResponse
-from acex.models.asset import AssetClusterResponse
+from acex_devkit.models.node_response import (
+    AssetRefType,
+    NodeStatus,
+    NodeResponse,
+    NodeListItem as NodeListResponse,
+)
 
 if TYPE_CHECKING:
     from acex.models.logical_node import LogicalNode
-
-
-class AssetRefType(str, Enum):
-    asset = "asset"
-    asset_cluster = "asset_cluster"
-
-
-class NodeStatus(str, Enum):
-    planned = "planned"
-    init = "init"
-    active = "active"
-    decommissioned = "decommissioned"
 
 
 class NodeBase(SQLModel):
@@ -28,6 +18,7 @@ class NodeBase(SQLModel):
     asset_ref_type: AssetRefType = AssetRefType.asset
     logical_node_id: int = Field(foreign_key="logicalnode.id")
     status: NodeStatus = Field(default=NodeStatus.planned)
+
 
 class Node(NodeBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -37,23 +28,12 @@ class Node(NodeBase, table=True):
         sa_relationship_kwargs={"lazy": "noload"}
     )
 
-class NodeListResponse(NodeBase):
-    id: int
-    # Denormalized from logical_node
-    hostname: Optional[str] = None
-    site: Optional[str] = None
-    role: Optional[str] = None
-    regions: list[str] = []
-    # Denormalized from asset
-    vendor: Optional[str] = None
-    os: Optional[str] = None
-    ned_id: Optional[str] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
 
-class NodeResponse(NodeBase):
-    asset: Union[AssetClusterResponse, AssetResponse]
-    logical_node: LogicalNodeResponse
-    regions: list[str] = []
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+__all__ = [
+    "Node",
+    "NodeBase",
+    "NodeStatus",
+    "AssetRefType",
+    "NodeResponse",
+    "NodeListResponse",
+]

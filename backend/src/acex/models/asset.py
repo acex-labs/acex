@@ -1,5 +1,15 @@
-from typing import Optional, Dict, List, Literal
+from typing import Optional
 from sqlmodel import SQLModel, Field, Relationship
+
+from acex_devkit.models.asset import (
+    Asset as AssetSchema,
+    AssetResponse,
+    AssetClusterBase as AssetClusterSchema,
+    AssetClusterCreate,
+    AssetClusterUpdate,
+    AssetClusterAssetResponse,
+    AssetClusterResponse,
+)
 
 
 class Ned(SQLModel, table=True):
@@ -7,14 +17,8 @@ class Ned(SQLModel, table=True):
     version: str = Field(default="0.0.1")
 
 
-class AssetBase(SQLModel):
+class AssetBase(AssetSchema, SQLModel):
     id: Optional[int] = Field(default=None, primary_key=True)
-    vendor: str = Field(default="cisco")
-    serial_number: str = Field(default="abc123")
-    os: str = Field(default="ios")
-    os_version: str = Field(default="12.0.1")
-    hardware_model: str = Field(default="")
-    ned_id: Optional[str] = None
 
 
 class AssetClusterLink(SQLModel, table=True):
@@ -30,17 +34,8 @@ class Asset(AssetBase, table=True):
     )
 
 
-class AssetClusterBase(SQLModel):
-    name: str
-    ned_id: Optional[str] = None
-
-class AssetClusterCreate(AssetClusterBase):
+class AssetClusterBase(AssetClusterSchema, SQLModel):
     pass
-
-class AssetClusterUpdate(SQLModel):
-    name: Optional[str] = None
-    ned_id: Optional[str] = None
-    asset_ids: Optional[list[int]] = None
 
 
 class AssetCluster(AssetClusterBase, table=True):
@@ -52,14 +47,16 @@ class AssetCluster(AssetClusterBase, table=True):
     )
 
 
-class AssetClusterAssetResponse(AssetBase):
-    cluster_index: Optional[int] = None
-
-
-class AssetClusterResponse(AssetClusterBase):
-    id: int
-    type: Literal["asset_cluster"] = "asset_cluster"
-    assets: list[AssetClusterAssetResponse] = []
-
-class AssetResponse(AssetBase):
-    type: Literal["asset"] = "asset"
+__all__ = [
+    "Ned",
+    "AssetBase",
+    "AssetClusterLink",
+    "Asset",
+    "AssetClusterBase",
+    "AssetCluster",
+    "AssetResponse",
+    "AssetClusterCreate",
+    "AssetClusterUpdate",
+    "AssetClusterAssetResponse",
+    "AssetClusterResponse",
+]

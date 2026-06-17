@@ -1,9 +1,7 @@
 
 from .asset import Asset, AssetCluster, AssetClusterLink, AssetResponse, Ned
-from .logical_node import LogicalNode, LogicalNodeResponse, LogicalNodeListResponse
+from .logical_node import LogicalNode, LogicalNodeResponse, LogicalNodeListResponse, LogicalNodeConfigResponse
 from .node import Node, NodeResponse, NodeListResponse, NodeStatus
-#from .external_value import ExternalValue
-#from .attribute_value import AttributeValue
 from acex_devkit.models import ExternalValue, AttributeValue
 from .device_config import StoredDeviceConfig, DeviceConfig, DeviceConfigResponse
 from .management_connections import ManagementConnection, ManagementConnectionResponse, ManagementConnectionBase
