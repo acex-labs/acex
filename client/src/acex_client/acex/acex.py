@@ -3,6 +3,8 @@ from acex_client.restclient.restclient import RestClient
 from acex_devkit.configdiffer.configdiffer import ConfigDiffer
 
 from .resources.node_instances import NodeInstances
+from .resources.credentials import Credentials
+
 
 
 class Acex:
@@ -17,5 +19,6 @@ class Acex:
         resolved_auth = auth or create_auth_provider()
         self.rest = RestClient(api_url=self.api_url, auth=resolved_auth, verify=verify)
 
+        self.credentials = Credentials(self.rest)
         self.node_instances = NodeInstances(self.rest)
         self.differ = ConfigDiffer()

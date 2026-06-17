@@ -7,7 +7,6 @@ _STORE_PATH = Path.home() / ".acex" / "token.json"
 
 def save(data: dict) -> None:
     _STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _STORE_PATH.chmod(0o700) if _STORE_PATH.parent.exists() else None
     _STORE_PATH.write_text(json.dumps(data))
     _STORE_PATH.chmod(0o600)
 

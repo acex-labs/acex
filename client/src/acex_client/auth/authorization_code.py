@@ -16,8 +16,9 @@ _REDIRECT_URI = f"http://localhost:{_CALLBACK_PORT}/callback"
 
 
 class AuthorizationCodeAuth(AuthProvider):
-    def __init__(self, client_id: str, issuer_url: str):
+    def __init__(self, client_id: str, issuer_url: str, verify_ssl: bool = True):
         self._client_id = client_id
+        self.verify_ssl = verify_ssl
         oidc = self._discover(issuer_url)
         self._auth_url = oidc["authorization_endpoint"]
         self._token_url = oidc["token_endpoint"]
@@ -62,6 +63,7 @@ class AuthorizationCodeAuth(AuthProvider):
                 "redirect_uri": _REDIRECT_URI,
                 "code_verifier": code_verifier,
             },
+            verify=self.verify_ssl
         )
         resp.raise_for_status()
         return self._store_and_return(resp.json())
@@ -116,9 +118,9 @@ class AuthorizationCodeAuth(AuthProvider):
         server.shutdown()
         return auth_code[0]
 
-    @staticmethod
-    def _discover(issuer_url: str) -> dict:
+
+    def _discover(self, issuer_url: str) -> dict:
         url = issuer_url.rstrip("/") + "/.well-known/openid-configuration"
-        resp = requests.get(url)
+        resp = requests.get(url, verify=self.verify_ssl)
         resp.raise_for_status()
         return resp.json()

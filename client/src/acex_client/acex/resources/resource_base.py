@@ -24,7 +24,7 @@ class Resource:
 
     @property
     def ep(self):
-        return self.__class__.ENDPOINT or ""
+        return self.__class__.ENDPOINT
 
     @property
     def list_model(self):

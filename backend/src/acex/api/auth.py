@@ -6,6 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 _PUBLIC_PATHS = {"/api/v1/auth/config"}
 from jose import jwt, JWTError
+from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 
 OIDC_ISSUER_URL = os.getenv("OIDC_ISSUER_URL")
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "acex")
@@ -72,6 +73,23 @@ def _decode(token: str) -> dict:
     )
 
 
+def _claims_error(exc: JWTError) -> HTTPException:
+    msg = str(exc).lower()
+    if isinstance(exc, ExpiredSignatureError):
+        detail = "Token has expired"
+    elif "audience" in msg:
+        detail = f"Invalid audience — expected '{OIDC_AUDIENCE}'"
+    elif "issuer" in msg:
+        detail = f"Invalid issuer — expected '{OIDC_ISSUER_URL}'"
+    else:
+        detail = f"Token claims invalid: {exc}"
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
@@ -82,6 +100,7 @@ def get_current_user(
     if request.url.path in _PUBLIC_PATHS:
         return {}
 
+
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -91,15 +110,19 @@ def get_current_user(
 
     try:
         return _decode(credentials.credentials)
-    except JWTError as exc:
-        # one retry with a fresh JWKS in case of key rotation
+    except (ExpiredSignatureError, JWTClaimsError) as exc:
+        raise _claims_error(exc)
+    except JWTError:
+        # Retry once with fresh JWKS in case of key rotation
         global _jwks
         _jwks = None
         try:
             return _decode(credentials.credentials)
-        except JWTError as exc2:
+        except (ExpiredSignatureError, JWTClaimsError) as exc:
+            raise _claims_error(exc)
+        except JWTError as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=str(exc),
+                detail="Invalid token signature",
                 headers={"WWW-Authenticate": "Bearer"},
             )
