@@ -1,7 +1,7 @@
 from typing import Callable, Union, Awaitable
 from acex.config_map import ConfigMap, ConfigMapContext
 import inspect
-from acex.models import LogicalNodeResponse
+from acex.models import LogicalNodeResponse, LogicalNodeConfigResponse
 from acex.configuration import Configuration
 import traceback
 import sys
@@ -21,15 +21,23 @@ class CompiledLogicalNode:
         self.integrations = integrations
 
     @property
-    def response(self):
-        response = self.logical_node.model_dump()
+    def response(self) -> LogicalNodeResponse:
+        return LogicalNodeResponse(**self.logical_node.model_dump())
+
+    @property
+    def config_response(self) -> LogicalNodeConfigResponse:
         compiled = self.processors == self.completed_processors
-        response["meta_data"] = {"compiled": compiled}
-        response["meta_data"]["registered_processors"] = [str(x.__self__.__class__) for x in self.processors]
-        response["meta_data"]["completed_processors"] = [str(x.__self__.__class__) for x in self.completed_processors]
-        response["meta_data"]["errors"] = self.errors
-        response["configuration"] = self.configuration.to_json()
-        return LogicalNodeResponse(**response)
+        meta_data = {
+            "compiled": compiled,
+            "registered_processors": [str(x.__self__.__class__) for x in self.processors],
+            "completed_processors": [str(x.__self__.__class__) for x in self.completed_processors],
+            "errors": self.errors,
+        }
+        return LogicalNodeConfigResponse(
+            **self.logical_node.model_dump(),
+            configuration=self.configuration.to_json(),
+            meta_data=meta_data,
+        )
 
     def check_config_map_filter(self, config_map: ConfigMap):
         """

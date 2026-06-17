@@ -1,21 +1,15 @@
 from sqlalchemy import Column, ForeignKey, Integer
 from sqlmodel import SQLModel, Field
-from typing import Optional, Dict
-from enum import Enum
+from typing import Optional
 
-class ConnectionType(Enum):
-    ssh = "ssh"
-    telnet = "telnet"
+from acex_devkit.models.management_connection import (
+    ManagementConnectionBase as ManagementConnectionSchema,
+    ManagementConnectionResponse,
+    ConnectionType,
+)
 
-class ManagementConnectionBase(SQLModel):
-    primary: bool = True
-    node_id: int
-    connection_type: ConnectionType = Field(default=ConnectionType.ssh)
-    target_ip: Optional[str] = None
 
-class ManagementConnection(ManagementConnectionBase, table=True):
-    __tablename__ = "mgmt_connection"
-    id: int = Field(primary_key=True)
+class ManagementConnectionBase(ManagementConnectionSchema, SQLModel):
     node_id: int = Field(
         sa_column=Column(
             Integer,
@@ -25,10 +19,12 @@ class ManagementConnection(ManagementConnectionBase, table=True):
         )
     )
 
-class ManagementConnectionResponse(ManagementConnection):
-    pass
+
+class ManagementConnection(ManagementConnectionBase, table=True):
+    __tablename__ = "mgmt_connection"
+    id: int = Field(primary_key=True)
+
 
 class DeviceManagement(SQLModel):
     asset_id: int
     logical_node_id: int
-

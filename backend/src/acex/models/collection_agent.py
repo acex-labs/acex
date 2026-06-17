@@ -2,12 +2,18 @@ from typing import Optional
 from sqlalchemy import Column, ForeignKey, Integer
 from sqlmodel import SQLModel, Field
 
+from acex_devkit.models.collection_agent import (
+    CollectionAgentBase as CollectionAgentSchema,
+    CollectionAgentMatchRuleBase as CollectionAgentMatchRuleSchema,
+    CollectionAgentMatchRuleResponse,
+    CollectionAgentResponse,
+    CollectionAgentCreate,
+    CollectionAgentUpdate,
+)
 
-class CollectionAgentBase(SQLModel):
-    name: str
-    description: Optional[str] = None
-    interval_seconds: int = 21600
-    enabled: bool = True
+
+class CollectionAgentBase(CollectionAgentSchema, SQLModel):
+    pass
 
 
 class CollectionAgent(CollectionAgentBase, table=True):
@@ -29,13 +35,12 @@ class CollectionAgentNodeLink(SQLModel, table=True):
     )
 
 
-class CollectionAgentMatchRuleBase(SQLModel):
-    region: Optional[str] = None
-    site: Optional[str] = None
-    vendor: Optional[str] = None
-    os: Optional[str] = None
-    status: Optional[str] = None
-    role: Optional[str] = None
+class CollectionAgentMatchRuleBase(CollectionAgentMatchRuleSchema, SQLModel):
+    pass
+
+
+class CollectionAgentMatchRuleCreate(CollectionAgentMatchRuleBase):
+    pass
 
 
 class CollectionAgentMatchRule(CollectionAgentMatchRuleBase, table=True):
@@ -43,38 +48,18 @@ class CollectionAgentMatchRule(CollectionAgentMatchRuleBase, table=True):
     collection_agent_id: int = Field(foreign_key="collectionagent.id")
 
 
-class CollectionAgentMatchRuleCreate(CollectionAgentMatchRuleBase):
-    pass
-
-
-class CollectionAgentMatchRuleResponse(CollectionAgentMatchRuleBase):
-    id: int
-
-
-class CollectionAgentCreate(SQLModel):
-    name: str
-    description: Optional[str] = None
-    interval_seconds: int = 21600
-    enabled: bool = True
-
-
-class CollectionAgentUpdate(SQLModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    interval_seconds: Optional[int] = None
-    enabled: Optional[bool] = None
-
-
 class CollectionAgentAck(SQLModel):
     config_revision: int
 
 
-class CollectionAgentResponse(CollectionAgentBase):
-    id: int
-    config_revision: int = 0
-    last_manifest_poll: Optional[str] = None
-    acked_revision: int = 0
-    acked_at: Optional[str] = None
-    nodes: list[int] = []
-    rules: list[CollectionAgentMatchRuleResponse] = []
-    resolved_nodes: list[int] = []
+__all__ = [
+    "CollectionAgent",
+    "CollectionAgentNodeLink",
+    "CollectionAgentMatchRule",
+    "CollectionAgentMatchRuleCreate",
+    "CollectionAgentCreate",
+    "CollectionAgentUpdate",
+    "CollectionAgentAck",
+    "CollectionAgentMatchRuleResponse",
+    "CollectionAgentResponse",
+]

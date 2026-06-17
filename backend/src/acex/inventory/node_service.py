@@ -50,8 +50,8 @@ class NodeService:
         Renderar konfigurationen för en nod instans.
         """
         ni = await self.get(id)
-        ln = await self.inventory.logical_nodes.get(ni.logical_node_id)
-        composed_config = ln.configuration
+        ln_config = await self.inventory.logical_nodes.get_configuration(ni.logical_node_id)
+        composed_config = ln_config.configuration
 
         asset = ni.asset
 
