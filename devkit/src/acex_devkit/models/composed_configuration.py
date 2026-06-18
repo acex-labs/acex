@@ -706,8 +706,14 @@ class aaaAuthenticationAdminUsers(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ()
     config: Optional[Dict[str, adminUser]] = {}
 
+class aaaAuthenticationConfig(ContainerEntry, Augmentable):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",) 
+    name: Optional[AttributeValue[str]] = None # ex. default, CONSOLE, etc.
+    methods: Optional[Dict[str, aaaAuthenticationMethods]] = {}
+
 class aaaAuthentication(BaseModel):
-    config: Optional[Dict[str, aaaAuthenticationMethods]] = {}
+    #config: Optional[Dict[str, aaaAuthenticationMethods]] = {}
+    config: aaaAuthenticationConfig = aaaAuthenticationConfig()
     admin_user: Optional[Dict[str, aaaAuthenticationAdminUsers]] = {}
     users: Optional[Dict[str, aaaAuthenticationUsers]] = {}
 
@@ -738,9 +744,17 @@ class aaaAuthorizationEvents(aaaBaseClass):
     #event: Optional[AttributeValue[List[str]]] = None
     event: Optional[AttributeValue[str]] = None
 
-class aaaAuthorization(BaseModel):
-    config: Optional[Dict[str, aaaAuthorizationMethods]] = {}
+class aaaAuthorizationConfig(ContainerEntry, Augmentable):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",) 
+    name: Optional[AttributeValue[str]] = None # ex. default, CONSOLE, etc.
+    methods: Optional[Dict[str, aaaAuthorizationMethods]] = {}
     events: Optional[Dict[str, aaaAuthorizationEvents]] = {}
+
+class aaaAuthorization(BaseModel):
+    #config: Optional[Dict[str, aaaAuthorizationMethods]] = {}
+    config: aaaAuthorizationConfig = aaaAuthorizationConfig()
+    #methods: Optional[Dict[str, aaaAuthorizationMethods]] = {}
+    #events: Optional[Dict[str, aaaAuthorizationEvents]] = {}
 
 # Accounting Models
 class aaaAccountingMethods(ContainerEntry, BaseModel):
@@ -769,11 +783,21 @@ class aaaAccountingEvents(ContainerEntry, BaseModel):
     #events: Optional[List[str]] = Field(default_factory=list) # Ex. ['send','stop-record','authentication', 'failure']
     event: Optional[AttributeValue[str]] = None
 
-class aaaAccounting(BaseModel):
-    config: Optional[Dict[str, aaaAccountingMethods]] = {}
+class aaaAccountingConfig(ContainerEntry, Augmentable):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",) 
+    name: Optional[AttributeValue[str]] = None # ex. default, CONSOLE, etc.
+    methods: Optional[Dict[str, aaaAccountingMethods]] = {}
     events: Optional[Dict[str, aaaAccountingEvents]] = {}
 
-class aaaGlobalAttributes(BaseModel):
+class aaaAccounting(BaseModel):
+    #config: Optional[Dict[str, aaaAccountingMethods]] = {}
+    config: aaaAccountingConfig = aaaAccountingConfig()
+    #methods: Optional[Dict[str, aaaAccountingMethods]] = {}
+    #events: Optional[Dict[str, aaaAccountingEvents]] = {}
+
+class aaaGlobalAttributes(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",) 
+    name: Optional[AttributeValue[str]] = None # ex. default, CONSOLE, etc.
     enabled: Optional[AttributeValue[bool]] = False # default False
 
 class TripleA(BaseModel):

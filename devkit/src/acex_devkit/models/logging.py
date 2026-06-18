@@ -46,6 +46,8 @@ class Console(Augmentable):
     name: Optional[AttributeValue[str]] = None
     line_number: Optional[AttributeValue[int]] = None
     logging_synchronous: Optional[AttributeValue[bool]] = None
+    login_authentication: Optional[Reference] = None # reference to an AAA method list object
+    authorization_exec: Optional[Reference] = None # reference to an AAA method list object
 
 class RemoteServer(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("host",)
@@ -68,6 +70,8 @@ class VtyLine(ContainerEntry, BaseModel):
     ipv6acl: Optional[Reference] = None # reference to an ACL object. Only used by Cisco.
     acl_direction: Optional[AttributeValue[str]] = None # direction of ACL, either 'in' or 'out'
     acl_network_instance: Optional[AttributeValue[str]] = None # network instance where ACL is
+    login_authentication: Optional[Reference] = None # reference to an AAA method list object
+    authorization_exec: Optional[Reference] = None # reference to an AAA method list object
 
 class FileLogging(ContainerEntry, Augmentable):
     identity_fields: ClassVar[tuple[str, ...]] = ("filename",)
