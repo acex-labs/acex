@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.aaa import aaaAuthenticationConfig, aaaAccountingConfig, aaaAuthorizationConfig
 from acex_devkit.models import AttributeValue
-from acex_devkit.models.composed_configuration import AugmentAttributes
+from acex_devkit.models.augment import AugmentAttributes
+from acex_devkit.models.reference import ReferenceTo, Reference
 
 class CiscoAuthMethod(BaseModel):
     method: str #Literal["group", "local", "line", "enable", "none"]
@@ -17,7 +18,8 @@ class CiscoPreAuthentication(AugmentAttributes):
     type: Literal["cisco_pre_authentication"] = "cisco_pre_authentication"
     name: Optional[AttributeValue[str]] = None # default, CONSOLE, etc.
     auth_type: Optional[AttributeValue[str]] = None #= Literal['login', 'enable', 'dot1x']
-    group: Optional[AttributeValue[str]] = None # srv-grp, either a name or radius/tacacs+
+    group_type: Optional[AttributeValue[str]] = None #= Literal['tacacs+', 'radius']
+    #group_name: Optional[Reference]#Optional[AttributeValue[str]] = None # srv-grp, either a name or radius/tacacs+
     # behöver vara fler alt. Lista?
     # eller methods och sen göra dict str?
     #method: str = Literal["local", "line", "enable", "none"] # "local", "line", "enable", "none" ; literal?
@@ -28,7 +30,8 @@ class CiscoPreAuthorization(AugmentAttributes):
     type: Literal["cisco_pre_authorization"] = "cisco_pre_authorization"
     name: Optional[AttributeValue[str]] = None # default, CONSOLE, etc.
     author_type: Optional[AttributeValue[str]] = None #= Literal['exec', 'commands', 'console', 'config-commands', 'interactive-commands']
-    group: Optional[AttributeValue[str]] = None # srv-grp, either a name or radius/tacacs+
+    group_type: Optional[AttributeValue[str]] = None #= Literal['tacacs+', 'radius']
+    #group_name: Optional[AttributeValue[str]] = None # srv-grp, either a name or radius/tacacs+
     methods: Optional[AttributeValue[List[str]]] = None
     #method: str = Literal["local", "line", "enable", "none"] # "local", "line", "enable", "none" ; literal?
     if_authenticated: Optional[AttributeValue[bool]] = None
@@ -37,8 +40,9 @@ class CiscoPreAuthorization(AugmentAttributes):
 class CiscoPreAccounting(AugmentAttributes):
     type: Literal["cisco_pre_accounting"] = "cisco_pre_accounting"
     name: Optional[AttributeValue[str]] = None # default, CONSOLE, etc.
-    account_type: Optional[AttributeValue[str]] = None #= Literal['exec', 'commands']
-    group: Optional[AttributeValue[str]] = None # srv-grp, either a name or radius/tacacs+
+    account_type: Optional[AttributeValue[str]] = None #= Literal['exec', 'commands', 'identity']
+    group_type: Optional[AttributeValue[str]] = None #= Literal['tacacs+', 'radius']
+    #group_name: Optional[AttributeValue[str]] = None # srv-grp, either a name or radius/tacacs+
     methods: Optional[AttributeValue[List[str]]] = None
     #method: str = Literal["start-stop", "stop-only", "none", "wait-start"] # "start-stop", "stop-only", "none", "wait-start" ; literal?
     privilege_level: Optional[int] = None # Only for commands
@@ -55,8 +59,17 @@ class CiscoAaaAuthentication(Augment):
     default_vendor = "cisco"
     singleton = False
     
-    #def pre_init(self):
-    #    auth_name = self.kwargs['auth_name']
+    def pre_init(self):
+        #group_name = self.kwargs.get("group_name")
+        #group_type = self.kwargs.get("group_type")
+        if self.kwargs.get('group_name') is not None and self.kwargs.get('group_type') is not None:
+            if self.kwargs.get('group_type') == "tacacs+":
+                group = self.kwargs.pop("group_name")
+                self.kwargs["group"] = ReferenceTo(pointer=f"system.aaa.server_groups.{group.name}.tacacs")
+            if self.kwargs.get('group_type') == "radius":
+                group = self.kwargs.pop("group_name")
+                self.kwargs["group"] = ReferenceTo(pointer=f"system.aaa.server_groups.{group.name}.radius")
+        super().pre_init()
 
 class CiscoAaaAuthorization(Augment):
     """
@@ -69,6 +82,18 @@ class CiscoAaaAuthorization(Augment):
     valid_targets = (aaaAuthorizationConfig,)
     default_vendor = "cisco"
     singleton = False
+
+    def pre_init(self):
+        #group_name = self.kwargs.get("group_name")
+        #group_type = self.kwargs.get("group_type")
+        if self.kwargs.get('group_name') is not None and self.kwargs.get('group_type') is not None:
+            if self.kwargs.get('group_type') == "tacacs+":
+                group = self.kwargs.pop("group_name")
+                self.kwargs["group"] = ReferenceTo(pointer=f"system.aaa.server_groups.{group.name}.tacacs")
+            if self.kwargs.get('group_type') == "radius":
+                group = self.kwargs.pop("group_name")
+                self.kwargs["group"] = ReferenceTo(pointer=f"system.aaa.server_groups.{group.name}.radius")
+        super().pre_init()
     
 class CiscoAaaAccounting(Augment):
     """
@@ -81,3 +106,15 @@ class CiscoAaaAccounting(Augment):
     valid_targets = (aaaAccountingConfig,)
     default_vendor = "cisco"
     singleton = False
+
+    def pre_init(self):
+        #group_name = self.kwargs.get("group_name")
+        #group_type = self.kwargs.get("group_type")
+        if self.kwargs.get('group_name') is not None and self.kwargs.get('group_type') is not None:
+            if self.kwargs.get('group_type') == "tacacs+":
+                group = self.kwargs.pop("group_name")
+                self.kwargs["group"] = ReferenceTo(pointer=f"system.aaa.server_groups.{group.name}.tacacs")
+            if self.kwargs.get('group_type') == "radius":
+                group = self.kwargs.pop("group_name")
+                self.kwargs["group"] = ReferenceTo(pointer=f"system.aaa.server_groups.{group.name}.radius")
+        super().pre_init()

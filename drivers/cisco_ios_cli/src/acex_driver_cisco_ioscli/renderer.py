@@ -224,6 +224,17 @@ class CiscoIOSCLIRenderer(RendererBase):
                 logging_trap["severity"]["value"] = raw_severity.value.lower()
 
         return config
+    
+    def aaa(self, config):
+        aaa_config = config.get("system", {}).get("aaa", {})
+        if aaa_config:
+            # Process authentication methods
+            auth_methods = aaa_config.get("authentication_methods", [])
+            for method in auth_methods:
+                if method.get("group") == "ISE-TACACS+":
+                    method["group"] = "TACACS_GROUP"  # Reference to server group
+
+        return config
 
     def _add_vrf_to_intefaces(self, config):
         """
