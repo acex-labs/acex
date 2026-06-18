@@ -1,6 +1,7 @@
 import inspect
 from acex.models.sites import Site, SiteBase, SiteResponse
 from acex.models.pagination import PaginatedResponse
+from acex_devkit.models.contact import ContactResponse
 from typing import List
 
 
@@ -29,7 +30,7 @@ class SiteService:
             for a in assignments:
                 result = await self.inventory.contacts.query(name=a.contact_name)
                 if result.items:
-                    contacts.append(result.items[0])
+                    contacts.append(ContactResponse.model_validate(result.items[0].model_dump()))
         data["contacts"] = contacts
         return SiteResponse(**data)
 
