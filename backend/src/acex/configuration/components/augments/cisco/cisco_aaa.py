@@ -13,10 +13,28 @@ from acex_devkit.models.reference import ReferenceTo, Reference
 class CiscoAuthMethod(BaseModel):
     method: str #Literal["group", "local", "line", "enable", "none"]
 
+
+# Convert internal unique augment names into stable Cisco AAA list names.
+# ACEX requires unique object names (often with numeric suffixes), but CLI
+# method-list names should be shared across privilege levels (for example,
+# CONSOLE-CUSTOM-COMMAND-AUTHORIZATION-LIST_2 -> CONSOLE-CUSTOM-COMMAND-AUTHORIZATION-LIST)
+# and default_* variants should render as just "default".
+def _derive_cli_list_name(name: Optional[str]) -> Optional[str]:
+    if not isinstance(name, str) or not name:
+        return name
+    if name.startswith("default_"):
+        return "default"
+    if "_" in name:
+        tail = name.rsplit("_", 1)[1]
+        if tail.isdigit():
+            return name.rsplit("_", 1)[0]
+    return name
+
 # Gör PreAuth till samma?
 class CiscoPreAuthentication(AugmentAttributes):
     type: Literal["cisco_pre_authentication"] = "cisco_pre_authentication"
     name: Optional[AttributeValue[str]] = None # default, CONSOLE, etc.
+    cli_list_name: Optional[str] = None
     auth_type: Optional[AttributeValue[str]] = None #= Literal['login', 'enable', 'dot1x']
     group_type: Optional[AttributeValue[str]] = None #= Literal['tacacs+', 'radius']
     #group_name: Optional[Reference]#Optional[AttributeValue[str]] = None # srv-grp, either a name or radius/tacacs+
@@ -29,6 +47,7 @@ class CiscoPreAuthentication(AugmentAttributes):
 class CiscoPreAuthorization(AugmentAttributes):
     type: Literal["cisco_pre_authorization"] = "cisco_pre_authorization"
     name: Optional[AttributeValue[str]] = None # default, CONSOLE, etc.
+    cli_list_name: Optional[str] = None
     author_type: Optional[AttributeValue[str]] = None #= Literal['exec', 'commands', 'console', 'config-commands', 'interactive-commands']
     group_type: Optional[AttributeValue[str]] = None #= Literal['tacacs+', 'radius']
     #group_name: Optional[AttributeValue[str]] = None # srv-grp, either a name or radius/tacacs+
@@ -40,6 +59,7 @@ class CiscoPreAuthorization(AugmentAttributes):
 class CiscoPreAccounting(AugmentAttributes):
     type: Literal["cisco_pre_accounting"] = "cisco_pre_accounting"
     name: Optional[AttributeValue[str]] = None # default, CONSOLE, etc.
+    cli_list_name: Optional[str] = None
     account_type: Optional[AttributeValue[str]] = None #= Literal['exec', 'commands', 'identity']
     group_type: Optional[AttributeValue[str]] = None #= Literal['tacacs+', 'radius']
     #group_name: Optional[AttributeValue[str]] = None # srv-grp, either a name or radius/tacacs+
@@ -62,6 +82,8 @@ class CiscoAaaAuthentication(Augment):
     def pre_init(self):
         #group_name = self.kwargs.get("group_name")
         #group_type = self.kwargs.get("group_type")
+        if self.kwargs.get("cli_list_name") is None:
+            self.kwargs["cli_list_name"] = _derive_cli_list_name(self.kwargs.get("name"))
         if self.kwargs.get('group_name') is not None and self.kwargs.get('group_type') is not None:
             if self.kwargs.get('group_type') == "tacacs+":
                 group = self.kwargs.pop("group_name")
@@ -86,6 +108,8 @@ class CiscoAaaAuthorization(Augment):
     def pre_init(self):
         #group_name = self.kwargs.get("group_name")
         #group_type = self.kwargs.get("group_type")
+        if self.kwargs.get("cli_list_name") is None:
+            self.kwargs["cli_list_name"] = _derive_cli_list_name(self.kwargs.get("name"))
         if self.kwargs.get('group_name') is not None and self.kwargs.get('group_type') is not None:
             if self.kwargs.get('group_type') == "tacacs+":
                 group = self.kwargs.pop("group_name")
@@ -110,6 +134,8 @@ class CiscoAaaAccounting(Augment):
     def pre_init(self):
         #group_name = self.kwargs.get("group_name")
         #group_type = self.kwargs.get("group_type")
+        if self.kwargs.get("cli_list_name") is None:
+            self.kwargs["cli_list_name"] = _derive_cli_list_name(self.kwargs.get("name"))
         if self.kwargs.get('group_name') is not None and self.kwargs.get('group_type') is not None:
             if self.kwargs.get('group_type') == "tacacs+":
                 group = self.kwargs.pop("group_name")
