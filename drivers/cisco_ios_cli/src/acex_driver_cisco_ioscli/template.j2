@@ -43,6 +43,18 @@ default
 {{ raw_name }}
 {%- endif -%}
 {%- endmacro -%}
+
+{%- macro resolve_line_aaa_name(attr) -%}
+{%- if attr is defined and attr -%}
+{%-   if attr.pointer is defined and attr.pointer -%}
+{{ attr.pointer.split('.')[-1] }}
+{%-   elif attr.value is defined and attr.value -%}
+{{ attr.value }}
+{%-   elif attr is string and attr -%}
+{{ attr }}
+{%-   endif -%}
+{%- endif -%}
+{%- endmacro -%}
 service timestamps debug datetime msec
 service timestamps log datetime msec
 {%- set pwe = (configuration.system.config.augments or {}).get('cisco_service_password_encryption') %}
@@ -788,9 +800,55 @@ logging host {{ server.host.value }}
 {%- endif %}
 !
 line con 0
- logging synchronous
  exec-timeout 0 0
-line vty 0 4
- transport input ssh
+{%- set console_cfg = (configuration.system.logging.get('console')) if configuration.system.logging is defined else none %}
+{%- set console_augments = (console_cfg.get('augments') or {}) if console_cfg else {} %}
+{%- for aug_key, aug in console_augments.items() %}
+{%-   if aug.type == 'cisco_console_aaa' %}
+{%-     set login_list %}{{ resolve_line_aaa_name(aug.login_authentication) }}{% endset %}
+{%-     set exec_list %}{{ resolve_line_aaa_name(aug.authorization_exec) }}{% endset %}
+{%-     set commands_list %}{{ resolve_line_aaa_name(aug.authorization_commands) }}{% endset %}
+{%-     if commands_list | trim %}
+ privilege level 15
+ authorization commands 0 {{ commands_list | trim }}
+ authorization commands 1 {{ commands_list | trim }}
+ authorization commands 15 {{ commands_list | trim }}
+{%-     endif %}
+{%-     if login_list | trim %}
+ login authentication {{ login_list | trim }}
+{%-     endif %}
+{%-     if exec_list | trim %}
+ authorization exec {{ exec_list | trim }}
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+{%- if console_cfg and console_cfg.logging_synchronous and console_cfg.logging_synchronous.value %}
+ logging synchronous
+{%- endif %}
+{%- for vty_group in configuration._vty_groups %}
+line vty {{ vty_group.start_line }} {{ vty_group.end_line }}
+{%-   if vty_group.acl_name %}
+ access-class {{ vty_group.acl_name }} {{ vty_group.acl_direction }}
+{%-     if vty_group.acl_network_instance %}
+ access-class {{ vty_group.acl_name }} {{ vty_group.acl_direction }} vrfname {{ vty_group.acl_network_instance }}
+{%-     endif %}
+{%-   endif %}
+{%-   if vty_group.authorization_commands %}
+ privilege level 15
+ authorization commands 0 {{ vty_group.authorization_commands }}
+ authorization commands 1 {{ vty_group.authorization_commands }}
+ authorization commands 15 {{ vty_group.authorization_commands }}
+{%-   endif %}
+{%-   if vty_group.authorization_exec %}
+ authorization exec {{ vty_group.authorization_exec }}
+{%-   endif %}
+{%-   if vty_group.logging_synchronous %}
+ logging synchronous
+{%-   endif %}
+{%-   if vty_group.login_authentication %}
+ login authentication {{ vty_group.login_authentication }}
+{%-   endif %}
+ transport input {{ vty_group.transport_input }}
 !
+{%- endfor %}
 end
