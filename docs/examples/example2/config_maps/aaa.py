@@ -26,9 +26,66 @@ class aaaconfig(ConfigMap):
         
 class aaaAuthConfig(ConfigMap):
     def compile(self, context):
+        #tacacs group example
+        tacacs = aaaServerGroup(
+            name = 'ISE-TACACS+',
+            enable = True,
+            type = 'tacacs',
+        )
+        context.configuration.add(tacacs)
+        
+        radius = aaaServerGroup(
+            name = 'RADIUS-GROUP-NEW',
+            enable = True,
+            type = 'radius',
+        )
+        context.configuration.add(radius)
+        
+        """
+        Example:
+        aaa authentication login default group ISE-TACACS+ local
+        aaa authentication login CONSOLE-CUSTOM-AUTHENTICATION-LIST local line enable
+        aaa authentication login CONSOLE-AUTHENTICATION local line enable
+        aaa authentication enable default group ISE-TACACS+ enable
+        aaa authentication dot1x default group RADIUS-GROUP-NEW
+        """
         #----------------------------------------------------------#
         # Authentication method list for login or enable.
         #----------------------------------------------------------#
+        aaa_default_auth_config = aaaAuthenticationConfig(name='default')
+        context.configuration.add(aaa_default_auth_config)
+        # LOGIN #
+        default_aaa_login = CiscoAaaAuthentication(
+            name=f"{aaa_default_auth_config.name}_LOGIN",
+            methods=[tacacs.name, 'local'],
+            auth_type='login',
+            group_type='tacacs+',
+            group_name=tacacs,#'ISE-TACACS+', # reference?
+            target=aaa_default_auth_config
+        )
+        context.configuration.add(default_aaa_login)
+        # ENABLE #
+        default_aaa_enable = CiscoAaaAuthentication(
+            name=f"{aaa_default_auth_config.name}_ENABLE",
+            methods=[radius.name, 'enable'],
+            auth_type='enable',
+            group_type='tacacs+',
+            group_name=tacacs,#'ISE-TACACS+', # reference?
+            target=aaa_default_auth_config
+        )
+        context.configuration.add(default_aaa_enable)
+        
+        # DOT1X #
+        default_aaa_dot1x = CiscoAaaAuthentication(
+            name=f"{aaa_default_auth_config.name}_DOT1X",
+            #methods=['dot1x'],
+            auth_type='dot1x',
+            group_type='radius',
+            group_name=radius,#'RADIUS-GROUP-NEW', # reference?
+            target=aaa_default_auth_config
+        )
+        context.configuration.add(default_aaa_dot1x)
+        
         aaa_auth_config = aaaAuthenticationConfig(name='CONSOLE-AUTH')
         context.configuration.add(aaa_auth_config)
         
@@ -42,25 +99,27 @@ class aaaAuthConfig(ConfigMap):
         )
         context.configuration.add(cisco_aaa)
 
-class aaaAuthzConfig(ConfigMap):
-    def compile(self, context):
+#class aaaAuthzConfig(ConfigMap):
+#    def compile(self, context):
         #----------------------------------------------------------#
         # Authorization method list for exec or commands.
         #----------------------------------------------------------#
-        #Authorization method list for exec or commands.
-        #Ex. command:
-        #aaa authorization exec default group ISE-TACACS+ local 
-        #aaa authorization exec CONSOLE-CUSTOM-AUTHORIZATION-LIST none 
-        #aaa authorization exec CONSOLE-EXEC none
-        #aaa authorization commands 0 default group ISE-TACACS+ local 
-        #aaa authorization commands 0 CONSOLE-CUSTOM-COMMAND-AUTHORIZATION-LIST none 
-        #aaa authorization commands 0 CONSOLE-COMMANDS none 
-        #aaa authorization commands 1 default group ISE-TACACS+ local 
-        #aaa authorization commands 1 CONSOLE-CUSTOM-COMMAND-AUTHORIZATION-LIST none 
-        #aaa authorization commands 1 CONSOLE-COMMANDS none 
-        #aaa authorization commands 15 default group ISE-TACACS+ local 
-        #aaa authorization commands 15 CONSOLE-CUSTOM-COMMAND-AUTHORIZATION-LIST none 
-        #aaa authorization commands 15 CONSOLE-COMMANDS none 
+        """
+        Authorization method list for exec or commands.
+        Ex. command:
+        aaa authorization exec default group ISE-TACACS+ local 
+        aaa authorization exec CONSOLE-CUSTOM-AUTHORIZATION-LIST none 
+        aaa authorization exec CONSOLE-EXEC none
+        aaa authorization commands 0 default group ISE-TACACS+ local 
+        aaa authorization commands 0 CONSOLE-CUSTOM-COMMAND-AUTHORIZATION-LIST none 
+        aaa authorization commands 0 CONSOLE-COMMANDS none 
+        aaa authorization commands 1 default group ISE-TACACS+ local 
+        aaa authorization commands 1 CONSOLE-CUSTOM-COMMAND-AUTHORIZATION-LIST none 
+        aaa authorization commands 1 CONSOLE-COMMANDS none 
+        aaa authorization commands 15 default group ISE-TACACS+ local 
+        aaa authorization commands 15 CONSOLE-CUSTOM-COMMAND-AUTHORIZATION-LIST none 
+        aaa authorization commands 15 CONSOLE-COMMANDS none 
+        """
         
         aaa_authz_default_config = aaaAuthorizationConfig(name='default')
         context.configuration.add(aaa_authz_default_config)
@@ -104,20 +163,63 @@ class aaaAuthzConfig(ConfigMap):
             )
             context.configuration.add(custom_command_authz)
         
-class aaaAcctConfig(ConfigMap):
-    def compile(self, context):
+#class aaaAcctConfig(ConfigMap):
+#    def compile(self, context):
         #----------------------------------------------------------#
         # Accounting method list for login or enable.
         #----------------------------------------------------------#
-        aaa_acct_config = aaaAccountingConfig(name='CONSOLE-ACCT')
-        context.configuration.add(aaa_acct_config)
-        
-        cisco_aaa_acct = CiscoAaaAccounting(
-            name=aaa_acct_config.name,
-            account_type='exec',
-            target=aaa_acct_config
+        """
+        aaa accounting update newinfo periodic 2880
+        aaa accounting identity default start-stop group RADIUS-GROUP-NEW
+        aaa accounting exec default start-stop group ISE-TACACS+
+        aaa accounting commands 0 default start-stop group ISE-TACACS+
+        aaa accounting commands 1 default start-stop group ISE-TACACS+
+        aaa accounting commands 15 default start-stop group ISE-TACACS+
+        """
+        aaa_acct_default_config = aaaAccountingConfig(name='default')
+        context.configuration.add(aaa_acct_default_config) 
+
+        cisco_aaa_acct_identity_default = CiscoAaaAccounting(
+            name=f"{aaa_acct_default_config.name}_IDENTITY",
+            account_type='identity',
+            group_name=radius, # reference?
+            group_type='radius',
+            methods=['start-stop'],
+            target=aaa_acct_default_config
         )
-        context.configuration.add(cisco_aaa_acct)
+        context.configuration.add(cisco_aaa_acct_identity_default)
+        
+        cisco_aaa_acct_exec_default = CiscoAaaAccounting(
+            name=f"{aaa_acct_default_config.name}_EXEC",
+            account_type='exec',
+            group_name=tacacs, # reference?
+            group_type='tacacs+',
+            methods=['start-stop'],
+            target=aaa_acct_default_config
+        )
+        context.configuration.add(cisco_aaa_acct_exec_default)
+        
+        for i, priv in enumerate([0, 1, 15]):
+            cisco_aaa_acct_commands = CiscoAaaAccounting(
+                name=f"{aaa_acct_default_config.name}_COMMANDS_{i}",
+                account_type='commands',
+                group_name=tacacs, # reference?
+                group_type='tacacs+',
+                methods=['start-stop'],
+                privilege_level=priv,
+                target=aaa_acct_default_config
+            )
+            context.configuration.add(cisco_aaa_acct_commands)
+            
+        cisco_aaa_acct_default = CiscoAaaAccounting(
+            name=aaa_acct_default_config.name,
+            account_type='exec',
+            group_name=tacacs, # reference?
+            group_type='tacacs+',
+            methods=['start-stop'],
+            target=aaa_acct_default_config
+        )
+        context.configuration.add(cisco_aaa_acct_default)
         
 aaa_config = aaaconfig()
 aaa_config.filters = FilterAttribute("site").eq("/.*/")
@@ -125,8 +227,8 @@ aaa_config.filters = FilterAttribute("site").eq("/.*/")
 aaa_auth_config = aaaAuthConfig()
 aaa_auth_config.filters = FilterAttribute("site").eq("/.*/")
 
-aaa_authz_config = aaaAuthzConfig()
-aaa_authz_config.filters = FilterAttribute("site").eq("/.*/")
+#aaa_authz_config = aaaAuthzConfig()
+#aaa_authz_config.filters = FilterAttribute("site").eq("/.*/")
 #
 #aaa_acct_config = aaaAcctConfig()
 #aaa_acct_config.filters = FilterAttribute("site").eq("/.*/")
