@@ -69,20 +69,24 @@ class aaaAuthConfig(ConfigMap):
         # LOGIN #
         default_aaa_login = CiscoAaaAuthentication(
             name=f"{aaa_default_auth_config.name}_LOGIN",
-            methods=[tacacs.name, "local"],
+            #methods=[tacacs.name, "local"],
+            methods=['ISE-TACACS+', "local"],
             auth_type="login",
             group_type="tacacs+",
-            group_name=tacacs,  #'ISE-TACACS+', # reference?
+            #group_name=tacacs,  #'ISE-TACACS+', # reference?
+            group_name='ISE-TACACS+',
             target=aaa_default_auth_config,
         )
         context.configuration.add(default_aaa_login)
         # ENABLE #
         default_aaa_enable = CiscoAaaAuthentication(
             name=f"{aaa_default_auth_config.name}_ENABLE",
-            methods=[radius.name, "enable"],
+            #methods=[tacacs.name, "enable"],
+            methods=['ISE-TACACS+', "enable"],
             auth_type="enable",
             group_type="tacacs+",
-            group_name=tacacs,  #'ISE-TACACS+', # reference?
+            #group_name=tacacs,  #'ISE-TACACS+', # reference?
+            group_name='ISE-TACACS+',
             target=aaa_default_auth_config,
         )
         context.configuration.add(default_aaa_enable)
@@ -93,7 +97,8 @@ class aaaAuthConfig(ConfigMap):
             # methods=['dot1x'],
             auth_type="dot1x",
             group_type="radius",
-            group_name=radius,  #'RADIUS-GROUP-NEW', # reference?
+            #group_name=radius,  #'RADIUS-GROUP-NEW', # reference?
+            group_name='RADIUS-GROUP-NEW',
             target=aaa_default_auth_config,
         )
         context.configuration.add(default_aaa_dot1x)
@@ -142,7 +147,9 @@ class aaaAuthConfig(ConfigMap):
         cisco_aaa_default_authz = CiscoAaaAuthorization(
             name=aaa_authz_default_config.name,
             author_type="exec",
-            group="ISE-TACACS+",  # reference?
+            #group="ISE-TACACS+",  # reference?
+            group_name='ISE-TACACS+',
+            group_type="tacacs+",
             methods=["local"],
             target=aaa_authz_default_config,
         )
@@ -191,7 +198,8 @@ class aaaAuthConfig(ConfigMap):
         cisco_aaa_acct_identity_default = CiscoAaaAccounting(
             name=f"{aaa_acct_default_config.name}_IDENTITY",
             account_type="identity",
-            group_name=radius,  # reference?
+            #group_name=radius,  # reference?
+            group_name='RADIUS-GROUP-NEW',
             group_type="radius",
             methods=["start-stop"],
             target=aaa_acct_default_config,
@@ -201,7 +209,8 @@ class aaaAuthConfig(ConfigMap):
         cisco_aaa_acct_exec_default = CiscoAaaAccounting(
             name=f"{aaa_acct_default_config.name}_EXEC",
             account_type="exec",
-            group_name=tacacs,  # reference?
+            #group_name=tacacs,  # reference?
+            group_name='ISE-TACACS+',
             group_type="tacacs+",
             methods=["start-stop"],
             target=aaa_acct_default_config,
@@ -212,7 +221,8 @@ class aaaAuthConfig(ConfigMap):
             cisco_aaa_acct_commands = CiscoAaaAccounting(
                 name=f"{aaa_acct_default_config.name}_COMMANDS_{i}",
                 account_type="commands",
-                group_name=tacacs,  # reference?
+                #group_name=tacacs,  # reference?
+                group_name='ISE-TACACS+',
                 group_type="tacacs+",
                 methods=["start-stop"],
                 privilege_level=priv,
@@ -223,7 +233,8 @@ class aaaAuthConfig(ConfigMap):
         cisco_aaa_acct_default = CiscoAaaAccounting(
             name=aaa_acct_default_config.name,
             account_type="exec",
-            group_name=tacacs,  # reference?
+            #group_name=tacacs,  # reference?
+            group_name='ISE-TACACS+',
             group_type="tacacs+",
             methods=["start-stop"],
             target=aaa_acct_default_config,
