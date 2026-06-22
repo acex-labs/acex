@@ -35,34 +35,6 @@ def _derive_cli_list_name(name: Optional[str]) -> Optional[str]:
             return name.rsplit("_", 1)[0]
     return name
 
-
-def _resolve_aaa_method_reference(value, pointer_prefix: str) -> Optional[ReferenceTo]:
-    """Resolve AAA method list input to a stable ReferenceTo pointer.
-
-    Supports either a plain list-name string or a method-list object with a
-    ``name`` attribute (for example, CiscoAaaAuthentication/CiscoAaaAuthorization
-    augment instances from config maps).
-    """
-    if value is None:
-        return None
-    if isinstance(value, ReferenceTo):
-        return value
-
-    if isinstance(value, str):
-        list_name = value
-    else:
-        list_name = getattr(value, "name", None)
-
-    if not isinstance(list_name, str) or not list_name:
-        raise ValueError(
-            f"Expected AAA method list as string or object with 'name', got {type(value).__name__}"
-        )
-
-    cli_list_name = _derive_cli_list_name(list_name)
-    return ReferenceTo(pointer=f"{pointer_prefix}.{cli_list_name}")
-
-
-# Gör PreAuth till samma?
 class CiscoAaaAuthenticationAttributes(AugmentAttributes):
     type: Literal["cisco_pre_authentication"] = "cisco_pre_authentication"
     name: Optional[AttributeValue[str]] = None  # default, CONSOLE, etc.
@@ -76,7 +48,6 @@ class CiscoAaaAuthenticationAttributes(AugmentAttributes):
     methods: Optional[AttributeValue[List[str]]] = (
         None  # list of method names, e.g. ["local", "line", "enable"] or ["group"] with group reference
     )
-
 
 class CiscoAaaAuthorizationAttirbutes(AugmentAttributes):
     type: Literal["cisco_pre_authorization"] = "cisco_pre_authorization"
@@ -133,6 +104,12 @@ class CiscoVtyAaaAttributes(AugmentAttributes):
 
 
 class CiscoConsoleAaa(Augment):
+    """
+    AAA configuration for console lines.
+    Ex. command:
+    aaa authentication login CONSOLE-COMMANDS group ISE-TACACS+ local
+    authorization commands 0 CONSOLE-COMMANDS
+    """
     type = "cisco_console_aaa"
     model_cls = CiscoConsoleAaaAttributes
     valid_targets = (Console,)
@@ -140,6 +117,13 @@ class CiscoConsoleAaa(Augment):
     singleton = False
 
 class CiscoVtyAaa(Augment):
+    """
+    AAA configuration for VTY lines.
+    Ex. command:
+    line vty 0 4
+    login authentication VTY-AUTH
+    authorization exec VTY-EXEC-AUTH
+    """
     type = "cisco_vty_aaa"
     model_cls = CiscoVtyAaaAttributes
     valid_targets = (VtyLine,)
