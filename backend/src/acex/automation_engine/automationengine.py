@@ -118,6 +118,7 @@ class AutomationEngine:
         This is the method that creates the full API.
         """
         self._ensure_credential_manager()
+        self.inventory.telemetry_registry.credential_manager = self.credential_manager
         return self.api.create_app(self)
 
     def ai_ops(
