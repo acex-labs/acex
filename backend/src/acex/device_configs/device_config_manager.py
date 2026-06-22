@@ -1,5 +1,6 @@
 from datetime import datetime
 import base64
+import difflib
 import hashlib
 from sqlalchemy import func
 from sqlmodel import SQLModel
@@ -241,6 +242,73 @@ class DeviceConfigManager:
         finally:
             session.close()
 
+
+    def diff_configs(
+        self,
+        node_instance_id: str,
+        a: str,
+        b: str,
+    ) -> dict:
+        """Return a structured line-by-line diff between two stored configs.
+
+        Query params `a` and `b` are config hashes. The response is a dict with:
+          - config_a / config_b: hash + created_at metadata
+          - diff: list of {type, line_a?, line_b?, text} — same shape the
+                  frontend previously computed locally with computeDiff()
+          - stats: {added, removed, equal} counts
+        """
+        session = next(self.db.get_session())
+        try:
+            cfg_a = session.query(StoredDeviceConfig).filter(
+                StoredDeviceConfig.hash == a
+            ).first()
+            cfg_b = session.query(StoredDeviceConfig).filter(
+                StoredDeviceConfig.hash == b
+            ).first()
+
+            if not cfg_a:
+                raise HTTPException(status_code=404, detail=f"Config not found: {a}")
+            if not cfg_b:
+                raise HTTPException(status_code=404, detail=f"Config not found: {b}")
+
+            lines_a = (cfg_a.content or "").splitlines()
+            lines_b = (cfg_b.content or "").splitlines()
+
+            matcher = difflib.SequenceMatcher(None, lines_a, lines_b, autojunk=False)
+            diff = []
+
+            for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+                if tag == "equal":
+                    for k in range(i2 - i1):
+                        diff.append({"type": "equal", "line_a": i1 + k + 1, "line_b": j1 + k + 1, "text": lines_a[i1 + k]})
+                elif tag in ("replace", "delete"):
+                    for k in range(i2 - i1):
+                        diff.append({"type": "remove", "line_a": i1 + k + 1, "text": lines_a[i1 + k]})
+                    if tag == "replace":
+                        for k in range(j2 - j1):
+                            diff.append({"type": "add", "line_b": j1 + k + 1, "text": lines_b[j1 + k]})
+                elif tag == "insert":
+                    for k in range(j2 - j1):
+                        diff.append({"type": "add", "line_b": j1 + k + 1, "text": lines_b[j1 + k]})
+
+            added = sum(1 for d in diff if d["type"] == "add")
+            removed = sum(1 for d in diff if d["type"] == "remove")
+            equal = sum(1 for d in diff if d["type"] == "equal")
+
+            return {
+                "config_a": {
+                    "hash": cfg_a.hash,
+                    "created_at": cfg_a.created_at.isoformat() if cfg_a.created_at else None,
+                },
+                "config_b": {
+                    "hash": cfg_b.hash,
+                    "created_at": cfg_b.created_at.isoformat() if cfg_b.created_at else None,
+                },
+                "diff": diff,
+                "stats": {"added": added, "removed": removed, "equal": equal},
+            }
+        finally:
+            session.close()
 
     async def upload_config(
         self,

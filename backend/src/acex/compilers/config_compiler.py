@@ -180,5 +180,5 @@ class ConfigCompiler:
         else:
             self._resolve_external_values(self.ln)
 
-        return self.ln.response
+        return self.ln
 

@@ -60,7 +60,6 @@ class CiscoIOSCLIRenderer(RendererBase):
         template = env.get_template(template_name)
         return template
 
-
     def _register(self):
         """
         Registers patterns/generators to registry.
@@ -225,18 +224,31 @@ class CiscoIOSCLIRenderer(RendererBase):
 
         return config
 
+    def _add_vrf_to_intefaces(self, config):
+        """
+        Loops all network_instances and add vrf definition to
+        referenced interfaces
+        """
+        vrfs = config["network_instances"]
+        for vrf_name, vrf in vrfs.items():
+            if vrf["name"]["value"] == "global":
+                ...
+            else:
+                for _, interface in vrf["interfaces"].items():
+                    ref_path = interface["pointer"]
+                    if isinstance(ref_path, str) and ref_path:
+                        intf = config["interfaces"][ref_path.split(".")[1]]
+                        intf["vrf"] = vrf["name"]["value"]
+
     def pre_process(self, configuration, asset) -> Dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
 
         # Render physical interface config
+        self._add_vrf_to_intefaces(configuration)
         self._render_frontpanel_ports(configuration, asset)
-
-        # configuration = self._new_phys_inter_names(configuration, model_data)
         self._ssh_interface(configuration)
         self._logging_trap_severity(configuration)
-        # print('configuration after physical interface name resolution: ', configuration)
-        # self.add_vrf_to_intefaces(configuration)
-        # self.ssh_interface(configuration)
+        self._pre_process_vty_lines(configuration)
         # self.lacp_load_balancing(configuration)
 
         if hasattr(asset, "assets"):
@@ -247,25 +259,149 @@ class CiscoIOSCLIRenderer(RendererBase):
         configuration["asset"] = {"version": os_version}
         return configuration
 
+    def _pre_process_vty_lines(self, config):
+        """
+        Group consecutive VTY lines with identical settings into ranges.
+        Stores result in config['_vty_groups'] for template consumption.
+        """
+        logging_cfg = config.get("system", {}).get("logging", {})
+        vty_container = logging_cfg.get("vty") or {}
+        vty_lines = vty_container.get("lines") or {}
+
+        if not vty_lines:
+            config["_vty_groups"] = []
+            return
+
+        # Sort by line_number
+        sorted_lines = sorted(
+            vty_lines.values(), key=lambda v: v.get("line_number", {}).get("value", 0)
+        )
+
+        def _extract_settings(line):
+            """Extract a comparable settings dict from a VTY line."""
+            # ACL
+            ipv4acl = line.get("ipv4acl")
+            acl_name = (
+                ipv4acl.get("pointer", "").split(".")[-1]
+                if ipv4acl and ipv4acl.get("pointer")
+                else None
+            )
+            acl_dir = (
+                line.get("acl_direction", {}).get("value", "in")
+                if line.get("acl_direction")
+                else "in"
+            )
+            acl_ni = (
+                line.get("acl_network_instance", {}).get("value")
+                if line.get("acl_network_instance")
+                else None
+            )
+
+            # Transport
+            transport = (
+                line.get("transport_input", {}).get("value", "ssh")
+                if line.get("transport_input")
+                else "ssh"
+            )
+
+            # Logging
+            log_sync = (
+                bool(line.get("logging_synchronous", {}).get("value"))
+                if line.get("logging_synchronous")
+                else False
+            )
+
+            # AAA from augments
+            augments = line.get("augments") or {}
+            login_auth = None
+            authz_exec = None
+            authz_commands = None
+            for aug in augments.values():
+                if aug.get("type") == "cisco_vty_aaa":
+                    la = aug.get("login_authentication")
+                    login_auth = (
+                        la.get("pointer", "").split(".")[-1]
+                        if la and la.get("pointer")
+                        else la.get("value") if la else None
+                    )
+                    ae = aug.get("authorization_exec")
+                    authz_exec = (
+                        ae.get("pointer", "").split(".")[-1]
+                        if ae and ae.get("pointer")
+                        else ae.get("value") if ae else None
+                    )
+                    ac = aug.get("authorization_commands")
+                    authz_commands = (
+                        ac.get("pointer", "").split(".")[-1]
+                        if ac and ac.get("pointer")
+                        else ac.get("value") if ac else None
+                    )
+                    break
+
+            return {
+                "acl_name": acl_name,
+                "acl_direction": acl_dir,
+                "acl_network_instance": acl_ni,
+                "transport_input": transport,
+                "logging_synchronous": log_sync,
+                "login_authentication": login_auth,
+                "authorization_exec": authz_exec,
+                "authorization_commands": authz_commands,
+            }
+
+        # Group consecutive lines with identical settings
+        groups = []
+        for line in sorted_lines:
+            line_num = line.get("line_number", {}).get("value", 0)
+            settings = _extract_settings(line)
+
+            if (
+                groups
+                and groups[-1]["settings"] == settings
+                and groups[-1]["end_line"] == line_num - 1
+            ):
+                groups[-1]["end_line"] = line_num
+            else:
+                groups.append(
+                    {
+                        "start_line": line_num,
+                        "end_line": line_num,
+                        "settings": settings,
+                    }
+                )
+
+        # Flatten for template: merge settings into top level
+        result = []
+        for g in groups:
+            entry = {"start_line": g["start_line"], "end_line": g["end_line"]}
+            entry.update(g["settings"])
+            result.append(entry)
+
+        config["_vty_groups"] = result
+
     def _render_frontpanel_ports(self, configuration, asset):
         """
-        Entry method for rendering frontpanel interfaces. 
-        If asset.type is cluster or single asset, this 
-        method resolves and loops accordingly. 
+        Entry method for rendering frontpanel interfaces.
+        If asset.type is cluster or single asset, this
+        method resolves and loops accordingly.
         """
         if asset.type == "asset":
             model_data = get_model(asset.hardware_model, self._model_directory)
-            port_slots = self._render_frontpanel_port_slots(0, configuration, model_data)
+            port_slots = self._render_frontpanel_port_slots(
+                0, configuration, model_data
+            )
             configuration = self._update_frontpanel_ports(configuration, port_slots)
         elif asset.type == "asset_cluster":
             all_slots = []
             for stack_index, asset in enumerate(asset.assets):
                 model_data = get_model(asset.hardware_model, self._model_directory)
-                all_slots.extend(self._render_frontpanel_port_slots(stack_index, configuration, model_data))
+                all_slots.extend(
+                    self._render_frontpanel_port_slots(
+                        stack_index, configuration, model_data
+                    )
+                )
 
             configuration = self._update_frontpanel_ports(configuration, all_slots)
-
-
 
     def _render_frontpanel_port_slots(self, stack_index, configuration, model_data):
         """
@@ -291,18 +427,19 @@ class CiscoIOSCLIRenderer(RendererBase):
                 prefix=prefix,
                 stack_index=stack_index,
                 interface_slot=interface_slot,
-                model_data=model_data
+                model_data=model_data,
             )
 
-            intf_slots.append({
-                "name": ifname,
-                "index": interface_slot["index"],
-                "module_index": interface_slot["module_index"],
-                "stack_index": stack_index
-                })
+            intf_slots.append(
+                {
+                    "name": ifname,
+                    "index": interface_slot["index"],
+                    "module_index": interface_slot["module_index"],
+                    "stack_index": stack_index,
+                }
+            )
 
         return intf_slots
-
 
     def _update_frontpanel_ports(self, configuration, slots):
         """
@@ -310,7 +447,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         """
         interfaces_without_slots = []
 
-        for k,v in configuration["interfaces"].items():
+        for k, v in configuration["interfaces"].items():
             if v["type"] == "ethernetCsmacd":
                 idx = v["index"]["value"]
                 midx = v["module_index"]["value"]
@@ -327,16 +464,20 @@ class CiscoIOSCLIRenderer(RendererBase):
 
         return configuration
 
-
     def _get_slot(self, index, module_index, stack_index, slots):
-        """ Extracts a slot definition or None"""
+        """Extracts a slot definition or None"""
         for slot in slots:
-            if slot["index"] == index and slot["module_index"] == module_index and slot["stack_index"] == stack_index:
+            if (
+                slot["index"] == index
+                and slot["module_index"] == module_index
+                and slot["stack_index"] == stack_index
+            ):
                 return slot
         return None
 
-
-    def _compile_interface_name(self, *, prefix: str, stack_index:int, interface_slot:dict, model_data: dict):
+    def _compile_interface_name(
+        self, *, prefix: str, stack_index: int, interface_slot: dict, model_data: dict
+    ):
         """
         Compiles full interface name from device_types/models file
         """
@@ -346,69 +487,21 @@ class CiscoIOSCLIRenderer(RendererBase):
         midx_offset = model_data["module_index_start"]
         sidx_offset = model_data["stack_index_start"]
 
-        name = pattern.format_map({
-            "prefix": prefix,
-            "stack_index": stack_index + sidx_offset,
-            "module_index":  interface_slot["module_index"] + midx_offset,
-            "index":  interface_slot["index"] + idx_offset
-        })
+        name = pattern.format_map(
+            {
+                "prefix": prefix,
+                "stack_index": stack_index + sidx_offset,
+                "module_index": interface_slot["module_index"] + midx_offset,
+                "index": interface_slot["index"] + idx_offset,
+            }
+        )
 
         return name
-        
 
     def _get_configured_speed(self, configuration: dict, interface_slot: dict):
-        """ extract configured interface speed from config map """
+        """extract configured interface speed from config map"""
 
-        for k,v in configuration["interfaces"].items():
-            configured_speed = v.get('speed', {}).get('value', 1000000) 
+        for k, v in configuration["interfaces"].items():
+            configured_speed = v.get("speed", {}).get("value", 1000000)
 
         return configured_speed
-
-
-
-    def ssh_interface(self, configuration):
-        """Process SSH interface configurations if needed."""
-        ssh = configuration.get("system", {}).get("ssh")
-        if not ssh:
-            return
-
-        # Resolve the referenced interface name from ref_path
-        # Add checks for path as it might be that it has not been set
-        ssh_config = ssh.get("config") or {}
-        ref = ssh_config.get("source_interface")
-        if ref is not None:
-            ref_path = ref.get("pointer")
-            if isinstance(ref_path, str) and ref_path:
-                # if not ref_path:
-                #    return
-
-                ref_name = ref_path.split(".")[1]
-                intf = configuration.get("interfaces", {}).get(ref_name)
-                if not intf:
-                    return
-
-                vlan_id = intf.get("vlan_id")
-                if vlan_id is None:
-                    return
-
-                ssh_interface = f"Vlan{vlan_id}"
-                # Store resolved interface for template use if needed
-                ssh["config"]["source_interface"] = ssh_interface
-
-    def add_vrf_to_intefaces(self, config):
-        """
-        Loops all network_instances and add vrf definition to
-        referenced interfaces
-        """
-        vrfs = config["network_instances"]
-        for vrf_name, vrf in vrfs.items():
-            if vrf["name"]["value"] == "global":
-                ...
-            else:
-                for _, interface in vrf["interfaces"].items():
-                    # ref_path = interface["metadata"]["ref_path"]
-                    metadata = interface.get("metadata") or {}
-                    ref_path = metadata.get("ref_path")
-                    if isinstance(ref_path, str) and ref_path:
-                        intf = config["interfaces"][ref_path.split(".")[1]]
-                        intf["vrf"] = vrf["name"]["value"]

@@ -1,6 +1,4 @@
 import inspect
-from typing import get_type_hints
-from pydantic import BaseModel
 from fastapi import APIRouter
 from acex.constants import BASE_URL
 
@@ -29,6 +27,15 @@ def create_router(automation_engine):
             func,
             methods=[method],
             response_model=response_model,
-            tags = ["Inventory"]
+            tags=tags
         )
+
+    router.add_api_route(
+        "/logical_nodes/{id}/configuration",
+        plug.get_configuration,
+        methods=["GET"],
+        response_model=get_response_model(plug.get_configuration),
+        tags=tags
+    )
+
     return router

@@ -9,11 +9,12 @@ class DiffLogicalNode:
 
     async def diff(self, node_instance_id: str):
 
-        # Load actual node 
+        # Load actual node
         node = await self.inventory.node_instances.get(node_instance_id)
 
         # Get desired composed config
-        desired_config = node.logical_node.configuration
+        ln_config = await self.inventory.logical_nodes.get_configuration(str(node.logical_node_id))
+        desired_config = ln_config.configuration
 
         # Get observed parsed composed config
         observed_config = await self.dcm.get_latest_config(node_instance_id, "parsed")

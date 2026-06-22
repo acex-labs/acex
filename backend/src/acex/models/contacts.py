@@ -1,23 +1,15 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
 
+from acex_devkit.models.contact import ContactBase as ContactSchema, ContactResponse
 
-class ContactBase(SQLModel):
-    name: str = Field(default="")
-    display_name: Optional[str] = Field(default=None)
-    first_name: Optional[str] = Field(default=None)
-    family_name: Optional[str] = Field(default=None)
-    email: Optional[str] = Field(default=None)
-    phone: Optional[str] = Field(default=None)
-    role: Optional[str] = Field(default=None)
+
+class ContactBase(ContactSchema, SQLModel):
+    pass
 
 
 class Contact(ContactBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-
-
-class ContactResponse(ContactBase):
-    id: Optional[int] = Field(default=None)
 
 
 class ContactAssignment(SQLModel, table=True):

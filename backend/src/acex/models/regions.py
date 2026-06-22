@@ -1,29 +1,19 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
 
+from acex_devkit.models.region import (
+    RegionBase as RegionSchema,
+    RegionSiteInfo,
+    RegionResponse,
+)
 
-class RegionBase(SQLModel):
-    name: str = Field(default="")
-    display_name: Optional[str] = Field(default=None)
-    description: Optional[str] = Field(default=None)
+
+class RegionBase(RegionSchema, SQLModel):
+    pass
 
 
 class Region(RegionBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-
-
-class RegionSiteInfo(SQLModel):
-    name: str
-    display_name: Optional[str] = None
-    city: Optional[str] = None
-    country: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-
-
-class RegionResponse(RegionBase):
-    id: Optional[int] = Field(default=None)
-    sites: list[RegionSiteInfo] = Field(default_factory=list)
 
 
 class SiteRegionAssignment(SQLModel, table=True):

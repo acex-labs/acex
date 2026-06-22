@@ -23,6 +23,28 @@ class Console(ConfigComponent):
     type = "console"
     model_cls = ConsoleAttributes
 
+    # Reference handling for AAA method lists
+    #if self.kwargs.get("login_authentication") is not None:
+    #    aaa_method = self.kwargs.pop("login_authentication")
+    #    if isinstance(aaa_method, type(None)):
+    #        pass
+    #    elif isinstance(aaa_method, str):
+    #        self.kwargs["login_authentication"] = ReferenceTo(pointer=f"aaa.authentication_login.{aaa_method}")
+    #    elif isinstance(aaa_method, CiscoAaaAuthenticationLoginMethodList):
+    #        self.kwargs["login_authentication"] = ReferenceTo(
+    #            pointer=f"aaa.authentication_login.{aaa_method.name}"
+    #        )
+#
+    #if self.kwargs.get("authorization_exec") is not None:
+    #    aaa_method = self.kwargs.pop("authorization_exec")
+    #    if isinstance(aaa_method, type(None)):
+    #        pass
+    #    elif isinstance(aaa_method, str):
+    #        self.kwargs["authorization_exec"] = ReferenceTo(pointer=f"aaa.authorization_exec.{aaa_method}")
+    #    elif isinstance(aaa_method, CiscoAaaAuthorizationExecMethodList):
+    #        self.kwargs["authorization_exec"] = ReferenceTo(
+    #            pointer=f"aaa.authorization_exec.{aaa_method.name}"
+    #        )
 
 class VtyLine(ConfigComponent):
     type = "vty_line"
@@ -50,6 +72,29 @@ class VtyLine(ConfigComponent):
                 self.kwargs["ipv6acl"] = ReferenceTo(
                     pointer=f"acl.ipv6_acls.{acl.name}"
                 )
+    
+    # Reference handling for AAA method lists
+    #if self.kwargs.get("login_authentication") is not None:
+    #    aaa_method = self.kwargs.pop("login_authentication")
+    #    if isinstance(aaa_method, type(None)):
+    #        pass
+    #    elif isinstance(aaa_method, str):
+    #        self.kwargs["login_authentication"] = ReferenceTo(pointer=f"aaa.authentication_login.{aaa_method}")
+    #    elif isinstance(aaa_method, CiscoAaaAuthenticationLoginMethodList):
+    #        self.kwargs["login_authentication"] = ReferenceTo(
+    #            pointer=f"aaa.authentication_login.{aaa_method.name}"
+    #        )
+#
+    #if self.kwargs.get("authorization_exec") is not None:
+    #    aaa_method = self.kwargs.pop("authorization_exec")
+    #    if isinstance(aaa_method, type(None)):
+    #        pass
+    #    elif isinstance(aaa_method, str):
+    #        self.kwargs["authorization_exec"] = ReferenceTo(pointer=f"aaa.authorization_exec.{aaa_method}")
+    #    elif isinstance(aaa_method, CiscoAaaAuthorizationExecMethodList):
+    #        self.kwargs["authorization_exec"] = ReferenceTo(
+    #            pointer=f"aaa.authorization_exec.{aaa_method.name}"
+    #        )
 
 
 class RemoteServer(ConfigComponent):
