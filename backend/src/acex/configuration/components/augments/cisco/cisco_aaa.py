@@ -8,6 +8,7 @@ from acex.configuration.components.system.aaa import (
     aaaAuthenticationConfig,
     aaaAccountingConfig,
     aaaAuthorizationConfig,
+    aaaServerGroup,
 )
 from acex.configuration.components.system.logging import Console, VtyLine
 from acex_devkit.models import AttributeValue
@@ -152,16 +153,29 @@ class CiscoAaaAuthentication(Augment):
             self.kwargs.get("group_name") is not None
             and self.kwargs.get("group_type") is not None
         ):
+            group = self.kwargs.pop("group_name")
             if self.kwargs.get("group_type") == "tacacs+":
-                group = self.kwargs.pop("group_name")
-                self.kwargs["group"] = ReferenceTo(
-                    pointer=f"system.aaa.server_groups.{group.name}.tacacs"
-                )
+                if isinstance(group, aaaServerGroup):
+                    #group = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = ReferenceTo(
+                        pointer=f"system.aaa.server_groups.{group.name}.tacacs"
+                    )
+                if isinstance(group, str):
+                    #group_name = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = Reference(
+                        pointer=f"system.aaa.server_groups.{group}.tacacs"
+                    )
             if self.kwargs.get("group_type") == "radius":
-                group = self.kwargs.pop("group_name")
-                self.kwargs["group"] = ReferenceTo(
-                    pointer=f"system.aaa.server_groups.{group.name}.radius"
-                )
+                if isinstance(group, aaaServerGroup):
+                    #group = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = ReferenceTo(
+                        pointer=f"system.aaa.server_groups.{group.name}.radius"
+                    )
+                if isinstance(group, str):
+                    #group_name = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = Reference(
+                        pointer=f"system.aaa.server_groups.{group}.radius"
+                    )
         super().pre_init()
 
 
@@ -187,16 +201,29 @@ class CiscoAaaAuthorization(Augment):
             self.kwargs.get("group_name") is not None
             and self.kwargs.get("group_type") is not None
         ):
+            group = self.kwargs.pop("group_name")
             if self.kwargs.get("group_type") == "tacacs+":
-                group = self.kwargs.pop("group_name")
-                self.kwargs["group"] = ReferenceTo(
-                    pointer=f"system.aaa.server_groups.{group.name}.tacacs"
-                )
+                if isinstance(group, aaaServerGroup):
+                    #group = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = ReferenceTo(
+                        pointer=f"system.aaa.server_groups.{group.name}.tacacs"
+                    )
+                if isinstance(group, str):
+                    #group_name = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = Reference(
+                        pointer=f"system.aaa.server_groups.{group}.tacacs"
+                    )
             if self.kwargs.get("group_type") == "radius":
-                group = self.kwargs.pop("group_name")
-                self.kwargs["group"] = ReferenceTo(
-                    pointer=f"system.aaa.server_groups.{group.name}.radius"
-                )
+                if isinstance(group, aaaServerGroup):
+                    #group = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = ReferenceTo(
+                        pointer=f"system.aaa.server_groups.{group.name}.radius"
+                    )
+                if isinstance(group, str):
+                    #group_name = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = Reference(
+                        pointer=f"system.aaa.server_groups.{group}.radius"
+                    )
         super().pre_init()
 
 
@@ -222,14 +249,27 @@ class CiscoAaaAccounting(Augment):
             self.kwargs.get("group_name") is not None
             and self.kwargs.get("group_type") is not None
         ):
+            group = self.kwargs.pop("group_name")
             if self.kwargs.get("group_type") == "tacacs+":
-                group = self.kwargs.pop("group_name")
-                self.kwargs["group"] = ReferenceTo(
-                    pointer=f"system.aaa.server_groups.{group.name}.tacacs"
-                )
+                if isinstance(group, aaaServerGroup):
+                    #group = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = ReferenceTo(
+                        pointer=f"system.aaa.server_groups.{group.name}.tacacs"
+                    )
+                if isinstance(group, str):
+                    #group_name = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = Reference(
+                        pointer=f"system.aaa.server_groups.{group}.tacacs"
+                    )
             if self.kwargs.get("group_type") == "radius":
-                group = self.kwargs.pop("group_name")
-                self.kwargs["group"] = ReferenceTo(
-                    pointer=f"system.aaa.server_groups.{group.name}.radius"
-                )
+                if isinstance(group, aaaServerGroup):
+                    #group = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = ReferenceTo(
+                        pointer=f"system.aaa.server_groups.{group.name}.radius"
+                    )
+                if isinstance(group, str):
+                    #group_name = self.kwargs.pop("group_name")
+                    self.kwargs["group"] = Reference(
+                        pointer=f"system.aaa.server_groups.{group}.radius"
+                    )
         super().pre_init()
