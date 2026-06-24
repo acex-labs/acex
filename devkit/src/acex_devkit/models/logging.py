@@ -42,7 +42,8 @@ class LoggingConfig(Augmentable):
     severity: Optional[AttributeValue[LoggingSeverity]] = None
     buffer_size: Optional[AttributeValue[int]] = None
 
-class Console(Augmentable):
+class Console(ContainerEntry, Augmentable):
+    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: Optional[AttributeValue[str]] = None
     line_number: Optional[AttributeValue[int]] = None
     logging_synchronous: Optional[AttributeValue[bool]] = None
@@ -58,7 +59,7 @@ class RemoteServer(ContainerEntry, BaseModel):
 class RemoteServers(BaseModel):
     servers: Dict[str, RemoteServer] = {}
 
-class VtyLine(ContainerEntry, BaseModel):
+class VtyLine(ContainerEntry, Augmentable):
     identity_fields: ClassVar[tuple[str, ...]] = ("line_number",)
     name: Optional[AttributeValue[str]] = None
     line_number: Optional[AttributeValue[int]] = None

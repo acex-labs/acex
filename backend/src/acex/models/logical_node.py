@@ -1,25 +1,28 @@
 from sqlmodel import SQLModel, Field
-from typing import Optional, Dict
-from acex_devkit.models.composed_configuration import ComposedConfiguration
+from typing import Optional
 
-class LogicalNodeBase(SQLModel):
-    hostname: str = Field(default="R1")
-    role: str = Field(default="core")
-    site: Optional[str] = Field(default="HQ")
-    sequence: Optional[int] = Field(default=1)
+from acex_devkit.models.logical_node import (
+    LogicalNodeBase as LogicalNodeSchema,
+    LogicalNodeCreate,
+    LogicalNodeListResponse,
+    LogicalNodeResponse,
+    LogicalNodeConfigResponse,
+)
+
+
+class LogicalNodeBase(LogicalNodeSchema, SQLModel):
+    pass
+
 
 class LogicalNode(LogicalNodeBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
-class LogicalNodeCreate(LogicalNodeBase):
-    pass
 
-class LogicalNodeResponse(LogicalNodeBase):
-    id: Optional[int] = Field(default=None)
-    configuration: ComposedConfiguration = ComposedConfiguration()
-    meta_data: Dict = Field(default_factory=dict)
-    regions: list[str] = Field(default_factory=list)
-
-class LogicalNodeListResponse(LogicalNodeBase):
-    id: int
-    regions: list[str] = Field(default_factory=list)
+__all__ = [
+    "LogicalNode",
+    "LogicalNodeBase",
+    "LogicalNodeCreate",
+    "LogicalNodeListResponse",
+    "LogicalNodeResponse",
+    "LogicalNodeConfigResponse",
+]
