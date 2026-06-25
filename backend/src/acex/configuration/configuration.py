@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel
 from acex.configuration.components import ConfigComponent
 from acex.configuration.components.interfaces import (
@@ -42,6 +41,9 @@ from acex.configuration.components.system.snmp import (
 )
 
 from acex.configuration.components.system.aaa import (
+    aaaAuthenticationConfig,
+    aaaAccountingConfig,
+    aaaAuthorizationConfig,
     aaaGlobal,
     aaaServerGroup,
     aaaTacacs,
@@ -136,11 +138,13 @@ class Configuration:
         aaaServerGroup: "system.aaa.server_groups",
         aaaTacacs: Template("system.aaa.server_groups.${server_group}.tacacs"),
         aaaRadius: Template("system.aaa.server_groups.${server_group}.radius"),
-        aaaAuthenticationMethods: "system.aaa.authentication.config",
-        aaaAuthorizationMethods: "system.aaa.authorization.config",
-        aaaAuthorizationEvents: "system.aaa.authorization.events",
-        aaaAccountingMethods: "system.aaa.accounting.config",
-        aaaAccountingEvents: "system.aaa.accounting.events",
+        aaaAuthenticationConfig: "system.aaa.authentication.config",
+        aaaAuthorizationConfig: "system.aaa.authorization.config",
+        aaaAuthorizationMethods: "system.aaa.authorization.config.methods",
+        aaaAuthorizationEvents: "system.aaa.authorization.config.events",
+        aaaAccountingConfig: "system.aaa.accounting.config",
+        aaaAccountingMethods: "system.aaa.accounting.config.methods",
+        aaaAccountingEvents: "system.aaa.accounting.config.events",
         LacpConfig: "lacp.config",
         #LacpInterfaces: "lacp.interfaces",
         #LacpConfgi: "lacp.config",

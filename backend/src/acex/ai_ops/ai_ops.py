@@ -2,11 +2,11 @@ import json
 from openai import AsyncOpenAI
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
-from .settings import DEFAULT_SYSTEM_PROMPTS
+from .settings import DEFAULT_SYSTEM_PROMPTS, CONFIG_ANALYSIS_SYSTEM_PROMPT, CONFIG_ANALYSIS_TASK_PROMPTS, ANALYSIS_MAX_TOKENS, CHAT_MAX_TOKENS
 
 class AIOpsManager:
     
-    def __init__(self, api_key: str = None, base_url: str = None, mcp_server_url: str = "http://localhost:8000/mcp", model: str = "openai/gpt-oss-120b", system_prompt: str | list[str] = None):
+    def __init__(self, api_key: str = None, base_url: str = None, mcp_server_url: str = "http://localhost:8000/mcp", model: str = "openai/gpt-oss-120b", system_prompt: str | list[str] = None, analysis_max_tokens: int = 4096):
         """
         Initialize AI Ops Manager with OpenAI client and MCP server.
 
@@ -58,6 +58,50 @@ class AIOpsManager:
         return result
     
 
+    async def analyze_config_diff(self, task: str, diff: str, context: str = ""):
+        """Stream a focused config-diff analysis without MCP tool calling.
+
+        Args:
+            task:    One of 'explain', 'risk_assessment', 'alignment'
+            diff:    Unified diff text (the config change to analyse)
+            context: Optional freeform context string (hostname, snapshot timestamps, etc.)
+        """
+        task_template = CONFIG_ANALYSIS_TASK_PROMPTS.get(task)
+        if task_template is None:
+            raise ValueError(f"Unknown analysis task '{task}'. Valid tasks: {list(CONFIG_ANALYSIS_TASK_PROMPTS)}")
+
+        user_prompt = task_template.format(
+            diff=diff,
+            context=f"{context}\n" if context else "",
+        )
+
+        messages = [
+            {"role": "system", "content": CONFIG_ANALYSIS_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        import sys
+        print(f"[AI] analyze_config_diff: task={task} model={self.model} diff_len={len(diff)}", flush=True, file=sys.stderr)
+        try:
+            stream = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                stream=True,
+                max_tokens=ANALYSIS_MAX_TOKENS,
+            )
+        except Exception as exc:
+            print(f"[AI] create() failed: {type(exc).__name__}: {exc}", flush=True, file=sys.stderr)
+            raise
+
+        chunk_count = 0
+        async for chunk in stream:
+            if chunk.choices:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    chunk_count += 1
+                    yield delta.content
+        print(f"[AI] stream done, yielded {chunk_count} chunks", flush=True, file=sys.stderr)
+
     async def ask(self, prompt: str, conversation_history: list[dict] = None):
         """Stream AI response with tool calling support and conversation history
         
@@ -68,128 +112,148 @@ class AIOpsManager:
         """
         if conversation_history is None:
             conversation_history = []
-            
-        async with self.mcp:
-            raw_tools = await self.mcp.list_tools()
-            tools = self._convert_tools(raw_tools)
 
-            # Build message history: system + history + current prompt
-            messages = [
-                *self.system_messages,
-                *conversation_history,
-                {"role": "user", "content": prompt}
-            ]
+        try:
+            async with self.mcp:
+                raw_tools = await self.mcp.list_tools()
+                tools = self._convert_tools(raw_tools)
 
-            # First request - check if tools are needed
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                tools=tools,
-                tool_choice="auto"
-            )
+                # Build message history: system + history + current prompt
+                messages = [
+                    *self.system_messages,
+                    *conversation_history,
+                    {"role": "user", "content": prompt}
+                ]
 
-            msg = response.choices[0].message
+                # First request - check if tools are needed
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="auto"
+                )
 
-            # Handle tool calls if present
-            if msg.tool_calls:
-                # Collect all tool results first
-                tool_messages = []
-                
-                for call in msg.tool_calls:
-                    args = call.function.arguments or {}
-                    if isinstance(args, str):
-                        args = json.loads(args)
+                msg = response.choices[0].message
 
-                    yield f"[Calling tool: {call.function.name}]\n"
+                # Handle tool calls if present
+                if msg.tool_calls:
+                    # Collect all tool results first
+                    tool_messages = []
+
+                    for call in msg.tool_calls:
+                        args = call.function.arguments or {}
+                        if isinstance(args, str):
+                            args = json.loads(args)
+
+                        yield f"[Calling tool: {call.function.name}]\n"
+
+                        try:
+                            mcp_result = await self.call_mcp_tool(call.function.name, args)
+                            texts = []
+                            for c in mcp_result.content:
+                                if hasattr(c, "text"):
+                                    texts.append(c.text)
+
+                            tool_output_text = "".join(texts).strip()
+                            try:
+                                tool_output = json.loads(tool_output_text)
+                            except json.JSONDecodeError:
+                                tool_output = tool_output_text
+
+                            # Add tool result to messages
+                            tool_messages.append({
+                                "role": "tool",
+                                "tool_call_id": call.id,
+                                "name": call.function.name,
+                                "content": json.dumps(tool_output)
+                            })
+                        except Exception as e:
+                            yield f"[Error calling {call.function.name}: {str(e)}]\n"
+                            tool_messages.append({
+                                "role": "tool",
+                                "tool_call_id": call.id,
+                                "name": call.function.name,
+                                "content": json.dumps({"error": str(e)})
+                            })
+
+                    # Now make a single LLM call with all tool results
+                    # Build final messages with tool results
+                    final_messages = [
+                        *messages,  # Include full conversation history (system + history + user prompt)
+                    ]
+
+                    # Add assistant message with tool calls
+                    final_messages.append({
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": call.id,
+                                "type": "function",
+                                "function": {
+                                    "name": call.function.name,
+                                    "arguments": call.function.arguments if isinstance(call.function.arguments, str) else json.dumps(call.function.arguments)
+                                }
+                            }
+                            for call in msg.tool_calls
+                        ]
+                    })
+
+                    # Add all tool results
+                    final_messages.extend(tool_messages)
+
+                    # Debug: log the final message structure
+                    import sys
+                    print(f"[DEBUG] Final messages count: {len(final_messages)}", file=sys.stderr)
+                    print(f"[DEBUG] Last message: {json.dumps(final_messages[-1], indent=2)}", file=sys.stderr)
 
                     try:
-                        mcp_result = await self.call_mcp_tool(call.function.name, args)
-                        texts = []
-                        for c in mcp_result.content:
-                            if hasattr(c, "text"):
-                                texts.append(c.text)
+                        stream = await self.client.chat.completions.create(
+                            model=self.model,
+                            messages=final_messages,
+                            stream=True
+                        )
 
-                        tool_output_text = "".join(texts).strip()
-                        try:
-                            tool_output = json.loads(tool_output_text)
-                        except json.JSONDecodeError:
-                            tool_output = tool_output_text
-                        
-                        # Add tool result to messages
-                        tool_messages.append({
-                            "role": "tool",
-                            "tool_call_id": call.id,
-                            "name": call.function.name,
-                            "content": json.dumps(tool_output)
-                        })
+                        async for chunk in stream:
+                            if chunk.choices:
+                                delta = chunk.choices[0].delta
+                                if delta.content:
+                                    yield delta.content
                     except Exception as e:
-                        yield f"[Error calling {call.function.name}: {str(e)}]\n"
-                        tool_messages.append({
-                            "role": "tool",
-                            "tool_call_id": call.id,
-                            "name": call.function.name,
-                            "content": json.dumps({"error": str(e)})
-                        })
-
-                # Now make a single LLM call with all tool results
-                # Build final messages with tool results
-                final_messages = [
-                    *messages,  # Include full conversation history (system + history + user prompt)
-                ]
-                
-                # Add assistant message with tool calls
-                final_messages.append({
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        {
-                            "id": call.id,
-                            "type": "function",
-                            "function": {
-                                "name": call.function.name,
-                                "arguments": call.function.arguments if isinstance(call.function.arguments, str) else json.dumps(call.function.arguments)
-                            }
-                        }
-                        for call in msg.tool_calls
-                    ]
-                })
-                
-                # Add all tool results
-                final_messages.extend(tool_messages)
-                
-                # Debug: log the final message structure
-                import sys
-                print(f"[DEBUG] Final messages count: {len(final_messages)}", file=sys.stderr)
-                print(f"[DEBUG] Last message: {json.dumps(final_messages[-1], indent=2)}", file=sys.stderr)
-                
-                try:
+                        yield f"\n[Error in LLM stream: {str(e)}]\n"
+                        import traceback
+                        yield f"[Traceback: {traceback.format_exc()}]\n"
+                else:
+                    # No tools needed - stream initial response
                     stream = await self.client.chat.completions.create(
                         model=self.model,
-                        messages=final_messages,
+                        messages=messages,
+                        tools=tools,
+                        tool_choice="auto",
                         stream=True
                     )
-                    
+
                     async for chunk in stream:
                         if chunk.choices:
                             delta = chunk.choices[0].delta
                             if delta.content:
                                 yield delta.content
-                except Exception as e:
-                    yield f"\n[Error in LLM stream: {str(e)}]\n"
-                    import traceback
-                    yield f"[Traceback: {traceback.format_exc()}]\n"
-            else:
-                # No tools needed - stream initial response
-                stream = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    tools=tools,
-                    tool_choice="auto",
-                    stream=True
-                )
-                
-                async for chunk in stream:
-                    if chunk.choices:
-                        delta = chunk.choices[0].delta
-                        if delta.content:
-                            yield delta.content
+
+        except Exception:
+            # MCP server unavailable - fall back to conversational mode without tools
+            messages = [
+                *self.system_messages,
+                {"role": "system", "content": "The tool server (MCP) is currently unavailable. You have no tools in this session. If the user asks you to look up devices, configurations, or other data, let them know the tool server is offline."},
+                *conversation_history,
+                {"role": "user", "content": prompt}
+            ]
+            stream = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                stream=True
+            )
+            async for chunk in stream:
+                if chunk.choices:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        yield delta.content

@@ -50,8 +50,8 @@ class NodeService:
         Renderar konfigurationen för en nod instans.
         """
         ni = await self.get(id)
-        ln = await self.inventory.logical_nodes.get(ni.logical_node_id)
-        composed_config = ln.configuration
+        ln_config = await self.inventory.logical_nodes.get_configuration(ni.logical_node_id)
+        composed_config = ln_config.configuration
 
         asset = ni.asset
 
@@ -174,6 +174,7 @@ class NodeService:
                 **node.model_dump(),
                 hostname=node.logical_node.hostname if node.logical_node else None,
                 site=node.logical_node.site if node.logical_node else None,
+                role=node.logical_node.role if node.logical_node else None,
                 vendor=vendor,
                 os=os_val,
                 ned_id=ned_id,

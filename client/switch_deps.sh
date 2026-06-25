@@ -25,14 +25,14 @@ if [[ "$1" == "dev" ]]; then
 elif [[ "$1" == "prod" ]]; then
     echo "Byter till versionsberoenden (för publicering)"
     
-    # Läs version från varje beroendets egen pyproject.toml
-    ACEX_VERSION=$(grep '^version =' "$(dirname "$0")/../backend/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    DEVKIT_VERSION=$(grep '^version =' "$(dirname "$0")/../devkit/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    CISCO_IOS_VERSION=$(grep '^version =' "$(dirname "$0")/../drivers/cisco_ios_cli/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    
-    sed "${SED_INPLACE[@]}" 's|acex = { path = "../backend", develop = true }|acex = "^'$ACEX_VERSION'"|' "$PYPROJECT"
-    sed "${SED_INPLACE[@]}" 's|acex-devkit = { path = "../devkit", develop = true }|acex-devkit = "^'$DEVKIT_VERSION'"|' "$PYPROJECT"
-    sed "${SED_INPLACE[@]}" 's|acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }|acex-driver-cisco-ioscli = "^'$CISCO_IOS_VERSION'"|' "$PYPROJECT"
+    # Läs major-version från varje beroendets egen pyproject.toml
+    ACEX_MAJOR=$(grep '^version =' "$(dirname "$0")/../backend/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/' | cut -d. -f1)
+    DEVKIT_MAJOR=$(grep '^version =' "$(dirname "$0")/../devkit/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/' | cut -d. -f1)
+    CISCO_IOS_MAJOR=$(grep '^version =' "$(dirname "$0")/../drivers/cisco_ios_cli/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/' | cut -d. -f1)
+
+    sed "${SED_INPLACE[@]}" 's|acex = { path = "../backend", develop = true }|acex = "^'$ACEX_MAJOR'"|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-devkit = { path = "../devkit", develop = true }|acex-devkit = "^'$DEVKIT_MAJOR'"|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }|acex-driver-cisco-ioscli = "^'$CISCO_IOS_MAJOR'"|' "$PYPROJECT"
 else
     echo "Använd: $0 dev|prod"
     exit 1

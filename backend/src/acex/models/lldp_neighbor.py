@@ -3,8 +3,15 @@ from datetime import datetime
 from sqlalchemy import Column, ForeignKey, Integer
 from sqlmodel import SQLModel, Field
 
+from acex_devkit.models.lldp_neighbor import (
+    LldpNeighborBase as LldpNeighborSchema,
+    LldpNeighborEntry,
+    LldpNeighborUpload,
+    LldpNeighborResponse,
+)
 
-class LldpNeighbor(SQLModel, table=True):
+
+class LldpNeighbor(LldpNeighborSchema, SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     node_instance_id: int = Field(
         sa_column=Column(
@@ -14,9 +21,6 @@ class LldpNeighbor(SQLModel, table=True):
             index=True,
         )
     )
-    local_interface: str
-    remote_device: str
-    remote_interface: str = ""
     remote_node_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
@@ -26,29 +30,13 @@ class LldpNeighbor(SQLModel, table=True):
             index=True,
         ),
     )
-    discovery_protocol: str = "lldp"
     hash: str = Field(index=True)
     collected_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
-class LldpNeighborEntry(SQLModel):
-    local_interface: str
-    remote_device: str
-    remote_interface: str = ""
-    discovery_protocol: str = "lldp"
-
-
-class LldpNeighborUpload(SQLModel):
-    node_instance_id: int
-    neighbors: list[LldpNeighborEntry]
-
-
-class LldpNeighborResponse(SQLModel):
-    id: int
-    node_instance_id: int
-    local_interface: str
-    remote_device: str
-    remote_interface: str
-    remote_node_id: Optional[int] = None
-    discovery_protocol: str
-    collected_at: datetime
+__all__ = [
+    "LldpNeighbor",
+    "LldpNeighborEntry",
+    "LldpNeighborUpload",
+    "LldpNeighborResponse",
+]

@@ -16,6 +16,45 @@
 {%-   endif %}
 {%- endfor -%}
 {%- endmacro -%}
+
+{%- macro resolve_aaa_group_name(aug) -%}
+{%- if aug.group is defined and aug.group -%}
+{%-   if aug.group.pointer is defined and aug.group.pointer -%}
+{%-     set group_ptr_parts = aug.group.pointer.split('.') -%}
+{%-     if group_ptr_parts|length > 3 -%}
+{{ group_ptr_parts[3] }}
+{%-     endif -%}
+{%-   elif aug.group is string -%}
+{{ aug.group }}
+{%-   elif aug.group.value is defined and aug.group.value -%}
+{{ aug.group.value }}
+{%-   endif -%}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- macro normalize_aaa_list_name(raw_name, suffix_val=None, strip_numeric_suffix=false) -%}
+{%- if raw_name.startswith('default_') -%}
+default
+{%- elif strip_numeric_suffix and '_' in raw_name and raw_name.rsplit('_', 1)[1].isdigit() -%}
+{{ raw_name.rsplit('_', 1) | first }}
+{%- elif suffix_val is not none and raw_name.endswith('_' ~ suffix_val) -%}
+{{ raw_name.rsplit('_', 1) | first }}
+{%- else -%}
+{{ raw_name }}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- macro resolve_line_aaa_name(attr) -%}
+{%- if attr is defined and attr -%}
+{%-   if attr.pointer is defined and attr.pointer -%}
+{{ attr.pointer.split('.')[-1] }}
+{%-   elif attr.value is defined and attr.value -%}
+{{ attr.value }}
+{%-   elif attr is string and attr -%}
+{{ attr }}
+{%-   endif -%}
+{%- endif -%}
+{%- endmacro -%}
 service timestamps debug datetime msec
 service timestamps log datetime msec
 {%- set pwe = (configuration.system.config.augments or {}).get('cisco_service_password_encryption') %}
@@ -85,6 +124,45 @@ aaa group server radius {{ group_name }}
 {%-       endif %}
 {%-     endfor %}
 {%-   endif %}
+
+{%-   set auth_augments = (configuration.system.aaa.authentication.config.augments or {}) if (configuration.system.aaa.authentication is defined and configuration.system.aaa.authentication.config is defined) else {} %}
+{%-   for aug_key, aug in auth_augments.items() %}
+{%-     if aug.type is defined and aug.type == 'cisco_pre_authentication' and aug.auth_type is defined and aug.auth_type.value %}
+{%-       set raw_name = aug.name.value if aug.name is defined and aug.name else aug_key %}
+{%-       set list_name = aug.cli_list_name if (aug.cli_list_name is defined and aug.cli_list_name) else normalize_aaa_list_name(raw_name) %}
+{%-       set group_name %}{{ resolve_aaa_group_name(aug) }}{% endset %}
+aaa authentication {{ aug.auth_type.value }} {{ list_name | trim }}{%- if group_name | trim %} group {{ group_name | trim }}{%- endif %}{%- if aug.methods is defined and aug.methods and aug.methods.value %}{%- for method in aug.methods.value %}{%- if not (group_name | trim) or method != (group_name | trim) %} {{ method }}{%- endif %}{%- endfor %}{%- endif %}
+{%-     endif %}
+{%-   endfor %}
+
+{%-   set author_augments = (configuration.system.aaa.authorization.config.augments or {}) if (configuration.system.aaa.authorization is defined and configuration.system.aaa.authorization.config is defined) else {} %}
+{%-   for aug_key, aug in author_augments.items() %}
+{%-     if aug.type is defined and aug.type == 'cisco_pre_authorization' and aug.author_type is defined and aug.author_type.value %}
+{%-       set raw_name = aug.name.value if aug.name is defined and aug.name else aug_key %}
+{%-       set suffix = aug.privilege_level if (aug.privilege_level is defined and aug.privilege_level is not none) else none %}
+{%-       set list_name = aug.cli_list_name if (aug.cli_list_name is defined and aug.cli_list_name) else normalize_aaa_list_name(raw_name, suffix, aug.author_type.value == 'commands') %}
+{%-       set group_name %}{{ resolve_aaa_group_name(aug) }}{% endset %}
+aaa authorization {{ aug.author_type.value }}{%- if aug.author_type.value == 'commands' and aug.privilege_level is defined and aug.privilege_level is not none %} {{ aug.privilege_level }}{%- endif %} {{ list_name | trim }}{%- if group_name | trim %} group {{ group_name | trim }}{%- endif %}{%- if aug.methods is defined and aug.methods and aug.methods.value %}{%- for method in aug.methods.value %}{%- if not (group_name | trim) or method != (group_name | trim) %} {{ method }}{%- endif %}{%- endfor %}{%- endif %}{%- if aug.if_authenticated is defined and aug.if_authenticated and aug.if_authenticated.value %} if-authenticated{%- endif %}
+{%-     endif %}
+{%-   endfor %}
+
+{%-   set acct_augments = (configuration.system.aaa.accounting.config.augments or {}) if (configuration.system.aaa.accounting is defined and configuration.system.aaa.accounting.config is defined) else {} %}
+{%-   for aug_key, aug in acct_augments.items() %}
+{%-     if aug.type is defined and aug.type == 'cisco_pre_accounting' and aug.account_type is defined and aug.account_type.value %}
+{%-       set raw_name = aug.name.value if aug.name is defined and aug.name else aug_key %}
+{%-       set suffix = aug.privilege_level if (aug.privilege_level is defined and aug.privilege_level is not none) else none %}
+{%-       set list_name = aug.cli_list_name if (aug.cli_list_name is defined and aug.cli_list_name) else normalize_aaa_list_name(raw_name, suffix, aug.account_type.value == 'commands') %}
+{%-       set group_name %}{{ resolve_aaa_group_name(aug) }}{% endset %}
+{%-       set action = none %}
+{%-       if aug.methods is defined and aug.methods and aug.methods.value and aug.methods.value|length > 0 %}
+{%-         set first_method = aug.methods.value[0] %}
+{%-         if first_method in ['start-stop', 'stop-only', 'wait-start', 'none'] %}
+{%-           set action = first_method %}
+{%-         endif %}
+{%-       endif %}
+aaa accounting {{ aug.account_type.value }}{%- if aug.account_type.value == 'commands' and aug.privilege_level is defined and aug.privilege_level is not none %} {{ aug.privilege_level }}{%- endif %} {{ list_name | trim }}{%- if action %} {{ action }}{%- endif %}{%- if group_name | trim %} group {{ group_name | trim }}{%- endif %}{%- if aug.methods is defined and aug.methods and aug.methods.value %}{%- for method in aug.methods.value %}{%- if not ((action and loop.first and method == action) or ((group_name | trim) and method == (group_name | trim))) %} {{ method }}{%- endif %}{%- endfor %}{%- endif %}
+{%-     endif %}
+{%-   endfor %}
 {%- else %}
 no aaa new-model
 {%- endif %}
@@ -722,9 +800,55 @@ logging host {{ server.host.value }}
 {%- endif %}
 !
 line con 0
- logging synchronous
  exec-timeout 0 0
-line vty 0 4
- transport input ssh
+{%- set console_cfg = (configuration.system.logging.get('console')) if configuration.system.logging is defined else none %}
+{%- set console_augments = (console_cfg.get('augments') or {}) if console_cfg else {} %}
+{%- for aug_key, aug in console_augments.items() %}
+{%-   if aug.type == 'cisco_console_aaa' %}
+{%-     set login_list %}{{ resolve_line_aaa_name(aug.login_authentication) }}{% endset %}
+{%-     set exec_list %}{{ resolve_line_aaa_name(aug.authorization_exec) }}{% endset %}
+{%-     set commands_list %}{{ resolve_line_aaa_name(aug.authorization_commands) }}{% endset %}
+{%-     if commands_list | trim %}
+ privilege level 15
+ authorization commands 0 {{ commands_list | trim }}
+ authorization commands 1 {{ commands_list | trim }}
+ authorization commands 15 {{ commands_list | trim }}
+{%-     endif %}
+{%-     if login_list | trim %}
+ login authentication {{ login_list | trim }}
+{%-     endif %}
+{%-     if exec_list | trim %}
+ authorization exec {{ exec_list | trim }}
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+{%- if console_cfg and console_cfg.logging_synchronous and console_cfg.logging_synchronous.value %}
+ logging synchronous
+{%- endif %}
+{%- for vty_group in configuration._vty_groups %}
+line vty {{ vty_group.start_line }} {{ vty_group.end_line }}
+{%-   if vty_group.acl_name %}
+ access-class {{ vty_group.acl_name }} {{ vty_group.acl_direction }}
+{%-     if vty_group.acl_network_instance %}
+ access-class {{ vty_group.acl_name }} {{ vty_group.acl_direction }} vrfname {{ vty_group.acl_network_instance }}
+{%-     endif %}
+{%-   endif %}
+{%-   if vty_group.authorization_commands %}
+ privilege level 15
+ authorization commands 0 {{ vty_group.authorization_commands }}
+ authorization commands 1 {{ vty_group.authorization_commands }}
+ authorization commands 15 {{ vty_group.authorization_commands }}
+{%-   endif %}
+{%-   if vty_group.authorization_exec %}
+ authorization exec {{ vty_group.authorization_exec }}
+{%-   endif %}
+{%-   if vty_group.logging_synchronous %}
+ logging synchronous
+{%-   endif %}
+{%-   if vty_group.login_authentication %}
+ login authentication {{ vty_group.login_authentication }}
+{%-   endif %}
+ transport input {{ vty_group.transport_input }}
 !
+{%- endfor %}
 end

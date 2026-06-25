@@ -23,10 +23,10 @@ if [[ "$1" == "dev" ]]; then
 elif [[ "$1" == "prod" ]]; then
     echo "Byter till versionsberoenden (för publicering)"
 
-    # Läs version från varje beroendets egen pyproject.toml
-    DEVKIT_VERSION=$(grep 'version =' "$(dirname "$0")/../../devkit/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+    # Läs major-version från varje beroendets egen pyproject.toml
+    DEVKIT_MAJOR=$(grep 'version =' "$(dirname "$0")/../../devkit/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/' | cut -d. -f1)
 
-    sed "${SED_INPLACE[@]}" 's|acex-devkit = .*|acex-devkit = "^'$DEVKIT_VERSION'"|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-devkit = .*|acex-devkit = "^'$DEVKIT_MAJOR'"|' "$PYPROJECT"
 else
     echo "Använd: $0 dev|prod"
     exit 1
