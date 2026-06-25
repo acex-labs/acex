@@ -226,7 +226,10 @@ class CredentialManager:
         if not cred.vault_path:
             raise HTTPException(status_code=400, detail=f"Credential '{cred.name}' has source=vault but no vault_path")
 
-        vault_data = self._vault.read_secret(cred.vault_path)
+        try:
+            vault_data = self._vault.read_secret(cred.vault_path)
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"Vault unreachable: {e}")
 
         # Filter to only the fields defined for this credential type
         type_fields = self._get_type_fields(cred.credential_type)
