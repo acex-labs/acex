@@ -228,6 +228,8 @@ class DeviceConfigManager:
 
 
             if output == ConfigOutput.PARSED:
+                if existing is None:
+                    return existing
                 # Get ned from node_instance.asset
                 node_instance = await self.inventory.node_instances.get(node_instance_id)
                 ned = await self._get_ned(node_instance)

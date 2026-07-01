@@ -13,7 +13,7 @@ def main():
     parser = argparse.ArgumentParser(description="Upload a device config backup to ACEX")
     parser.add_argument("node_id", help="Node instance ID")
     parser.add_argument("content", help="Path to the config file to upload")
-    parser.add_argument("--url", default="http://127.0.0.1/", help="ACEX base URL (default: http://127.0.0.1/)")
+    parser.add_argument("--url", default="http://127.0.0.1:8080/", help="ACEX base URL (default: http://127.0.0.1/)")
     parser.add_argument("--api-ver", default=1, type=int, help="API version (default: 1)")
     parser.add_argument("--no-verify", action="store_true", help="Disable SSL certificate verification")
     args = parser.parse_args()
@@ -28,7 +28,7 @@ def main():
     encoded = base64.b64encode(raw).decode()
 
     api_url = f"{args.url.rstrip('/')}/api/v{args.api_ver}"
-    endpoint = f"{api_url}/operations/device_configs/"
+    endpoint = f"{api_url}/inventory/node_instances/{args.node_id}/configuration/observed"
 
     response = requests.post(
         endpoint,
