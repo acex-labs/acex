@@ -1,16 +1,29 @@
 #!/usr/bin/env python3
 """
 Seed script for local development — populates the database with regions,
-sites (real cities with coordinates), and region assignments.
+sites, region assignments, assets, logical nodes, node instances, and
+configuration history.
+
+Config snapshots are read from scripts/configs/{hostname}/*.conf (sorted
+alphabetically), so adding a new revision is as simple as dropping another
+file in the right directory.
 
 Usage:
     python3 scripts/seed_dev_data.py [--base-url http://localhost:80]
 """
 
+import base64
 import json
-import sys
 import urllib.request
 import argparse
+from pathlib import Path
+
+
+CONFIGS_DIR = Path(__file__).parent / "configs"
+
+
+def b64(text):
+    return base64.b64encode(text.encode()).decode()
 
 
 def post(base, path, body, *, method="POST"):
@@ -23,7 +36,9 @@ def post(base, path, body, *, method="POST"):
     try:
         with urllib.request.urlopen(req) as r:
             resp = json.loads(r.read())
-            label = resp.get("name") or resp.get("id")
+            label = resp.get("name") or resp.get("id") or resp.get("hash") or ""
+            if isinstance(label, str) and len(label) > 12:
+                label = label[:12] + "…"
             print(f"  OK   {method} {path} → {label}")
             return resp
     except urllib.error.HTTPError as e:
@@ -32,14 +47,17 @@ def post(base, path, body, *, method="POST"):
         return None
 
 
-def delete(base, path):
-    req = urllib.request.Request(f"{base}{path}", method="DELETE")
-    try:
-        with urllib.request.urlopen(req):
-            pass
-    except Exception:
-        pass
+def get_snapshots(hostname: str) -> list[tuple[str, str]]:
+    """Return [(filename, content), …] for all *.conf files under configs/{hostname}/, sorted."""
+    node_dir = CONFIGS_DIR / hostname
+    if not node_dir.is_dir():
+        return []
+    return [(p.name, p.read_text()) for p in sorted(node_dir.glob("*.conf"))]
 
+
+# ---------------------------------------------------------------------------
+# Static data
+# ---------------------------------------------------------------------------
 
 REGIONS = [
     {"name": "EMEA",     "display_name": "Europe, Middle East & Africa"},
@@ -47,7 +65,7 @@ REGIONS = [
     {"name": "Americas", "display_name": "Americas"},
 ]
 
-# Each site has a `region` key (removed before POST) that drives the assignment.
+# Each site carries a `region` key (removed before POST) used for the assignment.
 SITES = [
     # EMEA
     {"name": "sto-dc1", "display_name": "Stockholm DC1",    "city": "Stockholm",    "country": "Sweden",       "latitude":  59.3293, "longitude":  18.0686, "region": "EMEA"},
@@ -72,9 +90,91 @@ SITES = [
     {"name": "bog-dc1", "display_name": "Bogotá DC1",      "city": "Bogotá",       "country": "Colombia",     "latitude":   4.7110, "longitude": -74.0721, "region": "Americas"},
 ]
 
+# ned_id=None → server stores raw text without NED processing
+ASSETS = [
+    # STO-DC1 — Cisco core/distribution + Juniper border-leaf
+    {"vendor": "cisco",   "serial_number": "FCZ2042X001", "os": "iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9500-40X", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X002", "os": "iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X003", "os": "iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "juniper", "serial_number": "VN3721AB001", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5120-48Y",      "ned_id": "JunosCLI"},
+    # AMS-DC1 — Juniper core/leaf + Cisco OOB management switch
+    {"vendor": "juniper", "serial_number": "VN3721AB002", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "PTX1000",          "ned_id": "JunosCLI"},
+    {"vendor": "juniper", "serial_number": "VN3721AB003", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5100-48S",      "ned_id": "JunosCLI"},
+    {"vendor": "juniper", "serial_number": "VN3721AB004", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5100-48S",      "ned_id": "JunosCLI"},
+    {"vendor": "cisco",   "serial_number": "FGL2318Y001", "os": "nxos",   "os_version": "10.2.5",    "hardware_model": "Nexus 93180YC-FX", "ned_id": "CiscoIOSCLIDriver"},
+]
+
+# asset_idx refers to the position in ASSETS above.
+# lldp lists the neighbors each node reports — remote_device is resolved to a
+# remote_node_id automatically by the server if the hostname exists in inventory.
+NODE_SPECS = [
+    # STO-DC1: classic three-tier (core → distribution → border-leaf)
+    {
+        "hostname": "sto-dc1-core-1", "role": "core", "site": "sto-dc1", "sequence": 1, "asset_idx": 0,
+        "lldp": [
+            {"local_interface": "GigabitEthernet1/0/2", "remote_device": "sto-dc1-dist-1",     "remote_interface": "GigabitEthernet1/0/1"},
+            {"local_interface": "GigabitEthernet1/0/3", "remote_device": "sto-dc1-dist-2",     "remote_interface": "GigabitEthernet1/0/1"},
+            {"local_interface": "xe-0/0/48",             "remote_device": "sto-dc1-bdr-leaf-1", "remote_interface": "xe-0/0/0"},
+        ],
+    },
+    {
+        "hostname": "sto-dc1-dist-1", "role": "distribution", "site": "sto-dc1", "sequence": 1, "asset_idx": 1,
+        "lldp": [
+            {"local_interface": "GigabitEthernet1/0/1", "remote_device": "sto-dc1-core-1", "remote_interface": "GigabitEthernet1/0/2"},
+        ],
+    },
+    {
+        "hostname": "sto-dc1-dist-2", "role": "distribution", "site": "sto-dc1", "sequence": 2, "asset_idx": 2,
+        "lldp": [
+            {"local_interface": "GigabitEthernet1/0/1", "remote_device": "sto-dc1-core-1", "remote_interface": "GigabitEthernet1/0/3"},
+        ],
+    },
+    {
+        "hostname": "sto-dc1-bdr-leaf-1", "role": "border-leaf", "site": "sto-dc1", "sequence": 1, "asset_idx": 3,
+        "lldp": [
+            {"local_interface": "xe-0/0/0", "remote_device": "sto-dc1-core-1", "remote_interface": "xe-0/0/48"},
+        ],
+    },
+    # AMS-DC1: spine-leaf (core → leaf × 2) + OOB
+    {
+        "hostname": "ams-dc1-core-1", "role": "core", "site": "ams-dc1", "sequence": 1, "asset_idx": 4,
+        "lldp": [
+            {"local_interface": "xe-0/0/0",  "remote_device": "ams-dc1-leaf-1", "remote_interface": "xe-0/0/0"},
+            {"local_interface": "xe-0/0/1",  "remote_device": "ams-dc1-leaf-2", "remote_interface": "xe-0/0/0"},
+            {"local_interface": "xe-0/0/47", "remote_device": "ams-dc1-oob-1",  "remote_interface": "Ethernet1/1"},
+        ],
+    },
+    {
+        "hostname": "ams-dc1-leaf-1", "role": "leaf", "site": "ams-dc1", "sequence": 1, "asset_idx": 5,
+        "lldp": [
+            {"local_interface": "xe-0/0/0", "remote_device": "ams-dc1-core-1", "remote_interface": "xe-0/0/0"},
+        ],
+    },
+    {
+        "hostname": "ams-dc1-leaf-2", "role": "leaf", "site": "ams-dc1", "sequence": 2, "asset_idx": 6,
+        "lldp": [
+            {"local_interface": "xe-0/0/0", "remote_device": "ams-dc1-core-1", "remote_interface": "xe-0/0/1"},
+        ],
+    },
+    {
+        "hostname": "ams-dc1-oob-1", "role": "oob", "site": "ams-dc1", "sequence": 1, "asset_idx": 7,
+        "lldp": [
+            {"local_interface": "Ethernet1/1", "remote_device": "ams-dc1-core-1", "remote_interface": "xe-0/0/47"},
+        ],
+    },
+]
+
+_LN_API_FIELDS = {"hostname", "role", "site", "sequence"}
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed dev database with regions, sites, and region assignments.")
+    parser = argparse.ArgumentParser(
+        description="Seed dev database with regions, sites, assets, logical nodes, node instances, and config history."
+    )
     parser.add_argument("--base-url", default="http://localhost:80", help="API base URL")
     args = parser.parse_args()
     base = args.base_url.rstrip("/")
@@ -100,6 +200,70 @@ def main():
             "site_name": site_name,
             "region_name": region_name,
         })
+
+    print("\n=== Assets ===")
+    asset_ids: dict[int, int] = {}
+    for i, asset in enumerate(ASSETS):
+        resp = post(base, "/api/v1/inventory/assets/", asset)
+        if resp:
+            asset_ids[i] = resp["id"]
+
+    print("\n=== Logical Nodes ===")
+    ln_ids: dict[int, int] = {}
+    for i, spec in enumerate(NODE_SPECS):
+        body = {k: v for k, v in spec.items() if k in _LN_API_FIELDS}
+        resp = post(base, "/api/v1/inventory/logical_nodes/", body)
+        if resp:
+            ln_ids[i] = resp["id"]
+
+    print("\n=== Node Instances ===")
+    node_ids: dict[int, int] = {}
+    for i, spec in enumerate(NODE_SPECS):
+        a_idx = spec["asset_idx"]
+        if a_idx not in asset_ids or i not in ln_ids:
+            print(f"  SKIP  {spec['hostname']} — missing asset or logical node")
+            continue
+        resp = post(base, "/api/v1/inventory/node_instances/", {
+            "asset_ref_id": asset_ids[a_idx],
+            "asset_ref_type": "asset",
+            "logical_node_id": ln_ids[i],
+            "status": "active",
+        })
+        if resp:
+            node_ids[i] = resp["id"]
+
+    print("\n=== Configuration History ===")
+    for i, spec in enumerate(NODE_SPECS):
+        if i not in node_ids:
+            print(f"  SKIP  {spec['hostname']} — no node instance")
+            continue
+        nid = node_ids[i]
+        snapshots = get_snapshots(spec["hostname"])
+        if not snapshots:
+            print(f"  SKIP  {spec['hostname']} — no .conf files in configs/{spec['hostname']}/")
+            continue
+        print(f"  {spec['hostname']} (node_instance_id={nid}) — {len(snapshots)} snapshot(s)")
+        for filename, content in snapshots:
+            resp = post(
+                base,
+                f"/api/v1/inventory/node_instances/{nid}/configuration/observed/",
+                {"content": b64(content)},
+            )
+            if resp:
+                h = (resp.get("hash") or "")[:8]
+                print(f"    {filename} → {h}…")
+
+    print("\n=== LLDP Neighbors ===")
+    for i, spec in enumerate(NODE_SPECS):
+        if i not in node_ids or not spec.get("lldp"):
+            continue
+        nid = node_ids[i]
+        resp = post(base, "/api/v1/operations/lldp_neighbors/", {
+            "node_instance_id": nid,
+            "neighbors": spec["lldp"],
+        })
+        if resp:
+            print(f"    {spec['hostname']} — {resp.get('count', 0)} neighbor(s)")
 
     print("\nDone.")
 
