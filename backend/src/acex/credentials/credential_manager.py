@@ -21,6 +21,8 @@ from acex.models.credential import (
     SiteCredentialCreate,
     SiteCredentialResponse,
 )
+from acex.models.node import Node
+from acex.models.logical_node import LogicalNode
 
 
 class CredentialManager:
@@ -382,3 +384,40 @@ class CredentialManager:
                 return "public"
             secret = self.get_secret(link.credential_id)
             return secret.fields.get("community", "public")
+
+    def resolve_snmp_community_source(self, node_id: int, site: Optional[str] = None) -> str:
+        """Return which source resolves the SNMP community for a node: 'node', 'site', or 'default'.
+
+        Checks for assignment only — never decrypts or returns the secret value.
+        """
+        with self._session() as session:
+            node_link = session.query(NodeCredential).filter(
+                NodeCredential.node_id == node_id,
+            ).join(Credential, Credential.id == NodeCredential.credential_id).filter(
+                Credential.credential_type == "snmp_community",
+            ).first()
+            if node_link is not None:
+                return "node"
+
+            if site is not None:
+                site_link = session.query(SiteCredential).filter(
+                    SiteCredential.site_name == site,
+                ).join(Credential, Credential.id == SiteCredential.credential_id).filter(
+                    Credential.credential_type == "snmp_community",
+                ).first()
+                if site_link is not None:
+                    return "site"
+
+            return "default"
+
+    def get_snmp_resolution(self, node_id: int) -> dict:
+        """Return {node_id, source} where source is 'node', 'site', or 'default'."""
+        with self._session() as session:
+            node = session.get(Node, node_id)
+            if not node:
+                raise HTTPException(status_code=404, detail="Node not found")
+            ln = session.get(LogicalNode, node.logical_node_id)
+            site = ln.site if ln else None
+
+        source = self.resolve_snmp_community_source(node_id, site)
+        return {"node_id": node_id, "source": source}
