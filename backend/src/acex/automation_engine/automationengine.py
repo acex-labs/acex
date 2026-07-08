@@ -91,6 +91,19 @@ class AutomationEngine:
 
     def _ensure_credential_manager(self):
         """Lazily initialize CredentialManager from env var if not set via set_encryption_key()."""
+        if self._vault_client is None:
+            vault_addr = os.environ.get("VAULT_ADDR")
+            vault_token = os.environ.get("VAULT_TOKEN")
+            vault_role_id = os.environ.get("VAULT_ROLE_ID")
+            vault_secret_id = os.environ.get("VAULT_SECRET_ID")
+            if vault_addr and (vault_token or (vault_role_id and vault_secret_id)):
+                self.set_vault(
+                    url=vault_addr,
+                    token=vault_token,
+                    role_id=vault_role_id,
+                    secret_id=vault_secret_id,
+                )
+
         if self.credential_manager is None:
             from acex.credentials.credential_manager import CredentialManager
             self.credential_manager = CredentialManager(self.db, self._encryption_key, vault_client=self._vault_client)

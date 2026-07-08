@@ -96,8 +96,12 @@ def icmp_ping_provider(db_manager) -> List[TelemetryComponent]:
 def snmp_provider(db_manager, credential_manager=None) -> List[TelemetryComponent]:
     def _factory(*, node_id, hostname, target_ip, site=None, region=None) -> TelemetryComponent:
         community = "public"
-        if credential_manager is not None and site is not None:
-            community = credential_manager.get_site_community(site)
+        if credential_manager is not None:
+            node_community = credential_manager.get_node_community(node_id)
+            if node_community is not None:
+                community = node_community
+            elif site is not None:
+                community = credential_manager.get_site_community(site)
         return SnmpTelemetry(
             node_id=node_id, hostname=hostname, target_ip=target_ip,
             site=site, region=region, community=community,
