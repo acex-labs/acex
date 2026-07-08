@@ -27,4 +27,7 @@ def create_router(automation_engine):
     router.add_api_route("/sites/{site_name}/credentials", cm.list_site_credentials, methods=["GET"], tags=tags)
     router.add_api_route("/sites/{site_name}/credentials/{credential_id}", cm.remove_site_credential, methods=["DELETE"], tags=tags)
 
+    # SNMP community resolution traceability
+    router.add_api_route("/nodes/{node_id}/snmp-community-source", cm.get_snmp_resolution, methods=["GET"], tags=tags)
+
     return router
