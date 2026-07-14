@@ -29,8 +29,8 @@ ae = AutomationEngine(
 )
 
 ae.set_influxdb(
-    url="http://eru614:8181",
-    token="apiv3_lVnJoRcEfuAERSh_bmP1vj5uTY5V6_wq7mNuoZkKDFpDY-abn2Zvc5L-BDTHpjSL6yx0vW_1lg-xamJ5jixYoA",
+    url=os.getenv("INLFUXDB_SERVER_URL"),
+    token=os.getenv("INFLUX_TOKEN"),
     database="acex",
     content_encoding="gzip",
     version="v3"
