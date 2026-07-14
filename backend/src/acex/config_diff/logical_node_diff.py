@@ -1,4 +1,5 @@
 from acex_devkit.configdiffer.configdiffer import ConfigDiffer
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 
 class DiffLogicalNode: 
 
@@ -16,8 +17,8 @@ class DiffLogicalNode:
         ln_config = await self.inventory.logical_nodes.get_configuration(str(node.logical_node_id))
         desired_config = ln_config.configuration
 
-        # Get observed parsed composed config
-        observed_config = await self.dcm.get_latest_config(node_instance_id, "parsed")
+        # Get observed parsed composed config — may be None if no config has been collected yet
+        observed_config = await self.dcm.get_latest_config(node_instance_id, "parsed") or ComposedConfiguration()
 
         # diff and return diff!
         differ = ConfigDiffer()

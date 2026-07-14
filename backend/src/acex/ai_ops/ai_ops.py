@@ -102,25 +102,33 @@ class AIOpsManager:
                     yield delta.content
         print(f"[AI] stream done, yielded {chunk_count} chunks", flush=True, file=sys.stderr)
 
-    async def ask(self, prompt: str, conversation_history: list[dict] = None):
+    async def ask(self, prompt: str, conversation_history: list[dict] = None, context: str | None = None, extra_system_prompts: list[str] | None = None):
         """Stream AI response with tool calling support and conversation history
-        
+
         Args:
             prompt: The user's current question/prompt
             conversation_history: Previous messages in the conversation
                                  Format: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+            context: Optional page context (visible data) injected as a system message
+            extra_system_prompts: Additional system prompts injected after the base prompts
+                                  (used by the web UI to add UI schema, skills, page context rules)
         """
         if conversation_history is None:
             conversation_history = []
+
+        extra_messages = [{"role": "system", "content": p} for p in (extra_system_prompts or [])]
+        context_messages = [{"role": "system", "content": f"Page context:\n{context}"}] if context else []
 
         try:
             async with self.mcp:
                 raw_tools = await self.mcp.list_tools()
                 tools = self._convert_tools(raw_tools)
 
-                # Build message history: system + history + current prompt
+                # Build message history: system + ui context + page context + history + current prompt
                 messages = [
                     *self.system_messages,
+                    *extra_messages,
+                    *context_messages,
                     *conversation_history,
                     {"role": "user", "content": prompt}
                 ]
@@ -243,7 +251,9 @@ class AIOpsManager:
             # MCP server unavailable - fall back to conversational mode without tools
             messages = [
                 *self.system_messages,
-                {"role": "system", "content": "The tool server (MCP) is currently unavailable. You have no tools in this session. If the user asks you to look up devices, configurations, or other data, let them know the tool server is offline."},
+                *extra_messages,
+                *context_messages,
+                {"role": "system", "content": "The tool server (MCP) is currently unavailable. Answer based on the page context provided. Do not claim you cannot access data that is already present in the page context."},
                 *conversation_history,
                 {"role": "user", "content": prompt}
             ]

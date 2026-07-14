@@ -133,18 +133,33 @@ class NEDManager:
         return response
 
     def list_drivers(self) -> list[dict]:
-        """Returnera en lista över tillgängliga drivrutinsnamn."""
+        """Returnera en lista över tillgängliga drivrutinsnamn via entry points."""
         result = []
-        for key, driver_data in self.drivers.items():
-                driver = driver_data["instance"]
-                kind = type(driver)
-                filename = self._driver_filename(key)
-                info = {
-                    "name": key,
-                    "version": driver_data.get("version", "n/a"),
-                    "package_name": driver_data.get('package_name'),
-                    "description": kind.__doc__ or "n/a",
-                    "filename": filename
-                }
-                result.append(info)
+        for ep in entry_points(group="acex.neds"):
+            class_name = ep.value.split(":")[-1]
+            try:
+                dist = ep.dist
+                version = dist.version
+                package_name = dist.name
+                # Try to get description from cached instance, else load class doc
+                cached = self.drivers.get(class_name)
+                if cached:
+                    description = type(cached["instance"]).__doc__ or "n/a"
+                    filename = self._driver_filename(class_name)
+                else:
+                    klass = ep.load()
+                    description = klass.__doc__ or "n/a"
+                    filename = None
+            except Exception:
+                version = "n/a"
+                package_name = "n/a"
+                description = "n/a"
+                filename = None
+            result.append({
+                "name": class_name,
+                "version": version,
+                "package_name": package_name,
+                "description": description,
+                "filename": filename,
+            })
         return result

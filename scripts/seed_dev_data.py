@@ -68,7 +68,7 @@ REGIONS = [
 # Each site carries a `region` key (removed before POST) used for the assignment.
 SITES = [
     # EMEA
-    {"name": "sto-dc1", "display_name": "Stockholm DC1",    "city": "Stockholm",    "country": "Sweden",       "latitude":  59.3293, "longitude":  18.0686, "region": "EMEA"},
+    {"name": "sto-office1", "display_name": "Stockholm Office1", "city": "Stockholm", "country": "Sweden",      "latitude":  59.3293, "longitude":  18.0686, "region": "EMEA"},
     {"name": "ams-dc1", "display_name": "Amsterdam DC1",    "city": "Amsterdam",    "country": "Netherlands",  "latitude":  52.3676, "longitude":   4.9041, "region": "EMEA"},
     {"name": "lon-dc1", "display_name": "London DC1",       "city": "London",       "country": "UK",           "latitude":  51.5074, "longitude":  -0.1278, "region": "EMEA"},
     {"name": "fra-dc1", "display_name": "Frankfurt DC1",    "city": "Frankfurt",    "country": "Germany",      "latitude":  50.1109, "longitude":   8.6821, "region": "EMEA"},
@@ -92,52 +92,91 @@ SITES = [
 
 # ned_id=None → server stores raw text without NED processing
 ASSETS = [
-    # STO-DC1 — Cisco core/distribution + Juniper border-leaf
+    # STO-OFFICE1 — Cisco core/distribution
     {"vendor": "cisco",   "serial_number": "FCZ2042X001", "os": "iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9500-40X", "ned_id": "CiscoIOSCLIDriver"},
     {"vendor": "cisco",   "serial_number": "FCZ2042X002", "os": "iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
     {"vendor": "cisco",   "serial_number": "FCZ2042X003", "os": "iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
-    {"vendor": "juniper", "serial_number": "VN3721AB001", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5120-48Y",      "ned_id": "JunosCLI"},
     # AMS-DC1 — Juniper core/leaf + Cisco OOB management switch
     {"vendor": "juniper", "serial_number": "VN3721AB002", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "PTX1000",          "ned_id": "JunosCLI"},
     {"vendor": "juniper", "serial_number": "VN3721AB003", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5100-48S",      "ned_id": "JunosCLI"},
     {"vendor": "juniper", "serial_number": "VN3721AB004", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5100-48S",      "ned_id": "JunosCLI"},
     {"vendor": "cisco",   "serial_number": "FGL2318Y001", "os": "nxos",   "os_version": "10.2.5",    "hardware_model": "Nexus 93180YC-FX", "ned_id": "CiscoIOSCLIDriver"},
+    # STO-OFFICE1 — access layer (standalone)
+    {"vendor": "cisco",   "serial_number": "FCZ2042X004", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X005", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    # STO-OFFICE1 — access stack members (3 × Cisco 9300-48P StackWise-480)
+    {"vendor": "cisco",   "serial_number": "FCZ2042X006", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X007", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X008", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+]
+
+# asset_idxs references positions in ASSETS above.
+CLUSTER_SPECS = [
+    {"name": "sto-office1-acc-stack-1", "ned_id": "CiscoIOSCLIDriver", "asset_idxs": [9, 10, 11]},
 ]
 
 # asset_idx refers to the position in ASSETS above.
 # lldp lists the neighbors each node reports — remote_device is resolved to a
 # remote_node_id automatically by the server if the hostname exists in inventory.
 NODE_SPECS = [
-    # STO-DC1: classic three-tier (core → distribution → border-leaf)
+    # STO-OFFICE1: classic three-tier (core → distribution → access)
     {
-        "hostname": "sto-dc1-core-1", "role": "core", "site": "sto-dc1", "sequence": 1, "asset_idx": 0,
+        "hostname": "sto-office1-core-1", "role": "core", "site": "sto-office1", "sequence": 1, "asset_idx": 0,
         "lldp": [
-            {"local_interface": "GigabitEthernet1/0/2", "remote_device": "sto-dc1-dist-1",     "remote_interface": "GigabitEthernet1/0/1"},
-            {"local_interface": "GigabitEthernet1/0/3", "remote_device": "sto-dc1-dist-2",     "remote_interface": "GigabitEthernet1/0/1"},
-            {"local_interface": "xe-0/0/48",             "remote_device": "sto-dc1-bdr-leaf-1", "remote_interface": "xe-0/0/0"},
+            {"local_interface": "GigabitEthernet1/0/2", "remote_device": "sto-office1-dist-1", "remote_interface": "GigabitEthernet1/0/1"},
+            {"local_interface": "GigabitEthernet1/0/3", "remote_device": "sto-office1-dist-2", "remote_interface": "GigabitEthernet1/0/1"},
         ],
     },
     {
-        "hostname": "sto-dc1-dist-1", "role": "distribution", "site": "sto-dc1", "sequence": 1, "asset_idx": 1,
+        "hostname": "sto-office1-dist-1", "role": "distribution", "site": "sto-office1", "sequence": 1, "asset_idx": 1,
         "lldp": [
-            {"local_interface": "GigabitEthernet1/0/1", "remote_device": "sto-dc1-core-1", "remote_interface": "GigabitEthernet1/0/2"},
+            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "sto-office1-core-1",      "remote_interface": "GigabitEthernet1/0/2"},
+            {"local_interface": "GigabitEthernet1/0/2",  "remote_device": "sto-office1-acc-1",        "remote_interface": "GigabitEthernet1/0/49"},
+            {"local_interface": "GigabitEthernet1/0/3",  "remote_device": "sto-office1-acc-stack-1",  "remote_interface": "GigabitEthernet1/0/49"},
         ],
     },
     {
-        "hostname": "sto-dc1-dist-2", "role": "distribution", "site": "sto-dc1", "sequence": 2, "asset_idx": 2,
+        "hostname": "sto-office1-dist-2", "role": "distribution", "site": "sto-office1", "sequence": 2, "asset_idx": 2,
         "lldp": [
-            {"local_interface": "GigabitEthernet1/0/1", "remote_device": "sto-dc1-core-1", "remote_interface": "GigabitEthernet1/0/3"},
+            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "sto-office1-core-1",      "remote_interface": "GigabitEthernet1/0/3"},
+            {"local_interface": "GigabitEthernet1/0/2",  "remote_device": "sto-office1-acc-2",        "remote_interface": "GigabitEthernet1/0/49"},
+            {"local_interface": "GigabitEthernet1/0/3",  "remote_device": "sto-office1-acc-stack-1",  "remote_interface": "GigabitEthernet2/0/49"},
+        ],
+    },
+    # STO-OFFICE1: access layer
+    # Phones (SEP…) are unmanaged — no logical node. The server leaves remote_node_id
+    # null for any remote_device that isn't found in inventory.
+    {
+        "hostname": "sto-office1-acc-1", "role": "access", "site": "sto-office1", "sequence": 1, "asset_idx": 7,
+        "lldp": [
+            {"local_interface": "GigabitEthernet1/0/49", "remote_device": "sto-office1-dist-1",  "remote_interface": "GigabitEthernet1/0/2"},
+            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "SEP1C1D864A2F01",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet1/0/2",  "remote_device": "SEP1C1D864A2F02",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet1/0/3",  "remote_device": "SEP1C1D864A2F03",     "remote_interface": "Port 1"},
         ],
     },
     {
-        "hostname": "sto-dc1-bdr-leaf-1", "role": "border-leaf", "site": "sto-dc1", "sequence": 1, "asset_idx": 3,
+        "hostname": "sto-office1-acc-2", "role": "access", "site": "sto-office1", "sequence": 2, "asset_idx": 8,
         "lldp": [
-            {"local_interface": "xe-0/0/0", "remote_device": "sto-dc1-core-1", "remote_interface": "xe-0/0/48"},
+            {"local_interface": "GigabitEthernet1/0/49", "remote_device": "sto-office1-dist-2",  "remote_interface": "GigabitEthernet1/0/2"},
+            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "SEP2A3B4C5D6E01",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet1/0/2",  "remote_device": "SEP2A3B4C5D6E02",     "remote_interface": "Port 1"},
+        ],
+    },
+    # 3-member Cisco 9300 StackWise-480; dual-homed: member 1 → dist-1, member 2 → dist-2.
+    {
+        "hostname": "sto-office1-acc-stack-1", "role": "access", "site": "sto-office1", "sequence": 3, "cluster_idx": 0,
+        "lldp": [
+            {"local_interface": "GigabitEthernet1/0/49", "remote_device": "sto-office1-dist-1",  "remote_interface": "GigabitEthernet1/0/3"},
+            {"local_interface": "GigabitEthernet2/0/49", "remote_device": "sto-office1-dist-2",  "remote_interface": "GigabitEthernet1/0/3"},
+            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "SEP3F4E5D6C7B01",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet2/0/1",  "remote_device": "SEP3F4E5D6C7B02",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet3/0/1",  "remote_device": "SEP3F4E5D6C7B03",     "remote_interface": "Port 1"},
         ],
     },
     # AMS-DC1: spine-leaf (core → leaf × 2) + OOB
     {
-        "hostname": "ams-dc1-core-1", "role": "core", "site": "ams-dc1", "sequence": 1, "asset_idx": 4,
+        "hostname": "ams-dc1-core-1", "role": "core", "site": "ams-dc1", "sequence": 1, "asset_idx": 3,
         "lldp": [
             {"local_interface": "xe-0/0/0",  "remote_device": "ams-dc1-leaf-1", "remote_interface": "xe-0/0/0"},
             {"local_interface": "xe-0/0/1",  "remote_device": "ams-dc1-leaf-2", "remote_interface": "xe-0/0/0"},
@@ -145,19 +184,19 @@ NODE_SPECS = [
         ],
     },
     {
-        "hostname": "ams-dc1-leaf-1", "role": "leaf", "site": "ams-dc1", "sequence": 1, "asset_idx": 5,
+        "hostname": "ams-dc1-leaf-1", "role": "leaf", "site": "ams-dc1", "sequence": 1, "asset_idx": 4,
         "lldp": [
             {"local_interface": "xe-0/0/0", "remote_device": "ams-dc1-core-1", "remote_interface": "xe-0/0/0"},
         ],
     },
     {
-        "hostname": "ams-dc1-leaf-2", "role": "leaf", "site": "ams-dc1", "sequence": 2, "asset_idx": 6,
+        "hostname": "ams-dc1-leaf-2", "role": "leaf", "site": "ams-dc1", "sequence": 2, "asset_idx": 5,
         "lldp": [
             {"local_interface": "xe-0/0/0", "remote_device": "ams-dc1-core-1", "remote_interface": "xe-0/0/1"},
         ],
     },
     {
-        "hostname": "ams-dc1-oob-1", "role": "oob", "site": "ams-dc1", "sequence": 1, "asset_idx": 7,
+        "hostname": "ams-dc1-oob-1", "role": "oob", "site": "ams-dc1", "sequence": 1, "asset_idx": 6,
         "lldp": [
             {"local_interface": "Ethernet1/1", "remote_device": "ams-dc1-core-1", "remote_interface": "xe-0/0/47"},
         ],
@@ -173,7 +212,7 @@ _LN_API_FIELDS = {"hostname", "role", "site", "sequence"}
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Seed dev database with regions, sites, assets, logical nodes, node instances, and config history."
+        description="Seed dev database with regions, sites, assets, asset clusters, logical nodes, node instances, and config history."
     )
     parser.add_argument("--base-url", default="http://localhost:80", help="API base URL")
     args = parser.parse_args()
@@ -208,6 +247,18 @@ def main():
         if resp:
             asset_ids[i] = resp["id"]
 
+    print("\n=== Asset Clusters ===")
+    cluster_ids: dict[int, int] = {}
+    for i, cluster in enumerate(CLUSTER_SPECS):
+        resp = post(base, "/api/v1/inventory/asset_clusters/", {
+            "name": cluster["name"],
+            "ned_id": cluster["ned_id"],
+        })
+        if resp:
+            cluster_ids[i] = resp["id"]
+            member_ids = [asset_ids[a] for a in cluster["asset_idxs"] if a in asset_ids]
+            post(base, f"/api/v1/inventory/asset_clusters/{resp['id']}", {"asset_ids": member_ids}, method="PATCH")
+
     print("\n=== Logical Nodes ===")
     ln_ids: dict[int, int] = {}
     for i, spec in enumerate(NODE_SPECS):
@@ -219,13 +270,26 @@ def main():
     print("\n=== Node Instances ===")
     node_ids: dict[int, int] = {}
     for i, spec in enumerate(NODE_SPECS):
-        a_idx = spec["asset_idx"]
-        if a_idx not in asset_ids or i not in ln_ids:
-            print(f"  SKIP  {spec['hostname']} — missing asset or logical node")
+        if i not in ln_ids:
+            print(f"  SKIP  {spec['hostname']} — missing logical node")
             continue
+        if "cluster_idx" in spec:
+            c_idx = spec["cluster_idx"]
+            if c_idx not in cluster_ids:
+                print(f"  SKIP  {spec['hostname']} — missing asset cluster")
+                continue
+            asset_ref_id = cluster_ids[c_idx]
+            asset_ref_type = "asset_cluster"
+        else:
+            a_idx = spec["asset_idx"]
+            if a_idx not in asset_ids:
+                print(f"  SKIP  {spec['hostname']} — missing asset")
+                continue
+            asset_ref_id = asset_ids[a_idx]
+            asset_ref_type = "asset"
         resp = post(base, "/api/v1/inventory/node_instances/", {
-            "asset_ref_id": asset_ids[a_idx],
-            "asset_ref_type": "asset",
+            "asset_ref_id": asset_ref_id,
+            "asset_ref_type": asset_ref_type,
             "logical_node_id": ln_ids[i],
             "status": "active",
         })

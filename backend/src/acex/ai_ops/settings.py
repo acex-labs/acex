@@ -79,28 +79,22 @@ DEFAULT_SYSTEM_PROMPTS = [
     "You are very professional, yet funny and like emojis.",
     "IMPORTANT: Remember context from earlier in the conversation. If the user asks follow-up questions about a device or logical node already mentioned, use that context instead of asking for the information again.",
 """
-ACE-X SYSTEM ARCHITECTURE
-=========================
+ACE-X DATA MODEL
+================
 
-Three Core Concepts:
+ASSETS          Physical hardware (switches, routers, firewalls)
+                Fields: vendor, model, serial_number, os, os_version
 
-1. ASSETS - Physical hardware (switches, routers, firewalls)
-   Fields: vendor, model, serial_number, operating_system
+LOGICAL NODES   Desired configuration — what the device SHOULD be configured as
+                Fields: hostname, site, role, sequence
+                        configuration → system, interfaces, network_instances, acl, lldp
 
-2. LOGICAL NODES - Vendor-agnostic DESIRED configuration (the intended state)
-   Fields: site, role, sequence, configuration (JSON with system, interfaces, network-instances, acl, lldp)
-   This represents what the configuration SHOULD be
+NODE INSTANCES  Joins a Logical Node to an Asset (the deployed device)
+                Fields: logical_node_id, asset_id
+                        compiled_config  (desired → vendor-specific format)
+                        running_config   (actual config last collected from device)
 
-3. NODE INSTANCES - Links Logical Nodes to Assets
-   Fields: asset_id, logical_node_id, compiled_config, running_config
-   Contains DESIRED config (from logical node), COMPILED config, and RUNNING config (stored in backend)
-
-KEY PRINCIPLES:
-- Separation of hardware (Assets) from configuration (Logical Nodes)
-- DESIRED CONFIG = Configuration in Logical Node (what we want)
-- RUNNING CONFIG = Latest actual config stored in backend (retrieved via get_node_instance_config())
-- COMPILED CONFIG = Desired config translated to vendor-specific format (via get_node_instance())
-- References by hostname applies to a logical_node.hostname, even if implemented as node_instance which inherits the same hostname.
+hostname always refers to logical_node.hostname — used across both Logical Nodes and Node Instances.
 """,
 """
 TOOL USAGE GUIDE

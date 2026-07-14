@@ -78,6 +78,12 @@ class ReconcileOptions(BaseModel):
     include_changed: bool = True
 
 
+class TranslateRequest(BaseModel):
+    ned_id: str
+    config_text: str
+    filter: Optional[FilterSpec] = None
+
+
 # ── Component metadata ────────────────────────────────────────────
 
 DESCRIPTIONS = {
@@ -722,6 +728,11 @@ def _is_container_component(comp_cls) -> bool:
     return isinstance(model, type) and issubclass(model, ContainerEntry)
 
 
+# Components that are raw model wrappers superseded by more specific single-attr components.
+# E.g. SystemConfig is superseded by HostName, Contact, Location etc.
+_FLATTEN_SKIP = {"SystemConfig", "NetworkInstance"}
+
+
 def _flatten_config_to_instances(config, model_to_comp) -> List[ComponentInstance]:
     """
     Walk a ComposedConfiguration (via model_dump dict) using COMPONENT_MAPPING
@@ -751,10 +762,18 @@ def _flatten_config_to_instances(config, model_to_comp) -> List[ComponentInstanc
             continue
 
         comp_name = comp_cls.__name__
+        if comp_name in _FLATTEN_SKIP:
+            continue
+
         single_attr = _is_single_attr_component(comp_cls)
         container = _is_container_component(comp_cls)
 
         if isinstance(mapped_path, Template):
+            # Templates with no ${...} variables are effectively fixed paths — deduplicate them too
+            if "${" not in mapped_path.template:
+                if mapped_path.template in processed_paths:
+                    continue
+                processed_paths.add(mapped_path.template)
             _walk_template_dict(
                 config_dict, mapped_path.template, comp_name,
                 single_attr, container, type_map, counter, instances,
@@ -805,7 +824,10 @@ def _extract_from_dict(obj, comp_name, single_attr, container, type_map, counter
                 resolved = type_map[item_type]
 
             values = _unwrap_dict(item)
-            if values:
+            # Skip entries that only carry a name with no other meaningful fields
+            # (e.g. the default ComposedConfiguration global NetworkInstance)
+            meaningful = {k: v for k, v in values.items() if k not in ("name", "type")}
+            if values and meaningful:
                 display = values.get("name", key)
                 instances.append(_make_instance(resolved, values, display, counter))
         return
@@ -948,6 +970,77 @@ def create_router(automation_engine):
     router.add_api_route(
         "/reconcile/{node_instance_id}",
         reconcile,
+        methods=["POST"],
+        response_model=GenerateResponse,
+        tags=tags,
+    )
+
+    def list_drivers():
+        """List all installed NED drivers available for config translation."""
+        return {"drivers": automation_engine.device_config_manager.neds.list_drivers()}
+
+    async def translate(request: TranslateRequest):
+        """
+        Parse raw vendor config text using a NED driver and generate a ConfigMap.
+
+        Useful for translating existing device configs into declarative ACEX
+        components without needing a live node instance.
+        """
+        driver = automation_engine.device_config_manager.neds.get_driver_instance(request.ned_id)
+        if driver is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown driver: '{request.ned_id}'. Use GET /drivers to list available drivers.",
+            )
+
+        try:
+            # Ensure a trailing ! so TextFSM templates record the last section.
+            # IOS templates trigger Record on "!" — without it the last block is dropped.
+            stripped = request.config_text.rstrip()
+            config_text = stripped if stripped.endswith("!") else stripped + "\n!"
+            parsed_config = driver.parse(config_text)
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"Parse error: {e}")
+
+        if parsed_config is None:
+            raise HTTPException(status_code=422, detail="Driver returned no parsed config.")
+
+        model_to_comp = _get_model_to_component()
+        component_instances = _flatten_config_to_instances(parsed_config, model_to_comp)
+
+        if not component_instances:
+            return GenerateResponse(code="# No components found in the provided config.")
+
+        code_blocks = []
+        seen_names = set()
+        for ci in component_instances:
+            base = f"Configure{ci.component}_{ci.variable_name}"
+            cls_name = re.sub(r"[^a-zA-Z0-9]", "_", base).strip("_")
+            unique = cls_name
+            n = 2
+            while unique in seen_names:
+                unique = f"{cls_name}_{n}"
+                n += 1
+            seen_names.add(unique)
+
+            gen_request = GenerateRequest(
+                class_name=unique,
+                filter=request.filter,
+                components=[ci],
+            )
+            code_blocks.append(generate_configmap(gen_request).code)
+
+        return GenerateResponse(code="\n\n".join(code_blocks))
+
+    router.add_api_route(
+        "/drivers",
+        list_drivers,
+        methods=["GET"],
+        tags=tags,
+    )
+    router.add_api_route(
+        "/translate",
+        translate,
         methods=["POST"],
         response_model=GenerateResponse,
         tags=tags,

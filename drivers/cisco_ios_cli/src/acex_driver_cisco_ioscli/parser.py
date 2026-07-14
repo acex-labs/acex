@@ -318,6 +318,19 @@ class CiscoIOSCLIParser:
             intf["description"] = intf.get("description") or None
             intf["negotiation"] = True if intf.get("negotiation") else False
 
+            # IP address — combine address + netmask into CIDR notation
+            addr = intf.pop("ipv4_address", None) or None
+            mask = intf.pop("ipv4_prefix", None) or None
+            if addr and mask:
+                try:
+                    import ipaddress
+                    prefix_len = ipaddress.IPv4Network(f"0.0.0.0/{mask}", strict=False).prefixlen
+                    intf["ipv4"] = f"{addr}/{prefix_len}"
+                except Exception:
+                    intf["ipv4"] = f"{addr}/{mask}"
+            else:
+                intf.pop("ipv4", None)
+
             # DHCP snooping trust
             if intf.get("snooping"):
                 trust_inter_dict = {}
@@ -408,44 +421,18 @@ class CiscoIOSCLIParser:
             data=self.running_config,
         )
 
-        system_settings = {}
+        if not parsed_data:
+            return
 
-        # hostname
-        system_settings["hostname"] = (
-            parsed_data[0].get("hostname") if parsed_data[0].get("hostname") else None
-        )
-        # banner motd
-        system_settings["motd_banner"] = (
-            " ".join(parsed_data[0].get("banner_motd"))
-            if parsed_data[0].get("banner_motd")
-            else None
-        )
-
-        # banner login
-        system_settings["login_banner"] = (
-            " ".join(parsed_data[0].get("banner_login"))
-            if parsed_data[0].get("banner_login")
-            else None
-        )
-
-        # domain_name
-        system_settings["domain_name"] = (
-            parsed_data[0].get("domain_name")
-            if parsed_data[0].get("domain_name")
-            else None
-        )
-        # location (from snmp)
-        system_settings["location"] = (
-            parsed_data[0].get("location") if parsed_data[0].get("location") else None
-        )
-        # contact (from snmp)
-        system_settings["contact"] = (
-            parsed_data[0].get("contact") if parsed_data[0].get("contact") else None
-        )
-
-        # self.parsed_config.system.config = self.removekey(
-        #    SystemConfig(**system_settings), "metadata"
-        # )
+        row = parsed_data[0]
+        system_settings = {
+            "hostname":     row.get("hostname") or None,
+            "motd_banner":  " ".join(row["banner_motd"]) if row.get("banner_motd") else None,
+            "login_banner": " ".join(row["banner_login"]) if row.get("banner_login") else None,
+            "domain_name":  row.get("domain_name") or None,
+            "location":     row.get("location") or None,
+            "contact":      row.get("contact") or None,
+        }
         self.parsed_config.system.config = SystemConfig(**system_settings)
 
     def parse_dns(self) -> None:
@@ -543,6 +530,9 @@ class CiscoIOSCLIParser:
         """Parse SSH configuration."""
         command = "show running ssh"
 
+        # Clear the default SshServer() so we only emit SSH config when it's actually present
+        self._parsed_config.system.ssh.config = None
+
         parsed_data = parse_output(
             platform=self.platform,
             template_dir=self.custom_templates_dir,
@@ -588,10 +578,9 @@ class CiscoIOSCLIParser:
             #            break
             #    ssh_values_dict["source_interface"] = intf_ref
 
-        # self.parsed_config.system.ssh.config = self.removekey(
-        #    SshServer(**ssh_values_dict), "metadata"
-        # )
-        self.parsed_config.system.ssh.config = SshServer(**ssh_values_dict)
+        meaningful = {k: v for k, v in ssh_values_dict.items() if v is not None}
+        if meaningful:
+            self.parsed_config.system.ssh.config = SshServer(**ssh_values_dict)
         self.parsed_config.system.ssh.host_keys = {}
 
     def parse_clock(self) -> None:

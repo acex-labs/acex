@@ -5,11 +5,13 @@ from typing import Literal
 import json
 
 from acex.constants import BASE_URL
+from acex.ai_ops.web_ui_context import WEB_UI_SYSTEM_PROMPTS
 
 
 class AskRequest(BaseModel):
     prompt: str
     messages: list[dict] = []
+    context: str | None = None
 
 
 class ConfigAnalysisRequest(BaseModel):
@@ -40,7 +42,7 @@ def create_router(automation_engine):
     @router.post("/ai/ask/", tags=tags)
     async def ask(request: AskRequest):
         async def sse_stream():
-            async for chunk in aiom.ask(request.prompt, request.messages):
+            async for chunk in aiom.ask(request.prompt, request.messages, context=request.context, extra_system_prompts=WEB_UI_SYSTEM_PROMPTS):
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
 
         return StreamingResponse(sse_stream(), media_type="text/event-stream")
