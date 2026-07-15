@@ -8,6 +8,8 @@ Value TRUNK_ALLOWED_VLANS (\S+)
 Value ENABLED (shutdown|no shutdown)
 Value NEGOTIATION (\S+)
 Value SNOOPING (\S+)
+Value IPV4_ADDRESS (\S+)
+Value IPV4_PREFIX (\S+)
 
 Start
   ^interface\s+${NAME} -> Interface
@@ -22,5 +24,6 @@ Interface
   ^\s+${ENABLED}
   ^\s+negotiation ${NEGOTIATION}
   ^\s+ip dhcp snooping ${SNOOPING}
+  ^\s+ip address ${IPV4_ADDRESS}\s+${IPV4_PREFIX}
   ^! -> Record Start
   ^interface\s+${NAME} -> Record Interface

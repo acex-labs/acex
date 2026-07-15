@@ -28,6 +28,8 @@ class ConfigDiffer:
         A model can be both a leaf (stored) and have children (recursed into).
         Returns a flat mapping of path → leaf instance.
         """
+        if model is None:
+            return {}
         result = {}
 
         # Store this model if it has AttributeValue fields (e.g. SystemConfig, NtpServer, NetworkInstance)
