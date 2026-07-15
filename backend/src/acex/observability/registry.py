@@ -1,3 +1,4 @@
+import inspect
 from typing import Callable, Iterable, List, Optional
 
 from acex.observability.capability import TelemetryCapability
@@ -21,8 +22,9 @@ class TelemetryRegistry:
     can extend via `register_provider`.
     """
 
-    def __init__(self, db_manager):
+    def __init__(self, db_manager, credential_manager=None):
         self.db = db_manager
+        self.credential_manager = credential_manager
         self._providers: List[Provider] = []
         self._register_defaults()
 
@@ -33,10 +35,16 @@ class TelemetryRegistry:
     def register_provider(self, provider: Provider) -> None:
         self._providers.append(provider)
 
+    def _call_provider(self, provider: Provider) -> List[TelemetryComponent]:
+        params = inspect.signature(provider).parameters
+        if "credential_manager" in params:
+            return provider(self.db, credential_manager=self.credential_manager)
+        return provider(self.db)
+
     def build(self) -> List[TelemetryComponent]:
         components: List[TelemetryComponent] = []
         for provider in self._providers:
-            components.extend(provider(self.db))
+            components.extend(self._call_provider(provider))
         return components
 
     def by_kind(self, kind: str) -> List[TelemetryComponent]:
