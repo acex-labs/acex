@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
@@ -62,10 +63,16 @@ def create_router(automation_engine):
         return await dcm.upload_config(DeviceConfig(node_instance_id=id, content=payload.content))
 
     async def get_observed_latest(id: str, output: ConfigOutput = ConfigOutput.RENDERED):
-        return await dcm.get_latest_config(node_instance_id=id, output=output)
+        result = await dcm.get_latest_config(node_instance_id=id, output=output)
+        if result and isinstance(result.content, str):
+            result.content = base64.b64encode(result.content.encode()).decode()
+        return result
 
     async def get_observed_by_hash(id: str, hash: str):
-        return dcm.get_config_by_hash(node_instance_id=id, hash=hash)
+        result = dcm.get_config_by_hash(node_instance_id=id, hash=hash)
+        if result and isinstance(result.content, str):
+            result.content = base64.b64encode(result.content.encode()).decode()
+        return result
 
     async def diff_observed(id: str, a: str, b: str):
         return dcm.diff_configs(node_instance_id=id, a=a, b=b)

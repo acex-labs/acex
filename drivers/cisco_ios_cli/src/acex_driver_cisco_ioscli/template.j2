@@ -70,10 +70,6 @@ service compress-config
 hostname {{ configuration.system.config.hostname.value }}
 {%- endif %}
 !
-boot-start-marker
-boot-end-marker
-!
-!
 {%- if configuration.system.logging -%}
 {%-   if configuration.system.logging.config and configuration.system.logging.config.get('buffer_size') %}
 logging buffered {{ configuration.system.logging.config['buffer_size'].value | default(4096) }}
@@ -851,4 +847,3 @@ line vty {{ vty_group.start_line }} {{ vty_group.end_line }}
  transport input {{ vty_group.transport_input }}
 !
 {%- endfor %}
-end

@@ -21,18 +21,18 @@ class Frontpanel(ConfigMap):
         # if47 = FrontpanelPort(
         #     index=47,
         #     name="if47",
-        #     speed=1000000,
+        #     speed=10000000,
         #     description="Routed uplink to core",
         #     switchport = False,
-        #     ipv4 = ip,
+        #     ipv4 = "192.0.2.1/24",
         #     enabled=False
         # )
         # context.configuration.add(if47)
 
-        if47 = FrontpanelPort(
+        if1 = FrontpanelPort(
             index=0,
             name="if1",
-            speed=1000000,
+            speed=10000000,
             description="Second switch",
             module_index=0,
             switchport = False,
@@ -40,8 +40,8 @@ class Frontpanel(ConfigMap):
             ipv4 = "192.0.2.1/24",
             enabled=False
         )
-        context.configuration.add(if47)
+        context.configuration.add(if1)
 
 
 fp = Frontpanel()
-fp.filters = FilterAttribute("role").eq("lan_access")
+fp.filters = FilterAttribute("role").eq("core")

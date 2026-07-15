@@ -46,5 +46,5 @@ class ConfigureAccessPorts(ConfigMap):
                 context.configuration.add(access_port)
 
 
-config = ConfigureAccessPorts()
-config.filters = FilterAttribute("role").eq("lan_access")
+# config = ConfigureAccessPorts()
+# config.filters = FilterAttribute("role").eq("lan_access")

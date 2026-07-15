@@ -9,6 +9,7 @@ from acex_devkit.models.logging import LoggingSeverity
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from acex_devkit.normalizer.engine import NormalizerEngine, OpStats
 from .filters import cidr_to_addrmask
 from .hardware_models import match_hardware_model
 
@@ -152,7 +153,9 @@ class CiscoIOSCLIRenderer(RendererBase):
 
         # Render template and return payload
         template = self._load_template_file(asset)
-        return template.render(configuration=processed_config)
+        rendered = template.render(configuration=processed_config)
+        lines = NormalizerEngine.collapse_and_trim(rendered.splitlines(), OpStats())
+        return "\n".join(lines) + "\n"
 
     def _generate_system_config_commands(
         self, component_change, node_instance
@@ -420,7 +423,8 @@ class CiscoIOSCLIRenderer(RendererBase):
 
             # Get prefix based on configured speed
             speed = self._get_configured_speed(configuration, interface_slot)
-            prefix = prefix_map.get(speed)
+            prefix = prefix_map.get(speed) or 0
+
             # Compile full interface name
             ifname = self._compile_interface_name(
                 prefix=prefix,
@@ -501,6 +505,16 @@ class CiscoIOSCLIRenderer(RendererBase):
         """extract configured interface speed from config map"""
 
         for k, v in configuration["interfaces"].items():
-            configured_speed = v.get("speed", {}).get("value", 1000000)
+            if v["index"]["value"] == interface_slot["index"]:
+                if "module_index" in v:
+                    midx = v["module_index"]["value"]
+                else:
+                    midx = 0
 
-        return configured_speed
+                if midx == interface_slot["module_index"]:
+
+                    if v["type"] == "ethernetCsmacd":
+                        speed = v["speed"]
+                        return speed
+                    else:
+                        return 0
