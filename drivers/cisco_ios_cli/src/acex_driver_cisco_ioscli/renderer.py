@@ -418,7 +418,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         idx_start = model_data["interface_index_start"]
         midx_start = model_data["module_index_start"]
         sidx_start = model_data["stack_index_start"]
-
+        
         for interface_slot in model_data["interfaces"]:
 
             # Get prefix based on configured speed
@@ -454,7 +454,7 @@ class CiscoIOSCLIRenderer(RendererBase):
             if v["type"] == "ethernetCsmacd":
                 idx = v["index"]["value"]
                 midx = v["module_index"]["value"]
-                sidx = v["stack_index"]["value"]
+                sidx = v["stack_index"]["value"] if v.get("stack_index") else 0
                 slot = self._get_slot(idx, midx, sidx, slots)
 
                 if slot is None:
