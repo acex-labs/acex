@@ -13,15 +13,15 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Run Ruff
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4.1.0
         with:
           args: "check ."
 
       - name: Check formatting
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4.1.0
         with:
           args: "format --check ."
         continue-on-error: true # Rapporterande läge tills det initiala fel-bruset är åtgärdat.
@@ -49,10 +49,10 @@ jobs:
             working-dir: ./worker
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -66,7 +66,7 @@ jobs:
         run: poetry lock
 
       - name: Cache Poetry virtualenv
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pypoetry/virtualenvs
           key: poetry-${{ runner.os }}-${{ matrix.component }}-${{ hashFiles(format('{0}/poetry.lock', matrix.working-dir)) }}
@@ -92,10 +92,10 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -109,7 +109,7 @@ jobs:
         run: poetry lock
 
       - name: Cache Poetry virtualenv
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pypoetry/virtualenvs
           key: poetry-${{ runner.os }}-integration-${{ hashFiles('tests/integration/poetry.lock') }}
@@ -150,10 +150,10 @@ jobs:
             working-dir: ./drivers/juniper_junos_cli
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -222,10 +222,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     
     - name: Set up Python 3.13
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.13"
     
@@ -250,15 +250,20 @@ jobs:
         
         # Kolla om versionen redan finns på PyPI
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/${PACKAGE_NAME}/${VERSION}/json")
-        
+
+        echo "| Paket | Version | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
         if [ "$HTTP_CODE" = "200" ]; then
           echo "should-publish=false" >> $GITHUB_OUTPUT
           echo "⏭️  Version $VERSION already exists on PyPI - skipping"
+          echo "| \`$PACKAGE_NAME\` | $VERSION | ⏭️ Redan publicerad |" >> $GITHUB_STEP_SUMMARY
         else
           echo "should-publish=true" >> $GITHUB_OUTPUT
           echo "✅ Version $VERSION is new - will build and publish"
+          echo "| \`$PACKAGE_NAME\` | $VERSION | ✅ Ny version — kommer publiceras (kräver godkännande) |" >> $GITHUB_STEP_SUMMARY
         fi
-    
+
     - name: Set matrix output
       id: check-backend
       if: matrix.package == 'backend'
@@ -292,6 +297,7 @@ jobs:
       id-token: write  # Krävs för Trusted Publisher (OIDC)
       contents: read
     if: github.ref == 'refs/heads/main'
+    environment: release # Kräver manuellt godkännande innan publish, se GitHub Settings -> Environments.
     strategy:
       fail-fast: false  # Fortsätt med andra paket även om ett failar
       matrix:
@@ -332,11 +338,11 @@ jobs:
     
     - name: Checkout code
       if: steps.should-publish.outputs.should-publish == 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     
     - name: Set up Python 3.13
       if: steps.should-publish.outputs.should-publish == 'true'
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.13"
     
@@ -385,6 +391,14 @@ jobs:
         packages-dir: ${{ matrix.working-dir }}/dist/
         verbose: true
 
+    - name: Release summary
+      if: steps.should-publish.outputs.should-publish == 'true'
+      working-directory: ${{ matrix.working-dir }}
+      run: |
+        VERSION=$(poetry version -s)
+        echo "### 📦 ${{ matrix.pypi-name }}" >> $GITHUB_STEP_SUMMARY
+        echo "Publicerad version **$VERSION** till PyPI." >> $GITHUB_STEP_SUMMARY
+
 
   # Drivers below, slightly different logic
 
@@ -404,10 +418,10 @@ jobs:
             pypi-name: acex-driver-juniper-junoscli
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -430,12 +444,18 @@ jobs:
           PACKAGE_NAME="${{ matrix.pypi-name }}"
           VERSION="${{ steps.get-version.outputs.version }}"
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/${PACKAGE_NAME}/${VERSION}/json")
+
+          echo "| Paket | Version | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
           if [ "$HTTP_CODE" = "200" ]; then
             echo "should-publish=false" >> $GITHUB_OUTPUT
             echo "⏭️  Version $VERSION already exists on PyPI - skipping"
+            echo "| \`$PACKAGE_NAME\` | $VERSION | ⏭️ Redan publicerad |" >> $GITHUB_STEP_SUMMARY
           else
             echo "should-publish=true" >> $GITHUB_OUTPUT
             echo "✅ Version $VERSION is new - will build and publish"
+            echo "| \`$PACKAGE_NAME\` | $VERSION | ✅ Ny version — kommer publiceras (kräver godkännande) |" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Set matrix output
@@ -455,6 +475,7 @@ jobs:
       id-token: write
       contents: read
     if: github.ref == 'refs/heads/main'
+    environment: release # Kräver manuellt godkännande innan publish, se GitHub Settings -> Environments.
     strategy:
       fail-fast: false
       matrix:
@@ -480,11 +501,11 @@ jobs:
 
       - name: Checkout code
         if: steps.should-publish.outputs.should-publish == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python 3.13
         if: steps.should-publish.outputs.should-publish == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -523,6 +544,14 @@ jobs:
           packages-dir: drivers/${{ matrix.driver }}/dist/
           verbose: true
 
+      - name: Release summary
+        if: steps.should-publish.outputs.should-publish == 'true'
+        working-directory: drivers/${{ matrix.driver }}
+        run: |
+          VERSION=$(poetry version -s)
+          echo "### 📦 ${{ matrix.pypi-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "Publicerad version **$VERSION** till PyPI." >> $GITHUB_STEP_SUMMARY
+
 
   # Container images for agents
 
@@ -534,9 +563,10 @@ jobs:
       contents: read
       packages: write
     if: github.ref == 'refs/heads/main'
+    environment: release # Kräver manuellt godkännande innan push, se GitHub Settings -> Environments.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get version
         id: get-version
@@ -553,12 +583,18 @@ jobs:
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-collection-agent/manifests/${VERSION}")
+
+          echo "| Image | Version | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "⏭️  Image version $VERSION already exists - skipping"
+            echo "| acex-collection-agent | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
           else
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
+            echo "| acex-collection-agent | $VERSION | ✅ Ny version — kommer pushas (kräver godkännande) |" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Switch client dependencies to version (prod)
@@ -568,11 +604,11 @@ jobs:
 
       - name: Set up Docker Buildx
         if: steps.check-image.outputs.exists == 'false'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
         if: steps.check-image.outputs.exists == 'false'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -580,7 +616,7 @@ jobs:
 
       - name: Build and push
         if: steps.check-image.outputs.exists == 'false'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./agents/collection-agent/Dockerfile
@@ -597,9 +633,10 @@ jobs:
       contents: read
       packages: write
     if: github.ref == 'refs/heads/main'
+    environment: release # Kräver manuellt godkännande innan push, se GitHub Settings -> Environments.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get version
         id: get-version
@@ -616,12 +653,18 @@ jobs:
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-telemetry-agent/manifests/${VERSION}")
+
+          echo "| Image | Version | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "⏭️  Image version $VERSION already exists - skipping"
+            echo "| acex-telemetry-agent | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
           else
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
+            echo "| acex-telemetry-agent | $VERSION | ✅ Ny version — kommer pushas (kräver godkännande) |" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Switch client dependencies to version (prod)
@@ -631,11 +674,11 @@ jobs:
 
       - name: Set up Docker Buildx
         if: steps.check-image.outputs.exists == 'false'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
         if: steps.check-image.outputs.exists == 'false'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -643,7 +686,7 @@ jobs:
 
       - name: Build and push
         if: steps.check-image.outputs.exists == 'false'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./agents/telemetry-agent/Dockerfile
