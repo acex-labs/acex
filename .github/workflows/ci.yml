@@ -129,19 +129,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Endast backend har en Application Profile i Veracode än (acex-framework).
-        # Lägg till fler rader nedan i takt med att profiler skapas för övriga paket/drivers:
-        #   cli            -> acex-cli            (./cli)
-        #   client         -> acex-client         (./client)
-        #   mcp            -> acex-mcp-server      (./mcp)
-        #   devkit         -> acex-devkit          (./devkit)
-        #   cisco_ios_cli  -> acex-driver-cisco-ioscli    (./drivers/cisco_ios_cli)
-        #   juniper_junos_cli -> acex-driver-juniper-junoscli (./drivers/juniper_junos_cli)
-        component: [backend]
+        # En delad Application Profile (acex-framework) för alla paket/drivers.
+        # sandboxname är unik per komponent nedan så att flera scans i samma PR
+        # inte skriver över varandra i samma sandbox.
+        component: [backend, cli, client, mcp, devkit, cisco_ios_cli, juniper_junos_cli]
         include:
           - component: backend
             working-dir: ./backend
-            veracode-profile: acex-framework
+          - component: cli
+            working-dir: ./cli
+          - component: client
+            working-dir: ./client
+          - component: mcp
+            working-dir: ./mcp
+          - component: devkit
+            working-dir: ./devkit
+          - component: cisco_ios_cli
+            working-dir: ./drivers/cisco_ios_cli
+          - component: juniper_junos_cli
+            working-dir: ./drivers/juniper_junos_cli
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -170,12 +176,12 @@ jobs:
       - name: Veracode static scan (sandbox, per-PR)
         uses: veracode/veracode-uploadandscan-action@0.2.11
         with:
-          appname: ${{ matrix.veracode-profile }}
+          appname: acex-framework
           createprofile: false
           filepath: ${{ matrix.working-dir }}/veracode-sast.zip
           version: "${{ matrix.component }}-pr-${{ github.event.pull_request.number }}"
           createsandbox: true
-          sandboxname: "pr-${{ github.event.pull_request.number }}"
+          sandboxname: "pr-${{ github.event.pull_request.number }}-${{ matrix.component }}"
           vid: ${{ secrets.VERACODE_API_ID }}
           vkey: ${{ secrets.VERACODE_API_KEY }}
 
