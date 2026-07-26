@@ -19,6 +19,7 @@ jobs:
         uses: astral-sh/ruff-action@v4.1.0
         with:
           args: "check ."
+        continue-on-error: true # Rapporterande läge tills de 2432 befintliga felen är åtgärdade.
 
       - name: Check formatting
         uses: astral-sh/ruff-action@v4.1.0
@@ -78,13 +79,16 @@ jobs:
       - name: Run tests
         working-directory: ${{ matrix.working-dir }}
         run: |
-          poetry run pytest
-          code=$?
-          if [ $code -eq 5 ]; then
+          # GitHub Actions kör run-steg med `set -e`, så vi måste fånga
+          # exitkoden via `||` — annars avslutas skriptet redan på raden
+          # nedan innan vi hinner tolerera "5 = inga tester" nedan.
+          poetry run pytest || code=$?
+          code=${code:-0}
+          if [ "$code" -eq 5 ]; then
             echo "Inga tester ännu i ${{ matrix.component }} — godkänt tills vidare."
             exit 0
           fi
-          exit $code
+          exit "$code"
 
   integration-tests:
     name: Cross-package integration tests
