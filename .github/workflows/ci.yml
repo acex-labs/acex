@@ -3,8 +3,188 @@ name: CI
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
+  lint:
+    name: Lint (Ruff)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "check ."
+
+      - name: Check formatting
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check ."
+        continue-on-error: true # Rapporterande läge tills det initiala fel-bruset är åtgärdat.
+
+  unit-tests:
+    name: Unit tests ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [backend, cli, client, mcp, devkit, worker]
+        include:
+          - component: backend
+            working-dir: ./backend
+          - component: cli
+            working-dir: ./cli
+          - component: client
+            working-dir: ./client
+          - component: mcp
+            working-dir: ./mcp
+          - component: devkit
+            working-dir: ./devkit
+          - component: worker
+            working-dir: ./worker
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+
+      - name: Update lock file
+        working-directory: ${{ matrix.working-dir }}
+        run: poetry lock
+
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: poetry-${{ runner.os }}-${{ matrix.component }}-${{ hashFiles(format('{0}/poetry.lock', matrix.working-dir)) }}
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.working-dir }}
+        run: poetry install --no-interaction
+
+      - name: Run tests
+        working-directory: ${{ matrix.working-dir }}
+        run: |
+          poetry run pytest
+          code=$?
+          if [ $code -eq 5 ]; then
+            echo "Inga tester ännu i ${{ matrix.component }} — godkänt tills vidare."
+            exit 0
+          fi
+          exit $code
+
+  integration-tests:
+    name: Cross-package integration tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+
+      - name: Update lock file
+        working-directory: ./tests/integration
+        run: poetry lock
+
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: poetry-${{ runner.os }}-integration-${{ hashFiles('tests/integration/poetry.lock') }}
+
+      - name: Install dependencies
+        working-directory: ./tests/integration
+        run: poetry install --no-interaction
+
+      - name: Run integration tests
+        working-directory: ./tests/integration
+        run: poetry run pytest -v
+
+  veracode-scan:
+    name: Veracode scan ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        # Endast backend har en Application Profile i Veracode än (acex-framework).
+        # Lägg till fler rader nedan i takt med att profiler skapas för övriga paket/drivers:
+        #   cli            -> acex-cli            (./cli)
+        #   client         -> acex-client         (./client)
+        #   mcp            -> acex-mcp-server      (./mcp)
+        #   devkit         -> acex-devkit          (./devkit)
+        #   cisco_ios_cli  -> acex-driver-cisco-ioscli    (./drivers/cisco_ios_cli)
+        #   juniper_junos_cli -> acex-driver-juniper-junoscli (./drivers/juniper_junos_cli)
+        component: [backend]
+        include:
+          - component: backend
+            working-dir: ./backend
+            veracode-profile: acex-framework
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+
+      - name: Update lock file (för exakta versioner i SCA-scan)
+        working-directory: ${{ matrix.working-dir }}
+        run: poetry lock
+
+      - name: Package source for SAST
+        working-directory: ${{ matrix.working-dir }}
+        run: |
+          # Veracode SAST vill ha .py/.html utan tredjepartspaket eller tester.
+          find . -name '*.py' -not -path './.venv/*' -not -path '*/tests/*' \
+            -print | zip veracode-sast.zip -@
+
+      - name: Veracode static scan (sandbox, per-PR)
+        uses: veracode/veracode-uploadandscan-action@0.2.11
+        with:
+          appname: ${{ matrix.veracode-profile }}
+          createprofile: false
+          filepath: ${{ matrix.working-dir }}/veracode-sast.zip
+          version: "${{ matrix.component }}-pr-${{ github.event.pull_request.number }}"
+          createsandbox: true
+          sandboxname: "pr-${{ github.event.pull_request.number }}"
+          vid: ${{ secrets.VERACODE_API_ID }}
+          vkey: ${{ secrets.VERACODE_API_KEY }}
+
+      - name: Veracode SCA scan
+        working-directory: ${{ matrix.working-dir }}
+        env:
+          SRCCLR_API_TOKEN: ${{ secrets.VERACODE_AGENT_TOKEN }}
+        run: curl -sSL https://sca-downloads.veracode.com/ci.sh | sh
+        continue-on-error: true # Rapporterande läge — srcclr kan annars faila steget på befintliga fynd.
   check-versions:
     name: Check version ${{ matrix.package }}
     runs-on: ubuntu-latest

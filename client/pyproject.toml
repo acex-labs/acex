@@ -22,6 +22,10 @@ acex = { path = "../backend", develop = true }
 acex-devkit = { path = "../devkit", develop = true }
 acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.0"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

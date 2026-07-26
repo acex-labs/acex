@@ -1,0 +1,15 @@
+target-version = "py313"
+line-length = 120
+
+exclude = [
+    ".venv",
+    "**/.venv",
+    "**/dist",
+    "**/build",
+]
+
+[lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[format]
+quote-style = "double"
