@@ -14,7 +14,6 @@ from acex_devkit.models.credential import (
     NodeCredentialResponse,
 )
 
-
 CREDENTIAL_TYPE_FIELDS = {
     "userpass": [
         ("username", False),
@@ -68,10 +67,30 @@ class NodeCredential(SQLModel, table=True):
     credential_id: int = Field(foreign_key="credential.id", index=True)
 
 
+class SiteCredential(SQLModel, table=True):
+    """Maps credentials to sites (e.g. SNMP community string per site)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    site_name: str = Field(index=True)
+    credential_id: int = Field(foreign_key="credential.id", index=True)
+
+
+class SiteCredentialCreate(SQLModel):
+    credential_id: int
+
+
+class SiteCredentialResponse(SQLModel):
+    id: int
+    site_name: str
+    credential_id: int
+    credential_name: Optional[str] = None
+    credential_type: Optional[str] = None
+
+
 __all__ = [
     "Credential",
     "CredentialField",
     "NodeCredential",
+    "SiteCredential",
     "CREDENTIAL_TYPE_FIELDS",
     "CredentialFieldResponse",
     "CredentialResponse",
@@ -80,4 +99,6 @@ __all__ = [
     "CredentialSecret",
     "NodeCredentialCreate",
     "NodeCredentialResponse",
+    "SiteCredentialCreate",
+    "SiteCredentialResponse",
 ]
