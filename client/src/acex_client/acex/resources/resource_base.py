@@ -1,7 +1,6 @@
 from __future__ import annotations
-from typing import Any, Generic, TypeVar
 
-T = TypeVar("T")
+from typing import Any
 
 
 class PaginatedResult:
@@ -21,7 +20,7 @@ class PaginatedResult:
         return len(self.items) > 0
 
 
-class LiveInstance(Generic[T]):
+class LiveInstance[T]:
     """Mutable proxy around a Pydantic model with .save() and .delete() support."""
 
     def __init__(self, model: T, resource: Resource):
@@ -33,7 +32,7 @@ class LiveInstance(Generic[T]):
         try:
             return object.__getattribute__(self, "_data")[name]
         except KeyError:
-            raise AttributeError(name)
+            raise AttributeError(name) from None
 
     def __setattr__(self, name: str, value: Any) -> None:
         object.__getattribute__(self, "_data")[name] = value
