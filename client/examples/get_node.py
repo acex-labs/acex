@@ -11,4 +11,8 @@ a = Acex(
 
 print(a.node_instances.get("1"))
 
+nodes = a.node_instances.query()
+for i in nodes:
+    print(i.hostname)
+
 

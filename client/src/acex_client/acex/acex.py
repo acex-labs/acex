@@ -17,7 +17,7 @@ class Acex:
             auth: AuthProvider | None = None,
         ):
         self.api_url = f"{baseurl}api/v{api_ver}"
-        resolved_auth = auth or create_auth_provider()
+        resolved_auth = auth or create_auth_provider(self.api_url, verify_ssl=verify)
         self.rest = RestClient(api_url=self.api_url, auth=resolved_auth, verify=verify)
 
         self.node_instances = NodeInstances(self.rest)
