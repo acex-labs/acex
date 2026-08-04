@@ -20,13 +20,13 @@ ae = AutomationEngine(
     # logical_nodes_plugin=netbox,
 )
 
-ae.set_influxdb(
-    url=os.getenv("ACEX_INFLUXDB_URL"),
-    token=os.getenv("ACEX_INFLUXDB_TOKEN"),
-    database="acex",
-    content_encoding="gzip",
-    version="v3"
-)
+# ae.set_influxdb(
+#     url=os.getenv("ACEX_INFLUXDB_URL"),
+#     token=os.getenv("ACEX_INFLUXDB_TOKEN"),
+#     database="acex",
+#     content_encoding="gzip",
+#     version="v3"
+# )
 
 
 ae.add_configmap_dir("config_maps")
