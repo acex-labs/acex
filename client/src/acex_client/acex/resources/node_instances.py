@@ -1,5 +1,6 @@
-from acex_devkit.models import NodeResponse, NodeListItem
-from .resource_base import Resource, GetMixin, ListMixin, CreateMixin, UpdateMixin, DeleteMixin
+from acex_devkit.models import NodeListItem, NodeResponse
+
+from .resource_base import CreateMixin, DeleteMixin, GetMixin, ListMixin, Resource, UpdateMixin
 
 
 class NodeInstances(Resource, GetMixin, ListMixin, CreateMixin, UpdateMixin, DeleteMixin):

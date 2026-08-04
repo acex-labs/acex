@@ -1,11 +1,11 @@
-from acex_client.auth import AuthProvider, create_auth_provider
-from acex_client.restclient.restclient import RestClient
 from acex_devkit.configdiffer.configdiffer import ConfigDiffer
 
-from .resources.node_instances import NodeInstances
+from acex_client.auth import AuthProvider, create_auth_provider
+from acex_client.restclient.restclient import RestClient
+
 from .resources.credentials import Credential
 from .resources.management_connections import ManagementConnections
-
+from .resources.node_instances import NodeInstances
 
 
 class Acex:

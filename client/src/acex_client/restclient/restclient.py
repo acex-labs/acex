@@ -1,6 +1,6 @@
-import urllib3
 import requests
 import requests.auth
+import urllib3
 
 from acex_client.auth.provider import AuthProvider
 

@@ -1,5 +1,6 @@
 from acex_devkit.models.management_connection import ManagementConnectionResponse
-from .resource_base import Resource, GetMixin, ListMixin, CreateMixin, DeleteMixin
+
+from .resource_base import CreateMixin, DeleteMixin, GetMixin, ListMixin, Resource
 
 
 class ManagementConnections(Resource, GetMixin, ListMixin, CreateMixin, DeleteMixin):
