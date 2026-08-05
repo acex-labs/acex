@@ -17,7 +17,7 @@ def create_router(automation_engine):
     )
     router.add_api_route(
         "/agents/",
-        tam.list,
+        tam.query,
         methods=["GET"],
         tags=tags,
     )

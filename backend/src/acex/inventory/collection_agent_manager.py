@@ -130,7 +130,7 @@ class CollectionAgentManager:
         finally:
             session.close()
 
-    def list(
+    def query(
         self,
         name: str | None = None,
         enabled: bool | None = None,
