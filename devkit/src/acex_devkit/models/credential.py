@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, List
 
 from acex_devkit.models.base import PersistedResponse
 
@@ -13,32 +12,32 @@ class CredentialBase(BaseModel):
     name: str
     credential_type: str
     source: str = "local"
-    vault_path: Optional[str] = None
+    vault_path: str | None = None
 
 
 class CredentialFieldResponse(CredentialFieldBase):
-    field_value: Optional[str] = None
+    field_value: str | None = None
 
 
 class CredentialResponse(PersistedResponse, CredentialBase):
-    fields: List[CredentialFieldResponse] = []
+    fields: list[CredentialFieldResponse] = []
 
 
 class CredentialCreate(CredentialBase):
-    fields: Dict[str, str]
+    fields: dict[str, str]
 
 
 class CredentialUpdate(BaseModel):
-    name: Optional[str] = None
-    source: Optional[str] = None
-    vault_path: Optional[str] = None
-    fields: Optional[Dict[str, str]] = None
+    name: str | None = None
+    source: str | None = None
+    vault_path: str | None = None
+    fields: dict[str, str] | None = None
 
 
 class CredentialSecret(BaseModel):
     id: int
     credential_type: str
-    fields: Dict[str, str] = {}
+    fields: dict[str, str] = {}
 
 
 class NodeCredentialCreate(BaseModel):
@@ -48,5 +47,5 @@ class NodeCredentialCreate(BaseModel):
 class NodeCredentialResponse(PersistedResponse):
     node_id: int
     credential_id: int
-    credential_name: Optional[str] = None
-    credential_type: Optional[str] = None
+    credential_name: str | None = None
+    credential_type: str | None = None

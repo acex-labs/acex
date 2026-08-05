@@ -6,7 +6,8 @@ Juniper-specific feature (corresponds to `set snmp community <name>
 clients <prefix>` in Junos). Other vendors model client restrictions
 through ACL references (`ipv4_acl` etc. on SnmpCommunity).
 """
-from typing import List, Literal
+
+from typing import Literal
 
 from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.snmp import SnmpCommunity
@@ -16,8 +17,9 @@ from acex_devkit.models.composed_configuration import AugmentAttributes
 
 class JuniperSnmpCommunityClientsAttributes(AugmentAttributes):
     "Restricts an SNMP community to a list of client networks (Juniper-specific)."
+
     type: Literal["juniper.snmp_community_clients"] = "juniper.snmp_community_clients"
-    clients: AttributeValue[List[str]]
+    clients: AttributeValue[list[str]]
 
 
 class JuniperSnmpCommunityClients(Augment):

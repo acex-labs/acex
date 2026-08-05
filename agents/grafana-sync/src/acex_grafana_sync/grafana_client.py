@@ -8,7 +8,6 @@ logger = logging.getLogger("acex_grafana_sync")
 
 
 class GrafanaClient:
-
     def __init__(
         self,
         url: str,
@@ -33,9 +32,7 @@ class GrafanaClient:
     # --- Folders ---
 
     def folder_exists(self, uid: str) -> bool:
-        r = self.session.get(
-            f"{self.base}/api/folders/{uid}", verify=self.verify, timeout=self.timeout
-        )
+        r = self.session.get(f"{self.base}/api/folders/{uid}", verify=self.verify, timeout=self.timeout)
         if r.status_code == 200:
             return True
         if r.status_code == 404:

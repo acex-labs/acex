@@ -1,9 +1,14 @@
-from acex.plugins.integrations import IntegrationPluginBase, IntegrationPluginFactoryBase
+from typing import TYPE_CHECKING
+
 from acex.plugins.adaptors import DatasourcePluginAdapter
+from acex.plugins.integrations import IntegrationPluginBase, IntegrationPluginFactoryBase
 
-class Integrations(): 
+if TYPE_CHECKING:
+    from acex.plugins.plugin_manager import PluginManager
 
-    def __init__(self, plugin_manager: 'PluginManager'):
+
+class Integrations:
+    def __init__(self, plugin_manager: "PluginManager"):
         """
         Datasources fungerar som en brygga till PluginManager för att hantera
         både objektstyp-specifika plugins och generiska datasources.
@@ -25,20 +30,20 @@ class Integrations():
         plugin = self._plugin_manager.get_generic_plugin(name)
         print(f"Hämtar plug: {plugin}")
         return DatasourcePluginAdapter(plugin)
-    
+
     def get_datasource_with_adapter(self, name: str) -> DatasourcePluginAdapter:
         """
         Hämta en plugin instans wrappat i DatasourcePluginAdapter.
         """
         plugin = self._plugin_manager.get_generic_plugin(name)
         return DatasourcePluginAdapter(plugin)
-    
+
     def list_datasources(self) -> list[str]:
         """
         Lista alla registrerade generiska datasources.
         """
         return list(self._plugin_manager._generic_plugin_map.keys())
-    
+
     def __getattr__(self, name: str):
         """
         Dynamiskt skapa plugin instanser när de efterfrågas.
@@ -47,4 +52,6 @@ class Integrations():
         try:
             return self.get_datasource_with_adapter(name)
         except Exception as e:
-            raise AttributeError(f"Datasource '{name}' not found. Available datasources: {self.list_datasources()}") from e
+            raise AttributeError(
+                f"Datasource '{name}' not found. Available datasources: {self.list_datasources()}"
+            ) from e

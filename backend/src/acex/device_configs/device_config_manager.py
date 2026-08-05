@@ -1,28 +1,26 @@
-from datetime import datetime
 import base64
 import difflib
 import hashlib
-from sqlalchemy import func
-from sqlmodel import SQLModel
-from typing import Tuple, Optional
-from fastapi import HTTPException
-from enum import Enum
+from datetime import datetime
+from enum import StrEnum
 
-from acex.models import DeviceConfig, StoredDeviceConfig, DeviceConfigResponse
-from acex.models.node import Node
+from acex.models import DeviceConfig, DeviceConfigResponse, StoredDeviceConfig
 from acex.models.logical_node import LogicalNode
+from acex.models.node import Node
 from acex.plugins.neds.manager import NEDManager
+from fastapi import HTTPException
+from sqlalchemy import func
 
-class ConfigOutput(str, Enum):
+
+class ConfigOutput(StrEnum):
     PARSED = "parsed"
     RENDERED = "rendered"
 
 
-
 class DeviceConfigManager:
     """
-    This class manages input and retreival of 
-    device configurations. 
+    This class manages input and retreival of
+    device configurations.
     """
 
     def __init__(self, db_manager, inventory=None):
@@ -34,13 +32,12 @@ class DeviceConfigManager:
         # Hitta asset baserat på node instance id.
         return self.neds.get_driver_instance(node_instance.asset.ned_id)
 
-
     def list_config_hashes(
-        self, 
+        self,
         node_instance_id: str,
         point_in_time: datetime = None,
         limit: int = 100,
-        ) -> list: 
+    ) -> list:
 
         session = next(self.db.get_session())
         try:
@@ -49,15 +46,12 @@ class DeviceConfigManager:
                 StoredDeviceConfig.id,
                 StoredDeviceConfig.hash,
                 StoredDeviceConfig.created_at,
-                StoredDeviceConfig.node_instance_id
-            ).filter(
-                StoredDeviceConfig.node_instance_id == node_instance_id
-            )
+                StoredDeviceConfig.node_instance_id,
+            ).filter(StoredDeviceConfig.node_instance_id == node_instance_id)
 
-            
             if point_in_time is not None:
                 query = query.filter(StoredDeviceConfig.created_at <= point_in_time)
-                
+
             results = query.order_by(StoredDeviceConfig.created_at.desc()).limit(limit).all()
 
             return [
@@ -65,7 +59,7 @@ class DeviceConfigManager:
                     "id": result.id,
                     "hash": result.hash,
                     "created_at": result.created_at,
-                    "node_instance_id": result.node_instance_id
+                    "node_instance_id": result.node_instance_id,
                 }
                 for result in results
             ]
@@ -74,11 +68,11 @@ class DeviceConfigManager:
 
     def list_changes(
         self,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
-        site: Optional[str] = None,
-        role: Optional[str] = None,
-        hostname: Optional[str] = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        site: str | None = None,
+        role: str | None = None,
+        hostname: str | None = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
         limit: int = 500,
@@ -102,10 +96,11 @@ class DeviceConfigManager:
         session = next(self.db.get_session())
         try:
             # Pre-resolve matching node ids if any node-attribute filter is set
-            matching_ids: Optional[list[str]] = None
+            matching_ids: list[str] | None = None
             if site or role or hostname:
                 q = session.query(Node.id).join(
-                    LogicalNode, LogicalNode.id == Node.logical_node_id,
+                    LogicalNode,
+                    LogicalNode.id == Node.logical_node_id,
                 )
                 if site:
                     q = q.filter(LogicalNode.site.ilike(f"%{site}%"))
@@ -117,25 +112,37 @@ class DeviceConfigManager:
                 if not matching_ids:
                     return []
 
-            prev_hash = func.lag(StoredDeviceConfig.hash).over(
-                partition_by=StoredDeviceConfig.node_instance_id,
-                order_by=StoredDeviceConfig.created_at,
-            ).label("previous_hash")
-            prev_created = func.lag(StoredDeviceConfig.created_at).over(
-                partition_by=StoredDeviceConfig.node_instance_id,
-                order_by=StoredDeviceConfig.created_at,
-            ).label("previous_created_at")
+            prev_hash = (
+                func.lag(StoredDeviceConfig.hash)
+                .over(
+                    partition_by=StoredDeviceConfig.node_instance_id,
+                    order_by=StoredDeviceConfig.created_at,
+                )
+                .label("previous_hash")
+            )
+            prev_created = (
+                func.lag(StoredDeviceConfig.created_at)
+                .over(
+                    partition_by=StoredDeviceConfig.node_instance_id,
+                    order_by=StoredDeviceConfig.created_at,
+                )
+                .label("previous_created_at")
+            )
 
-            sub = session.query(
-                StoredDeviceConfig.id,
-                StoredDeviceConfig.hash,
-                StoredDeviceConfig.created_at,
-                StoredDeviceConfig.node_instance_id,
-                prev_hash,
-                prev_created,
-            ).filter(
-                StoredDeviceConfig.created_at <= until_value,
-            ).subquery()
+            sub = (
+                session.query(
+                    StoredDeviceConfig.id,
+                    StoredDeviceConfig.hash,
+                    StoredDeviceConfig.created_at,
+                    StoredDeviceConfig.node_instance_id,
+                    prev_hash,
+                    prev_created,
+                )
+                .filter(
+                    StoredDeviceConfig.created_at <= until_value,
+                )
+                .subquery()
+            )
 
             outer = session.query(sub)
             if since is not None:
@@ -160,10 +167,7 @@ class DeviceConfigManager:
             if int_ids:
                 nodes = session.query(Node).filter(Node.id.in_(int_ids)).all()
                 ln_ids = [n.logical_node_id for n in nodes]
-                logical_nodes = (
-                    session.query(LogicalNode).filter(LogicalNode.id.in_(ln_ids)).all()
-                    if ln_ids else []
-                )
+                logical_nodes = session.query(LogicalNode).filter(LogicalNode.id.in_(ln_ids)).all() if ln_ids else []
                 ln_map = {ln.id: ln for ln in logical_nodes}
                 for n in nodes:
                     ln = ln_map.get(n.logical_node_id)
@@ -197,35 +201,27 @@ class DeviceConfigManager:
         finally:
             session.close()
 
-
-    def get_config_by_hash(
-        self,
-        node_instance_id:str,
-        hash:str
-        ) -> StoredDeviceConfig:
+    def get_config_by_hash(self, node_instance_id: str, hash: str) -> StoredDeviceConfig:
 
         session = next(self.db.get_session())
         try:
-            existing = session.query(StoredDeviceConfig).filter(
-                StoredDeviceConfig.hash == hash
-            ).first()
+            existing = session.query(StoredDeviceConfig).filter(StoredDeviceConfig.hash == hash).first()
             return existing
         finally:
             session.close()
 
-
     async def get_latest_config(
-        self,
-        node_instance_id:str,
-        output: ConfigOutput = ConfigOutput.RENDERED
-        ) -> DeviceConfigResponse:
+        self, node_instance_id: str, output: ConfigOutput = ConfigOutput.RENDERED
+    ) -> DeviceConfigResponse:
 
         session = next(self.db.get_session())
         try:
-            existing = session.query(StoredDeviceConfig).filter(
-                StoredDeviceConfig.node_instance_id == node_instance_id
-            ).order_by(StoredDeviceConfig.created_at.desc()).first()
-
+            existing = (
+                session.query(StoredDeviceConfig)
+                .filter(StoredDeviceConfig.node_instance_id == node_instance_id)
+                .order_by(StoredDeviceConfig.created_at.desc())
+                .first()
+            )
 
             if output == ConfigOutput.PARSED:
                 if existing is None:
@@ -244,7 +240,6 @@ class DeviceConfigManager:
         finally:
             session.close()
 
-
     def diff_configs(
         self,
         node_instance_id: str,
@@ -261,12 +256,8 @@ class DeviceConfigManager:
         """
         session = next(self.db.get_session())
         try:
-            cfg_a = session.query(StoredDeviceConfig).filter(
-                StoredDeviceConfig.hash == a
-            ).first()
-            cfg_b = session.query(StoredDeviceConfig).filter(
-                StoredDeviceConfig.hash == b
-            ).first()
+            cfg_a = session.query(StoredDeviceConfig).filter(StoredDeviceConfig.hash == a).first()
+            cfg_b = session.query(StoredDeviceConfig).filter(StoredDeviceConfig.hash == b).first()
 
             if not cfg_a:
                 raise HTTPException(status_code=404, detail=f"Config not found: {a}")
@@ -282,7 +273,9 @@ class DeviceConfigManager:
             for tag, i1, i2, j1, j2 in matcher.get_opcodes():
                 if tag == "equal":
                     for k in range(i2 - i1):
-                        diff.append({"type": "equal", "line_a": i1 + k + 1, "line_b": j1 + k + 1, "text": lines_a[i1 + k]})
+                        diff.append(
+                            {"type": "equal", "line_a": i1 + k + 1, "line_b": j1 + k + 1, "text": lines_a[i1 + k]}
+                        )
                 elif tag in ("replace", "delete"):
                     for k in range(i2 - i1):
                         diff.append({"type": "remove", "line_a": i1 + k + 1, "text": lines_a[i1 + k]})
@@ -315,7 +308,7 @@ class DeviceConfigManager:
     async def upload_config(
         self,
         payload: DeviceConfig,
-        ) -> StoredDeviceConfig:
+    ) -> StoredDeviceConfig:
         # Normalize: strip non-intent data and mask secrets via NED
         node_instance = await self.inventory.node_instances.get(payload.node_instance_id)
         ned = await self._get_ned(node_instance)
@@ -335,9 +328,12 @@ class DeviceConfigManager:
         session = next(self.db.get_session())
         try:
             # Skippa om senaste configen har samma hash (ingen faktisk ändring)
-            latest = session.query(StoredDeviceConfig).filter(
-                StoredDeviceConfig.node_instance_id == payload.node_instance_id
-            ).order_by(StoredDeviceConfig.created_at.desc()).first()
+            latest = (
+                session.query(StoredDeviceConfig)
+                .filter(StoredDeviceConfig.node_instance_id == payload.node_instance_id)
+                .order_by(StoredDeviceConfig.created_at.desc())
+                .first()
+            )
 
             if latest and latest.hash == config_hash:
                 raise HTTPException(
@@ -346,15 +342,11 @@ class DeviceConfigManager:
                         "message": "Config not changed since last time",
                         "last_hash": config_hash,
                         "last_change": str(latest.created_at),
-                        "node_instance_id": payload.node_instance_id
-                    }
+                        "node_instance_id": payload.node_instance_id,
+                    },
                 )
 
-            save_this = StoredDeviceConfig(
-                node_instance_id=payload.node_instance_id,
-                hash=config_hash,
-                content=content
-            )
+            save_this = StoredDeviceConfig(node_instance_id=payload.node_instance_id, hash=config_hash, content=content)
 
             session.add(save_this)
             session.commit()
@@ -362,4 +354,3 @@ class DeviceConfigManager:
             return save_this
         finally:
             session.close()
-

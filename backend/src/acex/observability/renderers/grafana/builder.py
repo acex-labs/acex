@@ -8,7 +8,6 @@ processes the `__inputs` placeholder pattern that Grafana's Import UI
 uses. Users must ensure the matching datasource exists in Grafana
 (generate it via /observability/grafana/datasources/{uid}).
 """
-from typing import Optional
 
 from acex.observability.renderers.grafana.datasources import datasource_uid
 
@@ -43,7 +42,7 @@ def timeseries_panel(
     targets: list[dict],
     grid: dict,
     unit: str = "short",
-    description: Optional[str] = None,
+    description: str | None = None,
 ) -> dict:
     panel = {
         "id": panel_id,
@@ -82,7 +81,7 @@ def stat_panel(
     grid: dict,
     unit: str = "short",
     color_mode: str = "value",
-    thresholds: Optional[list[dict]] = None,
+    thresholds: list[dict] | None = None,
 ) -> dict:
     return {
         "id": panel_id,
@@ -118,9 +117,9 @@ def bargauge_panel(
     targets: list[dict],
     grid: dict,
     unit: str = "short",
-    thresholds: Optional[list[dict]] = None,
+    thresholds: list[dict] | None = None,
     limit: int = 10,
-    description: Optional[str] = None,
+    description: str | None = None,
 ) -> dict:
     panel = {
         "id": panel_id,
@@ -164,8 +163,8 @@ def state_timeline_panel(
     targets: list[dict],
     grid: dict,
     unit: str = "short",
-    thresholds: Optional[list[dict]] = None,
-    description: Optional[str] = None,
+    thresholds: list[dict] | None = None,
+    description: str | None = None,
 ) -> dict:
     panel = {
         "id": panel_id,
@@ -203,7 +202,7 @@ def state_timeline_panel(
 def query_variable(
     name: str,
     query: str,
-    label: Optional[str] = None,
+    label: str | None = None,
     multi: bool = True,
     include_all: bool = True,
     refresh: int = 1,
@@ -234,10 +233,10 @@ def make_dashboard(
     uid: str,
     title: str,
     panels: list[dict],
-    tags: Optional[list[str]] = None,
-    description: Optional[str] = None,
+    tags: list[str] | None = None,
+    description: str | None = None,
     refresh: str = "30s",
-    templating: Optional[list[dict]] = None,
+    templating: list[dict] | None = None,
 ) -> dict:
     return {
         "uid": uid,

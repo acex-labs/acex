@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from acex.exceptions import MethodNotImplemented
 
 
@@ -7,6 +8,7 @@ class IntegrationPluginBase(ABC):
     Basklass för alla datakälls-plugins.
     Stöd för metadata, enkel registrering och tydligt interface.
     """
+
     # Metadata: Ange vilka objektstyper denna plugin gäller för
     RESOURCE_TYPES = []
     DATA_TYPES = []

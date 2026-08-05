@@ -1,40 +1,35 @@
-from typing import List, Optional
-from acex.models import ManagementConnection, ManagementConnectionResponse, ManagementConnectionBase
+from acex.models import ManagementConnection, ManagementConnectionBase, ManagementConnectionResponse
 
 
 class ManagementConnectionManager:
-
     def __init__(self, db_connection):
         self.db = db_connection
-        
+
     def list_connections(
-        self, 
-        node_id: Optional[int] = None,
-        limit: int = 100,
-        offset: int = 0
-        ) -> List[ManagementConnectionResponse]:
+        self, node_id: int | None = None, limit: int = 100, offset: int = 0
+    ) -> list[ManagementConnectionResponse]:
 
         session = next(self.db.get_session())
 
         try:
             query = session.query(ManagementConnection)
-            
+
             # Filtrera på node_id om det anges
             if node_id is not None:
                 query = query.filter(ManagementConnection.node_id == node_id)
-            
+
             # Lägg till limit och offset
             query = query.limit(limit).offset(offset)
-            
+
             connections = query.all()
-            
+
             # Konvertera till response objekt
             return [ManagementConnectionResponse(**connection.dict()) for connection in connections]
 
         finally:
             session.close()
 
-    def get_connection(self, id: int) -> Optional[ManagementConnectionResponse]:
+    def get_connection(self, id: int) -> ManagementConnectionResponse | None:
         session = next(self.db.get_session())
         try:
             connection = session.query(ManagementConnection).filter(ManagementConnection.id == id).first()
@@ -52,16 +47,16 @@ class ManagementConnectionManager:
                 primary=payload.primary,
                 node_id=payload.node_id,
                 connection_type=payload.connection_type,
-                target_ip=payload.target_ip
+                target_ip=payload.target_ip,
             )
-            
+
             # Lägg till i sessionen
             session.add(mgmt_connection)
             # Commita transaktionen
             session.commit()
             # Refresh för att få det genererade ID:t
             session.refresh(mgmt_connection)
-            
+
             # Returnera som response objekt
             return ManagementConnectionResponse(**mgmt_connection.dict())
 

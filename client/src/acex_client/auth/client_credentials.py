@@ -35,13 +35,12 @@ class ClientCredentialsAuth(AuthProvider):
                 "client_id": self._client_id,
                 "client_secret": self._client_secret,
             },
-            verify=self.verify
+            verify=self.verify,
         )
         resp.raise_for_status()
         data = resp.json()
         self._token = data["access_token"]
         self._expires_at = time.time() + data.get("expires_in", 300)
-
 
     def _discover_token_url(self, issuer_url: str) -> str:
         url = issuer_url.rstrip("/") + "/.well-known/openid-configuration"

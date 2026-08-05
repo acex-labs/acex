@@ -1,18 +1,22 @@
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator, field_serializer
-from typing import Union, TypeVar, Generic, Optional, Dict, Any, get_args, get_origin
-from acex_devkit.models import ExternalValue
 import ipaddress
+from typing import Any, TypeVar
 
-T = TypeVar('T')
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator, model_validator
 
-class AttributeValue(BaseModel, Generic[T]):
+from acex_devkit.models.external_value import ExternalValue
+
+T = TypeVar("T")
+
+
+class AttributeValue[T](BaseModel):
     """
     A generic wrapper for values that may be concrete or external.
     """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    value: Union[T, ExternalValue]
-    metadata: Optional[Dict[str, Any]] = None
+    value: T | ExternalValue
+    metadata: dict[str, Any] | None = None
 
     # ---------------------------------------------------------
     # 1) PRE-PROCESSOR: Tillåt råa värden, ExternalValue direkt,
@@ -67,9 +71,7 @@ class AttributeValue(BaseModel, Generic[T]):
             self.metadata.setdefault("plugin", self.value.plugin)
             self.metadata.setdefault(
                 "ev_type",
-                self.value.ev_type.value
-                if hasattr(self.value.ev_type, "value")
-                else self.value.ev_type,
+                self.value.ev_type.value if hasattr(self.value.ev_type, "value") else self.value.ev_type,
             )
             self.metadata.setdefault("query", self.value.query)
             self.metadata.setdefault("resolved", self.value.resolved)
@@ -127,4 +129,3 @@ class AttributeValue(BaseModel, Generic[T]):
 
     def get_value(self) -> T:
         return self.value.value if isinstance(self.value, ExternalValue) else self.value
-

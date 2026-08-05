@@ -1,12 +1,9 @@
-from sqlalchemy import Column, ForeignKey, Integer
-from sqlmodel import SQLModel, Field
-from typing import Optional
-
 from acex_devkit.models.management_connection import (
     ManagementConnectionBase as ManagementConnectionSchema,
-    ManagementConnectionResponse,
-    ConnectionType,
 )
+from acex_devkit.models.management_connection import ManagementConnectionResponse
+from sqlalchemy import Column, ForeignKey, Integer
+from sqlmodel import Field, SQLModel
 
 
 class ManagementConnectionBase(ManagementConnectionSchema, SQLModel):
@@ -28,3 +25,11 @@ class ManagementConnection(ManagementConnectionBase, table=True):
 class DeviceManagement(SQLModel):
     asset_id: int
     logical_node_id: int
+
+
+__all__ = [
+    "ManagementConnectionBase",
+    "ManagementConnection",
+    "DeviceManagement",
+    "ManagementConnectionResponse",
+]

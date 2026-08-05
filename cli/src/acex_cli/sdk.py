@@ -1,6 +1,4 @@
 from acex_client.acex.acex import Acex
-import requests
-from requests.exceptions import ConnectionError, SSLError
 
 
 def _innermost_exception_message(exc: Exception) -> str:
@@ -16,7 +14,6 @@ def get_sdk(context):
     url = context.get("url")
     if not url:
         raise RuntimeError("Active context saknar 'url'.")
-    jwt = context.get("jwt")
 
     verify = context.get("verify_ssl", True)
     client = Acex(baseurl=f"{url}/", verify=verify)

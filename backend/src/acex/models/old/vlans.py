@@ -1,5 +1,5 @@
-from sqlmodel import SQLModel, Field
-from typing import Any
+from sqlmodel import SQLModel
+
 
 class VlanAttributes(SQLModel):
     name: str = None

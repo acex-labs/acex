@@ -1,21 +1,20 @@
-
 import asyncio
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
-from typing import Optional
+from typing import Any
+
+from acex_devkit.configdiffer import Diff
+from acex_devkit.drivers import NetworkElementDriver, TransportBase
+from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_devkit.models.composed_configuration import ComposedConfiguration
-from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.management_connection import ManagementConnection
+from acex_devkit.models.node_response import NodeListItem
 from scrapli.driver.core import AsyncIOSXEDriver
 from scrapli.exceptions import ScrapliAuthenticationFailed, ScrapliTimeout
 
-from acex_devkit.drivers import NetworkElementDriver, TransportBase
-from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
-from acex_devkit.configdiffer import Diff
-
-from .renderer import CiscoIOSCLIRenderer
-from .parser import CiscoIOSCLIParser
 from .normalizer import CiscoIOSNormalizer
+from .parser import CiscoIOSCLIParser
+from .renderer import CiscoIOSCLIRenderer
 
 # Legacy KEX/ciphers for older IOS devices that don't support modern algorithms
 _LEGACY_ASYNCSSH_OPTIONS = {
@@ -29,11 +28,10 @@ _LEGACY_ASYNCSSH_OPTIONS = {
 }
 
 
-_session_conn: ContextVar[Optional[AsyncIOSXEDriver]] = ContextVar("_session_conn", default=None)
+_session_conn: ContextVar[AsyncIOSXEDriver | None] = ContextVar("_session_conn", default=None)
 
 
 class CiscoIOSTransport(TransportBase):
-
     async def _open_connection(self, connection: ManagementConnection, **kwargs) -> AsyncIOSXEDriver:
         username = kwargs.get("username")
         password = kwargs.get("password")
@@ -96,12 +94,16 @@ class CiscoIOSTransport(TransportBase):
             response = await conn.send_command("show running-config", timeout_ops=120)
             return response.result
 
-    async def send_config(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> str:
+    async def send_config(
+        self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs
+    ) -> str:
         async with self._conn(connection, **kwargs) as conn:
             response = await conn.send_configs(commands)
             return response.result
 
-    async def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
+    async def execute(
+        self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs
+    ) -> list[str]:
         async with self._conn(connection, **kwargs) as conn:
             responses = await conn.send_commands(commands, timeout_ops=120)
             return [r.result for r in responses]
@@ -113,7 +115,7 @@ class CiscoIOSTransport(TransportBase):
                 response = await asyncio.wait_for(conn.send_command("show lldp neighbors detail"), timeout=10)
                 if "%" not in response.result[:40]:
                     neighbors.extend(self._parse_lldp_detail(response.result))
-            except (asyncio.TimeoutError, ScrapliTimeout, ConnectionTimeout, Exception):
+            except (TimeoutError, ScrapliTimeout, ConnectionTimeout, Exception):
                 # Connection state is unknown after timeout — skip CDP on this session
                 return neighbors
             try:
@@ -123,44 +125,50 @@ class CiscoIOSTransport(TransportBase):
                     for entry in self._parse_cdp_detail(response.result):
                         if (entry["local_interface"], entry["remote_device"]) not in seen:
                             neighbors.append(entry)
-            except (asyncio.TimeoutError, ScrapliTimeout, ConnectionTimeout, Exception):
+            except (TimeoutError, ScrapliTimeout, ConnectionTimeout, Exception):
                 pass
             return neighbors
 
     @staticmethod
     def _parse_lldp_detail(raw: str) -> list[dict]:
         import re
-        entries = re.split(r'-{20,}', raw)
+
+        entries = re.split(r"-{20,}", raw)
         neighbors = []
         for entry in entries:
-            local = re.search(r'Local Intf:\s*(\S+)', entry)
-            sys_name = re.search(r'System Name:\s*(\S+)', entry)
-            port_id = re.search(r'Port id:\s*(\S+)', entry)
+            local = re.search(r"Local Intf:\s*(\S+)", entry)
+            sys_name = re.search(r"System Name:\s*(\S+)", entry)
+            port_id = re.search(r"Port id:\s*(\S+)", entry)
             if local and sys_name:
-                neighbors.append({
-                    "local_interface": local.group(1),
-                    "remote_device": sys_name.group(1),
-                    "remote_interface": port_id.group(1) if port_id else "",
-                    "discovery_protocol": "lldp",
-                })
+                neighbors.append(
+                    {
+                        "local_interface": local.group(1),
+                        "remote_device": sys_name.group(1),
+                        "remote_interface": port_id.group(1) if port_id else "",
+                        "discovery_protocol": "lldp",
+                    }
+                )
         return neighbors
 
     @staticmethod
     def _parse_cdp_detail(raw: str) -> list[dict]:
         import re
-        entries = re.split(r'-{20,}', raw)
+
+        entries = re.split(r"-{20,}", raw)
         neighbors = []
         for entry in entries:
-            device = re.search(r'Device ID:\s*(\S+)', entry)
-            local = re.search(r'Interface:\s*(\S+?),', entry)
-            remote = re.search(r'Port ID.*?:\s*(\S+)', entry)
+            device = re.search(r"Device ID:\s*(\S+)", entry)
+            local = re.search(r"Interface:\s*(\S+?),", entry)
+            remote = re.search(r"Port ID.*?:\s*(\S+)", entry)
             if device and local:
-                neighbors.append({
-                    "local_interface": local.group(1),
-                    "remote_device": device.group(1).rstrip('.'),
-                    "remote_interface": remote.group(1) if remote else "",
-                    "discovery_protocol": "cdp",
-                })
+                neighbors.append(
+                    {
+                        "local_interface": local.group(1),
+                        "remote_device": device.group(1).rstrip("."),
+                        "remote_interface": remote.group(1) if remote else "",
+                        "discovery_protocol": "cdp",
+                    }
+                )
         return neighbors
 
 
@@ -178,10 +186,12 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     def parse(self, configuration: str) -> ComposedConfiguration:
         return self.parser.parse(configuration)
 
-    def render_patch(self, diff: Diff, node_instance: "NodeInstance"):
+    def render_patch(self, diff: Diff, node_instance: Any):
         return self.renderer.render_patch(diff, node_instance)
 
-    async def apply_patch(self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnection, **kwargs):
+    async def apply_patch(
+        self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnection, **kwargs
+    ):
         commands = self.render_patch(diff, node_instance=node_instance)
         commands = [c.lstrip() for c in commands.splitlines() if c.strip() != "!"]
         return await self.transport.send_config(node, connection, commands, **kwargs)

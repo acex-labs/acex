@@ -1,10 +1,8 @@
 from acex.configuration.components.base_component import ConfigComponent
 from acex.configuration.components.interfaces import Interface
-from acex_devkit.models.composed_configuration import (
-    AuthorizedKey, 
-    ReferenceTo,
-    SshServer as SshServerAttributes
-)
+from acex_devkit.models.composed_configuration import AuthorizedKey, ReferenceTo
+from acex_devkit.models.composed_configuration import SshServer as SshServerAttributes
+
 
 class SshServer(ConfigComponent):
     type = "ssh_server"
@@ -23,7 +21,6 @@ class SshServer(ConfigComponent):
             elif isinstance(si, Interface):
                 ref = ReferenceTo(pointer=f"interfaces.{si.name}")
                 self.kwargs["source_interface"] = ref
-
 
 
 class AuthorizedKey(ConfigComponent):

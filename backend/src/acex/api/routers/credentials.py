@@ -1,6 +1,5 @@
-from fastapi import APIRouter
-
 from acex.constants import BASE_URL
+from fastapi import APIRouter
 
 
 def create_router(automation_engine):
@@ -20,12 +19,16 @@ def create_router(automation_engine):
     # Node ↔ Credential mapping
     router.add_api_route("/nodes/{node_id}/credentials", cm.assign_to_node, methods=["POST"], tags=tags)
     router.add_api_route("/nodes/{node_id}/credentials", cm.list_node_credentials, methods=["GET"], tags=tags)
-    router.add_api_route("/nodes/{node_id}/credentials/{credential_id}", cm.remove_node_credential, methods=["DELETE"], tags=tags)
+    router.add_api_route(
+        "/nodes/{node_id}/credentials/{credential_id}", cm.remove_node_credential, methods=["DELETE"], tags=tags
+    )
 
     # Site ↔ Credential mapping
     router.add_api_route("/sites/{site_name}/credentials", cm.assign_to_site, methods=["POST"], tags=tags)
     router.add_api_route("/sites/{site_name}/credentials", cm.list_site_credentials, methods=["GET"], tags=tags)
-    router.add_api_route("/sites/{site_name}/credentials/{credential_id}", cm.remove_site_credential, methods=["DELETE"], tags=tags)
+    router.add_api_route(
+        "/sites/{site_name}/credentials/{credential_id}", cm.remove_site_credential, methods=["DELETE"], tags=tags
+    )
 
     # SNMP community resolution traceability
     router.add_api_route("/nodes/{node_id}/snmp-community-source", cm.get_snmp_resolution, methods=["GET"], tags=tags)

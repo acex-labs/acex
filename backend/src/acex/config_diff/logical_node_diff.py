@@ -1,12 +1,11 @@
 from acex_devkit.configdiffer.configdiffer import ConfigDiffer
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 
-class DiffLogicalNode: 
 
+class DiffLogicalNode:
     def __init__(self, inventory, device_config_manager):
         self.inventory = inventory
         self.dcm = device_config_manager
-
 
     async def diff(self, node_instance_id: str):
 
@@ -22,10 +21,7 @@ class DiffLogicalNode:
 
         # diff and return diff!
         differ = ConfigDiffer()
-        diff = differ.diff(
-            desired_config=desired_config,
-            observed_config=observed_config
-        )
+        diff = differ.diff(desired_config=desired_config, observed_config=observed_config)
 
         return diff
 
@@ -33,9 +29,9 @@ class DiffLogicalNode:
         diff = await self.diff(node_instance_id)
         diff_dump = diff.model_dump()
 
-        diff_dump.pop('changed')
-        diff_dump.pop('added')
-        diff_dump.pop('removed')
+        diff_dump.pop("changed")
+        diff_dump.pop("added")
+        diff_dump.pop("removed")
         return diff_dump
 
     async def compliance_check_site(self, site_name: str):

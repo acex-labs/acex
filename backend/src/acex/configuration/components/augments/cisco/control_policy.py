@@ -1,18 +1,18 @@
 """Cisco IOS / IOS-XE subscriber control policy augments."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
+from typing import Literal
 
 from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.services import Services
 from acex_devkit.models import AttributeValue
 from acex_devkit.models.composed_configuration import AugmentAttributes
-
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # Builder classes — typed API for constructing policy-maps in config maps
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class PolicyMapAction:
@@ -25,17 +25,17 @@ class PolicyMapClass:
     priority: int
     class_name: str
     mode: str
-    actions: List[PolicyMapAction] = field(default_factory=list)
+    actions: list[PolicyMapAction] = field(default_factory=list)
 
 
 @dataclass
 class PolicyMapEvent:
     event_type: str
     match_type: str
-    classes: List[PolicyMapClass] = field(default_factory=list)
+    classes: list[PolicyMapClass] = field(default_factory=list)
 
 
-def _events_to_dict(events: List[PolicyMapEvent]) -> dict:
+def _events_to_dict(events: list[PolicyMapEvent]) -> dict:
     return {
         event.event_type: {
             "match_type": event.match_type,
@@ -43,10 +43,7 @@ def _events_to_dict(events: List[PolicyMapEvent]) -> dict:
                 str(cls.priority): {
                     "class_name": cls.class_name,
                     "mode": cls.mode,
-                    "actions": {
-                        str(act.priority): {"action": act.action}
-                        for act in cls.actions
-                    },
+                    "actions": {str(act.priority): {"action": act.action} for act in cls.actions},
                 }
                 for cls in event.classes
             },
@@ -59,6 +56,7 @@ def _events_to_dict(events: List[PolicyMapEvent]) -> dict:
 # Pydantic models — internal representation used by the renderer
 # ---------------------------------------------------------------------------
 
+
 class PolicyMapActionAttributes(BaseModel):
     action: str
 
@@ -66,23 +64,24 @@ class PolicyMapActionAttributes(BaseModel):
 class PolicyMapClassAttributes(BaseModel):
     class_name: str
     mode: str
-    actions: Dict[str, PolicyMapActionAttributes] = Field(default_factory=dict)
+    actions: dict[str, PolicyMapActionAttributes] = Field(default_factory=dict)
 
 
 class PolicyMapEventAttributes(BaseModel):
     match_type: str
-    classes: Dict[str, PolicyMapClassAttributes] = Field(default_factory=dict)
+    classes: dict[str, PolicyMapClassAttributes] = Field(default_factory=dict)
 
 
 class CiscoControlSubscriberPolicyMapAttributes(AugmentAttributes):
     type: Literal["cisco_control_subscriber_policy_map"] = "cisco_control_subscriber_policy_map"
     name: str
-    events: Dict[str, PolicyMapEventAttributes] = Field(default_factory=dict)
+    events: dict[str, PolicyMapEventAttributes] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
 # ConfigComponents
 # ---------------------------------------------------------------------------
+
 
 class CiscoControlSubscriberPolicyMap(Augment):
     type = "cisco_control_subscriber_policy_map"
@@ -118,7 +117,7 @@ class CiscoServicePolicyControlSubscriber(Augment):
 
 class CiscoAccessSessionMonitorAttributes(AugmentAttributes):
     type: Literal["cisco_access_session_monitor"] = "cisco_access_session_monitor"
-    enabled: Optional[AttributeValue[bool]] = AttributeValue(value=True)
+    enabled: AttributeValue[bool] | None = AttributeValue(value=True)
 
 
 class CiscoAccessSessionMonitor(Augment):

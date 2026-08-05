@@ -2,8 +2,8 @@
 
 import hashlib
 import json
-import time
 import logging
+import time
 
 import requests
 from acex_client.acex.acex import Acex
@@ -14,7 +14,6 @@ logger = logging.getLogger("acex_grafana_sync")
 
 
 class GrafanaAgent:
-
     def __init__(
         self,
         client: Acex,
@@ -70,10 +69,7 @@ class GrafanaAgent:
         if self._last_digest is None:
             logger.info(f"Initial reconcile (digest={digest[:8]})")
         elif digest != self._last_digest:
-            logger.info(
-                f"Desired state changed "
-                f"({self._last_digest[:8]} -> {digest[:8]}), reconciling"
-            )
+            logger.info(f"Desired state changed ({self._last_digest[:8]} -> {digest[:8]}), reconciling")
         else:
             logger.info("Retrying reconcile after previous failure")
 
@@ -127,10 +123,7 @@ class GrafanaAgent:
                 logger.info(f"Created Grafana datasource uid={uid} name={body.get('name')!r}")
             except requests.HTTPError as e:
                 ok = False
-                logger.error(
-                    f"Failed to create datasource {uid}: "
-                    f"{e.response.status_code} {e.response.text}"
-                )
+                logger.error(f"Failed to create datasource {uid}: {e.response.status_code} {e.response.text}")
 
         applied_uids: set[str] = set()
         for dashboard in desired["dashboards"]:
@@ -139,10 +132,7 @@ class GrafanaAgent:
                 existing_folder = self.grafana.dashboard_folder(uid)
             except requests.HTTPError as e:
                 ok = False
-                logger.error(
-                    f"Failed to look up dashboard {uid}: "
-                    f"{e.response.status_code} {e.response.text}"
-                )
+                logger.error(f"Failed to look up dashboard {uid}: {e.response.status_code} {e.response.text}")
                 continue
 
             if existing_folder is not None and existing_folder != self.folder_uid:
@@ -158,10 +148,7 @@ class GrafanaAgent:
                 applied_uids.add(uid)
             except requests.HTTPError as e:
                 ok = False
-                logger.error(
-                    f"Failed to upsert dashboard {uid}: "
-                    f"{e.response.status_code} {e.response.text}"
-                )
+                logger.error(f"Failed to upsert dashboard {uid}: {e.response.status_code} {e.response.text}")
 
         if self.prune_dashboards:
             desired_uids = {d["uid"] for d in desired["dashboards"]}
@@ -174,8 +161,7 @@ class GrafanaAgent:
             existing = self.grafana.list_dashboards_in_folder(self.folder_uid)
         except requests.HTTPError as e:
             logger.error(
-                f"Failed to list dashboards in folder {self.folder_uid}: "
-                f"{e.response.status_code} {e.response.text}"
+                f"Failed to list dashboards in folder {self.folder_uid}: {e.response.status_code} {e.response.text}"
             )
             return False
 
@@ -189,10 +175,7 @@ class GrafanaAgent:
                 logger.info(f"Pruned Grafana dashboard uid={uid} (no longer in ACEX)")
             except requests.HTTPError as e:
                 ok = False
-                logger.error(
-                    f"Failed to delete dashboard {uid}: "
-                    f"{e.response.status_code} {e.response.text}"
-                )
+                logger.error(f"Failed to delete dashboard {uid}: {e.response.status_code} {e.response.text}")
         return ok
 
     # --- Helpers ---

@@ -69,16 +69,13 @@ poetry run pytest
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.interfaces import Loopback
 
+
 class LoopbackIf(ConfigMap):
     def compile(self, context):
         # context provides: logical_node, configuration, integrations
-        lo0 = Loopback(
-            index=0,
-            name="Lo0",
-            description="MPLS Loopback",
-            ipv4=f"192.0.2.{context.logical_node.id}/24"
-        )
+        lo0 = Loopback(index=0, name="Lo0", description="MPLS Loopback", ipv4=f"192.0.2.{context.logical_node.id}/24")
         context.configuration.add(lo0)
+
 
 # Instantiate and apply filters
 lo = LoopbackIf()
@@ -101,11 +98,11 @@ class LoopbackIf(ConfigMap):
     def compile(self, context):
         # Query external datasource - returns ExternalValue
         ipv4 = context.integrations.ipam.data.ip_addresses({"device_id": context.logical_node.id})
-        
+
         lo0 = Loopback(
             index=0,
             name="Lo0",
-            ipv4=ipv4  # ExternalValue resolved by ConfigCompiler
+            ipv4=ipv4,  # ExternalValue resolved by ConfigCompiler
         )
         context.configuration.add(lo0)
 ```
@@ -114,11 +111,7 @@ class LoopbackIf(ConfigMap):
 ```python
 from acex.plugins.integrations import Netbox
 
-netbox = Netbox(
-    url="https://netbox.example.com/",
-    token=os.getenv("NETBOX_TOKEN"),
-    verify_ssl=False
-)
+netbox = Netbox(url="https://netbox.example.com/", token=os.getenv("NETBOX_TOKEN"), verify_ssl=False)
 
 ae = AutomationEngine(db_connection=db)
 ae.add_integration("ipam", netbox)  # Access via context.integrations.ipam
@@ -150,9 +143,10 @@ class Netbox(IntegrationPluginFactoryBase):
     def __init__(self, url: str, token: str, verify_ssl: bool = True):
         self.base_url = f"{url}api/"
         self.rest = RestClient(self.base_url, verify_ssl=verify_ssl)
-    
-    def create_plugin(self, type: str|None = None) -> 'NetboxPlugin':
+
+    def create_plugin(self, type: str | None = None) -> "NetboxPlugin":
         return NetboxPlugin(self.rest, type)
+
 
 class NetboxPlugin(IntegrationPluginBase):
     # Implements: query(), get(), create(), update(), delete()
@@ -173,10 +167,11 @@ Drivers combine three components:
 ```python
 from acex_devkit.drivers import NetworkElementDriver, TransportBase, RendererBase, ParserBase
 
+
 class MyDriver(NetworkElementDriver):
-    renderer_class = MyRenderer   # Converts models to device CLI/XML
-    transport_class = MyTransport # Handles device connection & push
-    parser_class = MyParser       # Parses device config to models
+    renderer_class = MyRenderer  # Converts models to device CLI/XML
+    transport_class = MyTransport  # Handles device connection & push
+    parser_class = MyParser  # Parses device config to models
 ```
 
 **Driver discovery:** Place drivers in `drivers/` directory with proper naming.
@@ -213,19 +208,13 @@ from acex.database import Connection
 from acex.plugins.integrations import Netbox
 
 # Database connection
-db = Connection(
-    dbname="ace",
-    user="postgres",
-    password="",
-    host="localhost",
-    backend="postgresql"
-)
+db = Connection(dbname="ace", user="postgres", password="", host="localhost", backend="postgresql")
 
 # Create engine
 ae = AutomationEngine(
     db_connection=db,
-    assets_plugin=netbox,        # Optional: external inventory
-    logical_nodes_plugin=netbox  # Optional: external nodes
+    assets_plugin=netbox,  # Optional: external inventory
+    logical_nodes_plugin=netbox,  # Optional: external nodes
 )
 
 # Add integrations for ConfigMaps
@@ -239,7 +228,7 @@ ae.ai_ops(
     enabled=True,
     base_url=os.getenv("ACEX_AI_API_BASEURL"),
     api_key=os.getenv("ACEX_AI_API_KEY"),
-    mcp_server_url=os.getenv("ACEX_MCP_URL")
+    mcp_server_url=os.getenv("ACEX_MCP_URL"),
 )
 
 # CORS for API
@@ -251,6 +240,7 @@ app = ae.create_app()
 # Run with uvicorn
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=80)
 ```
 

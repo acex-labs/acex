@@ -1,20 +1,23 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 from acex.models import LogicalNode
-from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.management_connection import ManagementConnection
+from acex_devkit.models.node_response import NodeListItem
+
 
 class ParserBase(ABC):
     @abstractmethod
-    def parse(self, model: Dict[str, Any]) -> Any:
+    def parse(self, model: dict[str, Any]) -> Any:
         """Parsar running-config"""
+
 
 class RendererBase(ABC):
     @abstractmethod
-    def render(self, model: Dict[str, Any]) -> Any:
+    def render(self, model: dict[str, Any]) -> Any:
         """Tar en device‑agnostisk konfigurationsmodell och returnerar
         en transport‑specifik representation (t.ex. string, XML‑tree…)."""
+
 
 class TransportBase(ABC):
     @abstractmethod
@@ -31,8 +34,10 @@ class TransportBase(ABC):
         """Run arbitrary commands. Opt-in per driver."""
         raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
 
+
 class NetworkElementDriver:
     """Kombinerar renderer + transport – exponeras som en plugin."""
+
     renderer_class = None
     transport_class = None
     parser_class = None
@@ -45,10 +50,9 @@ class NetworkElementDriver:
         self.parser = self.parser_class()
 
     @abstractmethod
-    def render(self, logical_node:LogicalNode) -> Any:
+    def render(self, logical_node: LogicalNode) -> Any:
         """Tar en LogicalNode och returnerar en konfigurationsrepresentation."""
         return self.renderer.render(logical_node.model_dump())
-
 
     # def apply(self, model: Dict[str, Any]) -> None:
     #     cfg = self.renderer.render(model)

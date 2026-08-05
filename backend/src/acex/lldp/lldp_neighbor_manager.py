@@ -1,51 +1,36 @@
 import hashlib
 import json
 from datetime import datetime
-from typing import Optional, List
-
-from fastapi import HTTPException
 
 from acex.models.lldp_neighbor import (
     LldpNeighbor,
-    LldpNeighborUpload,
     LldpNeighborResponse,
+    LldpNeighborUpload,
 )
-from acex.models.node import Node
 from acex.models.logical_node import LogicalNode
+from acex.models.node import Node
+from fastapi import HTTPException
 
 
 class LldpNeighborManager:
-
     def __init__(self, db_manager):
         self.db = db_manager
 
-    def _resolve_remote_node(self, session, remote_device: str) -> Optional[int]:
+    def _resolve_remote_node(self, session, remote_device: str) -> int | None:
         """Try to match remote_device hostname to a node in inventory.
 
         Tries exact match first, then strips domain suffix
         (e.g. 'switch2.example.com' -> 'switch2').
         """
         # Try exact match first
-        ln = (
-            session.query(LogicalNode)
-            .filter(LogicalNode.hostname == remote_device)
-            .first()
-        )
+        ln = session.query(LogicalNode).filter(LogicalNode.hostname == remote_device).first()
         # Fallback: strip domain part
-        if not ln and '.' in remote_device:
-            short_name = remote_device.split('.')[0]
-            ln = (
-                session.query(LogicalNode)
-                .filter(LogicalNode.hostname == short_name)
-                .first()
-            )
+        if not ln and "." in remote_device:
+            short_name = remote_device.split(".")[0]
+            ln = session.query(LogicalNode).filter(LogicalNode.hostname == short_name).first()
         if not ln:
             return None
-        node = (
-            session.query(Node)
-            .filter(Node.logical_node_id == ln.id)
-            .first()
-        )
+        node = session.query(Node).filter(Node.logical_node_id == ln.id).first()
         return node.id if node else None
 
     def _hash_neighbor_set(self, payload: LldpNeighborUpload) -> str:
@@ -101,9 +86,7 @@ class LldpNeighborManager:
                 )
 
             # Delete old entries for this node, insert fresh set
-            session.query(LldpNeighbor).filter(
-                LldpNeighbor.node_instance_id == payload.node_instance_id
-            ).delete()
+            session.query(LldpNeighbor).filter(LldpNeighbor.node_instance_id == payload.node_instance_id).delete()
 
             now = datetime.utcnow()
             for entry in payload.neighbors:
@@ -130,7 +113,7 @@ class LldpNeighborManager:
         finally:
             session.close()
 
-    def get_neighbors(self, node_instance_id: int) -> List[LldpNeighborResponse]:
+    def get_neighbors(self, node_instance_id: int) -> list[LldpNeighborResponse]:
         session = next(self.db.get_session())
         try:
             rows = (
@@ -143,7 +126,7 @@ class LldpNeighborManager:
         finally:
             session.close()
 
-    def get_reverse_neighbors(self, node_instance_id: int) -> List[LldpNeighborResponse]:
+    def get_reverse_neighbors(self, node_instance_id: int) -> list[LldpNeighborResponse]:
         """Who sees this node as a neighbor."""
         session = next(self.db.get_session())
         try:
@@ -159,8 +142,8 @@ class LldpNeighborManager:
 
     def get_topology(
         self,
-        site: Optional[str] = None,
-        node_id: Optional[int] = None,
+        site: str | None = None,
+        node_id: int | None = None,
         hops: int = 1,
     ) -> dict:
         """Graph of nodes and links. Returns { nodes, edges }.
@@ -197,11 +180,7 @@ class LldpNeighborManager:
         for _ in range(max_hops):
             if not frontier:
                 break
-            rows = (
-                session.query(LldpNeighbor)
-                .filter(LldpNeighbor.node_instance_id.in_(frontier))
-                .all()
-            )
+            rows = session.query(LldpNeighbor).filter(LldpNeighbor.node_instance_id.in_(frontier)).all()
             all_rows.extend(rows)
             next_frontier = set()
             for r in rows:
@@ -259,20 +238,22 @@ class LldpNeighborManager:
             edge_key = tuple(sorted([side_a, side_b]))
             if edge_key not in seen_edges:
                 seen_edges.add(edge_key)
-                edges.append({
-                    "source": r.node_instance_id,
-                    "target": target_id,
-                    "source_interface": r.local_interface,
-                    "target_interface": r.remote_interface,
-                    "discovery_protocol": r.discovery_protocol,
-                })
+                edges.append(
+                    {
+                        "source": r.node_instance_id,
+                        "target": target_id,
+                        "source_interface": r.local_interface,
+                        "target_interface": r.remote_interface,
+                        "discovery_protocol": r.discovery_protocol,
+                    }
+                )
 
         return {
             "nodes": list(nodes_map.values()),
             "edges": edges,
         }
 
-    def get_neighbors_by_site(self, site: str) -> List[LldpNeighborResponse]:
+    def get_neighbors_by_site(self, site: str) -> list[LldpNeighborResponse]:
         """All neighbor links for nodes on a given site."""
         session = next(self.db.get_session())
         try:

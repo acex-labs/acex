@@ -1,7 +1,4 @@
-
-
-class ConfigMap: 
-
+class ConfigMap:
     def __init__(self, *args, **kwargs):
         self._name = None
         self.args = args
@@ -14,12 +11,11 @@ class ConfigMap:
             return self._name
         return self.__class__.__name__
 
-
     def compile(self, data):
         """
-        Compiles the ConfigMap, this is where the actual 
-        compilation logic should be implemented. This method 
-        should be overridden in subclasses to provide specific 
+        Compiles the ConfigMap, this is where the actual
+        compilation logic should be implemented. This method
+        should be overridden in subclasses to provide specific
         compilation behavior.
         """
 

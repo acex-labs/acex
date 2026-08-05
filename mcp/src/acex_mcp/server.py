@@ -1,13 +1,14 @@
 """ACE-X MCP Server main entry point."""
 
-from fastmcp import FastMCP
-import requests
 import os
+
+import requests
+from fastmcp import FastMCP
 
 mcp = FastMCP("Acex-MCP")
 
 # Backend API URL
-BACKEND_API_URL = os.getenv('ACEX_API_URL') or "http://localhost/api/v1"
+BACKEND_API_URL = os.getenv("ACEX_API_URL") or "http://localhost/api/v1"
 
 
 @mcp.resource("acex://docs/system-architecture")
@@ -64,6 +65,7 @@ Separation of concerns: Hardware (Assets) is separate from Configuration (Logica
 This allows reusing configurations across different hardware and easy hardware replacement.
 """
 
+
 @mcp.resource("acex://docs/workflow-examples")
 async def workflow_docs():
     return """
@@ -76,7 +78,8 @@ VIEWING INVENTORY
 2. Use list_logical_nodes() to see all logical nodes as an overview, but does not contain any configurations.
 3. Use get_specific_logical_node() to get more details about a logical node and its configuration in json.
 4. Use get_specific_node_instance() to get more details about a logical node and its rendered configuration
-5. Use get_node_instance_config() to get the last backup of the actual running-configuration of a device. Can be used for diff against desired config.
+5. Use get_node_instance_config() to get the last backup of the actual running-configuration of a
+   device. Can be used for diff against desired config.
 
 TROUBLESHOOTING
 ---------------
@@ -84,6 +87,7 @@ TROUBLESHOOTING
 - Verify asset_id and logical_node_id exist before creating node instance
 - Review configuration structure matches expected vendor-agnostic format
 """
+
 
 @mcp.tool
 def list_assets(
@@ -139,6 +143,7 @@ def list_assets(
     response.raise_for_status()
     return response.json()
 
+
 @mcp.tool
 def list_logical_nodes(
     role: str = None,
@@ -189,15 +194,16 @@ def list_logical_nodes(
     response.raise_for_status()
     return response.json()
 
+
 @mcp.tool
 def get_specific_logical_node(logical_node_id: str) -> dict:
     """
     Get detailed configuration for a specific logical node.
-    
+
     Args:
         logical_node_id: The ID of the logical node (e.g., "R1", "SW-Core-01")
                         This is the 'id' field from list_logical_nodes()
-    
+
     Returns the complete DESIRED configuration for this logical node including:
     - site: Location
     - id: logical_node_id
@@ -211,7 +217,7 @@ def get_specific_logical_node(logical_node_id: str) -> dict:
         - acl: Access control lists
         - lldp: Link layer discovery settings
     - metadata: Compilation status and applied functions
-    
+
     This shows what the configuration SHOULD BE (desired state).
     """
     response = requests.get(f"{BACKEND_API_URL}/inventory/logical_nodes/{logical_node_id}")
@@ -271,20 +277,21 @@ def list_node_instances(
     response.raise_for_status()
     return response.json()
 
+
 @mcp.tool
 def get_node_instance(id: int) -> dict:
     """
     Get a specific node instance with its COMPILED vendor-specific configuration.
-    
+
     Args:
         id: The node instance ID (integer) from list_node_instances()
-    
+
     Returns:
     - id: Instance ID
     - asset_id: Physical device ID
     - logical_node_id: Configuration template ID
     - compiled_config: The DESIRED config translated to vendor-specific CLI commands
-    
+
     This shows the desired configuration in vendor-specific format (e.g., Cisco IOS commands).
     Use get_node_instance_config() to get the actual RUNNING config from the device.
     """
@@ -292,22 +299,23 @@ def get_node_instance(id: int) -> dict:
     response.raise_for_status()
     return response.json()
 
+
 @mcp.tool
 def get_node_instance_config(id: int) -> dict:
     """
     Get the latest RUNNING configuration stored in backend for a node instance.
-    
+
     Args:
         id: The node instance ID (integer) from list_node_instances()
-    
+
     Returns the actual running config that was last retrieved from the device.
     This is stored in the backend database and represents the real deployed state.
-    
+
     Response contains:
     - content: The running configuration (base64 decoded)
     - timestamp: When this config was retrieved
     - node_instance_id: Which instance this belongs to
-    
+
     Use this to see what is ACTUALLY running on the device (current state).
     Compare with get_node_instance() to see desired vs. actual differences.
     """
@@ -315,9 +323,11 @@ def get_node_instance_config(id: int) -> dict:
     response.raise_for_status()
     return response.json()
 
+
 def run():
     """Entry point for CLI command 'acex-mcp'"""
     mcp.run(transport="http", host="0.0.0.0", port=8000)
+
 
 if __name__ == "__main__":
     run()

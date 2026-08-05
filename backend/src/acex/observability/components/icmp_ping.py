@@ -1,4 +1,4 @@
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from acex.observability.capability import TelemetryCapability
 from acex.observability.components.base import TelemetryComponent
@@ -16,15 +16,15 @@ class IcmpPingTelemetry(TelemetryComponent):
 
     kind: ClassVar[str] = "icmp_ping"
     measurement: ClassVar[str] = "ping"
-    capability: ClassVar[Optional[TelemetryCapability]] = TelemetryCapability.icmp
+    capability: ClassVar[TelemetryCapability | None] = TelemetryCapability.icmp
 
     def __init__(
         self,
         node_id: int,
         hostname: str,
         target_ip: str,
-        site: Optional[str] = None,
-        region: Optional[str] = None,
+        site: str | None = None,
+        region: str | None = None,
     ):
         self.node_id = node_id
         self.hostname = hostname
@@ -35,7 +35,7 @@ class IcmpPingTelemetry(TelemetryComponent):
     def target_id(self) -> str:
         return f"node:{self.node_id}"
 
-    def target_node(self) -> Optional[int]:
+    def target_node(self) -> int | None:
         return self.node_id
 
     def tags(self) -> dict[str, str]:
@@ -49,7 +49,7 @@ class IcmpPingTelemetry(TelemetryComponent):
             tags["region"] = self.region
         return tags
 
-    def telegraf_input(self) -> Optional[dict]:
+    def telegraf_input(self) -> dict | None:
         return {
             "plugin": "ping",
             "config": {

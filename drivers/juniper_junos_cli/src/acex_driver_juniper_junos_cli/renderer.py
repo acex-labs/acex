@@ -1,13 +1,13 @@
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
 from pathlib import Path
-
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from typing import Any
 
 from acex.plugins.neds.core import RendererBase
 from acex_devkit.configdiffer import Diff
 from acex_devkit.configdiffer.command import Command, Context
 from acex_devkit.models.composed_configuration import ComposedConfiguration
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from .augment_renderers import resolve_augment_lines
 
@@ -28,7 +28,7 @@ class GeneratorRegistry:
     def _match(self, path, pattern):
         if len(path) < len(pattern):
             return False
-        for p, pat in zip(path, pattern):
+        for p, pat in zip(path, pattern, strict=False):
             if pat != "*" and p != pat:
                 return False
         return True
@@ -37,16 +37,15 @@ class GeneratorRegistry:
 # Junos uses different interface name prefixes per port speed.
 # Speeds are in kbps to match the AttributeValue[int] convention used elsewhere.
 PORT_PREFIX_BY_SPEED = {
-    1_000_000: "ge",         # 1 Gbps
-    10_000_000: "xe",        # 10 Gbps
-    25_000_000: "et",        # 25 Gbps (some platforms)
-    40_000_000: "et",        # 40 Gbps
-    100_000_000: "et",       # 100 Gbps
+    1_000_000: "ge",  # 1 Gbps
+    10_000_000: "xe",  # 10 Gbps
+    25_000_000: "et",  # 25 Gbps (some platforms)
+    40_000_000: "et",  # 40 Gbps
+    100_000_000: "et",  # 100 Gbps
 }
 
 
 class JunosCLIRenderer(RendererBase):
-
     def _load_template_file(self) -> str:
         path = Path(__file__).parent
         env = Environment(loader=FileSystemLoader(path), undefined=StrictUndefined)
@@ -57,9 +56,7 @@ class JunosCLIRenderer(RendererBase):
         if isinstance(configuration, ComposedConfiguration):
             configuration = configuration.model_dump(mode="json")
         else:
-            raise ValueError(
-                f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}"
-            )
+            raise ValueError(f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}")
 
         processed_config = self.pre_process(configuration, asset)
         template = self._load_template_file()
@@ -71,15 +68,15 @@ class JunosCLIRenderer(RendererBase):
     # lines and rendering is just a join.
 
     def _register(self):
-        self.registry.register(('system', 'config'), self._generate_system_config_commands)
-        self.registry.register(('interfaces', '*'), self._generate_interface_config_commands)
+        self.registry.register(("system", "config"), self._generate_system_config_commands)
+        self.registry.register(("interfaces", "*"), self._generate_interface_config_commands)
 
-    def render_patch(self, diff: Diff, node_instance: "NodeInstance"):
+    def render_patch(self, diff: Diff, node_instance: Any):
         """Render device commands for a Diff using registered generators."""
         self.registry = GeneratorRegistry()
         self._register()
 
-        commands: List[Command] = []
+        commands: list[Command] = []
         for change in diff.get_all_changes():
             generator = self.registry.resolve(tuple(change.path))
             if generator is None:
@@ -88,9 +85,9 @@ class JunosCLIRenderer(RendererBase):
 
         return "\n".join(c.command for c in commands)
 
-    def _generate_system_config_commands(self, component_change, node_instance) -> List[Command]:
+    def _generate_system_config_commands(self, component_change, node_instance) -> list[Command]:
         ctx = Context(path=[])
-        commands: List[Command] = []
+        commands: list[Command] = []
         for attr in component_change.changed_attributes:
             if attr.attribute_name == "hostname":
                 if component_change.op in ("add", "change"):
@@ -99,13 +96,13 @@ class JunosCLIRenderer(RendererBase):
                     commands.append(Command(context=ctx, command="delete system host-name"))
         return commands
 
-    def _generate_interface_config_commands(self, component_change, node_instance) -> List[Command]:
+    def _generate_interface_config_commands(self, component_change, node_instance) -> list[Command]:
         # Stub mirroring the Cisco renderer's placeholder — real attribute
         # mapping per change.op / attr.attribute_name lands here.
         ctx = Context(path=component_change.path)
-        return [Command(context=ctx, command="set interfaces TODO description \"TODO\"")]
+        return [Command(context=ctx, command='set interfaces TODO description "TODO"')]
 
-    def pre_process(self, configuration: dict, asset) -> Dict[str, Any]:
+    def pre_process(self, configuration: dict, asset) -> dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
         configuration = self._physical_interface_names(configuration, asset)
         self._resolve_lag_lacp(configuration)
@@ -124,7 +121,7 @@ class JunosCLIRenderer(RendererBase):
         """
         interfaces = config.get("interfaces") or {}
 
-        members_by_lag: Dict[int, list] = defaultdict(list)
+        members_by_lag: dict[int, list] = defaultdict(list)
         for intf in interfaces.values():
             if intf.get("type") != "ethernetCsmacd":
                 continue

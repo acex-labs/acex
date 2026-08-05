@@ -1,8 +1,8 @@
 """Core agent loop — polls manifest frequently, runs collection on interval."""
 
 import asyncio
-import time
 import logging
+import time
 
 import requests
 from acex_client.acex.acex import Acex
@@ -15,7 +15,6 @@ POLL_INTERVAL = 60  # Poll manifest every 60s for liveness + change detection
 
 
 class CollectionAgent:
-
     def __init__(self, api_url: str, agent_id: int, verify_ssl: bool = False, max_concurrent: int = 20):
         self.agent_id = agent_id
         self.max_concurrent = max_concurrent
@@ -82,10 +81,7 @@ class CollectionAgent:
 
             targets = data.get("targets", [])
             revision = data.get("config_revision", 0)
-            logger.debug(
-                f"Manifest polled: rev={revision}, "
-                f"{len(targets)} targets"
-            )
+            logger.debug(f"Manifest polled: rev={revision}, {len(targets)} targets")
             self._ack_manifest(revision)
             return data
         except Exception as e:
@@ -141,12 +137,12 @@ class CollectionAgent:
         errors = [r for r in results if r["status"] == "error"]
 
         logger.info(
-            f"Collection complete in {elapsed:.1f}s: "
-            f"{succeeded} collected, {unchanged} unchanged, {len(errors)} failed"
+            f"Collection complete in {elapsed:.1f}s: {succeeded} collected, {unchanged} unchanged, {len(errors)} failed"
         )
 
         if errors:
             from collections import Counter
+
             counts = Counter(r["message"] for r in errors)
             logger.info("Error summary:")
             for msg, count in counts.most_common():

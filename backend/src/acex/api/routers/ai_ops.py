@@ -1,11 +1,11 @@
+import json
+from typing import Literal
+
+from acex.ai_ops.web_ui_context import WEB_UI_SYSTEM_PROMPTS
+from acex.constants import BASE_URL
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Literal
-import json
-
-from acex.constants import BASE_URL
-from acex.ai_ops.web_ui_context import WEB_UI_SYSTEM_PROMPTS
 
 
 class AskRequest(BaseModel):
@@ -42,7 +42,12 @@ def create_router(automation_engine):
     @router.post("/ai/ask/", tags=tags)
     async def ask(request: AskRequest):
         async def sse_stream():
-            async for chunk in aiom.ask(request.prompt, request.messages, context=request.context, extra_system_prompts=WEB_UI_SYSTEM_PROMPTS):
+            async for chunk in aiom.ask(
+                request.prompt,
+                request.messages,
+                context=request.context,
+                extra_system_prompts=WEB_UI_SYSTEM_PROMPTS,
+            ):
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
 
         return StreamingResponse(sse_stream(), media_type="text/event-stream")
@@ -78,7 +83,3 @@ def create_router(automation_engine):
         return StreamingResponse(sse_stream(), media_type="text/event-stream")
 
     return router
-
-
-
-

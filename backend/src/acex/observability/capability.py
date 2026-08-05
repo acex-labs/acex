@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class TelemetryCapability(str, Enum):
+class TelemetryCapability(StrEnum):
     """
     Vocabulary of observable telemetry kinds in ACEX.
 

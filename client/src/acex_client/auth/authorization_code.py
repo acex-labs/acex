@@ -36,20 +36,21 @@ class AuthorizationCodeAuth(AuthProvider):
 
     def _interactive_login(self) -> str:
         code_verifier = secrets.token_urlsafe(64)
-        code_challenge = (
-            hashlib.sha256(code_verifier.encode()).digest()
-        )
+        code_challenge = hashlib.sha256(code_verifier.encode()).digest()
         import base64
+
         code_challenge_b64 = base64.urlsafe_b64encode(code_challenge).rstrip(b"=").decode()
 
-        auth_params = urlencode({
-            "response_type": "code",
-            "client_id": self._client_id,
-            "redirect_uri": _REDIRECT_URI,
-            "scope": "openid profile email",
-            "code_challenge": code_challenge_b64,
-            "code_challenge_method": "S256",
-        })
+        auth_params = urlencode(
+            {
+                "response_type": "code",
+                "client_id": self._client_id,
+                "redirect_uri": _REDIRECT_URI,
+                "scope": "openid profile email",
+                "code_challenge": code_challenge_b64,
+                "code_challenge_method": "S256",
+            }
+        )
         login_url = f"{self._auth_url}?{auth_params}"
 
         code = self._wait_for_callback(login_url)
@@ -63,7 +64,7 @@ class AuthorizationCodeAuth(AuthProvider):
                 "redirect_uri": _REDIRECT_URI,
                 "code_verifier": code_verifier,
             },
-            verify=self.verify_ssl
+            verify=self.verify_ssl,
         )
         resp.raise_for_status()
         return self._store_and_return(resp.json())
@@ -81,11 +82,13 @@ class AuthorizationCodeAuth(AuthProvider):
         return self._store_and_return(resp.json())
 
     def _store_and_return(self, data: dict) -> str:
-        token_store.save({
-            "access_token": data["access_token"],
-            "refresh_token": data.get("refresh_token"),
-            "expires_at": time.time() + data.get("expires_in", 300),
-        })
+        token_store.save(
+            {
+                "access_token": data["access_token"],
+                "refresh_token": data.get("refresh_token"),
+                "expires_at": time.time() + data.get("expires_in", 300),
+            }
+        )
         return data["access_token"]
 
     @staticmethod
@@ -117,7 +120,6 @@ class AuthorizationCodeAuth(AuthProvider):
 
         server.shutdown()
         return auth_code[0]
-
 
     def _discover(self, issuer_url: str) -> dict:
         url = issuer_url.rstrip("/") + "/.well-known/openid-configuration"

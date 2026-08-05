@@ -1,10 +1,7 @@
 import os
-from typing import List, Optional
-
-from pydantic import BaseModel
 
 from acex.observability.agents.models import InfluxDBVersion
-
+from pydantic import BaseModel
 
 ENV_PREFIX = "ACEX_INFLUXDB_"
 
@@ -20,15 +17,15 @@ class InfluxDBOutput(BaseModel):
     version: InfluxDBVersion = InfluxDBVersion.v2
     url: str = "http://localhost:8086"
     # v2 / v3
-    token: Optional[str] = None
-    organization: Optional[str] = None
-    bucket: Optional[str] = None  # v2 only
+    token: str | None = None
+    organization: str | None = None
+    bucket: str | None = None  # v2 only
     # v1 / v3 (v3 went back to "database" terminology)
-    database: Optional[str] = None
-    username: Optional[str] = None  # v1 only
-    password: Optional[str] = None  # v1 only
+    database: str | None = None
+    username: str | None = None  # v1 only
+    password: str | None = None  # v1 only
     # transport (all versions)
-    content_encoding: Optional[str] = None
+    content_encoding: str | None = None
 
 
 class InfluxDBSettings(BaseModel):
@@ -44,7 +41,7 @@ class InfluxDBSettings(BaseModel):
     `AutomationEngine.set_influxdb(...)` / `add_influxdb(...)`.
     """
 
-    outputs: List[InfluxDBOutput] = []
+    outputs: list[InfluxDBOutput] = []
 
     @classmethod
     def from_env(cls) -> "InfluxDBSettings":
@@ -58,8 +55,13 @@ class InfluxDBSettings(BaseModel):
         if version:
             kwargs["version"] = InfluxDBVersion(version)
         for field in (
-            "token", "organization", "bucket",
-            "database", "username", "password", "content_encoding",
+            "token",
+            "organization",
+            "bucket",
+            "database",
+            "username",
+            "password",
+            "content_encoding",
         ):
             value = os.environ.get(f"{ENV_PREFIX}{field.upper()}")
             if value is not None:

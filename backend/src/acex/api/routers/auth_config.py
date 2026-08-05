@@ -1,6 +1,6 @@
-from fastapi import APIRouter
-from acex.constants import BASE_URL
 from acex.api import auth as _auth
+from acex.constants import BASE_URL
+from fastapi import APIRouter
 
 
 def create_router(automation_engine):

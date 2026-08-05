@@ -1,15 +1,17 @@
-from .adapter_base import AdapterBase
-from acex.models import Asset
-from acex.models import ExternalValue
 import json
+
+from acex.models import Asset, ExternalValue
+
+from .adapter_base import AdapterBase
+
 
 class ProxyDatasource:
     """
-    Proxy object to enable dotted syntax and query for 
+    Proxy object to enable dotted syntax and query for
     datasources within the plugin by referencing
     the resource name with ...{plugin}.data.{resource_name}({})
     """
-    
+
     def __init__(self, plugin_adapter):
         self._plugin_adapter = plugin_adapter
 
@@ -18,13 +20,14 @@ class ProxyDatasource:
             raise Exception(f"Resource type '{resource_name}' not defined in plugin: {self._plugin_adapter.plugin}")
         return lambda query: self._plugin_adapter._handle_datasource(resource_name, query)
 
+
 class ProxyResource:
     """
-    Proxy object to enable dotted syntax and query for 
+    Proxy object to enable dotted syntax and query for
     resources within the plugin by referencing
     the resource name with ...{plugin}.resource.{resource_name}({})
     """
-    
+
     def __init__(self, plugin):
         self._plugin = plugin
 
@@ -37,9 +40,9 @@ class ProxyResource:
 class DatasourcePluginAdapter(AdapterBase):
     """
     Adapter säkerställer att rätt metodnamn används och
-    inget annat. 
+    inget annat.
 
-    Berikar respons med rätt responsetyper. 
+    Berikar respons med rätt responsetyper.
     """
 
     def __init__(self, plugin):
@@ -47,7 +50,6 @@ class DatasourcePluginAdapter(AdapterBase):
 
     def __repr__(self):
         return f"d: {self.plugin}"
-
 
     @property
     def data(self):
@@ -61,7 +63,6 @@ class DatasourcePluginAdapter(AdapterBase):
         data = self.query(resource_name, query)
         return data
 
-
     def _handle_resource(self, resource_name: str, query: dict):
         # TODO: Fixa create om inte state finns!
         data = self.plugin.query(resource_name, query)
@@ -72,49 +73,43 @@ class DatasourcePluginAdapter(AdapterBase):
         return "99.99.99.99/30"
         return data
 
-
-    def create(self, asset: Asset): 
+    def create(self, asset: Asset):
         if hasattr(self.plugin, "create"):
-            return getattr(self.plugin, "create")(asset)
+            return self.plugin.create(asset)
         raise NotImplementedError("Plugin does not support create operation")
 
-    def get(self, kind: str, id: str): 
+    def get(self, kind: str, id: str):
         if hasattr(self.plugin, "get"):
-            return getattr(self.plugin, "get")(id)
+            return self.plugin.get(id)
         raise NotImplementedError("Plugin does not support get operation")
 
-    def query(self, kind: str, filters: dict = None): 
+    def query(self, kind: str, filters: dict = None):
         """
-        The query method of the adapter will not actually 
+        The query method of the adapter will not actually
         run the callable from the plugin, but construct an
         instance of an ExternalValue, to which all query parameters
-        and details about the plugin and the actual Callable 
-        is placed. The actual resolvement of the values are done 
+        and details about the plugin and the actual Callable
+        is placed. The actual resolvement of the values are done
         later by the configCompiler.
         """
 
         # Using the function from the very plugin
-        func = getattr(self.plugin, "query")
+        func = self.plugin.query
 
         ev = ExternalValue(
-            ev_type = "data",
-            query=json.dumps(filters),
-            value="_known after resolve_",
-            kind=kind,
-            plugin=str(self.plugin)
+            ev_type="data", query=json.dumps(filters), value="_known after resolve_", kind=kind, plugin=str(self.plugin)
         )
 
         # Tilldela _callable efter objektskapande för PrivateAttr
         ev._callable = func
         return ev
 
-
-    def update(self, asset: Asset): 
+    def update(self, asset: Asset):
         if hasattr(self.plugin, "update"):
-            return getattr(self.plugin, "update")(asset)
+            return self.plugin.update(asset)
         raise NotImplementedError("Plugin does not support update operation")
 
-    def delete(self, id: str): 
+    def delete(self, id: str):
         if hasattr(self.plugin, "delete"):
-            return getattr(self.plugin, "delete")(id)
+            return self.plugin.delete(id)
         raise NotImplementedError("Plugin does not support delete operation")

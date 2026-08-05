@@ -1,9 +1,8 @@
 """Collection Agent entrypoint — poll manifest, collect data, upload results."""
 
+import logging
 import os
 import sys
-import time
-import logging
 
 from acex_collection_agent.agent import CollectionAgent
 
@@ -13,7 +12,7 @@ logging.basicConfig(
 )
 logging.getLogger("paramiko").setLevel(logging.WARNING)
 logging.getLogger("scrapli").setLevel(logging.WARNING)
-logging.getLogger("scrapli.transport").setLevel(logging.CRITICAL + 10)  # suppress contextless "timed out"/"auth failed" messages
+logging.getLogger("scrapli.transport").setLevel(logging.CRITICAL + 10)
 logging.getLogger("scrapli.channel").setLevel(logging.CRITICAL + 10)
 logging.getLogger("asyncssh").setLevel(logging.WARNING)
 logger = logging.getLogger("acex_collection_agent")

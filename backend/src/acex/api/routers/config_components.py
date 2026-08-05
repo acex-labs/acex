@@ -5,21 +5,23 @@ Provides introspection of available configuration components
 and Python code generation for ConfigMap files.
 """
 
+import re
+from enum import Enum
+from types import NoneType
+from typing import (
+    Any,
+    Literal,
+    Union,
+    get_args,
+    get_origin,
+)
+
+from acex.configuration.components.base_component import ConfigComponent
+from acex.configuration.configuration import Configuration
+from acex.constants import BASE_URL
+from acex_devkit.models import AttributeValue
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import (
-    List, Optional, Dict, Any, Union, Literal,
-    get_args, get_origin,
-)
-from types import NoneType
-from enum import Enum
-import re
-
-from acex.constants import BASE_URL
-from acex.configuration.configuration import Configuration
-from acex.configuration.components.base_component import ConfigComponent
-from acex_devkit.models import AttributeValue
-
 
 # ── Response / Request Models ─────────────────────────────────────
 
@@ -28,10 +30,10 @@ class FieldInfo(BaseModel):
     name: str
     type: str  # "string", "integer", "boolean", "list[integer]", "enum", "reference"
     required: bool = False
-    description: Optional[str] = None
-    enum_values: Optional[List[str]] = None
+    description: str | None = None
+    enum_values: list[str] | None = None
     is_reference: bool = False
-    reference_target: Optional[str] = None
+    reference_target: str | None = None
 
 
 class ComponentInfo(BaseModel):
@@ -40,17 +42,17 @@ class ComponentInfo(BaseModel):
     category: str
     description: str
     import_module: str
-    fields: List[FieldInfo]
+    fields: list[FieldInfo]
 
 
 class ComponentCatalog(BaseModel):
-    components: List[ComponentInfo]
+    components: list[ComponentInfo]
 
 
 class ComponentInstance(BaseModel):
     component: str
     variable_name: str
-    values: Dict[str, Any]
+    values: dict[str, Any]
 
 
 class FilterSpec(BaseModel):
@@ -61,8 +63,8 @@ class FilterSpec(BaseModel):
 
 class GenerateRequest(BaseModel):
     class_name: str = "MyConfigMap"
-    filter: Optional[FilterSpec] = None
-    components: List[ComponentInstance]
+    filter: FilterSpec | None = None
+    components: list[ComponentInstance]
 
 
 class GenerateResponse(BaseModel):
@@ -71,7 +73,7 @@ class GenerateResponse(BaseModel):
 
 class ReconcileOptions(BaseModel):
     class_name: str = "ReconcileConfigMap"
-    filter: Optional[FilterSpec] = None
+    filter: FilterSpec | None = None
     mode: Literal["diff", "full"] = "diff"
     # Only used in diff mode:
     include_removed: bool = True
@@ -81,7 +83,7 @@ class ReconcileOptions(BaseModel):
 class TranslateRequest(BaseModel):
     ned_id: str
     config_text: str
-    filter: Optional[FilterSpec] = None
+    filter: FilterSpec | None = None
 
 
 # ── Component metadata ────────────────────────────────────────────
@@ -252,7 +254,7 @@ REFERENCE_FIELDS = {
 }
 
 # Runtime lookup: component class name → resolved import module
-_IMPORT_CACHE: Dict[str, str] = {}
+_IMPORT_CACHE: dict[str, str] = {}
 
 
 def _resolve_import(cls) -> str:
@@ -270,8 +272,13 @@ def _resolve_import(cls) -> str:
 
 # Model fields to skip during introspection
 SKIP_FIELDS = {
-    "metadata", "type", "subinterfaces",
-    "acl_entries", "tacacs", "radius", "next_hops",
+    "metadata",
+    "type",
+    "subinterfaces",
+    "acl_entries",
+    "tacacs",
+    "radius",
+    "next_hops",
 }
 
 
@@ -296,10 +303,7 @@ def _unwrap_attribute_value(annotation):
 
     # Check via get_origin (standard generics)
     origin = get_origin(inner)
-    is_av = (
-        origin is AttributeValue
-        or (origin is not None and getattr(origin, "__name__", "") == "AttributeValue")
-    )
+    is_av = origin is AttributeValue or (origin is not None and getattr(origin, "__name__", "") == "AttributeValue")
     if is_av:
         args = get_args(inner)
         return (args[0] if args else str), is_optional
@@ -313,8 +317,7 @@ def _unwrap_attribute_value(annotation):
             # Unwrap Union[T, ExternalValue] → T
             v_origin = get_origin(value_ann)
             if v_origin is Union:
-                v_args = [a for a in get_args(value_ann)
-                          if not (isinstance(a, type) and a.__name__ == "ExternalValue")]
+                v_args = [a for a in get_args(value_ann) if not (isinstance(a, type) and a.__name__ == "ExternalValue")]
                 return (v_args[0] if v_args else str), is_optional
             return value_ann, is_optional
         return str, is_optional
@@ -346,7 +349,7 @@ def _type_label(t) -> str:
     return getattr(t, "__name__", str(t))
 
 
-def _enum_values(t) -> Optional[List[str]]:
+def _enum_values(t) -> list[str] | None:
     """Extract enum choices from a type, if any."""
     origin = get_origin(t)
     if origin is Literal:
@@ -361,7 +364,7 @@ def _enum_values(t) -> Optional[List[str]]:
     return None
 
 
-def _introspect_fields(component_cls) -> List[FieldInfo]:
+def _introspect_fields(component_cls) -> list[FieldInfo]:
     """Extract field metadata from a component's Pydantic model."""
     model_cls = getattr(component_cls, "model_cls", None)
     if model_cls is None:
@@ -382,40 +385,46 @@ def _introspect_fields(component_cls) -> List[FieldInfo]:
         if inner_type is None:
             if field_name in refs:
                 r = refs[field_name]
-                fields.append(FieldInfo(
-                    name=field_name,
-                    type="reference",
-                    required=not is_optional,
-                    is_reference=True,
-                    reference_target=r["target"],
-                    description=r["description"],
-                ))
+                fields.append(
+                    FieldInfo(
+                        name=field_name,
+                        type="reference",
+                        required=not is_optional,
+                        is_reference=True,
+                        reference_target=r["target"],
+                        description=r["description"],
+                    )
+                )
             continue
 
         is_ref = field_name in refs
         label = _type_label(inner_type)
 
-        fields.append(FieldInfo(
-            name=field_name,
-            type="reference" if is_ref else label,
-            required=not is_optional and finfo.is_required(),
-            description=refs[field_name]["description"] if is_ref else None,
-            enum_values=_enum_values(inner_type) if label == "enum" else None,
-            is_reference=is_ref,
-            reference_target=refs[field_name]["target"] if is_ref else None,
-        ))
+        fields.append(
+            FieldInfo(
+                name=field_name,
+                type="reference" if is_ref else label,
+                required=not is_optional and finfo.is_required(),
+                description=refs[field_name]["description"] if is_ref else None,
+                enum_values=_enum_values(inner_type) if label == "enum" else None,
+                is_reference=is_ref,
+                reference_target=refs[field_name]["target"] if is_ref else None,
+            )
+        )
 
     # Synthetic reference fields (not in model_cls but accepted by constructor)
     for ref_name, ref_info in refs.items():
         if ref_name not in seen:
-            fields.append(FieldInfo(
-                name=ref_name,
-                type="reference",
-                required=False,
-                is_reference=True,
-                reference_target=ref_info["target"],
-                description=ref_info["description"],
-            ))
+            fields.append(
+                FieldInfo(
+                    name=ref_name,
+                    type="reference",
+                    required=False,
+                    is_reference=True,
+                    reference_target=ref_info["target"],
+                    description=ref_info["description"],
+                )
+            )
 
     return fields
 
@@ -444,20 +453,22 @@ def _build_catalog() -> ComponentCatalog:
         except ValueError:
             category = "other"
 
-        components.append(ComponentInfo(
-            name=name,
-            type=getattr(cls, "type", "component"),
-            category=category,
-            description=DESCRIPTIONS.get(name, f"{name} configuration component"),
-            import_module=module,
-            fields=_introspect_fields(cls),
-        ))
+        components.append(
+            ComponentInfo(
+                name=name,
+                type=getattr(cls, "type", "component"),
+                category=category,
+                description=DESCRIPTIONS.get(name, f"{name} configuration component"),
+                import_module=module,
+                fields=_introspect_fields(cls),
+            )
+        )
 
     components.sort(key=lambda c: (c.category, c.name))
     return ComponentCatalog(components=components)
 
 
-_catalog: Optional[ComponentCatalog] = None
+_catalog: ComponentCatalog | None = None
 
 
 def list_components() -> ComponentCatalog:
@@ -504,7 +515,7 @@ def generate_configmap(request: GenerateRequest) -> GenerateResponse:
     """Generate a ConfigMap Python file from component specifications."""
 
     # Validate component names and collect classes
-    component_classes: Dict[str, type] = {}
+    component_classes: dict[str, type] = {}
     for ci in request.components:
         cls = _component_class_by_name(ci.component)
         if cls is None:
@@ -515,7 +526,7 @@ def generate_configmap(request: GenerateRequest) -> GenerateResponse:
         component_classes[ci.component] = cls
 
     # Collect imports grouped by module
-    module_imports: Dict[str, set] = {
+    module_imports: dict[str, set] = {
         "acex.config_map": {"ConfigMap", "FilterAttribute"},
     }
     for ci in request.components:
@@ -561,7 +572,7 @@ def generate_configmap(request: GenerateRequest) -> GenerateResponse:
         "\n".join(import_lines)
         + "\n\n\n"
         + f"class {request.class_name}(ConfigMap):\n"
-        + f"    def compile(self, context):\n"
+        + "    def compile(self, context):\n"
         + body
         + "\n\n"
         + filter_block
@@ -573,7 +584,7 @@ def generate_configmap(request: GenerateRequest) -> GenerateResponse:
 # ── Reconcile (diff → code) ───────────────────────────────────────
 
 
-def _build_model_to_component_map() -> Dict[type, type]:
+def _build_model_to_component_map() -> dict[type, type]:
     """Reverse mapping: Pydantic model_cls → ConfigComponent class.
     Last-wins so that L3Vrf is preferred over NetworkInstance."""
     mapping = {}
@@ -586,7 +597,7 @@ def _build_model_to_component_map() -> Dict[type, type]:
     return mapping
 
 
-_model_to_component: Optional[Dict[type, type]] = None
+_model_to_component: dict[type, type] | None = None
 
 
 def _get_model_to_component():
@@ -597,11 +608,41 @@ def _get_model_to_component():
 
 
 PYTHON_KEYWORDS = {
-    "False", "None", "True", "and", "as", "assert", "async", "await",
-    "break", "class", "continue", "def", "del", "elif", "else", "except",
-    "finally", "for", "from", "global", "if", "import", "in", "is",
-    "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try",
-    "while", "with", "yield",
+    "False",
+    "None",
+    "True",
+    "and",
+    "as",
+    "assert",
+    "async",
+    "await",
+    "break",
+    "class",
+    "continue",
+    "def",
+    "del",
+    "elif",
+    "else",
+    "except",
+    "finally",
+    "for",
+    "from",
+    "global",
+    "if",
+    "import",
+    "in",
+    "is",
+    "lambda",
+    "nonlocal",
+    "not",
+    "or",
+    "pass",
+    "raise",
+    "return",
+    "try",
+    "while",
+    "with",
+    "yield",
 }
 
 
@@ -613,7 +654,7 @@ def _is_attribute_value_dict(v) -> bool:
     return "value" in keys and keys <= {"value", "metadata"}
 
 
-def _unwrap_dict(d: Dict[str, Any]) -> Dict[str, Any]:
+def _unwrap_dict(d: dict[str, Any]) -> dict[str, Any]:
     """
     Unwrap a model_dump dict: extract .value from AttributeValue entries,
     skip None values, internal fields, and nested containers.
@@ -657,9 +698,7 @@ def _make_instance(comp_name, values, display, counter) -> ComponentInstance:
     )
 
 
-def _changes_to_component_instances(
-    changes, model_to_comp, counter
-) -> List[ComponentInstance]:
+def _changes_to_component_instances(changes, model_to_comp, counter) -> list[ComponentInstance]:
     """Convert a list of ComponentChange into ComponentInstance specs."""
     instances = []
     for change in changes:
@@ -687,7 +726,7 @@ def _changes_to_component_instances(
 # ── Full config → component instances ────────────────────────────
 
 
-def _build_type_discriminator_map() -> Dict[str, str]:
+def _build_type_discriminator_map() -> dict[str, str]:
     """Map component type discriminator value → ConfigComponent class name.
     E.g. 'ethernetCsmacd' → 'FrontpanelPort', 'softwareLoopback' → 'Loopback'."""
     mapping = {}
@@ -722,6 +761,7 @@ def _is_single_attr_component(comp_cls) -> bool:
 def _is_container_component(comp_cls) -> bool:
     """True if the component's model_cls is a ContainerEntry (keyed in a dict)."""
     from acex_devkit.models.container_entry import ContainerEntry
+
     model = getattr(comp_cls, "model_cls", None)
     if model is None:
         return False
@@ -733,7 +773,7 @@ def _is_container_component(comp_cls) -> bool:
 _FLATTEN_SKIP = {"SystemConfig", "NetworkInstance"}
 
 
-def _flatten_config_to_instances(config, model_to_comp) -> List[ComponentInstance]:
+def _flatten_config_to_instances(config, model_to_comp) -> list[ComponentInstance]:
     """
     Walk a ComposedConfiguration (via model_dump dict) using COMPONENT_MAPPING
     paths to extract all non-empty components as ComponentInstance specs.
@@ -775,8 +815,14 @@ def _flatten_config_to_instances(config, model_to_comp) -> List[ComponentInstanc
                     continue
                 processed_paths.add(mapped_path.template)
             _walk_template_dict(
-                config_dict, mapped_path.template, comp_name,
-                single_attr, container, type_map, counter, instances,
+                config_dict,
+                mapped_path.template,
+                comp_name,
+                single_attr,
+                container,
+                type_map,
+                counter,
+                instances,
             )
         else:
             if mapped_path in processed_paths:
@@ -788,7 +834,13 @@ def _flatten_config_to_instances(config, model_to_comp) -> List[ComponentInstanc
                 continue
 
             _extract_from_dict(
-                obj, comp_name, single_attr, container, type_map, counter, instances,
+                obj,
+                comp_name,
+                single_attr,
+                container,
+                type_map,
+                counter,
+                instances,
             )
 
     return instances
@@ -802,10 +854,14 @@ def _extract_from_dict(obj, comp_name, single_attr, container, type_map, counter
         if _is_attribute_value_dict(obj):
             raw = obj.get("value")
             if raw is not None:
-                instances.append(_make_instance(
-                    comp_name, {"value": raw},
-                    _to_snake_case(comp_name), counter,
-                ))
+                instances.append(
+                    _make_instance(
+                        comp_name,
+                        {"value": raw},
+                        _to_snake_case(comp_name),
+                        counter,
+                    )
+                )
         return
 
     if container:
@@ -836,10 +892,14 @@ def _extract_from_dict(obj, comp_name, single_attr, container, type_map, counter
     if isinstance(obj, dict):
         values = _unwrap_dict(obj)
         if values:
-            instances.append(_make_instance(
-                comp_name, values,
-                _to_snake_case(comp_name), counter,
-            ))
+            instances.append(
+                _make_instance(
+                    comp_name,
+                    values,
+                    _to_snake_case(comp_name),
+                    counter,
+                )
+            )
 
 
 def _walk_template_dict(config_dict, template_str, comp_name, single_attr, container, type_map, counter, results):
@@ -876,12 +936,13 @@ def create_router(automation_engine):
 
     # Reconcile needs access to the diff engine
     from acex.config_diff import DiffLogicalNode
+
     differ = DiffLogicalNode(
         automation_engine.inventory,
         automation_engine.device_config_manager,
     )
 
-    async def reconcile(node_instance_id: str, options: Optional[ReconcileOptions] = None):
+    async def reconcile(node_instance_id: str, options: ReconcileOptions | None = None):
         """
         Generate a ConfigMap from observed device config.
 
@@ -899,14 +960,12 @@ def create_router(automation_engine):
         component_instances = []
 
         if options.mode == "full":
-            stored = await automation_engine.device_config_manager.get_latest_config(
-                node_instance_id, "parsed"
-            )
+            stored = await automation_engine.device_config_manager.get_latest_config(node_instance_id, "parsed")
             if stored is None or not stored.content:
                 raise HTTPException(
                     status_code=404,
                     detail=f"No observed parsed config for node instance {node_instance_id}. "
-                           f"The device may not have a NED assigned, or the NED failed to parse the config.",
+                    f"The device may not have a NED assigned, or the NED failed to parse the config.",
                 )
             # stored is a StoredDeviceConfig — .content holds the ComposedConfiguration
             component_instances = _flatten_config_to_instances(stored.content, model_to_comp)
@@ -914,18 +973,12 @@ def create_router(automation_engine):
             diff = await differ.diff(node_instance_id)
             counter = [0]
             if options.include_removed:
-                component_instances.extend(
-                    _changes_to_component_instances(diff.removed, model_to_comp, counter)
-                )
+                component_instances.extend(_changes_to_component_instances(diff.removed, model_to_comp, counter))
             if options.include_changed:
-                component_instances.extend(
-                    _changes_to_component_instances(diff.changed, model_to_comp, counter)
-                )
+                component_instances.extend(_changes_to_component_instances(diff.changed, model_to_comp, counter))
 
         if not component_instances:
-            return GenerateResponse(
-                code="# No components to reconcile — desired config matches observed."
-            )
+            return GenerateResponse(code="# No components to reconcile — desired config matches observed.")
 
         # Generate one ConfigMap per component
         code_blocks = []
@@ -1000,7 +1053,7 @@ def create_router(automation_engine):
             config_text = stripped if stripped.endswith("!") else stripped + "\n!"
             parsed_config = driver.parse(config_text)
         except Exception as e:
-            raise HTTPException(status_code=422, detail=f"Parse error: {e}")
+            raise HTTPException(status_code=422, detail=f"Parse error: {e}") from e
 
         if parsed_config is None:
             raise HTTPException(status_code=422, detail="Driver returned no parsed config.")

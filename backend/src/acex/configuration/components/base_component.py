@@ -1,11 +1,8 @@
-from collections import defaultdict
-from ipaddress import IPv4Interface, IPv6Interface, IPv4Address
+import builtins
+from typing import TYPE_CHECKING, ClassVar
+
+from acex_devkit.models import AttributeValue
 from pydantic import BaseModel
-import json, hashlib
-from typing import ClassVar, Dict, Any, Type, Union, Optional, get_origin, TYPE_CHECKING, List
-from types import NoneType
-from datetime import datetime
-from acex_devkit.models import ExternalValue, AttributeValue
 
 if TYPE_CHECKING:
     from acex.observability.components.base import TelemetryComponent
@@ -29,21 +26,26 @@ def _coerce_reference(val, ref_type):
         if v is None or isinstance(v, ReferenceTo):
             return v
         if isinstance(v, str):
-            from acex.configuration.configuration import Configuration
             from string import Template
+
+            from acex.configuration.configuration import Configuration
+
             path = Configuration.COMPONENT_MAPPING.get(ref_type)
             if path and not isinstance(path, Template):
                 return ReferenceTo(pointer=f"{path}.{v}")
             return ReferenceTo(pointer=v)
         # Augment instance — path is target_path + augments slot
         from acex.configuration.components.augments.base import Augment
+
         if isinstance(v, Augment):
             aug_key = v.type if v.name is None else f"{v.type}__{v.name}"
             return ReferenceTo(pointer=f"{v._target_path}.augments.{aug_key}")
         # Regular ConfigComponent — walk MRO to find a non-Template path
         if isinstance(v, ConfigComponent):
-            from acex.configuration.configuration import Configuration
             from string import Template
+
+            from acex.configuration.configuration import Configuration
+
             for cls in type(v).__mro__:
                 path = Configuration.COMPONENT_MAPPING.get(cls)
                 if path is not None and not isinstance(path, Template):
@@ -60,7 +62,7 @@ def _coerce_reference(val, ref_type):
 class ConfigComponent:
     type: str = "component"
     name: str = None
-    model_cls: Type[BaseModel] = None
+    model_cls: builtins.type[BaseModel] = None
     references: ClassVar[dict] = {}  # {field_name: ComponentType}
 
     def __init__(self, *args, **kwargs):
@@ -68,7 +70,7 @@ class ConfigComponent:
 
         # Hook for preprocessing kwargs before initialization
         if hasattr(self, "pre_init"):
-            getattr(self, "pre_init")()
+            self.pre_init()
 
         self._resolve_references()
 
@@ -81,6 +83,7 @@ class ConfigComponent:
 
     def _resolve_references(self):
         from acex_devkit.models.composed_configuration import ReferenceTo
+
         # Explicit declarations
         for field, ref_type in self.__class__.references.items():
             if field in self.kwargs:
@@ -93,7 +96,7 @@ class ConfigComponent:
                     if _annotation_includes(info.annotation, ReferenceTo):
                         self.kwargs[field] = _coerce_reference(self.kwargs[field], None)
 
-    def telemetry(self) -> List["TelemetryComponent"]:
+    def telemetry(self) -> list["TelemetryComponent"]:
         """
         Default observability hook — return TelemetryComponents derived from
         this config component (e.g. BgpNeighbor → BgpNeighborTelemetry).
@@ -102,7 +105,6 @@ class ConfigComponent:
         worth collecting (mirrors YANG `config false` siblings).
         """
         return []
-
 
     def _validate_model(self, kwargs) -> BaseModel:
         """
@@ -116,20 +118,18 @@ class ConfigComponent:
             model_instance = self.__class__.model_cls(**kwargs)
             return model_instance
         except Exception as e:
-            raise ValueError(f"Failed to validate kwargs against model {self.__class__.model_cls.__name__}: {e}")
-
+            raise ValueError(f"Failed to validate kwargs against model {self.__class__.model_cls.__name__}: {e}") from e
 
     def _set_name_attribute(self):
         """
         Set name attribute to component, not included in the model
         but will have to be unique for mapping/dict-key in the composite configuration.
 
-        # If self.model is AttributeValue[str], that means its a "single-attr 
-        component which has no requirement for name, since it can only be one 
+        # If self.model is AttributeValue[str], that means its a "single-attr
+        component which has no requirement for name, since it can only be one
         of them in the config. So its name is same as the class name.
         """
         if isinstance(self.model, AttributeValue[str]):
             self.name = self.__class__.__name__.lower()
         else:
             self.name = self.kwargs.get("name")
-

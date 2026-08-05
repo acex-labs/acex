@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field
-from typing import Optional
 
 from acex_devkit.models.base import PersistedResponse
 from acex_devkit.models.contact import ContactResponse
@@ -7,13 +6,13 @@ from acex_devkit.models.contact import ContactResponse
 
 class SiteBase(BaseModel):
     name: str = Field(default="")
-    display_name: Optional[str] = None
-    address: Optional[str] = None
-    city: Optional[str] = None
-    country: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    description: Optional[str] = None
+    display_name: str | None = None
+    address: str | None = None
+    city: str | None = None
+    country: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    description: str | None = None
 
 
 class SiteResponse(PersistedResponse, SiteBase):

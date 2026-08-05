@@ -1,11 +1,9 @@
 """Cisco IOS / IOS-XE device-sensor augments."""
 
-from typing import List, Literal, Optional
-from dataclasses import dataclass, field
+from typing import Literal
 
 from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.services import Services
-
 from acex_devkit.models.composed_configuration import AugmentAttributes
 
 
@@ -17,6 +15,7 @@ class CiscoDeviceSensorFilterListAttributes(AugmentAttributes):
 
 class CiscoDeviceSensorFilterList(Augment):
     """Named device-sensor filter-list for a given protocol."""
+
     type = "cisco_device_sensor_filter_list"
     model_cls = CiscoDeviceSensorFilterListAttributes
     valid_targets = (Services,)
@@ -32,6 +31,7 @@ class CiscoDeviceSensorFilterSpecAttributes(AugmentAttributes):
 
 class CiscoDeviceSensorFilterSpec(Augment):
     """device-sensor filter-spec <protocol> include list <name>."""
+
     type = "cisco_device_sensor_filter_spec"
     model_cls = CiscoDeviceSensorFilterSpecAttributes
     valid_targets = (Services,)
@@ -56,6 +56,7 @@ class CiscoDeviceSensorNotifyAttributes(AugmentAttributes):
 
 class CiscoDeviceSensorNotify(Augment):
     """device-sensor notify all-changes."""
+
     type = "cisco_device_sensor_notify"
     model_cls = CiscoDeviceSensorNotifyAttributes
     valid_targets = (Services,)

@@ -1,33 +1,31 @@
 """Cisco IOS / IOS-XE access session attachment."""
 
-from typing import Dict, List, Literal, Optional
+from typing import Literal
 
 from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.services import Services
-
-from acex_devkit.models import AttributeValue
 from acex_devkit.models.composed_configuration import AugmentAttributes, ReferenceTo
-
-from pydantic import BaseModel, Field
-
+from pydantic import Field
 
 
 class CiscoAccessSessionFilterListAttributes(AugmentAttributes):
     type: Literal["cisco_access_session_filter_list"] = "cisco_access_session_filter_list"
     name: str
 
+
 class CiscoAccessSessionFilterList(Augment):
     "Named access-session filter-list payload."
+
     type: Literal["cisco_access_session_filter_list"] = "cisco_access_session_filter_list"
     model_cls = CiscoAccessSessionFilterListAttributes
-    valid_targets = (Services, )
+    valid_targets = (Services,)
     default_vendor = "cisco"
     singleton = False
 
 
 class CiscoAccessSessionAuthAttributes(AugmentAttributes):
     type: Literal["cisco_access_session"] = "cisco_access_session"
-    filter_lists: Dict[str, ReferenceTo] = Field(default_factory=dict)
+    filter_lists: dict[str, ReferenceTo] = Field(default_factory=dict)
 
 
 class CiscoAccessSessionAuthentication(Augment):
@@ -39,7 +37,7 @@ class CiscoAccessSessionAuthentication(Augment):
 
 class CiscoAccessSessionAccountingAttributes(AugmentAttributes):
     type: Literal["cisco_access_session_accounting"] = "cisco_access_session"
-    filter_lists: Dict[str, ReferenceTo] = Field(default_factory=dict)
+    filter_lists: dict[str, ReferenceTo] = Field(default_factory=dict)
 
 
 class CiscoAccessSessionAccounting(Augment):
@@ -47,12 +45,6 @@ class CiscoAccessSessionAccounting(Augment):
     model_cls = CiscoAccessSessionAccountingAttributes
     valid_targets = (Services,)
     default_vendor = "cisco"
-
-
-
-
-
-
 
 
 # class AccessSessionAuthenticationSpec(AccessSessionFilterSpec):
@@ -80,4 +72,3 @@ class CiscoAccessSessionAccounting(Augment):
 #     model_cls = CiscoAccessSessionAttributes
 #     valid_targets = (Services,)
 #     default_vendor = "cisco"
-

@@ -1,9 +1,6 @@
-
-
-from sqlmodel import SQLModel
 from acex.database import Connection
+from sqlmodel import SQLModel
 
-from acex.models import system_models
 
 class DatabaseManager:
     def __init__(self, connection: Connection):

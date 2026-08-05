@@ -1,8 +1,8 @@
 """Polls observability agent manifest, writes telegraf.conf when revision changes, acks."""
 
+import logging
 import os
 import time
-import logging
 
 import requests
 from acex_client.acex.acex import Acex
@@ -11,7 +11,6 @@ logger = logging.getLogger("acex_telemetry_agent")
 
 
 class TelemetryAgent:
-
     def __init__(
         self,
         client: Acex,
@@ -27,10 +26,7 @@ class TelemetryAgent:
         self._last_revision = None
 
     def run(self):
-        logger.info(
-            f"Telemetry Agent started "
-            f"(agent_id={self.agent_id}, config_path={self.config_path})"
-        )
+        logger.info(f"Telemetry Agent started (agent_id={self.agent_id}, config_path={self.config_path})")
 
         while True:
             try:

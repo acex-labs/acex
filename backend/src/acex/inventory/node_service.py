@@ -1,11 +1,11 @@
 import inspect
 from datetime import datetime
-from acex.models import Node, NodeResponse, NodeListResponse, PaginatedResponse
+
+from acex.models import Node, NodeListResponse, NodeResponse, PaginatedResponse
 from acex.models.node import NodeStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
-from acex.models.asset import Asset
 from fastapi import HTTPException
-from typing import List, Optional
+
 
 class NodeService:
     """Service layer för Node business logik."""
@@ -22,14 +22,13 @@ class NodeService:
             return method(*args, **kwargs)
 
     async def _enrich_data(self, node):
-        """När en specific node hämtas vill vi, 
+        """När en specific node hämtas vill vi,
         berika responsen med datat från refererade objekt."""
 
         if node is None:
             return None
 
         node = node.model_dump()
-        asset = None
         if node.get("asset_ref_type") == "asset_cluster":
             node["asset"] = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"]).model_dump()
         else:
@@ -67,6 +66,7 @@ class NodeService:
             print("Fel:", e)
             # Skriver ut hela tracebacken
             import traceback
+
             traceback.print_exc()
             # Todo, printa ut mer info från vilken render och vad som pajjat
             # Fel: render trasig
@@ -75,17 +75,17 @@ class NodeService:
             # På den här filen kommer tracen
             # Här kommer traceback mannen:
             # tracen
-            
+
             config = ""
         return config
-    
+
     async def create(self, logical_node: Node):
         result = await self._call_method(self.adapter.create, logical_node)
         node_id = getattr(result, "id", None)
         if node_id is not None:
             self.inventory.telemetry_agent_manager.bump_revisions_for_node(node_id)
         return result
-    
+
     async def get(self, id: str) -> NodeResponse:
         result = await self._call_method(self.adapter.get, id)
         if result is None:
@@ -102,24 +102,24 @@ class NodeService:
         asset_ref_id: int = None,
         vendor: str = None,
         os: str = None,
-        status: Optional[NodeStatus] = None,
+        status: NodeStatus | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> PaginatedResponse[NodeListResponse]:
 
         query_filters = {
-            k: v for k, v in {
+            k: v
+            for k, v in {
                 "logical_node.hostname": hostname,
                 "logical_node_id": logical_node_id,
                 "asset_ref_id": asset_ref_id,
                 "status": status,
-            }.items() if v is not None
+            }.items()
+            if v is not None
         }
 
         if vendor or os:
-            asset_resp = await self._call_method(
-                self.inventory.assets.query, vendor=vendor, os=os, limit=10000
-            )
+            asset_resp = await self._call_method(self.inventory.assets.query, vendor=vendor, os=os, limit=10000)
             matching_ids = [a.id for a in asset_resp.items]
             if not matching_ids:
                 return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
@@ -170,20 +170,22 @@ class NodeService:
                 vendor = asset.vendor if asset else None
                 os_val = asset.os if asset else None
                 ned_id = asset.ned_id if asset else None
-            items.append(NodeListResponse(
-                **node.model_dump(),
-                hostname=node.logical_node.hostname if node.logical_node else None,
-                site=node.logical_node.site if node.logical_node else None,
-                role=node.logical_node.role if node.logical_node else None,
-                vendor=vendor,
-                os=os_val,
-                ned_id=ned_id,
-            ))
+            items.append(
+                NodeListResponse(
+                    **node.model_dump(),
+                    hostname=node.logical_node.hostname if node.logical_node else None,
+                    site=node.logical_node.site if node.logical_node else None,
+                    role=node.logical_node.role if node.logical_node else None,
+                    vendor=vendor,
+                    os=os_val,
+                    ned_id=ned_id,
+                )
+            )
 
         # Enrich with region memberships
         unique_sites = list({item.site for item in items if item.site})
         site_region_map: dict = {}
-        if unique_sites and hasattr(self.inventory, 'region_assignment_manager'):
+        if unique_sites and hasattr(self.inventory, "region_assignment_manager"):
             assignments = self.inventory.region_assignment_manager.list_assignments(site_names=unique_sites)
             for a in assignments:
                 site_region_map.setdefault(a.site_name, []).append(a.region_name)
@@ -197,18 +199,18 @@ class NodeService:
         logical_node.updated_at = datetime.utcnow()
         result = await self._call_method(self.adapter.update, id, logical_node)
         return result
-    
+
     async def delete(self, id: str):
         self.inventory.telemetry_agent_manager.bump_revisions_for_node(int(id))
         result = await self._call_method(self.adapter.delete, id)
         return result
-    
+
     @property
     def capabilities(self):
         return self.adapter.capabilities
 
     def path(self, capability):
         return self.adapter.path(capability)
-    
+
     def http_verb(self, capability):
         return self.adapter.http_verb(capability)

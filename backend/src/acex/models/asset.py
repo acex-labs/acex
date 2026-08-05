@@ -1,15 +1,17 @@
-from typing import Optional
-from sqlmodel import SQLModel, Field, Relationship
-
 from acex_devkit.models.asset import (
     Asset as AssetSchema,
-    AssetResponse,
-    AssetClusterBase as AssetClusterSchema,
-    AssetClusterCreate,
-    AssetClusterUpdate,
-    AssetClusterAssetResponse,
-    AssetClusterResponse,
 )
+from acex_devkit.models.asset import (
+    AssetClusterAssetResponse,
+    AssetClusterCreate,
+    AssetClusterResponse,
+    AssetClusterUpdate,
+    AssetResponse,
+)
+from acex_devkit.models.asset import (
+    AssetClusterBase as AssetClusterSchema,
+)
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class Ned(SQLModel, table=True):
@@ -18,7 +20,7 @@ class Ned(SQLModel, table=True):
 
 
 class AssetBase(AssetSchema, SQLModel):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
 
 
 class AssetClusterLink(SQLModel, table=True):
@@ -28,10 +30,7 @@ class AssetClusterLink(SQLModel, table=True):
 
 
 class Asset(AssetBase, table=True):
-    clusters: list["AssetCluster"] = Relationship(
-        back_populates="assets",
-        link_model=AssetClusterLink
-    )
+    clusters: list["AssetCluster"] = Relationship(back_populates="assets", link_model=AssetClusterLink)
 
 
 class AssetClusterBase(AssetClusterSchema, SQLModel):
@@ -41,10 +40,7 @@ class AssetClusterBase(AssetClusterSchema, SQLModel):
 class AssetCluster(AssetClusterBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
 
-    assets: list[Asset] = Relationship(
-        back_populates="clusters",
-        link_model=AssetClusterLink
-    )
+    assets: list[Asset] = Relationship(back_populates="clusters", link_model=AssetClusterLink)
 
 
 __all__ = [

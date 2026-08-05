@@ -1,13 +1,13 @@
-from sqlmodel import SQLModel, Field
-from typing import Optional
-
 from acex_devkit.models.logical_node import (
     LogicalNodeBase as LogicalNodeSchema,
+)
+from acex_devkit.models.logical_node import (
+    LogicalNodeConfigResponse,
     LogicalNodeCreate,
     LogicalNodeListResponse,
     LogicalNodeResponse,
-    LogicalNodeConfigResponse,
 )
+from sqlmodel import Field, SQLModel
 
 
 class LogicalNodeBase(LogicalNodeSchema, SQLModel):
@@ -15,7 +15,7 @@ class LogicalNodeBase(LogicalNodeSchema, SQLModel):
 
 
 class LogicalNode(LogicalNodeBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
 
 
 __all__ = [

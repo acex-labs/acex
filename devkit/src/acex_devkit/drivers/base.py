@@ -2,22 +2,22 @@
 
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from typing import Any, Dict
+from typing import Any
 
-from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.management_connection import ManagementConnection
+from acex_devkit.models.node_response import NodeListItem
 
 
 class ParserBase(ABC):
     """Base class for configuration parsers."""
-    
+
     @abstractmethod
     def parse(self, configuration: str) -> Any:
         """Parse device configuration into a structured model.
-        
+
         Args:
             configuration: Raw configuration string from device
-            
+
         Returns:
             Parsed configuration model
         """
@@ -26,15 +26,15 @@ class ParserBase(ABC):
 
 class RendererBase(ABC):
     """Base class for configuration renderers."""
-    
+
     @abstractmethod
-    def render(self, model: Dict[str, Any], asset: Any = None) -> Any:
+    def render(self, model: dict[str, Any], asset: Any = None) -> Any:
         """Render configuration model to device-specific format.
-        
+
         Args:
             model: Device-agnostic configuration model
             asset: Optional asset context
-            
+
         Returns:
             Device-specific configuration (e.g., string, XML tree)
         """
@@ -109,22 +109,20 @@ class NetworkElementDriver:
     def __init__(self):
         """Initialize driver with renderer, transport, and parser instances."""
         if self.renderer_class is None or self.transport_class is None or self.parser_class is None:
-            raise NotImplementedError(
-                "renderer_class, transport_class, and parser_class must be set in subclass"
-            )
+            raise NotImplementedError("renderer_class, transport_class, and parser_class must be set in subclass")
         self.renderer = self.renderer_class()
         self.transport = self.transport_class()
         self.parser = self.parser_class()
         self.normalizer = self.normalizer_class() if self.normalizer_class else None
 
     @abstractmethod
-    def render(self, logical_node: "LogicalNode", asset: Any = None) -> Any:
+    def render(self, logical_node: Any, asset: Any = None) -> Any:
         """Render logical node to device configuration.
-        
+
         Args:
             logical_node: Logical node containing configuration
             asset: Optional asset context
-            
+
         Returns:
             Rendered configuration
         """

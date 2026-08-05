@@ -1,12 +1,12 @@
-from .integration_plugin_base import IntegrationPluginBase
-from acex.models import (Asset, LogicalNode, Node, Ned)
-
-from typing import get_origin, get_args, Type, Union
-from pydantic import BaseModel
 import sqlite3
+from typing import Union, get_args, get_origin
+
+from pydantic import BaseModel
+
+from .integration_plugin_base import IntegrationPluginBase
 
 
-class Sqlite(): 
+class Sqlite:
     def __init__(self, filepath: str):
         """
         Sqlite datasource plugin for ACE.
@@ -15,7 +15,7 @@ class Sqlite():
         """
         self.filepath = filepath
 
-    def create_plugin(self, model: Type[BaseModel]) -> 'SqlitePlugin':
+    def create_plugin(self, model: type[BaseModel]) -> "SqlitePlugin":
         """
         Create a plugin instance for a specific model.
         :param model: The Pydantic model class to use for the plugin.
@@ -24,9 +24,8 @@ class Sqlite():
         return SqlitePlugin(filepath=self.filepath, model=model)
 
 
-class SqlitePlugin(IntegrationPluginBase): 
-
-    def __init__(self, filepath: str, model: Type[BaseModel]):
+class SqlitePlugin(IntegrationPluginBase):
+    def __init__(self, filepath: str, model: type[BaseModel]):
         self.model = model
         self.table = f"{model.__name__.lower()}s"
         self.filepath = filepath
@@ -34,7 +33,7 @@ class SqlitePlugin(IntegrationPluginBase):
     def init_table(self, model, table_name: str):
         """
         Initializes a table, takes a model(pydantic class) as
-        input and creates table with correct column types 
+        input and creates table with correct column types
         based on the typing of the model class.
 
         TODO: inte stöd för nestade pydanticklasser/join...
@@ -42,14 +41,13 @@ class SqlitePlugin(IntegrationPluginBase):
         conn = sqlite3.connect(self.filepath)
         cursor = conn.cursor()
 
-        
         print(f"skapa tabell '{table_name}' för {model}")
 
         columns = []
 
         if "id" not in model.model_fields:
             columns.append("id INTEGER PRIMARY KEY AUTOINCREMENT")
-        for k,v in model.model_fields.items():
+        for k, v in model.model_fields.items():
             name = k
             _type = v.annotation
 
@@ -64,13 +62,13 @@ class SqlitePlugin(IntegrationPluginBase):
                 _type = base_type
 
             # Mappa Python-typer till SQLite-typer
-            if _type == int:
+            if _type is int:
                 sql_type = "INTEGER"
-            elif _type == float:
+            elif _type is float:
                 sql_type = "REAL"
-            elif _type == str:
+            elif _type is str:
                 sql_type = "TEXT"
-            elif _type == bool:
+            elif _type is bool:
                 sql_type = "INTEGER"  # SQLite saknar BOOLEAN, brukar använda 0/1
             else:
                 sql_type = "TEXT"  # fallback
@@ -84,8 +82,7 @@ class SqlitePlugin(IntegrationPluginBase):
         conn.commit()
         conn.close()
 
-
-    def create(self, data: BaseModel): 
+    def create(self, data: BaseModel):
         data_dict = data.model_dump()
 
         conn = sqlite3.connect(self.filepath)
@@ -119,8 +116,7 @@ class SqlitePlugin(IntegrationPluginBase):
         # Returnera objektet med radnummer som ID
         return self.model(**data_dict)
 
-
-    def get(self, id: str): 
+    def get(self, id: str):
         conn = sqlite3.connect(self.filepath)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -136,7 +132,7 @@ class SqlitePlugin(IntegrationPluginBase):
         finally:
             conn.close()
 
-    def query(self, filters: dict|None = None) -> list:
+    def query(self, filters: dict | None = None) -> list:
         conn = sqlite3.connect(self.filepath)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()

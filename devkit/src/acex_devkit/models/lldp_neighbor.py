@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel
 
 from acex_devkit.models.base import PersistedResponse
 
@@ -23,5 +23,5 @@ class LldpNeighborUpload(BaseModel):
 
 class LldpNeighborResponse(PersistedResponse, LldpNeighborBase):
     node_instance_id: int
-    remote_node_id: Optional[int] = None
+    remote_node_id: int | None = None
     collected_at: datetime

@@ -1,10 +1,10 @@
 import inspect
-from acex.models.regions import Region, RegionBase, RegionResponse, RegionSiteInfo
+
 from acex.models.pagination import PaginatedResponse
+from acex.models.regions import Region, RegionBase, RegionResponse, RegionSiteInfo
 
 
 class RegionService:
-
     def __init__(self, adapter, inventory=None):
         self.adapter = adapter
         self.inventory = inventory
@@ -18,22 +18,24 @@ class RegionService:
     async def _enrich_data(self, region):
         if region is None:
             return None
-        data = region.model_dump() if hasattr(region, 'model_dump') else dict(region)
+        data = region.model_dump() if hasattr(region, "model_dump") else dict(region)
         sites = []
-        if self.inventory and hasattr(self.inventory, 'region_assignment_manager'):
+        if self.inventory and hasattr(self.inventory, "region_assignment_manager"):
             assignments = self.inventory.region_assignment_manager.list_assignments(region_name=region.name)
             for a in assignments:
                 result = await self.inventory.sites.query(name=a.site_name)
                 if result.items:
                     s = result.items[0]
-                    sites.append(RegionSiteInfo(
-                        name=s.name,
-                        display_name=s.display_name,
-                        city=s.city,
-                        country=s.country,
-                        latitude=s.latitude,
-                        longitude=s.longitude,
-                    ))
+                    sites.append(
+                        RegionSiteInfo(
+                            name=s.name,
+                            display_name=s.display_name,
+                            city=s.city,
+                            country=s.country,
+                            latitude=s.latitude,
+                            longitude=s.longitude,
+                        )
+                    )
         data["sites"] = sites
         return RegionResponse(**data)
 
@@ -55,10 +57,12 @@ class RegionService:
     ) -> PaginatedResponse[RegionResponse]:
 
         query_filters = {
-            k: v for k, v in {
+            k: v
+            for k, v in {
                 "name": name,
                 "display_name": display_name,
-            }.items() if v is not None
+            }.items()
+            if v is not None
         }
 
         result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)

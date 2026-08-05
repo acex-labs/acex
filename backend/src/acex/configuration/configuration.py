@@ -1,112 +1,95 @@
-from pydantic import BaseModel
-from acex.configuration.components import ConfigComponent
+from string import Template
+
+from acex.configuration.components.acl import Ipv4Acl, Ipv4AclEntry, Ipv6Acl, Ipv6AclEntry
+from acex.configuration.components.augments import Augment
+from acex.configuration.components.cdp import (
+    CdpConfig,
+)
 from acex.configuration.components.interfaces import (
-    Loopback,
-    #Physical,
+    # Physical,
     FrontpanelPort,
     InterfaceTemplate,
     LagInterface,
+    Loopback,
     ManagementPort,
     Subinterface,
-    Svi
+    Svi,
 )
-from acex.configuration.components.augments import Augment
+from acex.configuration.components.lacp import LacpConfig
+from acex.configuration.components.lldp import (
+    LldpConfig,
+)
+from acex.configuration.components.network_instances import L3Vrf, NetworkInstance
+from acex.configuration.components.routing import StaticRoute, StaticRouteNextHop
+from acex.configuration.components.sampling.netflow import (
+    NetflowCollector,
+    NetflowExporter,
+    NetflowExporterOptions,
+    NetflowGlobalConfig,
+    NetflowRecord,
+    NetflowRecordIpv4Match,
+)
+from acex.configuration.components.sampling.sflow import SfloGlobalConfig, SflowCollector
+from acex.configuration.components.spanning_tree import (
+    SpanningTreeGlobal,
+    SpanningTreeMSTP,
+    SpanningTreeMstpInstance,
+    SpanningTreeRapidPVST,
+    SpanningTreeRSTP,
+)
 from acex.configuration.components.system import (
-    HostName,
     Contact,
-    Location,
     DomainName,
+    HostName,
+    Location,
     LoginBanner,
     MotdBanner,
     SystemConfig,
 )
-
-from acex.configuration.components.system.logging import RemoteServer, Console, VtyLine, LoggingConfig, FileLogging
-from acex.configuration.components.lacp import LacpConfig
-from acex.configuration.components.system.ntp import NtpServer
-from acex.configuration.components.system.ssh import SshServer, AuthorizedKey
-from acex.configuration.components.network_instances import NetworkInstance, L3Vrf
-from acex.configuration.components.vlan import Vlan
-from acex.configuration.components.spanning_tree import SpanningTreeGlobal, SpanningTreeRSTP, SpanningTreeMSTP, SpanningTreeMstpInstance, SpanningTreeRapidPVST
-from acex_devkit.models import AttributeValue
-from acex.configuration.components.system.snmp import (
-    SnmpGlobal,
-    SnmpUser,
-    SnmpServer,
-    SnmpTrap,
-    SnmpCommunity,
-    SnmpView,
-    SnmpGroup,
-    SnmpViewOid
-)
-
 from acex.configuration.components.system.aaa import (
-    aaaAuthenticationConfig,
     aaaAccountingConfig,
+    aaaAccountingEvents,
+    aaaAccountingMethods,
+    aaaAuthenticationConfig,
     aaaAuthorizationConfig,
+    aaaAuthorizationEvents,
+    aaaAuthorizationMethods,
     aaaGlobal,
+    aaaRadius,
     aaaServerGroup,
     aaaTacacs,
-    aaaRadius,
-    aaaAuthenticationMethods,
-    aaaAuthorizationMethods,
-    aaaAuthorizationEvents,
-    aaaAccountingMethods,
-    aaaAccountingEvents
 )
-
-from acex.configuration.components.acl import (
-    Ipv4Acl,
-    Ipv6Acl,
-    Ipv4AclEntry,
-    Ipv6AclEntry
-)
-
-from acex.configuration.components.routing import StaticRoute, StaticRouteNextHop
-
-from acex.configuration.components.system.vtp import Vtp
-
-from acex.configuration.components.system.dhcp import (
-    DHCPSnooping, 
-    DhcpRelayServer
-)
-
-from acex.configuration.components.lldp import (
-    LldpConfig,
-)
-
-from acex.configuration.components.cdp import (
-    CdpConfig,
-)
-
-from acex.configuration.components.system.services import Services
-
-from acex.configuration.components.sampling.netflow import (
-    NetflowCollector,
-    NetflowExporter,
-    NetflowRecord,
-    NetflowRecordIpv4Match,
-    NetflowExporterOptions,
-    NetflowGlobalConfig
-)
-
-from acex.configuration.components.sampling.sflow import (
-    SfloGlobalConfig,
-    SflowCollector
-)
-
 from acex.configuration.components.system.clock import Clock
+from acex.configuration.components.system.dhcp import DhcpRelayServer, DHCPSnooping
 from acex.configuration.components.system.dns import DnsServer
+from acex.configuration.components.system.logging import Console, FileLogging, LoggingConfig, RemoteServer, VtyLine
+from acex.configuration.components.system.ntp import NtpServer
+from acex.configuration.components.system.services import Services
+from acex.configuration.components.system.snmp import (
+    SnmpCommunity,
+    SnmpGlobal,
+    SnmpGroup,
+    SnmpServer,
+    SnmpTrap,
+    SnmpUser,
+    SnmpView,
+    SnmpViewOid,
+)
+from acex.configuration.components.system.ssh import AuthorizedKey, SshServer
+from acex.configuration.components.system.vtp import Vtp
+from acex.configuration.components.vlan import Vlan
+from acex_devkit.models import AttributeValue, ExternalValue
+from acex_devkit.models.composed_configuration import (
+    ComposedConfiguration,
+    Reference,
+    ReferenceFrom,
+    ReferenceTo,
+    RenderedReference,
+)
+from pydantic import BaseModel
 
-from acex_devkit.models import ExternalValue
-from acex_devkit.models.composed_configuration import ComposedConfiguration, Reference, ReferenceTo, ReferenceFrom, RenderedReference
-from collections import defaultdict
-from typing import Dict
-from string import Template
-import json
 
-
-class Configuration: 
+class Configuration:
     # Mapping from component type to path in composed configuration
     # Note that some paths are containers, like interfaces where the component also
     # must be referenced using its name attribute
@@ -146,10 +129,10 @@ class Configuration:
         aaaAccountingMethods: "system.aaa.accounting.config.methods",
         aaaAccountingEvents: "system.aaa.accounting.config.events",
         LacpConfig: "lacp.config",
-        #LacpInterfaces: "lacp.interfaces",
-        #LacpConfgi: "lacp.config",
+        # LacpInterfaces: "lacp.interfaces",
+        # LacpConfgi: "lacp.config",
         Loopback: "interfaces",
-        #Physical: "interfaces",
+        # Physical: "interfaces",
         FrontpanelPort: "interfaces",
         LagInterface: "interfaces",
         ManagementPort: "interfaces",
@@ -159,7 +142,9 @@ class Configuration:
         L3Vrf: "network_instances",
         Vlan: Template("network_instances.${network_instance}.vlans"),
         StaticRoute: Template("network_instances.${network_instance}.protocols.static_routes"),
-        StaticRouteNextHop: Template("network_instances.${network_instance}.protocols.static_routes.${static_route}.next_hops"),
+        StaticRouteNextHop: Template(
+            "network_instances.${network_instance}.protocols.static_routes.${static_route}.next_hops"
+        ),
         Svi: Template("interfaces"),
         NtpServer: "system.ntp.servers",
         SshServer: "system.ssh.config",
@@ -174,7 +159,7 @@ class Configuration:
         Ipv6AclEntry: Template("acl.ipv6_acls.${ipv6_acl}.acl_entries"),
         Vtp: "system.vtp.config",
         DHCPSnooping: "system.dhcp.snooping",
-        DhcpRelayServer: "system.dhcp.relay.relay_servers", 
+        DhcpRelayServer: "system.dhcp.relay.relay_servers",
         LldpConfig: "lldp",
         CdpConfig: "cdp",
         Services: "system.services.config",
@@ -185,7 +170,7 @@ class Configuration:
         NetflowRecord: "sampling.netflow.records",
         NetflowRecordIpv4Match: Template("sampling.netflow.records.${netflow_record}.match_ipv4"),
         SfloGlobalConfig: "sampling.sflow.config",
-        SflowCollector: "sampling.sflow.collectors"
+        SflowCollector: "sampling.sflow.collectors",
     }
 
     # Reverse mapping from attribute name to path for __getattr__
@@ -197,7 +182,7 @@ class Configuration:
         "login_banner": "system.config.login_banner",
         "motd_banner": "system.config.motd_banner",
     }
-    
+
     def __init__(self, logical_node_id):
         self.composed = ComposedConfiguration()
         self.logical_node_id = logical_node_id
@@ -214,11 +199,10 @@ class Configuration:
         self._augments = []
         self._augment_keys = set()  # (target_path, aug_type) for conflict detection
 
-    
     def _get_nested_component(self, path: str):
         """Get a nested attribute using dot notation path."""
         obj = self.composed
-        parts = path.split('.')
+        parts = path.split(".")
         for part in parts:
             obj = getattr(obj, part)
         return obj
@@ -234,12 +218,11 @@ class Configuration:
         else:
             base_path = f"logical_nodes.{self.logical_node_id}.{component.type}"
 
-        for k, v in component.model.model_dump().items():
+        for k, _v in component.model.model_dump().items():
             attribute_value = getattr(component.model, k)
             if isinstance(attribute_value, AttributeValue):
                 if attribute_value is not None and isinstance(attribute_value.value, ExternalValue):
                     attribute_value.metadata["attr_ptr"] = f"{base_path}.{k}"
-
 
     def _lookup_mapping(self, component):
         """Resolve a component's path via COMPONENT_MAPPING."""
@@ -251,16 +234,18 @@ class Configuration:
 
     def _render_path(self, component, mapped_path: str):
         """
-        The mapped path can either be a pure string, 
-        or it can be a string.Template. If the latter, we need 
-        to extract the variables and fetch corresponding values which 
-        is expected to be attributeValues of the component itself.     
+        The mapped path can either be a pure string,
+        or it can be a string.Template. If the latter, we need
+        to extract the variables and fetch corresponding values which
+        is expected to be attributeValues of the component itself.
         """
 
         if isinstance(mapped_path, Template):
-            vars_needed = [m.group('named') or m.group('braced')
-               for m in mapped_path.pattern.finditer(mapped_path.template)
-               if m.group('named') or m.group('braced')]
+            vars_needed = [
+                m.group("named") or m.group("braced")
+                for m in mapped_path.pattern.finditer(mapped_path.template)
+                if m.group("named") or m.group("braced")
+            ]
 
             value_map = {}
             for v in vars_needed:
@@ -274,37 +259,27 @@ class Configuration:
     def _pop_all_references(self, component):
         """
         Pops all references and stores them in a flat list instead.
-        Source of the reference must always be an attribute, destination 
-        can be an object. 
+        Source of the reference must always be an attribute, destination
+        can be an object.
         --> self._references
         """
-        for k,v in component.kwargs.items():
-
+        for k, v in component.kwargs.items():
             if isinstance(v, (ReferenceFrom, ReferenceTo)):
                 self_component_path = self._lookup_mapping(component)
                 rendered_self_component_path = self._render_path(component, self_component_path)
 
                 # use key if item in dict
-                if rendered_self_component_path.endswith('.config'):
+                if rendered_self_component_path.endswith(".config"):
                     self_path = f"{rendered_self_component_path}"
-                else:    
+                else:
                     self_path = f"{rendered_self_component_path}.{component.name}"
 
                 if isinstance(v, ReferenceTo):
-                    # if self is the source, the source must be an attribute. 
-                    ri = RenderedReference(
-                        from_ptr = f"{self_path}.{k}",
-                        to_ptr = v.pointer
-                    )
+                    # if self is the source, the source must be an attribute.
+                    ri = RenderedReference(from_ptr=f"{self_path}.{k}", to_ptr=v.pointer)
                 elif isinstance(v, ReferenceFrom):
-                    
-                    ri = RenderedReference(
-                        from_ptr = v.pointer,
-                        to_ptr = f"{self_path}"
-                    )
+                    ri = RenderedReference(from_ptr=v.pointer, to_ptr=f"{self_path}")
                 self._references.append(ri)
-
-                
 
     def add(self, component):
         """
@@ -349,15 +324,14 @@ class Configuration:
 
         # Apply all values from components to the composed model.
         # Parent paths must be created before child paths (e.g. ACL before ACL entries).
-        components = sorted(self._components, key=lambda item: item[0].count('.'))
+        components = sorted(self._components, key=lambda item: item[0].count("."))
         for path, component in components:
-
             # Set metadata of the component
             if hasattr(component.model, "metadata"):
                 component.model.metadata.type = component.type
 
             # Traverse the composed object to the ptr for the obj.
-            path_parts = path.split('.')
+            path_parts = path.split(".")
             attribute_name = path_parts.pop()
 
             # First place the pointer on the attribute key
@@ -375,11 +349,11 @@ class Configuration:
                 value = ptr.get(attribute_name)
             else:
                 value = getattr(ptr, attribute_name)
-            
+
             # Unwrap single-attribute wrapper models (e.g. SingleAttributeString → AttributeValue)
             model_value = component.model
             model_fields = component.model.model_fields
-            if len(model_fields) == 1 and 'value' in model_fields and isinstance(getattr(component.model, 'value'), AttributeValue):
+            if len(model_fields) == 1 and "value" in model_fields and isinstance(component.model.value, AttributeValue):
                 model_value = component.model.value
 
             # If the value of the ptr is a dict, the item has to be keyed
@@ -394,12 +368,12 @@ class Configuration:
         for reference in self._references:
             # From pointer is always an attribute, to is a referenced object
 
-            # insertion point 
-            insertion_path_parts = reference.from_ptr.split('.')
+            # insertion point
+            insertion_path_parts = reference.from_ptr.split(".")
             insertion_attr = insertion_path_parts.pop()
 
             # referenced value
-            value_path_parts = reference.to_ptr.split('.')
+            value_path_parts = reference.to_ptr.split(".")
             value_attr = value_path_parts.pop()
 
             # pointer startpoint is the full config.
@@ -411,7 +385,7 @@ class Configuration:
                     ptr = ptr.get(part)
                 else:
                     ptr = getattr(ptr, part)
-            
+
             # Store pointer value, this will be inserted at insertion point
             pointer_value = ptr[value_attr]
 
@@ -425,9 +399,7 @@ class Configuration:
                 else:
                     ptr = getattr(ptr, part)
 
-            reference = Reference(
-                pointer = reference.to_ptr
-            )
+            reference = Reference(pointer=reference.to_ptr)
 
             value = reference
             # Insert the referenced value dict to the insertion point.
@@ -436,14 +408,14 @@ class Configuration:
                 insertion_point = getattr(ptr, insertion_attr)
                 insertion_point[pointer_value.name.value] = value
             else:
-            # Otherwise, just set the source key as insertion point:
+                # Otherwise, just set the source key as insertion point:
                 setattr(ptr, insertion_attr, value)
 
         # Materialize augments onto target nodes' `augments` slot.
         # Targets are referenced by their tree path (e.g. "interfaces.Gi1/0/1");
         # the augment payload is keyed by the augment's type discriminator.
         for aug in self._augments:
-            path_parts = aug._target_path.split('.')
+            path_parts = aug._target_path.split(".")
             ptr = config
             for part in path_parts:
                 if isinstance(ptr, dict):
@@ -460,10 +432,8 @@ class Configuration:
 
         return config
 
-
     def to_json(self):
         """
         Serialisera alla komponenter till rätt position i strukturen.
         """
         return self.as_model().model_dump()
-

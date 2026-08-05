@@ -4,10 +4,9 @@ Standard dashboard definitions, generated from the TelemetryRegistry.
 Each function takes a TelemetryRegistry and returns a dashboard dict (or
 None if there are no relevant components and the dashboard would be empty).
 """
-from typing import Optional
 
-from acex.observability.registry import TelemetryRegistry
 from acex.observability.components.icmp_ping import IcmpPingTelemetry
+from acex.observability.registry import TelemetryRegistry
 from acex.observability.renderers.grafana.builder import (
     bargauge_panel,
     grid_pos,
@@ -18,7 +17,6 @@ from acex.observability.renderers.grafana.builder import (
     state_timeline_panel,
     timeseries_panel,
 )
-
 
 # Threshold steps for percent_packet_loss colouring (state timeline + loss bars).
 LOSS_THRESHOLDS = [
@@ -37,7 +35,7 @@ LATENCY_THRESHOLDS = [
 ]
 
 
-def icmp_overview_dashboard(registry: TelemetryRegistry) -> Optional[dict]:
+def icmp_overview_dashboard(registry: TelemetryRegistry) -> dict | None:
     """ICMP ping overview with site/node filters, rollups, top-N and reachability."""
     pings: list[IcmpPingTelemetry] = registry.by_kind(IcmpPingTelemetry.kind)
     if not pings:
@@ -56,10 +54,7 @@ def icmp_overview_dashboard(registry: TelemetryRegistry) -> Optional[dict]:
         query_variable(
             name="node",
             label="Node",
-            query=(
-                f'SHOW TAG VALUES FROM "{measurement}" WITH KEY = "node" '
-                f'WHERE "site" =~ /^($site)$/'
-            ),
+            query=(f'SHOW TAG VALUES FROM "{measurement}" WITH KEY = "node" WHERE "site" =~ /^($site)$/'),
             refresh=2,
         ),
     ]
@@ -75,46 +70,38 @@ def icmp_overview_dashboard(registry: TelemetryRegistry) -> Optional[dict]:
         f'WHERE time > now() - 5m GROUP BY "node") '
         f'WHERE "v" < 100'
     )
-    avg_latency_query = (
-        f'SELECT mean("average_response_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {tag_filter}'
-    )
-    avg_loss_query = (
-        f'SELECT mean("percent_packet_loss") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {tag_filter}'
-    )
+    avg_latency_query = f'SELECT mean("average_response_ms") FROM "{measurement}" WHERE $timeFilter AND {tag_filter}'
+    avg_loss_query = f'SELECT mean("percent_packet_loss") FROM "{measurement}" WHERE $timeFilter AND {tag_filter}'
     latency_query = (
         f'SELECT mean("average_response_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {tag_filter} '
+        f"WHERE $timeFilter AND {tag_filter} "
         f'GROUP BY time($__interval), "node" fill(null)'
     )
     jitter_query = (
         f'SELECT mean("standard_deviation_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {tag_filter} '
+        f"WHERE $timeFilter AND {tag_filter} "
         f'GROUP BY time($__interval), "node" fill(null)'
     )
     loss_query = (
         f'SELECT mean("percent_packet_loss") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {tag_filter} '
+        f"WHERE $timeFilter AND {tag_filter} "
         f'GROUP BY time($__interval), "node" fill(null)'
     )
     latency_by_site_query = (
         f'SELECT mean("average_response_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {tag_filter} '
+        f"WHERE $timeFilter AND {tag_filter} "
         f'GROUP BY time($__interval), "site" fill(null)'
     )
     loss_by_site_query = (
         f'SELECT mean("percent_packet_loss") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {tag_filter} '
+        f"WHERE $timeFilter AND {tag_filter} "
         f'GROUP BY time($__interval), "site" fill(null)'
     )
     top_latency_query = (
-        f'SELECT mean("average_response_ms") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {tag_filter} GROUP BY "node"'
+        f'SELECT mean("average_response_ms") FROM "{measurement}" WHERE $timeFilter AND {tag_filter} GROUP BY "node"'
     )
     top_loss_query = (
-        f'SELECT mean("percent_packet_loss") FROM "{measurement}" '
-        f'WHERE $timeFilter AND {tag_filter} GROUP BY "node"'
+        f'SELECT mean("percent_packet_loss") FROM "{measurement}" WHERE $timeFilter AND {tag_filter} GROUP BY "node"'
     )
 
     panels = [
@@ -218,8 +205,7 @@ def icmp_overview_dashboard(registry: TelemetryRegistry) -> Optional[dict]:
             unit="percent",
             thresholds=LOSS_THRESHOLDS,
             description=(
-                "Per-node loss heatmap over time. "
-                "Green = clean, yellow/orange = degraded, red = mostly/fully down."
+                "Per-node loss heatmap over time. Green = clean, yellow/orange = degraded, red = mostly/fully down."
             ),
         ),
     ]
@@ -228,8 +214,7 @@ def icmp_overview_dashboard(registry: TelemetryRegistry) -> Optional[dict]:
         uid="acex-icmp-overview",
         title="ACEX — ICMP Ping Overview",
         description=(
-            "Auto-generated from active node-instances in ACEX inventory. "
-            f"Currently tracking {len(pings)} node(s)."
+            f"Auto-generated from active node-instances in ACEX inventory. Currently tracking {len(pings)} node(s)."
         ),
         panels=panels,
         templating=templating,

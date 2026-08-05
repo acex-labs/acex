@@ -1,33 +1,40 @@
-from acex.plugins.adaptors import AssetAdapter, LogicalNodeAdapter, NodeAdapter, SiteAdapter, ContactAdapter, RegionAdapter
-from acex.plugins.integrations import IntegrationPluginBase, DatabasePlugin
-from acex.models import Asset, LogicalNode, Node, Site, Contact, Region
+from acex.inventory.asset_cluster_manager import AssetClusterManager
 from acex.inventory.asset_service import AssetService
+from acex.inventory.collection_agent_manager import CollectionAgentManager
+from acex.inventory.contact_assignment_manager import ContactAssignmentManager
+from acex.inventory.contact_service import ContactService
 from acex.inventory.logical_node_service import LogicalNodeService
 from acex.inventory.node_service import NodeService
-from acex.inventory.site_service import SiteService
-from acex.inventory.contact_service import ContactService
-from acex.inventory.region_service import RegionService
-from acex.inventory.asset_cluster_manager import AssetClusterManager
-from acex.inventory.contact_assignment_manager import ContactAssignmentManager
 from acex.inventory.region_assignment_manager import RegionAssignmentManager
-from acex.inventory.collection_agent_manager import CollectionAgentManager
+from acex.inventory.region_service import RegionService
+from acex.inventory.site_service import SiteService
+from acex.models import Asset, Contact, LogicalNode, Node, Region, Site
 from acex.observability import TelemetryRegistry
 from acex.observability.agents import TelemetryAgentManager
 from acex.observability.renderers import GrafanaRenderer
+from acex.plugins.adaptors import (
+    AssetAdapter,
+    ContactAdapter,
+    LogicalNodeAdapter,
+    NodeAdapter,
+    RegionAdapter,
+    SiteAdapter,
+)
+from acex.plugins.integrations import DatabasePlugin
+
 
 class Inventory:
-
     def __init__(
-            self,
-            db_connection = None,
-            assets_plugin = None,
-            logical_nodes_plugin = None,
-            sites_plugin = None,
-            contacts_plugin = None,
-            config_compiler = None,
-            integrations = None,
-            influxdb_settings = None,
-        ):
+        self,
+        db_connection=None,
+        assets_plugin=None,
+        logical_nodes_plugin=None,
+        sites_plugin=None,
+        contacts_plugin=None,
+        config_compiler=None,
+        integrations=None,
+        influxdb_settings=None,
+    ):
         self.influxdb_settings = influxdb_settings
 
         # För presistent storage monteras en postgresql anslutning
@@ -54,7 +61,9 @@ class Inventory:
             default_logical_nodes_plugin = DatabasePlugin(db_connection, LogicalNode)
             logical_nodes_adapter = LogicalNodeAdapter(default_logical_nodes_plugin)
 
-        self.logical_nodes = LogicalNodeService(logical_nodes_adapter, config_compiler, integrations, db_manager=db_connection)
+        self.logical_nodes = LogicalNodeService(
+            logical_nodes_adapter, config_compiler, integrations, db_manager=db_connection
+        )
 
         # Node instances
         node_instance_plugin = DatabasePlugin(db_connection, Node)
@@ -69,7 +78,9 @@ class Inventory:
         # TelemetryAgentManager uses it as input source for telegraf config.
         self.telemetry_registry = TelemetryRegistry(db_connection)
         self.telemetry_agent_manager = TelemetryAgentManager(
-            db_connection, self.telemetry_registry, influxdb_settings,
+            db_connection,
+            self.telemetry_registry,
+            influxdb_settings,
         )
         self.grafana_renderer = GrafanaRenderer(self.telemetry_registry, influxdb_settings)
 

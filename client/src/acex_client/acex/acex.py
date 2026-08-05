@@ -10,12 +10,12 @@ from .resources.node_instances import NodeInstances
 
 class Acex:
     def __init__(
-            self,
-            baseurl: str = "http://127.0.0.1/",
-            api_ver: int = 1,
-            verify: bool = True,
-            auth: AuthProvider | None = None,
-        ):
+        self,
+        baseurl: str = "http://127.0.0.1/",
+        api_ver: int = 1,
+        verify: bool = True,
+        auth: AuthProvider | None = None,
+    ):
         self.api_url = f"{baseurl}api/v{api_ver}"
         resolved_auth = auth or create_auth_provider(self.api_url, verify_ssl=verify)
         self.rest = RestClient(api_url=self.api_url, auth=resolved_auth, verify=verify)

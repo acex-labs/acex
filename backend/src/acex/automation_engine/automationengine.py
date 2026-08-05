@@ -2,31 +2,30 @@ import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from fastapi import FastAPI
-    from acex.plugins.integrations import IntegrationPluginBase, IntegrationPluginFactoryBase
     from acex.database import Connection
+    from acex.plugins.integrations import IntegrationPluginBase, IntegrationPluginFactoryBase
+    from fastapi import FastAPI
 
 
-class AutomationEngine: 
-
+class AutomationEngine:
     def __init__(
-            self,
-            db_connection:"Connection|None" = None,
-            assets_plugin:"IntegrationPluginBase|None" = None,
-            logical_nodes_plugin:"IntegrationPluginBase|None" = None,
-            sites_plugin:"IntegrationPluginBase|None" = None,
-            contacts_plugin:"IntegrationPluginBase|None" = None
-        ):
+        self,
+        db_connection: "Connection|None" = None,
+        assets_plugin: "IntegrationPluginBase|None" = None,
+        logical_nodes_plugin: "IntegrationPluginBase|None" = None,
+        sites_plugin: "IntegrationPluginBase|None" = None,
+        contacts_plugin: "IntegrationPluginBase|None" = None,
+    ):
         # Lazy imports - only load when AutomationEngine is instantiated
         from acex.api.api import Api
-        from acex.plugins import PluginManager
-        from acex.database import DatabaseManager
-        from acex.compilers import ConfigCompiler
-        from acex.device_configs import DeviceConfigManager
-        from acex.management_connections import ManagementConnectionManager
         from acex.automation_engine.integrations import Integrations
+        from acex.compilers import ConfigCompiler
+        from acex.database import DatabaseManager
+        from acex.device_configs import DeviceConfigManager
         from acex.inventory import Inventory
+        from acex.management_connections import ManagementConnectionManager
         from acex.observability.settings import InfluxDBSettings
+        from acex.plugins import PluginManager
 
         self.api = Api()
         self.plugin_manager = PluginManager()
@@ -41,7 +40,7 @@ class AutomationEngine:
         self.oidc_jwks_ttl: int = 3600
         self.oidc_verify_ssl: bool = True
         self.influxdb_settings = InfluxDBSettings.from_env()
-        
+
         # create plugin instances.
         if assets_plugin is not None:
             self.plugin_manager.register_type_plugin("assets", assets_plugin)
@@ -57,7 +56,7 @@ class AutomationEngine:
 
         # Create Inventory
         self.inventory = Inventory(
-            db_connection = self.db,
+            db_connection=self.db,
             assets_plugin=self.plugin_manager.get_plugin_for_object_type("assets"),
             logical_nodes_plugin=self.plugin_manager.get_plugin_for_object_type("logical_nodes"),
             sites_plugin=self.plugin_manager.get_plugin_for_object_type("sites"),
@@ -66,28 +65,27 @@ class AutomationEngine:
             integrations=self.integrations,
             influxdb_settings=self.influxdb_settings,
         )
-        
+
         # Create DeviceConfigManager
         self.device_config_manager = DeviceConfigManager(self.db, self.inventory)
 
         # Create LldpNeighborManager
         from acex.lldp.lldp_neighbor_manager import LldpNeighborManager
+
         self.lldp_neighbor_manager = LldpNeighborManager(self.db)
 
         # Create CredentialManager
-        from acex.credentials.credential_manager import CredentialManager
         self._encryption_key = None
         self._vault_client = None
         self.credential_manager = None  # initialized in set_encryption_key() or lazily
 
         self._create_db_tables()
-        
+
     def _create_db_tables(self):
         """
         Create tables if not exist, use on startup.
         """
         self.db.create_tables()
-
 
     def _ensure_credential_manager(self):
         """Lazily initialize CredentialManager from env var if not set via set_encryption_key()."""
@@ -106,6 +104,7 @@ class AutomationEngine:
 
         if self.credential_manager is None:
             from acex.credentials.credential_manager import CredentialManager
+
             self.credential_manager = CredentialManager(self.db, self._encryption_key, vault_client=self._vault_client)
         elif self._vault_client and not self.credential_manager._vault:
             self.credential_manager._vault = self._vault_client
@@ -113,17 +112,20 @@ class AutomationEngine:
     def set_encryption_key(self, key: str):
         """Set the encryption key for credential storage. Call before create_app()."""
         import logging
+
         logging.getLogger("acex").warning(
             "Encryption key set via code — do NOT use this in production. "
             "Use the ACEX_ENCRYPTION_KEY environment variable instead."
         )
         from acex.credentials.credential_manager import CredentialManager
+
         self._encryption_key = key
         self.credential_manager = CredentialManager(self.db, key)
 
     def set_vault(self, url: str, token: str = None, role_id: str = None, secret_id: str = None, verify: bool = True):
         """Configure HashiCorp Vault for credential storage. Call before create_app()."""
         from acex.credentials.vault_client import VaultClient
+
         self._vault_client = VaultClient(url=url, token=token, role_id=role_id, secret_id=secret_id, verify=verify)
 
     def create_app(self) -> "FastAPI":
@@ -140,7 +142,7 @@ class AutomationEngine:
         api_key: str = None,
         base_url: str = None,
         mcp_server_url: str = None,
-        model: str = "openai/gpt-oss-120b"
+        model: str = "openai/gpt-oss-120b",
     ):
         if enabled is True:
             if api_key is None or base_url is None or mcp_server_url is None:
@@ -149,7 +151,10 @@ class AutomationEngine:
                 return None
             # Lazy import - only load when AI ops is actually enabled
             from acex.ai_ops import AIOpsManager
-            self.ai_ops_manager = AIOpsManager(api_key=api_key, base_url=base_url, mcp_server_url=mcp_server_url, model=model)
+
+            self.ai_ops_manager = AIOpsManager(
+                api_key=api_key, base_url=base_url, mcp_server_url=mcp_server_url, model=model
+            )
 
     def add_configmap_dir(self, dir_path: str):
         self.config_compiler.add_config_map_path(dir_path)
@@ -184,11 +189,19 @@ class AutomationEngine:
         the agent's own OutputDestination rows. Use `add_influxdb(...)` to
         append additional defaults (e.g. primary + replica).
         """
-        self.influxdb_settings.outputs = [self._make_influxdb_output(
-            url=url, version=version, token=token, organization=organization,
-            bucket=bucket, database=database, username=username, password=password,
-            content_encoding=content_encoding,
-        )]
+        self.influxdb_settings.outputs = [
+            self._make_influxdb_output(
+                url=url,
+                version=version,
+                token=token,
+                organization=organization,
+                bucket=bucket,
+                database=database,
+                username=username,
+                password=password,
+                content_encoding=content_encoding,
+            )
+        ]
 
     def add_influxdb(
         self,
@@ -203,17 +216,27 @@ class AutomationEngine:
         content_encoding: str = None,
     ):
         """Append one more backend-default InfluxDB output."""
-        self.influxdb_settings.outputs.append(self._make_influxdb_output(
-            url=url, version=version, token=token, organization=organization,
-            bucket=bucket, database=database, username=username, password=password,
-            content_encoding=content_encoding,
-        ))
+        self.influxdb_settings.outputs.append(
+            self._make_influxdb_output(
+                url=url,
+                version=version,
+                token=token,
+                organization=organization,
+                bucket=bucket,
+                database=database,
+                username=username,
+                password=password,
+                content_encoding=content_encoding,
+            )
+        )
 
     @staticmethod
-    def _make_influxdb_output(url, version, token, organization, bucket,
-                              database, username, password, content_encoding):
-        from acex.observability.settings import InfluxDBOutput
+    def _make_influxdb_output(
+        url, version, token, organization, bucket, database, username, password, content_encoding
+    ):
         from acex.observability.agents.models import InfluxDBVersion
+        from acex.observability.settings import InfluxDBOutput
+
         return InfluxDBOutput(
             version=InfluxDBVersion(version),
             url=url,
@@ -226,12 +249,12 @@ class AutomationEngine:
             content_encoding=content_encoding,
         )
 
-    def register_datasource_plugin(self, name: str, plugin_factory: "IntegrationPluginFactoryBase"): 
+    def register_datasource_plugin(self, name: str, plugin_factory: "IntegrationPluginFactoryBase"):
         self.plugin_manager.register_generic_plugin(name, plugin_factory)
-    
-    def add_integration(self, name, integration ):
+
+    def add_integration(self, name, integration):
         """
-        Adds an integration. 
+        Adds an integration.
         """
         print(f"Adding integration {name} with plugin: {integration}")
         self.plugin_manager.register_generic_plugin(name, integration)

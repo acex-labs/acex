@@ -1,7 +1,6 @@
-from sqlmodel import SQLModel, Field
-from typing import Optional
-
-from acex_devkit.models.contact import ContactBase as ContactSchema, ContactResponse
+from acex_devkit.models.contact import ContactBase as ContactSchema
+from acex_devkit.models.contact import ContactResponse
+from sqlmodel import Field, SQLModel
 
 
 class ContactBase(ContactSchema, SQLModel):
@@ -9,11 +8,11 @@ class ContactBase(ContactSchema, SQLModel):
 
 
 class Contact(ContactBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
 
 
 class ContactAssignment(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     contact_name: str
     site_name: str
 
@@ -21,3 +20,6 @@ class ContactAssignment(SQLModel, table=True):
 class ContactAssignmentCreate(SQLModel):
     contact_name: str
     site_name: str
+
+
+__all__ = ["ContactBase", "Contact", "ContactAssignment", "ContactAssignmentCreate", "ContactResponse"]

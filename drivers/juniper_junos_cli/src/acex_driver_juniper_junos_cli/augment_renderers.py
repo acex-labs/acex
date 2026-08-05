@@ -12,26 +12,24 @@ To add a new Juniper augment type:
   1. Define the augment component + payload model in the backend
   2. Register a renderer here under its `type` key
 """
+
 from collections import defaultdict
-from typing import Callable, Dict, List
+from collections.abc import Callable
 
 
-def _render_snmp_community_clients(aug: dict, target_path: str) -> List[str]:
+def _render_snmp_community_clients(aug: dict, target_path: str) -> list[str]:
     """`set snmp community <name> clients <prefix>` — one line per prefix."""
     community_name = target_path.rsplit(".", 1)[-1]
     clients = (aug.get("clients") or {}).get("value") or []
-    return [
-        f"set snmp community {community_name} clients {prefix}"
-        for prefix in clients
-    ]
+    return [f"set snmp community {community_name} clients {prefix}" for prefix in clients]
 
 
-AUGMENT_RENDERERS: Dict[str, Callable[[dict, str], List[str]]] = {
+AUGMENT_RENDERERS: dict[str, Callable[[dict, str], list[str]]] = {
     "juniper.snmp_community_clients": _render_snmp_community_clients,
 }
 
 
-def resolve_augment_lines(configuration: dict) -> Dict[str, List[str]]:
+def resolve_augment_lines(configuration: dict) -> dict[str, list[str]]:
     """
     Walk every targetable tree node, collect its `augments` dict, dispatch each
     augment to its renderer, and return a {target_path: [cli_line, ...]} dict
@@ -40,7 +38,7 @@ def resolve_augment_lines(configuration: dict) -> Dict[str, List[str]]:
     Augments unknown to this driver (no renderer registered for that type)
     are silently skipped — that's the point of augment-on-target dispatch.
     """
-    by_target: Dict[str, List[str]] = defaultdict(list)
+    by_target: dict[str, list[str]] = defaultdict(list)
 
     def _collect(target_path: str, augments: dict):
         for aug_type, aug in (augments or {}).items():

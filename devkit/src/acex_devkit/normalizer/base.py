@@ -18,12 +18,12 @@ from __future__ import annotations
 import re
 
 from acex_devkit.normalizer.engine import (
-    LineRule,
     BlockRule,
-    RewriteRule,
-    OpStats,
-    OpResult,
+    LineRule,
     NormalizerEngine,
+    OpResult,
+    OpStats,
+    RewriteRule,
 )
 
 
@@ -70,9 +70,7 @@ class BaseNormalizer:
         )
 
     def mask(self, raw: str) -> OpResult:
-        lines, stats = self.engine.mask_pass(
-            raw, rewrite_rules=self.rewrite_rules
-        )
+        lines, stats = self.engine.mask_pass(raw, rewrite_rules=self.rewrite_rules)
         return OpResult(
             config="\n".join(lines) + ("\n" if lines else ""),
             operation="mask",

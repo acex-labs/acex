@@ -1,21 +1,16 @@
-
 from acex.configuration.components.base_component import ConfigComponent
-from acex.configuration.components.interfaces import Interface
-from acex.configuration.components.network_instances.network_instances import L3Vrf
-from acex.configuration.components.vlan import Vlan
-
 from acex_devkit.models.composed_configuration import (
-    DHCPSnoopingAttributes,
     DhcpRelayServerAttributes,
-    ReferenceFrom,
-    ReferenceTo,
+    DHCPSnoopingAttributes,
 )
 
-class DHCPSnooping(ConfigComponent): 
+
+class DHCPSnooping(ConfigComponent):
     type = "dhcp_snooping"
     model_cls = DHCPSnoopingAttributes
 
-class DhcpRelayServer(ConfigComponent): 
+
+class DhcpRelayServer(ConfigComponent):
     type = "dhcp_relay_server"
     model_cls = DhcpRelayServerAttributes
 

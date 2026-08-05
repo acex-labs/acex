@@ -1,22 +1,20 @@
-
 from contextlib import contextmanager
-from typing import Optional
+from typing import Any
+
+from acex_devkit.configdiffer import Diff
+from acex_devkit.drivers import NetworkElementDriver, TransportBase
 from acex_devkit.models.composed_configuration import ComposedConfiguration
-from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.management_connection import ManagementConnection
+from acex_devkit.models.node_response import NodeListItem
 from netmiko import ConnectHandler
 
-from acex_devkit.drivers import NetworkElementDriver, TransportBase
-from acex_devkit.configdiffer import Diff
-
-from .renderer import JunosCLIRenderer
 from .parser import JunosCLIParser
+from .renderer import JunosCLIRenderer
 
 
 class JunosCLITransport(TransportBase):
-
     def __init__(self):
-        self._session_conn: Optional[ConnectHandler] = None
+        self._session_conn: ConnectHandler | None = None
 
     def _open_connection(self, connection: ManagementConnection, **kwargs) -> ConnectHandler:
         username = kwargs.get("username")
@@ -107,12 +105,14 @@ class JunosCLITransport(TransportBase):
             local_iface = parts[0]
             remote_port = parts[-2]
             remote_dev = parts[-1]
-            neighbors.append({
-                "local_interface": local_iface,
-                "remote_device": remote_dev,
-                "remote_interface": remote_port,
-                "discovery_protocol": "lldp",
-            })
+            neighbors.append(
+                {
+                    "local_interface": local_iface,
+                    "remote_device": remote_dev,
+                    "remote_interface": remote_port,
+                    "discovery_protocol": "lldp",
+                }
+            )
         return neighbors
 
 
@@ -130,7 +130,7 @@ class JunosCLI(NetworkElementDriver):
     def parse(self, configuration: str) -> ComposedConfiguration:
         return self.parser.parse(configuration)
 
-    def render_patch(self, diff: Diff, node_instance: "NodeInstance"):
+    def render_patch(self, diff: Diff, node_instance: Any):
         return self.renderer.render_patch(diff, node_instance)
 
     def apply_patch(self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnection, **kwargs):

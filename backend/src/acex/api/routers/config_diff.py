@@ -1,6 +1,6 @@
-from fastapi import APIRouter
-from acex.constants import BASE_URL
 from acex.config_diff import DiffLogicalNode
+from acex.constants import BASE_URL
+from fastapi import APIRouter
 
 
 def create_router(automation_engine):
@@ -11,16 +11,8 @@ def create_router(automation_engine):
     differ = DiffLogicalNode(automation_engine.inventory, dcm)
 
     router.add_api_route(
-        "/compliance/{node_instance_id}",
-        differ.compliance_check_node_instance,
-        methods=["GET"],
-        tags=tags
+        "/compliance/{node_instance_id}", differ.compliance_check_node_instance, methods=["GET"], tags=tags
     )
-    router.add_api_route(
-        "/compliance/site/{site_name}",
-        differ.compliance_check_site,
-        methods=["GET"],
-        tags=tags
-    )
+    router.add_api_route("/compliance/site/{site_name}", differ.compliance_check_site, methods=["GET"], tags=tags)
 
     return router

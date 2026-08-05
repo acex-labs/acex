@@ -1,6 +1,7 @@
 import inspect
-from fastapi import APIRouter
+
 from acex.constants import BASE_URL
+from fastapi import APIRouter
 
 
 def get_response_model(func):
@@ -19,18 +20,12 @@ def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/inventory")
     tags = ["Inventory"]
 
-    plug = getattr(automation_engine.inventory, "sites")
+    plug = automation_engine.inventory.sites
     for cap in plug.capabilities:
         func = getattr(plug, cap)
 
         response_model = get_response_model(func)
         path = plug.path(cap)
         method = plug.http_verb(cap)
-        router.add_api_route(
-            f"/sites{path}",
-            func,
-            methods=[method],
-            response_model=response_model,
-            tags=tags
-        )
+        router.add_api_route(f"/sites{path}", func, methods=[method], response_model=response_model, tags=tags)
     return router

@@ -1,21 +1,19 @@
-from typing import Callable, Union, Awaitable, List
-from acex.config_map import ConfigMap
-from .compiled_logical_node import CompiledLogicalNode
-from acex.configuration import Configuration
-from datetime import datetime, timezone
-from ipaddress import IPv4Interface, IPv6Interface
-
-import os
 import importlib.util
-import sys
-from pathlib import Path
-import inspect
 import json
+import os
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
 
-from acex_devkit.models.attribute_value import AttributeValue
+from acex.config_map import ConfigMap
+from acex.configuration import Configuration
 from acex.models import ExternalValue
+from acex_devkit.models.attribute_value import AttributeValue
 
-class ConfigCompiler: 
+from .compiled_logical_node import CompiledLogicalNode
+
+
+class ConfigCompiler:
     """
     This class enriches logical nodes with
     configuration from ConfigMaps.
@@ -26,7 +24,6 @@ class ConfigCompiler:
     3. Discovers all ConfigMaps and registers those with matching ConfigMap.Filter.
     4. Runs all processors with CompiledLogicalNode.compile()
     """
-
 
     def __init__(self, db_manager):
         self.ln = None
@@ -78,7 +75,6 @@ class ConfigCompiler:
                     py_files.append(os.path.join(root, file))
         return py_files
 
-
     def _find_processors_for_ln(self):
         """
         Finds all processors that match the logical node's filters.
@@ -96,11 +92,11 @@ class ConfigCompiler:
         session = next(self.db.get_session())
         try:
             for _, component in cln.configuration._components:
-                for k,v in component.model:
-                    if v is not None:   
+                for _k, v in component.model:
+                    if v is not None:
                         if v.is_external():
                             print("resolve the ev.. ")
-                            
+
                             func = v.value._callable
                             value = func(v.value.kind, json.loads(v.value.query))
                             v.value = value
@@ -114,10 +110,10 @@ class ConfigCompiler:
                                 if existing_ev:
                                     # Uppdatera befintligt objekt - bara value och resolved_at
                                     existing_ev.value = v.value
-                                    existing_ev.resolved_at = datetime.now(timezone.utc)
+                                    existing_ev.resolved_at = datetime.now(UTC)
 
                                 else:
-                                    # Create new ev and save it. 
+                                    # Create new ev and save it.
                                     new_ev = ExternalValue(
                                         attr_ptr=full_ref,
                                         query=v.metadata["query"],
@@ -125,7 +121,7 @@ class ConfigCompiler:
                                         kind=v.metadata["kind"],
                                         ev_type=v.metadata["ev_type"],
                                         plugin=v.metadata["plugin"],
-                                        resolved_at=datetime.now(timezone.utc)
+                                        resolved_at=datetime.now(UTC),
                                     )
                                     session.add(new_ev)
                                 # Save
@@ -133,12 +129,11 @@ class ConfigCompiler:
 
                             except Exception as e:
                                 session.rollback()
-                                print(f"Error saving ExternalValue {ev.attr_ptr}: {e}")
+                                print(f"Error saving ExternalValue {full_ref}: {e}")
                                 raise  # Re-raise för att stoppa hela operationen om något går fel
 
         finally:
             session.close()
-
 
     def _read_external_value_from_state(self, cln: CompiledLogicalNode):
         """
@@ -151,25 +146,23 @@ class ConfigCompiler:
         try:
             # loop all config components of the cln
             for _, component in cln.configuration._components:
-
                 # loop all attributes from the model.
-                for k,v in component.model:
+                for _k, v in component.model:
                     if isinstance(v, AttributeValue):
-                        # check all set attributes if theyre external. 
+                        # check all set attributes if theyre external.
                         if v.is_external():
                             # If external, set full reference
                             full_ref = v.metadata["attr_ptr"]
                             result = session.get(ExternalValue, full_ref)
                             if result is not None:
-                                setattr(v, "value", result.value)
+                                v.value = result.value
                                 v.metadata["resolved"] = result.resolved
                                 v.metadata["resolved_at"] = result.resolved_at
         finally:
             session.close()
 
-
     async def compile(self, logical_node, integrations, resolve: bool = False) -> dict:
-        configuration = Configuration(logical_node.id) # Instanciates a config object
+        configuration = Configuration(logical_node.id)  # Instanciates a config object
         self.ln = CompiledLogicalNode(configuration, logical_node, integrations)
         self._find_processors_for_ln()
         await self.ln.compile()
@@ -181,4 +174,3 @@ class ConfigCompiler:
             self._resolve_external_values(self.ln)
 
         return self.ln
-

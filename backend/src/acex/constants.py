@@ -1,4 +1,3 @@
-
 BASE_URL = "/api/v1"
 DEFAULT_ROOT_DIR = "."
 DEFAULT_INVENTORY_TYPE = "local"

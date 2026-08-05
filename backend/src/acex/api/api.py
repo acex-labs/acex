@@ -1,18 +1,15 @@
-
+import importlib
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends
-from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 
-from acex.constants import BASE_URL
 from acex import __version__
 from acex.api import auth as _auth
-import os
+from acex.constants import BASE_URL
+from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from pathlib import Path
-import importlib
 
 class Api:
-
     def create_app(self, automation_engine):
 
         if automation_engine.oidc_issuer_url is not None:
@@ -88,7 +85,7 @@ class Api:
             try:
                 module = importlib.import_module(module_name)
                 if hasattr(module, "create_router"):
-                    router = getattr(module, "create_router")(automation_engine)
+                    router = module.create_router(automation_engine)
                     if router is not None:
                         routers.append(router)
             except Exception as e:

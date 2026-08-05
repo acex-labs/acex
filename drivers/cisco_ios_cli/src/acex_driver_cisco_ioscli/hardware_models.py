@@ -1,10 +1,8 @@
-
 """Cisco hardware model helpers.
 
 The values represent the highest fixed front-panel index that should be
 treated as onboard ports before the renderer falls back to module indexing.
 """
-
 
 CISCO_HARDWARE_MAX_INDEX = {
     "C9200-24T": 24,
