@@ -138,7 +138,7 @@ class CredentialManager:
             session.refresh(cred)
             return self._build_response(cred, db_fields)
 
-    def list(self, name: str | None = None) -> list[CredentialResponse]:
+    def query(self, name: str | None = None) -> list[CredentialResponse]:
         with self._session() as session:
             query = session.query(Credential)
             if name:

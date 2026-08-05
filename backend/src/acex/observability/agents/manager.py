@@ -193,7 +193,7 @@ class TelemetryAgentManager:
         finally:
             session.close()
 
-    def list(
+    def query(
         self,
         name: str | None = None,
         capability: TelemetryCapability | None = None,
