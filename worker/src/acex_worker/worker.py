@@ -1,8 +1,9 @@
 """Worker implementation for ACE-X."""
 
-from typing import Any, Callable
 import asyncio
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 
 class Worker:
@@ -10,7 +11,7 @@ class Worker:
 
     def __init__(self, concurrency: int = 4, queue: str = "default"):
         """Initialize worker.
-        
+
         Args:
             concurrency: Number of concurrent tasks
             queue: Queue name to consume from
@@ -34,12 +35,12 @@ class Worker:
 
     async def execute_task(self, task: Callable, *args: Any, **kwargs: Any) -> Any:
         """Execute a task.
-        
+
         Args:
             task: Callable to execute
             *args: Positional arguments
             **kwargs: Keyword arguments
-            
+
         Returns:
             Task result
         """

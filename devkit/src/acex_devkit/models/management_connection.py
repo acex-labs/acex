@@ -1,11 +1,11 @@
+from enum import StrEnum
+
 from pydantic import BaseModel
-from typing import Optional
-from enum import Enum
 
 from acex_devkit.models.base import PersistedResponse
 
 
-class ConnectionType(str, Enum):
+class ConnectionType(StrEnum):
     ssh = "ssh"
     telnet = "telnet"
 
@@ -13,7 +13,7 @@ class ConnectionType(str, Enum):
 class ManagementConnectionBase(BaseModel):
     primary: bool = True
     connection_type: ConnectionType = ConnectionType.ssh
-    target_ip: Optional[str] = None
+    target_ip: str | None = None
 
 
 class ManagementConnectionResponse(PersistedResponse, ManagementConnectionBase):

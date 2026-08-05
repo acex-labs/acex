@@ -4,7 +4,6 @@ from .resource_base import CreateMixin, DeleteMixin, GetMixin, ListMixin, Resour
 
 
 class NodeInstances(Resource, GetMixin, ListMixin, CreateMixin, UpdateMixin, DeleteMixin):
-
     ENDPOINT = "/inventory/node_instances/"
     RESPONSE_MODEL_SINGLE = NodeResponse
     RESPONSE_MODEL_LIST = NodeListItem

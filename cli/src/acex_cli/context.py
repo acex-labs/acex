@@ -3,6 +3,7 @@ from pathlib import Path
 
 CONTEXT_FILE = Path.home() / ".acex/.acex_cli_context.json"
 
+
 class CLIContext:
     def __init__(self):
         self.data = self._load()

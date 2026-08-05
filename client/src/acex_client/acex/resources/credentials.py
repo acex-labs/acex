@@ -4,7 +4,6 @@ from .resource_base import CreateMixin, GetMixin, ListMixin, Resource
 
 
 class Credential(Resource, GetMixin, ListMixin, CreateMixin):
-
     ENDPOINT = "/inventory/credentials/"
     RESPONSE_MODEL_SINGLE = CredentialResponse
     RESPONSE_MODEL_LIST = CredentialResponse

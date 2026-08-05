@@ -7,6 +7,7 @@ or interface template. Renders to `device-tracking attach-policy <name>`.
 The policy itself (`device-tracking policy IPDT_POLICY { ... }`) is currently
 defined out-of-band on the device; this augment only models the attachment.
 """
+
 from typing import Literal
 
 from acex.configuration.components.augments.base import Augment
@@ -25,6 +26,7 @@ from acex_devkit.models.composed_configuration import AugmentAttributes
 
 class CiscoDeviceTrackingPolicyAttributes(AugmentAttributes):
     "Attaches a named Cisco device-tracking policy to an interface or interface template."
+
     type: Literal["cisco_device_tracking_policy"] = "cisco_device_tracking_policy"
     policy_name: AttributeValue[str]
 

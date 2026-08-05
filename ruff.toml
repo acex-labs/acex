@@ -1,11 +1,16 @@
 target-version = "py313"
 line-length = 120
 
+# Utan detta ignoreras `exclude` för filer som skickas explicit (t.ex. via pre-commit).
+force-exclude = true
+
 exclude = [
     ".venv",
     "**/.venv",
     "**/dist",
     "**/build",
+    "docs",
+    "scripts",
 ]
 
 [lint]

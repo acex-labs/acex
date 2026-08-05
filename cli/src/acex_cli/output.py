@@ -7,10 +7,9 @@ header control, and pagination display.
 import csv
 import io
 import json
-from typing import Optional
 
-from rich.table import Table
 from rich.console import Console
+from rich.table import Table
 
 console = Console()
 
@@ -19,7 +18,7 @@ def display_list(
     result,
     *,
     format: str = "table",
-    columns: Optional[list[str]] = None,
+    columns: list[str] | None = None,
     no_header: bool = False,
     model=None,
     title: str = "",
@@ -47,7 +46,10 @@ def display_list(
         _print_csv(rows, columns, no_header)
     else:
         _print_table(
-            rows, columns, no_header, title,
+            rows,
+            columns,
+            no_header,
+            title,
             total=total,
             limit=getattr(result, "limit", None),
             offset=getattr(result, "offset", None),
@@ -58,8 +60,8 @@ def display_object(
     obj,
     *,
     format: str = "table",
-    columns: Optional[list[str]] = None,
-    exclude: Optional[list[str]] = None,
+    columns: list[str] | None = None,
+    exclude: list[str] | None = None,
     model=None,
     title: str = "",
 ):
@@ -221,6 +223,7 @@ def _format_cell(value) -> str:
     if value is None:
         return ""
     from enum import Enum
+
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, dict) and not value:

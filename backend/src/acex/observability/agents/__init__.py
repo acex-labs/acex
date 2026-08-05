@@ -1,3 +1,4 @@
+from acex.observability.agents.manager import TelemetryAgentManager
 from acex.observability.agents.models import (
     InfluxDBVersion,
     OutputDestination,
@@ -17,7 +18,6 @@ from acex.observability.agents.models import (
     TelemetryAgentResponse,
     TelemetryAgentUpdate,
 )
-from acex.observability.agents.manager import TelemetryAgentManager
 
 __all__ = [
     "InfluxDBVersion",

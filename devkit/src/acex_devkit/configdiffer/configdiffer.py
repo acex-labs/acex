@@ -1,15 +1,15 @@
 from collections import defaultdict
-from pydantic import BaseModel
-from typing import Any, Dict, List, get_args
+from typing import get_args
 
-from acex_devkit.models.composed_configuration import ComposedConfiguration
+from pydantic import BaseModel
+
+from acex_devkit.configdiffer.diff import AttributeChange, ComponentChange, ComponentDiffOp, Diff
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.container_entry import ContainerEntry
-from acex_devkit.configdiffer.diff import Diff, ComponentChange, AttributeChange, ComponentDiffOp
 
 
 class ConfigDiffer:
-
     def _is_leaf(self, model: BaseModel) -> bool:
         """A model is a leaf if it has at least one direct AttributeValue field."""
         for field_info in model.model_fields.values():
@@ -21,7 +21,7 @@ class ConfigDiffer:
                     return True
         return False
 
-    def _flatten(self, model: BaseModel, path: tuple = ()) -> Dict[tuple, BaseModel]:
+    def _flatten(self, model: BaseModel, path: tuple = ()) -> dict[tuple, BaseModel]:
         """
         Recursively walk a model tree, collecting leaf nodes.
         A leaf is any BaseModel that has direct AttributeValue fields.
@@ -59,8 +59,7 @@ class ConfigDiffer:
 
         return result
 
-
-    def _attribute_changes(self, before: BaseModel, after: BaseModel) -> List[AttributeChange]:
+    def _attribute_changes(self, before: BaseModel, after: BaseModel) -> list[AttributeChange]:
         """Compare two component instances and return a list of changed attributes."""
         changes = []
         all_fields = set(before.model_fields.keys()) | set(after.model_fields.keys())
@@ -99,7 +98,9 @@ class ConfigDiffer:
             changed_attributes=self._attribute_changes(before, after) if (before and after) else [],
         )
 
-    def _diff_singletons(self, desired: Dict[tuple, BaseModel], observed: Dict[tuple, BaseModel]) -> List[ComponentChange]:
+    def _diff_singletons(
+        self, desired: dict[tuple, BaseModel], observed: dict[tuple, BaseModel]
+    ) -> list[ComponentChange]:
         """Diff leaves that are not ContainerEntry — matched by exact path."""
         changes = []
         all_paths = set(desired) | set(observed)
@@ -115,13 +116,13 @@ class ConfigDiffer:
                 changes.append(self._make_change(ComponentDiffOp.REMOVE, path, before=o))
         return changes
 
-    def _diff_entries(self, desired: Dict[tuple, BaseModel], observed: Dict[tuple, BaseModel]) -> List[ComponentChange]:
+    def _diff_entries(self, desired: dict[tuple, BaseModel], observed: dict[tuple, BaseModel]) -> list[ComponentChange]:
         """Diff ContainerEntry leaves — matched by identity_fields within each container scope."""
         changes = []
 
         # Group by container path (parent = path[:-1]) so identity matching is scoped
-        desired_by_container: Dict[tuple, Dict[str, BaseModel]] = defaultdict(dict)
-        observed_by_container: Dict[tuple, Dict[str, BaseModel]] = defaultdict(dict)
+        desired_by_container: dict[tuple, dict[str, BaseModel]] = defaultdict(dict)
+        observed_by_container: dict[tuple, dict[str, BaseModel]] = defaultdict(dict)
 
         for path, model in desired.items():
             desired_by_container[path[:-1]][path[-1]] = model
@@ -135,8 +136,8 @@ class ConfigDiffer:
             o_components = observed_by_container.get(container_path, {})
 
             # Build identity → (key, model) lookup for observed
-            o_by_identity: Dict[tuple, tuple[str, BaseModel]] = {}
-            o_by_key: Dict[str, BaseModel] = dict(o_components)
+            o_by_identity: dict[tuple, tuple[str, BaseModel]] = {}
+            o_by_key: dict[str, BaseModel] = dict(o_components)
             for key, model in o_components.items():
                 identity = self._identity_key(model)
                 if identity:  # non-empty identity_fields — match by field values
@@ -161,23 +162,33 @@ class ConfigDiffer:
                 if o_model:
                     matched_o_keys.add(o_key)
                     if d_model != o_model:
-                        changes.append(self._make_change(
-                            ComponentDiffOp.CHANGE, container_path + (d_key,),
-                            before=o_model, after=d_model,
-                        ))
+                        changes.append(
+                            self._make_change(
+                                ComponentDiffOp.CHANGE,
+                                container_path + (d_key,),
+                                before=o_model,
+                                after=d_model,
+                            )
+                        )
                 else:
-                    changes.append(self._make_change(
-                        ComponentDiffOp.ADD, container_path + (d_key,),
-                        after=d_model,
-                    ))
+                    changes.append(
+                        self._make_change(
+                            ComponentDiffOp.ADD,
+                            container_path + (d_key,),
+                            after=d_model,
+                        )
+                    )
 
             # Remaining observed entries that weren't matched → removed
             for o_key, o_model in o_components.items():
                 if o_key not in matched_o_keys:
-                    changes.append(self._make_change(
-                        ComponentDiffOp.REMOVE, container_path + (o_key,),
-                        before=o_model,
-                    ))
+                    changes.append(
+                        self._make_change(
+                            ComponentDiffOp.REMOVE,
+                            container_path + (o_key,),
+                            before=o_model,
+                        )
+                    )
 
         return changes
 

@@ -1,10 +1,8 @@
 import inspect
-from typing import List, Optional
-
-from sqlalchemy import select
 
 from acex.models import Asset, AssetResponse, PaginatedResponse
-from acex.models.node import Node, AssetRefType
+from acex.models.node import AssetRefType, Node
+from sqlalchemy import select
 
 
 class AssetService:
@@ -35,26 +33,26 @@ class AssetService:
         hardware_model: str = None,
         ned_id: str = None,
         serial_number: str = None,
-        assigned: Optional[bool] = None,
+        assigned: bool | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> PaginatedResponse[AssetResponse]:
 
         query_filters = {
-            k: v for k, v in {
+            k: v
+            for k, v in {
                 "vendor": vendor,
                 "os": os,
                 "hardware_model": hardware_model,
                 "serial_number": serial_number,
                 "ned_id": ned_id,
-            }.items() if v is not None
+            }.items()
+            if v is not None
         }
 
         extra_filters = []
         if assigned is not None:
-            assigned_ids = select(Node.asset_ref_id).where(
-                Node.asset_ref_type == AssetRefType.asset
-            )
+            assigned_ids = select(Node.asset_ref_id).where(Node.asset_ref_type == AssetRefType.asset)
             if assigned:
                 extra_filters.append(Asset.id.in_(assigned_ids))
             else:

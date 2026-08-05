@@ -1,10 +1,8 @@
-from typing import Optional
-
 import typer
-
-from acex_cli.sdk import get_sdk
-from acex_cli.output import display_list, display_object
 from acex_client.models.generated_models import AssetResponse
+
+from acex_cli.output import display_list, display_object
+from acex_cli.sdk import get_sdk
 
 app = typer.Typer(help="Asset resource commands")
 
@@ -13,25 +11,29 @@ app = typer.Typer(help="Asset resource commands")
 def list_cmd(
     ctx: typer.Context,
     # Filters (match backend query params)
-    vendor: Optional[str] = typer.Option(None, help="Filter by vendor (prefix match)"),
-    os: Optional[str] = typer.Option(None, "--os", help="Filter by OS"),
-    hardware_model: Optional[str] = typer.Option(None, help="Filter by hardware model"),
-    ned_id: Optional[str] = typer.Option(None, help="Filter by NED ID"),
-    serial_number: Optional[str] = typer.Option(None, help="Filter by serial number"),
-    assigned: Optional[bool] = typer.Option(None, help="Filter assigned/unassigned"),
+    vendor: str | None = typer.Option(None, help="Filter by vendor (prefix match)"),
+    os: str | None = typer.Option(None, "--os", help="Filter by OS"),
+    hardware_model: str | None = typer.Option(None, help="Filter by hardware model"),
+    ned_id: str | None = typer.Option(None, help="Filter by NED ID"),
+    serial_number: str | None = typer.Option(None, help="Filter by serial number"),
+    assigned: bool | None = typer.Option(None, help="Filter assigned/unassigned"),
     # Pagination
     limit: int = typer.Option(100, "--limit", "-l", help="Max items to return"),
     offset: int = typer.Option(0, "--offset", help="Items to skip"),
     # Output
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, csv"),
-    columns: Optional[str] = typer.Option(None, "--columns", "-c", help="Comma-separated columns"),
+    columns: str | None = typer.Option(None, "--columns", "-c", help="Comma-separated columns"),
     no_header: bool = typer.Option(False, "--no-header", help="Hide table header"),
 ):
     """List assets with optional filters."""
     sdk = get_sdk(ctx.obj.get_active_context())
     filters = _compact(
-        vendor=vendor, os=os, hardware_model=hardware_model,
-        ned_id=ned_id, serial_number=serial_number, assigned=assigned,
+        vendor=vendor,
+        os=os,
+        hardware_model=hardware_model,
+        ned_id=ned_id,
+        serial_number=serial_number,
+        assigned=assigned,
     )
     result = sdk.assets.query(limit=limit, offset=offset, **filters)
     display_list(
@@ -49,7 +51,7 @@ def show_cmd(
     ctx: typer.Context,
     asset_id: str,
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, csv"),
-    columns: Optional[str] = typer.Option(None, "--columns", "-c", help="Comma-separated fields"),
+    columns: str | None = typer.Option(None, "--columns", "-c", help="Comma-separated fields"),
 ):
     """Show details for an asset."""
     sdk = get_sdk(ctx.obj.get_active_context())

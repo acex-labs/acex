@@ -1,16 +1,16 @@
 """Main CLI application entry point."""
 
-import typer
 import importlib
-import pkgutil
 import pathlib
+import pkgutil
+
+import typer
+
 from acex_cli.context import CLIContext
+from acex_cli.output import console
 
 app = typer.Typer(
-    name="acex",
-    help="ACE-X - Automation & Control Ecosystem CLI",
-    add_completion=True,
-    pretty_exceptions_enable=False
+    name="acex", help="ACE-X - Automation & Control Ecosystem CLI", add_completion=True, pretty_exceptions_enable=False
 )
 
 
@@ -38,9 +38,9 @@ def main(ctx: typer.Context):
 def version():
     """Show version information."""
     from acex_cli import __version__
+
     console.print(f"ACE-X CLI version: {__version__}")
 
 
 if __name__ == "__main__":
     app()
-

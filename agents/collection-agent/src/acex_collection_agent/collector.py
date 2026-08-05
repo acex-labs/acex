@@ -1,20 +1,19 @@
 """Collector — uses NEDs to fetch running-configs and uploads to ACEX."""
 
 import asyncio
-import logging
 import base64
+import logging
 
 import requests
-from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_client.acex.acex import Acex
-from acex_devkit.models.node_response import NodeListItem
+from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_devkit.models.management_connection import ManagementConnection
+from acex_devkit.models.node_response import NodeListItem
 
 logger = logging.getLogger("acex_collection_agent")
 
 
 class Collector:
-
     def __init__(self, client: Acex):
         self.client = client
 
@@ -168,7 +167,12 @@ class Collector:
         elif response.ok:
             return {"node_id": node_id, "hostname": hostname, "status": "ok", "message": "Config uploaded"}
         else:
-            return {"node_id": node_id, "hostname": hostname, "status": "error", "message": f"Upload failed ({response.status_code})"}
+            return {
+                "node_id": node_id,
+                "hostname": hostname,
+                "status": "error",
+                "message": f"Upload failed ({response.status_code})",
+            }
 
     def _upload_neighbors(self, node_id: int, neighbors: list[dict]):
         """Upload LLDP/CDP neighbors to ACEX API."""

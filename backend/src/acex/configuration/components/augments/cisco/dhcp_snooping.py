@@ -14,6 +14,7 @@ class CiscoDhcpSnoopingTrackServerAttributes(AugmentAttributes):
 
 class CiscoDhcpSnoopingTrackServer(Augment):
     """Renders to ``ip dhcp snooping track server [all-dhcp-acks]``."""
+
     type = "cisco_dhcp_snooping_track_server"
     model_cls = CiscoDhcpSnoopingTrackServerAttributes
     valid_targets = (DHCPSnooping,)

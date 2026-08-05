@@ -12,12 +12,11 @@ Usage:
     python3 scripts/seed_dev_data.py [--base-url http://localhost:80]
 """
 
+import argparse
 import base64
 import json
 import urllib.request
-import argparse
 from pathlib import Path
-
 
 CONFIGS_DIR = Path(__file__).parent / "configs"
 

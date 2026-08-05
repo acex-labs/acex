@@ -1,27 +1,26 @@
 import base64
 import json
 import os
-from typing import Optional
 
 import requests
 import typer
-
-from acex_cli.sdk import get_sdk
-from acex_cli.output import display_list, display_object
-from acex_cli.print_utils import print_commands_box
 from acex_devkit.models import NodeListItem
 from acex_devkit.models.composed_configuration import ComposedConfiguration
+
 from acex_cli.diff_formatters import (
-    print_diff_summary,
-    print_diff_tree,
     print_diff_compact,
     print_diff_flat,
+    print_diff_summary,
+    print_diff_tree,
 )
-
+from acex_cli.output import display_list, display_object
+from acex_cli.print_utils import print_commands_box
+from acex_cli.sdk import get_sdk
 
 # ── Temporary REST helpers (replace with SDK methods) ───────────
 
-def _request_get(sdk, path: str, params: Optional[dict] = None) -> requests.Response:
+
+def _request_get(sdk, path: str, params: dict | None = None) -> requests.Response:
     verify = getattr(getattr(sdk, "rest", None), "verify", True)
     url = f"{sdk.api_url}{path}"
     response = requests.get(url, params=params, verify=verify)
@@ -57,6 +56,7 @@ def _fetch_node_instance(sdk, identifier: str):
         if len(result) > 1:
             typer.echo(f"Multiple nodes match '{identifier}':")
             from acex_cli.output import display_list
+
             display_list(result, columns=["id", "hostname", "site", "status"], title="")
             raise typer.Exit(1)
         node = sdk.node_instances.get(result.items[0].id)
@@ -83,6 +83,7 @@ def _resolve_node_quick(sdk, identifier: str):
     if len(result) > 1:
         typer.echo(f"Multiple nodes match '{identifier}':")
         from acex_cli.output import display_list
+
         display_list(result, columns=["id", "hostname", "site", "status"], title="")
         raise typer.Exit(1)
     return result.items[0]
@@ -90,17 +91,17 @@ def _resolve_node_quick(sdk, identifier: str):
 
 def _compile_local(sdk, identifier: str, config_maps_dir: str):
     """Compile config locally from config maps on disk. Returns ComposedConfiguration."""
-    import os
     import importlib.util
+    import os
     import sys
 
     try:
         from acex.config_map import ConfigMap
-        from acex.configuration import Configuration
         from acex.config_map.context import ConfigMapContext
-    except ImportError:
+        from acex.configuration import Configuration
+    except ImportError as exc:
         typer.echo("Backend package 'acex' not installed. Run: pip install -e ../backend")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     if not os.path.isdir(config_maps_dir):
         typer.echo(f"Directory not found: {config_maps_dir}")
@@ -195,28 +196,32 @@ config_app.add_typer(config_diff_app, name="diff")
 
 # ── Node list / show ────────────────────────────────────────────
 
+
 @app.command("list")
 def list_cmd(
     ctx: typer.Context,
     # Filters (match backend query params)
-    site: Optional[str] = typer.Option(None, help="Filter by site (prefix match)"),
-    hostname: Optional[str] = typer.Option(None, help="Filter by hostname (prefix match)"),
-    logical_node_id: Optional[int] = typer.Option(None, help="Filter by logical node ID"),
-    asset_ref_id: Optional[int] = typer.Option(None, help="Filter by asset ref ID"),
-    status: Optional[str] = typer.Option(None, help="Filter by status (planned, init, active, decommissioned)"),
+    site: str | None = typer.Option(None, help="Filter by site (prefix match)"),
+    hostname: str | None = typer.Option(None, help="Filter by hostname (prefix match)"),
+    logical_node_id: int | None = typer.Option(None, help="Filter by logical node ID"),
+    asset_ref_id: int | None = typer.Option(None, help="Filter by asset ref ID"),
+    status: str | None = typer.Option(None, help="Filter by status (planned, init, active, decommissioned)"),
     # Pagination
     limit: int = typer.Option(100, "--limit", "-l", help="Max items to return"),
     offset: int = typer.Option(0, "--offset", help="Items to skip"),
     # Output
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, csv"),
-    columns: Optional[str] = typer.Option(None, "--columns", "-c", help="Comma-separated columns"),
+    columns: str | None = typer.Option(None, "--columns", "-c", help="Comma-separated columns"),
     no_header: bool = typer.Option(False, "--no-header", help="Hide table header"),
 ):
     """List node instances with optional filters."""
     sdk = get_sdk(ctx.obj.get_active_context())
     filters = _compact(
-        site=site, hostname=hostname, logical_node_id=logical_node_id,
-        asset_ref_id=asset_ref_id, status=status,
+        site=site,
+        hostname=hostname,
+        logical_node_id=logical_node_id,
+        asset_ref_id=asset_ref_id,
+        status=status,
     )
     result = sdk.node_instances.query(limit=limit, offset=offset, **filters)
     display_list(
@@ -234,7 +239,7 @@ def show_cmd(
     ctx: typer.Context,
     node: str = typer.Argument(help="Node ID or hostname"),
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json, csv"),
-    columns: Optional[str] = typer.Option(None, "--columns", "-c", help="Comma-separated fields"),
+    columns: str | None = typer.Option(None, "--columns", "-c", help="Comma-separated fields"),
 ):
     """Show details for a node instance (by ID or hostname)."""
     sdk = get_sdk(ctx.obj.get_active_context())
@@ -277,7 +282,7 @@ def connect_cmd(
         connections = _get_connection(sdk, node_id)
     except Exception as e:
         typer.echo(f"Failed to fetch management connection: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     if not connections:
         typer.echo(f"No management connection found for node '{node}'.")
@@ -304,13 +309,14 @@ def connect_cmd(
 
 # ── Config show commands ────────────────────────────────────────
 
+
 @config_show_app.command("local")
 def config_show_local(
     ctx: typer.Context,
     node: str = typer.Argument(help="Node ID or hostname"),
     dir: str = typer.Option(..., "--dir", "-d", help="Path to local config_maps directory"),
     render: bool = typer.Option(False, "--render", help="Show rendered device config"),
-    path: Optional[str] = typer.Option(None, "--path", "-p", help="Drill into section"),
+    path: str | None = typer.Option(None, "--path", "-p", help="Drill into section"),
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """Compile config locally from config maps on disk."""
@@ -330,7 +336,7 @@ def config_show_desired(
     ctx: typer.Context,
     node: str = typer.Argument(help="Node ID or hostname"),
     render: bool = typer.Option(False, "--render", help="Show rendered device config"),
-    path: Optional[str] = typer.Option(None, "--path", "-p", help="Drill into section, e.g. system.ntp, interfaces"),
+    path: str | None = typer.Option(None, "--path", "-p", help="Drill into section, e.g. system.ntp, interfaces"),
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """Show desired config."""
@@ -352,7 +358,7 @@ def config_show_observed(
     ctx: typer.Context,
     node: str = typer.Argument(help="Node ID or hostname"),
     render: bool = typer.Option(False, "--render", help="Show rendered device config"),
-    path: Optional[str] = typer.Option(None, "--path", "-p", help="Drill into section, e.g. system.ntp, interfaces"),
+    path: str | None = typer.Option(None, "--path", "-p", help="Drill into section, e.g. system.ntp, interfaces"),
     format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """Show observed (backup) config."""
@@ -378,21 +384,24 @@ def config_show_observed(
 
 # ── Config diff commands ────────────────────────────────────────
 
+
 @config_diff_app.command("plan")
 def config_diff_plan(
     ctx: typer.Context,
     node: str = typer.Argument(help="Node ID or hostname"),
     format: str = typer.Option(
-        "tree", "--format", "-f",
+        "tree",
+        "--format",
+        "-f",
         help="Output format: tree, compact, flat, summary, json, commands",
     ),
-    max_depth: Optional[int] = typer.Option(None, "--max-depth", "-d", help="Max depth for tree view"),
+    max_depth: int | None = typer.Option(None, "--max-depth", "-d", help="Max depth for tree view"),
     no_values: bool = typer.Option(False, "--no-values", help="Hide values in tree view"),
 ):
     """Show planned diff between observed and desired config."""
     sdk = get_sdk(ctx.obj.get_active_context())
     node_instance, desired_config = _fetch_desired_config(sdk, node)
-    node_id = str(node_instance.id) if hasattr(node_instance, 'id') and node_instance.id else node
+    node_id = str(node_instance.id) if hasattr(node_instance, "id") and node_instance.id else node
 
     observed_raw = _get_latest_observed_config(sdk, node_id, "parsed").get("content")
     observed_config = ComposedConfiguration(**observed_raw)
@@ -425,7 +434,7 @@ def config_diff_apply(
     """Compute diff and apply config patch to device."""
     sdk = get_sdk(ctx.obj.get_active_context())
     node_instance, desired_config = _fetch_desired_config(sdk, node)
-    node_id = str(node_instance.id) if hasattr(node_instance, 'id') and node_instance.id else node
+    node_id = str(node_instance.id) if hasattr(node_instance, "id") and node_instance.id else node
 
     observed_raw = _get_latest_observed_config(sdk, node_id, "parsed").get("content")
     observed_config = ComposedConfiguration(**observed_raw)
@@ -445,11 +454,13 @@ def config_diff_apply(
 
 # ── Config display helpers ──────────────────────────────────────
 
+
 def _print_rendered(text: str):
     """Print rendered device config with syntax highlighting."""
     from rich.console import Console
-    from rich.syntax import Syntax
     from rich.panel import Panel
+    from rich.syntax import Syntax
+
     console = Console()
     syntax = Syntax(text, "cisco", theme="monokai", line_numbers=True, word_wrap=True)
     console.print(Panel(syntax, border_style="dim"))
@@ -506,10 +517,11 @@ def _count_components(data) -> int:
     return count
 
 
-def _print_parsed_config(data: dict, path: Optional[str], format: str, title: str):
+def _print_parsed_config(data: dict, path: str | None, format: str, title: str):
     """Display parsed config with AttributeValue awareness."""
     from rich.console import Console
     from rich.table import Table
+
     console = Console()
 
     if format == "json":
@@ -527,7 +539,11 @@ def _print_parsed_config(data: dict, path: Optional[str], format: str, title: st
                 console.print(f"  [dim]source: {source}[/dim]")
             return
         # Dict of AttributeValues (e.g. system.config)
-        if isinstance(section, dict) and section and all(_is_attribute_value(v) for v in section.values() if isinstance(v, dict) and v):
+        if (
+            isinstance(section, dict)
+            and section
+            and all(_is_attribute_value(v) for v in section.values() if isinstance(v, dict) and v)
+        ):
             _print_attributes_table(console, section, title=path)
             return
         # Container with named entries (e.g. interfaces, ntp.servers)
@@ -553,12 +569,15 @@ def _print_parsed_config(data: dict, path: Optional[str], format: str, title: st
         )
 
     console.print(table)
-    console.print("[dim]Use --path <section> to drill in, --format json for full dump, --render for device config[/dim]")
+    console.print(
+        "[dim]Use --path <section> to drill in, --format json for full dump, --render for device config[/dim]"
+    )
 
 
 def _print_attributes_table(console, data: dict, title: str = ""):
     """Print a dict where values are AttributeValues as a clean table."""
     from rich.table import Table
+
     table = Table(title=title, show_header=True, title_style="bold", title_justify="left")
     table.add_column("Attribute", style="cyan")
     table.add_column("Value", style="white")
@@ -578,7 +597,6 @@ def _print_attributes_table(console, data: dict, title: str = ""):
 
 def _print_config_section(console, data: dict, path: str):
     """Print a config section, handling containers and nested AttributeValues."""
-    from rich.table import Table
 
     # Check if entries are named components (e.g. interfaces, ntp.servers)
     for entry_name, entry_data in data.items():
@@ -610,6 +628,7 @@ def _print_config_section(console, data: dict, path: str):
 
 
 # ── Util ────────────────────────────────────────────────────────
+
 
 def _flatten_node(node, node_id: str = None) -> dict:
     """Flatten NodeResponse into a single-level dict for display."""
@@ -653,6 +672,7 @@ def _resolve_node(sdk, identifier: str):
     elif len(result) > 1:
         typer.echo(f"Multiple nodes match hostname '{identifier}':")
         from acex_cli.output import display_list
+
         display_list(result, columns=["id", "hostname", "site", "status"], title="")
         typer.echo("Use the ID to specify which node.")
         raise typer.Exit(1)
@@ -672,6 +692,7 @@ def _resolve_node_id(sdk, identifier: str) -> str:
     elif len(result) > 1:
         typer.echo(f"Multiple nodes match hostname '{identifier}':")
         from acex_cli.output import display_list
+
         display_list(result, columns=["id", "hostname", "site", "status"], title="")
         typer.echo("Use the ID to specify which node.")
         raise typer.Exit(1)

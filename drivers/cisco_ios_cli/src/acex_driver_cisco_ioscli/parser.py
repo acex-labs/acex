@@ -1,34 +1,20 @@
-# from acex.models.composed_configuration import ComposedConfiguration, EthernetCsmacdInterface, L3IpvlanInterface, SoftwareLoopbackInterface, Ieee8023adLagInterface
-from acex_devkit.models.composed_configuration import (
-    AuthorizedKey,
-    AuthorizedKeyAlgorithms,
-    ComposedConfiguration,
-    EthernetCsmacdInterface,
-    L3IpvlanInterface,
-    SoftwareLoopbackInterface,
-    Ieee8023adLagInterface,
-    SshServer,
-    NtpServer,
-    SystemConfig,
-    Snmp,
-    SnmpConfig,
-    SnmpCommunity,
-    SnmpUser,
-    SnmpSecurityLevel,
-    SnmpView,
-    SnmpViewAttributes,
-    SnmpServer,
-    TrapEvent,
-    DnsServerAttributes,
-    ClockConfig,
-    DhcpRelayServerAttributes,
-    DHCPSnoopingAttributes,
-    ReferenceTo,
-    ReferenceFrom,
-)
-from ntc_templates.parse import parse_output
 import os
 
+from acex_devkit.models.composed_configuration import (
+    ClockConfig,
+    ComposedConfiguration,
+    DhcpRelayServerAttributes,
+    DHCPSnoopingAttributes,
+    DnsServerAttributes,
+    EthernetCsmacdInterface,
+    Ieee8023adLagInterface,
+    L3IpvlanInterface,
+    NtpServer,
+    ReferenceTo,
+    SshServer,
+    SystemConfig,
+)
+from ntc_templates.parse import parse_output
 from pydantic import BaseModel
 
 
@@ -77,7 +63,8 @@ class CiscoIOSCLIParser:
         """Return the platform name for the parser."""
         return "cisco_ios"
 
-    # Mostly used to remove metadata key, which contains non-serializable data and is not needed in the final output, but can be used to remove any key if needed in the future
+    # Mostly used to remove metadata key, which contains non-serializable data and is not needed in
+    # the final output, but can be used to remove any key if needed in the future
     def removekey(self, d, key):
         if hasattr(d, "model_dump"):  # Pydantic v2
             r = d.model_dump()
@@ -89,16 +76,15 @@ class CiscoIOSCLIParser:
         def _remove(obj):
             if isinstance(obj, dict):
                 return {k: _remove(v) for k, v in obj.items() if k != key}
-            elif isinstance(
-                obj, list
-            ):  # supporting in case we use lists of dicts in the future
+            elif isinstance(obj, list):  # supporting in case we use lists of dicts in the future
                 return [_remove(item) for item in obj]
             return obj
 
         return _remove(r)
 
     # Removes any key with None value from the dict recursively so that the final output
-    # only contains keys with actual values. This makes the diff easier later on as composed also doesnt' have None values.
+    # only contains keys with actual values. This makes the diff easier later on as composed also
+    # doesnt' have None values.
     def remove_none_values(self, d):
         if hasattr(d, "model_dump"):  # Pydantic v2
             r = d.model_dump()
@@ -110,9 +96,7 @@ class CiscoIOSCLIParser:
         def _remove_none(obj):
             if isinstance(obj, dict):
                 return {
-                    key: _remove_none(value)
-                    for key, value in obj.items()
-                    if value is not None and key != "metadata"
+                    key: _remove_none(value) for key, value in obj.items() if value is not None and key != "metadata"
                 }
             if isinstance(obj, list):
                 return [_remove_none(item) for item in obj if item is not None]
@@ -131,11 +115,7 @@ class CiscoIOSCLIParser:
                 source_vlan_id = int(source_interface.replace("Vlan", ""))
 
             for intf_name, intf in self.parsed_config.interfaces.items():
-                intf_type = (
-                    intf.get("type")
-                    if isinstance(intf, dict)
-                    else getattr(intf, "type", None)
-                )
+                intf_type = intf.get("type") if isinstance(intf, dict) else getattr(intf, "type", None)
                 if isinstance(intf, dict):
                     intf_vlan_id = intf.get("vlan_id")
                     if isinstance(intf_vlan_id, dict):
@@ -145,11 +125,7 @@ class CiscoIOSCLIParser:
                     if hasattr(intf_vlan_id, "value"):
                         intf_vlan_id = intf_vlan_id.value
 
-                if (
-                    intf_type == "l3ipvlan"
-                    and source_vlan_id is not None
-                    and intf_vlan_id == source_vlan_id
-                ):
+                if intf_type == "l3ipvlan" and source_vlan_id is not None and intf_vlan_id == source_vlan_id:
                     intf_ref = ReferenceTo(pointer=f"interfaces.{intf_name}")
                     return intf_ref
                 else:
@@ -181,7 +157,7 @@ class CiscoIOSCLIParser:
 
     # Only used for local testing with static config file
     def load_running_config(self, filepath: str) -> str:
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             return f.read()
 
     def parse_dhcp_relay(self) -> None:
@@ -201,11 +177,9 @@ class CiscoIOSCLIParser:
             if entry.get("dhcp_relay_servers"):
                 for j, server in enumerate(entry.get("dhcp_relay_servers")):
                     dhcp_relay_server_values_dict["name"] = f"dhcp_relay_server_{i}_{j}"
-                    dhcp_relay_server_values_dict["address"] = (
-                        server.get("address") if server.get("address") else None
-                    )
-                    dhcp_relay_servers_dict[f"dhcp_relay_server_{i}_{j}"] = (
-                        DhcpRelayServerAttributes(**dhcp_relay_server_values_dict)
+                    dhcp_relay_server_values_dict["address"] = server.get("address") if server.get("address") else None
+                    dhcp_relay_servers_dict[f"dhcp_relay_server_{i}_{j}"] = DhcpRelayServerAttributes(
+                        **dhcp_relay_server_values_dict
                     )
 
         self.parsed_config.system.dhcp_relay.servers = dhcp_relay_servers_dict
@@ -226,17 +200,11 @@ class CiscoIOSCLIParser:
         dhcp_snooping_dict = {}
         for entry in parsed_data:
             dhcp_snooping_values_dict = {}
-            dhcp_snooping_values_dict["enabled"] = (
-                True if entry.get("enabled") else False
-            )
+            dhcp_snooping_values_dict["enabled"] = True if entry.get("enabled") else False
             dhcp_snooping_values_dict["trusted_interfaces"] = (
-                entry.get("trusted_interfaces")
-                if entry.get("trusted_interfaces")
-                else []
+                entry.get("trusted_interfaces") if entry.get("trusted_interfaces") else []
             )
-            dhcp_snooping_dict["dhcp_snooping"] = DHCPSnoopingAttributes(
-                **dhcp_snooping_values_dict
-            )
+            dhcp_snooping_dict["dhcp_snooping"] = DHCPSnoopingAttributes(**dhcp_snooping_values_dict)
 
         self.parsed_config.system.dhcp_snooping = dhcp_snooping_dict
 
@@ -265,8 +233,7 @@ class CiscoIOSCLIParser:
         #    for index, intf in enumerate(parsed_data)
         # }
         interfaces_dict = {
-            intf["name"]: L3IpvlanInterface(index=index, **intf)
-            for index, intf in enumerate(parsed_data)
+            intf["name"]: L3IpvlanInterface(index=index, **intf) for index, intf in enumerate(parsed_data)
         }
 
         self.parsed_config.interfaces.update(interfaces_dict)
@@ -284,7 +251,6 @@ class CiscoIOSCLIParser:
         dhcp_snooping_dict = {}
         dhcp_snooping_dict["snooping"] = {}
         dhcp_snooping_dict["snooping"]["trust_interfaces"] = {}
-        dhcp_trusted_interfaces = {}
         for intf in parsed_data:
             intf["enabled"] = map_enabled(intf.get("ENABLED", ""))
             if intf["switchport_mode"] == "trunk":
@@ -296,15 +262,9 @@ class CiscoIOSCLIParser:
             else:
                 intf["trunk_allowed_vlans"] = None
 
-            intf["native_vlan"] = (
-                int(intf["native_vlan"]) if intf.get("native_vlan") else None
-            )
-            intf["access_vlan"] = (
-                int(intf["access_vlan"]) if intf.get("access_vlan") else None
-            )
-            intf["voice_vlan"] = (
-                int(intf["voice_vlan"]) if intf.get("voice_vlan") else None
-            )
+            intf["native_vlan"] = int(intf["native_vlan"]) if intf.get("native_vlan") else None
+            intf["access_vlan"] = int(intf["access_vlan"]) if intf.get("access_vlan") else None
+            intf["voice_vlan"] = int(intf["voice_vlan"]) if intf.get("voice_vlan") else None
 
             if intf["switchport_mode"]:
                 switchport = True
@@ -324,6 +284,7 @@ class CiscoIOSCLIParser:
             if addr and mask:
                 try:
                     import ipaddress
+
                     prefix_len = ipaddress.IPv4Network(f"0.0.0.0/{mask}", strict=False).prefixlen
                     intf["ipv4"] = f"{addr}/{prefix_len}"
                 except Exception:
@@ -334,14 +295,8 @@ class CiscoIOSCLIParser:
             # DHCP snooping trust
             if intf.get("snooping"):
                 trust_inter_dict = {}
-                trust_inter_dict[intf["name"]] = ReferenceTo(
-                    pointer=f"interfaces.{intf['name']}"
-                )
-                dhcp_snooping_dict["snooping"]["trust_interfaces"].update(
-                    trust_inter_dict
-                )
-                # dhcp_trusted_interfaces.update(ReferenceTo(pointer=f"interfaces.{intf['name']}"))
-                # ReferenceFrom(pointer="system.dhcp.snooping.trust_interfaces")
+                trust_inter_dict[intf["name"]] = ReferenceTo(pointer=f"interfaces.{intf['name']}")
+                dhcp_snooping_dict["snooping"]["trust_interfaces"].update(trust_inter_dict)
                 # dhcp_snooping_dict["snooping"] = DHCPSnoopingAttributes(**dhcp_snooping_values_dict)
 
         # interfaces_dict = {
@@ -350,12 +305,9 @@ class CiscoIOSCLIParser:
         #    )
         #    for index, intf in enumerate(parsed_data)
         # }
-        # dhcp_snooping_dict["snooping"]['trust_interfaces'] = dhcp_trusted_interfaces#DHCPSnoopingAttributes(**dhcp_trusted_interfaces)
-        # self.parsed_config.system.dhcp.snooping.trust_interfaces = dhcp_trusted_interfaces
 
         interfaces_dict = {
-            intf["name"]: EthernetCsmacdInterface(index=index, **intf)
-            for index, intf in enumerate(parsed_data)
+            intf["name"]: EthernetCsmacdInterface(index=index, **intf) for index, intf in enumerate(parsed_data)
         }
         self.parsed_config.interfaces.update(interfaces_dict)
 
@@ -380,12 +332,8 @@ class CiscoIOSCLIParser:
             else:
                 intf["trunk_allowed_vlans"] = None
 
-            intf["native_vlan"] = (
-                int(intf["native_vlan"]) if intf.get("native_vlan") else None
-            )
-            intf["access_vlan"] = (
-                int(intf["access_vlan"]) if intf.get("access_vlan") else None
-            )
+            intf["native_vlan"] = int(intf["native_vlan"]) if intf.get("native_vlan") else None
+            intf["access_vlan"] = int(intf["access_vlan"]) if intf.get("access_vlan") else None
 
             if intf["switchport_mode"]:
                 switchport = True
@@ -405,8 +353,7 @@ class CiscoIOSCLIParser:
         #    for index, intf in enumerate(parsed_data)
         # }
         interfaces_dict = {
-            intf["name"]: Ieee8023adLagInterface(index=index, **intf)
-            for index, intf in enumerate(parsed_data)
+            intf["name"]: Ieee8023adLagInterface(index=index, **intf) for index, intf in enumerate(parsed_data)
         }
         self.parsed_config.interfaces.update(interfaces_dict)
 
@@ -426,12 +373,12 @@ class CiscoIOSCLIParser:
 
         row = parsed_data[0]
         system_settings = {
-            "hostname":     row.get("hostname") or None,
-            "motd_banner":  " ".join(row["banner_motd"]) if row.get("banner_motd") else None,
+            "hostname": row.get("hostname") or None,
+            "motd_banner": " ".join(row["banner_motd"]) if row.get("banner_motd") else None,
             "login_banner": " ".join(row["banner_login"]) if row.get("banner_login") else None,
-            "domain_name":  row.get("domain_name") or None,
-            "location":     row.get("location") or None,
-            "contact":      row.get("contact") or None,
+            "domain_name": row.get("domain_name") or None,
+            "location": row.get("location") or None,
+            "contact": row.get("contact") or None,
         }
         self.parsed_config.system.config = SystemConfig(**system_settings)
 
@@ -455,17 +402,13 @@ class CiscoIOSCLIParser:
             if not entry.get("address"):
                 continue
 
-            dns_server_values["address"] = (
-                entry.get("address") if entry.get("address") else None
-            )
-            dns_server_values["network_instance"] = (
-                entry.get("vrf") if entry.get("vrf") else None
-            )
+            dns_server_values["address"] = entry.get("address") if entry.get("address") else None
+            dns_server_values["network_instance"] = entry.get("vrf") if entry.get("vrf") else None
 
             # dns_config[f"DNS Server {i+1}"] = self.removekey(
             #    DnsServerAttributes(**dns_server_values), "metadata"
             # )
-            dns_config[f"DNS Server {i+1}"] = DnsServerAttributes(**dns_server_values)
+            dns_config[f"DNS Server {i + 1}"] = DnsServerAttributes(**dns_server_values)
         self.parsed_config.system.dns.dns_servers = dns_config
 
     def parse_ntp(self) -> None:
@@ -486,9 +429,7 @@ class CiscoIOSCLIParser:
             else:
                 ntp_server["address"] = str(ntp_server.get("address"))
 
-            ntp_server["version"] = (
-                int(ntp_server["version"]) if ntp_server.get("version") else None
-            )
+            ntp_server["version"] = int(ntp_server["version"]) if ntp_server.get("version") else None
 
             ## Not used in Cisco IOS, but included for completeness
             ##port = entry.get("port")
@@ -596,13 +537,13 @@ class CiscoIOSCLIParser:
 
         clock_config_values_dict = {}
         for entry in parsed_data:
-            clock_config_values_dict["timezone"] = (
-                entry.get("timezone") if entry.get("timezone") else None
-            )
-            # clock_config_values_dict["hours"] = entry.get("hours") if entry.get("hours") else None # prepared for future when support is added
-            # clock_config_values_dict["minutes"] = entry.get("minutes") if entry.get("minutes") else None # prepared for future when support is added
+            clock_config_values_dict["timezone"] = entry.get("timezone") if entry.get("timezone") else None
+            # prepared for future when support is added:
+            # clock_config_values_dict["hours"] = entry.get("hours") if entry.get("hours") else None
+            # clock_config_values_dict["minutes"] = entry.get("minutes") if entry.get("minutes") else None
         clock_config = ClockConfig(**clock_config_values_dict)
         self.parsed_config.system.clock.config = clock_config
+
 
 #    def parse_snmp_traps(self) -> None:
 #        """Parse SNMP trap configuration."""
@@ -618,8 +559,11 @@ class CiscoIOSCLIParser:
 #        snmp_traps_dict = {}
 #        for entry in parsed_data:
 #            snmp_trap_values_dict = {}
-#            # Every trap that is allowed is specified in TrapEvent model, so we loop through all traps and check if they are enabled, if they are enabled we add them to the trap_events list in the SnmpConfig
-#            # Below code needs to be fixed and handled correctly as the config that Cisco gives does not match exactly how the traps are defined in the model.
+#            # Every trap that is allowed is specified in TrapEvent model, so we loop through all
+#            # traps and check if they are enabled, if they are enabled we add them to the
+#            # trap_events list in the SnmpConfig
+#            # Below code needs to be fixed and handled correctly as the config that Cisco gives
+#            # does not match exactly how the traps are defined in the model.
 #            if entry.get("traps"):
 #                for i, trap in enumerate(entry.get("traps")):
 #                    snmp_trap_values_dict["name"] = f"trap_{i}"

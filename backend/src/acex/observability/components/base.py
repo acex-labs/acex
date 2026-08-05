@@ -1,4 +1,4 @@
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from acex.observability.capability import TelemetryCapability
 
@@ -27,13 +27,13 @@ class TelemetryComponent:
 
     kind: ClassVar[str] = ""
     measurement: ClassVar[str] = ""
-    capability: ClassVar[Optional[TelemetryCapability]] = None
+    capability: ClassVar[TelemetryCapability | None] = None
 
     def target_id(self) -> str:
         """Stable identifier for the target this component observes (e.g. "node:5")."""
         raise NotImplementedError
 
-    def target_node(self) -> Optional[int]:
+    def target_node(self) -> int | None:
         """Node-instance id this component belongs to, or None if cross-node."""
         return None
 
@@ -41,7 +41,7 @@ class TelemetryComponent:
         """Tag set this component contributes to its measurement in InfluxDB."""
         return {}
 
-    def telegraf_input(self) -> Optional[dict]:
+    def telegraf_input(self) -> dict | None:
         """
         Telegraf input plugin block for this component, or None if this
         component piggybacks on something else.

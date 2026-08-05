@@ -1,12 +1,11 @@
 import inspect
-from typing import Callable, Iterable, List, Optional
+from collections.abc import Callable, Iterable
 
 from acex.observability.capability import TelemetryCapability
 from acex.observability.components.base import TelemetryComponent
 from acex.observability.providers import icmp_ping_provider, snmp_provider
 
-
-Provider = Callable[["object"], List[TelemetryComponent]]
+Provider = Callable[["object"], list[TelemetryComponent]]
 
 
 class TelemetryRegistry:
@@ -25,7 +24,7 @@ class TelemetryRegistry:
     def __init__(self, db_manager, credential_manager=None):
         self.db = db_manager
         self.credential_manager = credential_manager
-        self._providers: List[Provider] = []
+        self._providers: list[Provider] = []
         self._register_defaults()
 
     def _register_defaults(self) -> None:
@@ -35,26 +34,26 @@ class TelemetryRegistry:
     def register_provider(self, provider: Provider) -> None:
         self._providers.append(provider)
 
-    def _call_provider(self, provider: Provider) -> List[TelemetryComponent]:
+    def _call_provider(self, provider: Provider) -> list[TelemetryComponent]:
         params = inspect.signature(provider).parameters
         if "credential_manager" in params:
             return provider(self.db, credential_manager=self.credential_manager)
         return provider(self.db)
 
-    def build(self) -> List[TelemetryComponent]:
-        components: List[TelemetryComponent] = []
+    def build(self) -> list[TelemetryComponent]:
+        components: list[TelemetryComponent] = []
         for provider in self._providers:
             components.extend(self._call_provider(provider))
         return components
 
-    def by_kind(self, kind: str) -> List[TelemetryComponent]:
+    def by_kind(self, kind: str) -> list[TelemetryComponent]:
         return [c for c in self.build() if c.kind == kind]
 
     def for_telegraf_agent(
         self,
         node_ids: Iterable[int],
         capabilities: Iterable[TelemetryCapability],
-    ) -> List[TelemetryComponent]:
+    ) -> list[TelemetryComponent]:
         """
         Components a given TelemetryAgent should collect: gated by the
         agent's granted capabilities and scoped to its assigned/matched nodes.
@@ -66,11 +65,11 @@ class TelemetryRegistry:
         """
         node_set = set(node_ids)
         cap_set = set(capabilities)
-        out: List[TelemetryComponent] = []
+        out: list[TelemetryComponent] = []
         for c in self.build():
             if c.capability is None or c.capability not in cap_set:
                 continue
-            tn: Optional[int] = c.target_node()
+            tn: int | None = c.target_node()
             if tn is not None and tn not in node_set:
                 continue
             out.append(c)

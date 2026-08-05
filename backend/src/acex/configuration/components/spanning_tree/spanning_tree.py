@@ -1,22 +1,33 @@
 from acex.configuration.components.base_component import ConfigComponent
-from acex_devkit.models.spanning_tree import SpanningTreeGlobalAttributes, RstpAttributes, MstpAttributes, MstpInstanceAttributes, RapidPVSTAttributes
+from acex_devkit.models.spanning_tree import (
+    MstpAttributes,
+    MstpInstanceAttributes,
+    RapidPVSTAttributes,
+    RstpAttributes,
+    SpanningTreeGlobalAttributes,
+)
 
-class SpanningTreeGlobal(ConfigComponent): 
+
+class SpanningTreeGlobal(ConfigComponent):
     type = "SpanningTreeGlobal"
     model_cls = SpanningTreeGlobalAttributes
 
-class SpanningTreeRSTP(ConfigComponent): 
+
+class SpanningTreeRSTP(ConfigComponent):
     type = "SpanningTreeRSTP"
     model_cls = RstpAttributes
 
-class SpanningTreeMSTP(ConfigComponent): 
+
+class SpanningTreeMSTP(ConfigComponent):
     type = "SpanningTreeMSTP"
     model_cls = MstpAttributes
 
-class SpanningTreeMstpInstance(ConfigComponent): 
+
+class SpanningTreeMstpInstance(ConfigComponent):
     type = "SpanningTreeMstpInstance"
     model_cls = MstpInstanceAttributes
 
-class SpanningTreeRapidPVST(ConfigComponent): 
+
+class SpanningTreeRapidPVST(ConfigComponent):
     type = "SpanningTreeRapidPVST"
     model_cls = RapidPVSTAttributes

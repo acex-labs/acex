@@ -1,16 +1,20 @@
-from typing import Dict, Type, Optional
-from acex.plugins.integrations.integration_plugin_factory_base import IntegrationPluginFactoryBase, IntegrationPluginBase
+from acex.plugins.integrations.integration_plugin_factory_base import (
+    IntegrationPluginBase,
+    IntegrationPluginFactoryBase,
+)
+
 
 class PluginManager:
     """
     Hanterar registrering och hämtning av både specifika och generiska plugins.
     """
+
     def __init__(self):
         # En factory per objekt-typ (men samma factory kan användas för flera typer)
-        self._object_type_map: Dict[str, IntegrationPluginFactoryBase] = {}
+        self._object_type_map: dict[str, IntegrationPluginFactoryBase] = {}
 
         # En factory per generiskt namn
-        self._generic_plugin_map: Dict[str, IntegrationPluginFactoryBase] = {}
+        self._generic_plugin_map: dict[str, IntegrationPluginFactoryBase] = {}
 
     def register_type_plugin(self, object_type: str, factory: IntegrationPluginFactoryBase):
         """
@@ -24,11 +28,13 @@ class PluginManager:
         """
         self._generic_plugin_map[plugin_name] = factory.create_plugin()
 
-    def get_plugin_for_object_type(self, obj_type: str) -> Optional[IntegrationPluginBase]:
+    def get_plugin_for_object_type(self, obj_type: str) -> IntegrationPluginBase | None:
         plugin = self._object_type_map.get(obj_type)
-        return None
-
-    def get_generic_plugin(self, plugin_name: str,) -> Optional[IntegrationPluginBase]:
-        plugin = self._generic_plugin_map.get(plugin_name)
         return plugin
 
+    def get_generic_plugin(
+        self,
+        plugin_name: str,
+    ) -> IntegrationPluginBase | None:
+        plugin = self._generic_plugin_map.get(plugin_name)
+        return plugin

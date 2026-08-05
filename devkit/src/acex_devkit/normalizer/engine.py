@@ -13,12 +13,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-
 # ── Rule types ────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class LineRule:
     """Matches a full line → the line is dropped."""
+
     name: str
     pattern: re.Pattern
 
@@ -26,6 +27,7 @@ class LineRule:
 @dataclass(frozen=True)
 class BlockRule:
     """Matches a block header → header + indented body are dropped."""
+
     name: str
     pattern: re.Pattern
 
@@ -33,12 +35,14 @@ class BlockRule:
 @dataclass(frozen=True)
 class RewriteRule:
     """Rewrites a line (e.g. redact secrets)."""
+
     name: str
     pattern: re.Pattern
     replacement: str
 
 
 # ── Result types ──────────────────────────────────────────────────────
+
 
 @dataclass
 class OpStats:
@@ -62,6 +66,7 @@ class OpResult:
 
 # ── Engine ────────────────────────────────────────────────────────────
 
+
 class NormalizerEngine:
     """Stateless rule engine used by BaseNormalizer subclasses."""
 
@@ -83,25 +88,18 @@ class NormalizerEngine:
         while i < len(lines):
             line = lines[i]
 
-            block_hit = next(
-                (r for r in block_rules if r.pattern.match(line)), None
-            )
+            block_hit = next((r for r in block_rules if r.pattern.match(line)), None)
             if block_hit:
                 stats.blocks_dropped += 1
                 stats._bump(f"block:{block_hit.name}")
                 stats.lines_dropped += 1
                 i += 1
-                while i < len(lines) and (
-                    is_block_continuation(lines[i])
-                    or is_block_terminator(lines[i])
-                ):
+                while i < len(lines) and (is_block_continuation(lines[i]) or is_block_terminator(lines[i])):
                     stats.lines_dropped += 1
                     i += 1
                 continue
 
-            line_hit = next(
-                (r for r in line_rules if r.pattern.match(line)), None
-            )
+            line_hit = next((r for r in line_rules if r.pattern.match(line)), None)
             if line_hit:
                 stats.lines_dropped += 1
                 stats._bump(f"line:{line_hit.name}")

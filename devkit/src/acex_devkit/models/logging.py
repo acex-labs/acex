@@ -1,17 +1,20 @@
+from enum import StrEnum
+from typing import ClassVar
+
 from pydantic import BaseModel
+
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.augment import Augmentable
 from acex_devkit.models.container_entry import ContainerEntry
 from acex_devkit.models.reference import Reference
-from enum import Enum
-from typing import ClassVar, Optional, Dict
-
-from acex_devkit.models.augment import AugmentAttributes, Augmentable
-
-class LoggingServerBase(BaseModel): ...
-    #name: str = None
 
 
-class LoggingSeverity(str, Enum): 
+class LoggingServerBase(BaseModel):
+    ...
+    # name: str = None
+
+
+class LoggingSeverity(StrEnum):
     EMERGENCY = "EMERGENCY"
     ALERT = "ALERT"
     CRITICAL = "CRITICAL"
@@ -21,7 +24,8 @@ class LoggingSeverity(str, Enum):
     INFORMATIONAL = "INFORMATIONAL"
     DEBUG = "DEBUG"
 
-class LoggingFacility(str, Enum):
+
+class LoggingFacility(StrEnum):
     # Some are specific for Juniper devices and are taken directly from their documentation.
     KERN = "KERN"
     USER = "USER"
@@ -37,54 +41,60 @@ class LoggingFacility(str, Enum):
     CHANGELOG = "CHANGELOG"
     INTERACTIVE_COMMANDS = "INTERACTIVE_COMMANDS"
 
+
 class LoggingConfig(Augmentable):
-    rate_limit: Optional[AttributeValue[int]] = None
-    severity: Optional[AttributeValue[LoggingSeverity]] = None
-    buffer_size: Optional[AttributeValue[int]] = None
+    rate_limit: AttributeValue[int] | None = None
+    severity: AttributeValue[LoggingSeverity] | None = None
+    buffer_size: AttributeValue[int] | None = None
+
 
 class Console(ContainerEntry, Augmentable):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
-    name: Optional[AttributeValue[str]] = None
-    line_number: Optional[AttributeValue[int]] = None
-    logging_synchronous: Optional[AttributeValue[bool]] = None
+    name: AttributeValue[str] | None = None
+    line_number: AttributeValue[int] | None = None
+    logging_synchronous: AttributeValue[bool] | None = None
+
 
 class RemoteServer(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("host",)
-    name: Optional[AttributeValue[str]] = None
-    host: Optional[AttributeValue[str]] = None
-    port: Optional[AttributeValue[int]] = None
-    transport: Optional[AttributeValue[str]] = None
-    source_address: Optional[AttributeValue[str]] = None # Can be an IP address or an interface reference
+    name: AttributeValue[str] | None = None
+    host: AttributeValue[str] | None = None
+    port: AttributeValue[int] | None = None
+    transport: AttributeValue[str] | None = None
+    source_address: AttributeValue[str] | None = None  # Can be an IP address or an interface reference
+
 
 class RemoteServers(BaseModel):
-    servers: Dict[str, RemoteServer] = {}
+    servers: dict[str, RemoteServer] = {}
+
 
 class VtyLine(ContainerEntry, Augmentable):
     identity_fields: ClassVar[tuple[str, ...]] = ("line_number",)
-    name: Optional[AttributeValue[str]] = None
-    line_number: Optional[AttributeValue[int]] = None
-    logging_synchronous: Optional[AttributeValue[bool]] = None
-    transport_input: Optional[AttributeValue[str]] = None # default is SSH. Mostly used by Cisco.
-    ipv4acl: Optional[Reference] = None # reference to an ACL object. Only used by Cisco.
-    ipv6acl: Optional[Reference] = None # reference to an ACL object. Only used by Cisco.
-    acl_direction: Optional[AttributeValue[str]] = None # direction of ACL, either 'in' or 'out'
-    acl_network_instance: Optional[AttributeValue[str]] = None # network instance where ACL is
+    name: AttributeValue[str] | None = None
+    line_number: AttributeValue[int] | None = None
+    logging_synchronous: AttributeValue[bool] | None = None
+    transport_input: AttributeValue[str] | None = None  # default is SSH. Mostly used by Cisco.
+    ipv4acl: Reference | None = None  # reference to an ACL object. Only used by Cisco.
+    ipv6acl: Reference | None = None  # reference to an ACL object. Only used by Cisco.
+    acl_direction: AttributeValue[str] | None = None  # direction of ACL, either 'in' or 'out'
+    acl_network_instance: AttributeValue[str] | None = None  # network instance where ACL is
+
 
 class FileLogging(ContainerEntry, Augmentable):
     identity_fields: ClassVar[tuple[str, ...]] = ("filename",)
-    name: Optional[AttributeValue[str]] = None # object name
-    filename: Optional[AttributeValue[str]] = None # name of the file
-    rotate: Optional[AttributeValue[int]] = None # How many versions to keep. Juniper specific.
-    max_size: Optional[AttributeValue[int]] = None # Max size in bytes. Used both for Cisco and Juniper.
-    min_size: Optional[AttributeValue[int]] = None # Min size in bytes. Only used for Cisco.
-    facility: Optional[AttributeValue[LoggingFacility]] = None # Type of log
-    severity: Optional[AttributeValue[LoggingSeverity]] = None # Severity level
+    name: AttributeValue[str] | None = None  # object name
+    filename: AttributeValue[str] | None = None  # name of the file
+    rotate: AttributeValue[int] | None = None  # How many versions to keep. Juniper specific.
+    max_size: AttributeValue[int] | None = None  # Max size in bytes. Used both for Cisco and Juniper.
+    min_size: AttributeValue[int] | None = None  # Min size in bytes. Only used for Cisco.
+    facility: AttributeValue[LoggingFacility] | None = None  # Type of log
+    severity: AttributeValue[LoggingSeverity] | None = None  # Severity level
+
 
 class LoggingEvent(BaseModel):
-    enabled: Optional[AttributeValue[bool]] = None
-    severity: Optional[AttributeValue[LoggingSeverity]] = None
+    enabled: AttributeValue[bool] | None = None
+    severity: AttributeValue[LoggingSeverity] | None = None
 
 
 class LoggingEvents(BaseModel):
-    events: Optional[Dict[str, LoggingEvent]] = None
-
+    events: dict[str, LoggingEvent] | None = None

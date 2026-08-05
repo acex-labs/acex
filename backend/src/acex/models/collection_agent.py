@@ -1,15 +1,17 @@
-from typing import Optional
-from sqlalchemy import Column, ForeignKey, Integer
-from sqlmodel import SQLModel, Field
-
 from acex_devkit.models.collection_agent import (
     CollectionAgentBase as CollectionAgentSchema,
-    CollectionAgentMatchRuleBase as CollectionAgentMatchRuleSchema,
+)
+from acex_devkit.models.collection_agent import (
+    CollectionAgentCreate,
     CollectionAgentMatchRuleResponse,
     CollectionAgentResponse,
-    CollectionAgentCreate,
     CollectionAgentUpdate,
 )
+from acex_devkit.models.collection_agent import (
+    CollectionAgentMatchRuleBase as CollectionAgentMatchRuleSchema,
+)
+from sqlalchemy import Column, ForeignKey, Integer
+from sqlmodel import Field, SQLModel
 
 
 class CollectionAgentBase(CollectionAgentSchema, SQLModel):
@@ -17,11 +19,11 @@ class CollectionAgentBase(CollectionAgentSchema, SQLModel):
 
 
 class CollectionAgent(CollectionAgentBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     config_revision: int = Field(default=0)
-    last_manifest_poll: Optional[str] = None
+    last_manifest_poll: str | None = None
     acked_revision: int = Field(default=0)
-    acked_at: Optional[str] = None
+    acked_at: str | None = None
 
 
 class CollectionAgentNodeLink(SQLModel, table=True):
@@ -44,7 +46,7 @@ class CollectionAgentMatchRuleCreate(CollectionAgentMatchRuleBase):
 
 
 class CollectionAgentMatchRule(CollectionAgentMatchRuleBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     collection_agent_id: int = Field(foreign_key="collectionagent.id")
 
 

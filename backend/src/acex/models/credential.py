@@ -1,18 +1,18 @@
-from typing import Optional
-from sqlalchemy import Column, ForeignKey, Integer
-from sqlmodel import SQLModel, Field
-
 from acex_devkit.models.credential import (
     CredentialBase as CredentialSchema,
+)
+from acex_devkit.models.credential import (
+    CredentialCreate,
     CredentialFieldBase,
     CredentialFieldResponse,
     CredentialResponse,
-    CredentialCreate,
-    CredentialUpdate,
     CredentialSecret,
+    CredentialUpdate,
     NodeCredentialCreate,
     NodeCredentialResponse,
 )
+from sqlalchemy import Column, ForeignKey, Integer
+from sqlmodel import Field, SQLModel
 
 CREDENTIAL_TYPE_FIELDS = {
     "userpass": [
@@ -44,18 +44,18 @@ CREDENTIAL_TYPE_FIELDS = {
 
 
 class Credential(CredentialSchema, SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
 
 
 class CredentialField(CredentialFieldBase, SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     credential_id: int = Field(foreign_key="credential.id", index=True)
     field_value: str = Field(default="")
 
 
 class NodeCredential(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     node_id: int = Field(
         sa_column=Column(
             Integer,
@@ -69,7 +69,8 @@ class NodeCredential(SQLModel, table=True):
 
 class SiteCredential(SQLModel, table=True):
     """Maps credentials to sites (e.g. SNMP community string per site)."""
-    id: Optional[int] = Field(default=None, primary_key=True)
+
+    id: int | None = Field(default=None, primary_key=True)
     site_name: str = Field(index=True)
     credential_id: int = Field(foreign_key="credential.id", index=True)
 
@@ -82,8 +83,8 @@ class SiteCredentialResponse(SQLModel):
     id: int
     site_name: str
     credential_id: int
-    credential_name: Optional[str] = None
-    credential_type: Optional[str] = None
+    credential_name: str | None = None
+    credential_type: str | None = None
 
 
 __all__ = [

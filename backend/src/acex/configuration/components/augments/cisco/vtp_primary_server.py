@@ -7,7 +7,8 @@ exists only in v3). Renders to::
 
     vtp primary server
 """
-from typing import Literal, Optional
+
+from typing import Literal
 
 from acex.configuration.components.augments.base import Augment
 from acex.configuration.components.system.vtp import Vtp
@@ -17,8 +18,9 @@ from acex_devkit.models.composed_configuration import AugmentAttributes
 
 class CiscoVtpPrimaryServerAttributes(AugmentAttributes):
     "Marks this VTP node as primary server (Cisco VTPv3 proprietary)."
+
     type: Literal["cisco_vtp_primary_server"] = "cisco_vtp_primary_server"
-    enabled: Optional[AttributeValue[bool]] = None
+    enabled: AttributeValue[bool] | None = None
 
 
 class CiscoVtpPrimaryServer(Augment):

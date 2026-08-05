@@ -15,11 +15,11 @@ Usage:
     python3 scripts/reset_dev_data.py --yes   # skip confirmation prompt
 """
 
+import argparse
 import json
 import sys
-import urllib.request
 import urllib.error
-import argparse
+import urllib.request
 
 
 def get_all(base, path, limit=1000):
@@ -52,7 +52,7 @@ def delete(base, path):
 def delete_all(base, list_path, delete_prefix, label):
     items = get_all(base, list_path)
     if not items:
-        print(f"  (none)")
+        print("  (none)")
         return
     for item in items:
         delete(base, f"{delete_prefix}/{item['id']}")

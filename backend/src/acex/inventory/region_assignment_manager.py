@@ -3,7 +3,6 @@ from fastapi import HTTPException
 
 
 class RegionAssignmentManager:
-
     def __init__(self, db_manager, inventory):
         self.db = db_manager
         self.inventory = inventory

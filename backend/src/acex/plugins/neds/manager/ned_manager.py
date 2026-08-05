@@ -1,24 +1,18 @@
-import importlib
-import pkgutil
-from typing import Dict, Type
-from importlib.metadata import entry_points
-from acex.constants import NED_WHEEL_DIR#, DEFAULT_DRIVERS
-from acex.plugins.neds.core import NetworkElementDriver
-from acex.models.ned import Ned
-
 import os
-import subprocess
-import sys
-from pathlib import Path
 import zipfile
+from importlib.metadata import entry_points
+from pathlib import Path
+
+from acex.constants import NED_WHEEL_DIR  # , DEFAULT_DRIVERS
+from acex.plugins.neds.core import NetworkElementDriver
 
 
 class NEDManager:
     def __init__(self):
 
-        self.driver_dir = Path.cwd() / NED_WHEEL_DIR # TODO: Fix a more robust way to discover project root. or just be run at specifik cli command
+        self.driver_dir = Path.cwd() / NED_WHEEL_DIR
         self.driver_dir.mkdir(parents=True, exist_ok=True)
-        self.drivers: Dict[str, list[NetworkElementDriver]] = {}
+        self.drivers: dict[str, list[NetworkElementDriver]] = {}
 
         self._build_wheels()
 
@@ -29,7 +23,7 @@ class NEDManager:
             return None
 
         version = ned.get("version")
-        package_name = ned.get('package_name')
+        package_name = ned.get("package_name")
         pattern = f"{package_name.replace('-', '_')}-{version}-*.whl"
         matches = list(self.driver_dir.glob(pattern))
 
@@ -38,9 +32,9 @@ class NEDManager:
         return str(matches[0])
 
     def _driver_filename(self, driver_name):
-        """ Returnera bara filnamnet på driverns whl """
+        """Returnera bara filnamnet på driverns whl"""
         full_path = self._driver_download_path(driver_name)
-        filename = full_path.split('/')[-1]
+        filename = full_path.split("/")[-1]
         return filename
 
     def load_drivers(self):
@@ -50,11 +44,11 @@ class NEDManager:
             try:
                 klass = entry_point.load()
                 instance = klass()
-                version = entry_point.dist.version 
+                version = entry_point.dist.version
                 self.drivers[klass.__name__] = {
                     "instance": instance,
                     "version": version,
-                    "package_name": entry_point.dist.name
+                    "package_name": entry_point.dist.name,
                 }
             except Exception as e:
                 print(f"Fel vid laddning av {entry_point.name}: {e}")
@@ -69,8 +63,8 @@ class NEDManager:
         for client downloads.
 
         Builds wheels for all installed drivers based on entry point "acex.neds",
-        creates a new zipped whl and places in the dist-dir for wheels to be 
-        served via the API. 
+        creates a new zipped whl and places in the dist-dir for wheels to be
+        served via the API.
         """
         whl_dir = self.driver_dir
         for ep in entry_points(group="acex.neds"):
@@ -93,21 +87,21 @@ class NEDManager:
                             print(file)
                             z.write(src, file)
                     # Lägg till .dist-info-mappen och dess innehåll
-                    dist_info_dirs = [f for f in dist.files if f.parts[-1].endswith('.dist-info')]
+                    dist_info_dirs = [f for f in dist.files if f.parts[-1].endswith(".dist-info")]
                     for dist_info in dist_info_dirs:
                         dist_info_path = root / dist_info
                         if dist_info_path.is_dir():
-                            for dirpath, dirnames, filenames in os.walk(dist_info_path):
+                            for dirpath, _dirnames, filenames in os.walk(dist_info_path):
                                 for filename in filenames:
                                     file_path = Path(dirpath) / filename
                                     arcname = file_path.relative_to(root)
                                     z.write(file_path, arcname)
 
-    def get_driver_instance(self, driver_name:str):
+    def get_driver_instance(self, driver_name: str):
         """
         Returns an instance of the driver class based on name.
         Checks for installed driver based on entrypoint and then name
-        of the class. 
+        of the class.
         """
         for entry_point in entry_points(group="acex.neds"):
             if entry_point.value.split(":")[-1] == driver_name:
@@ -125,9 +119,9 @@ class NEDManager:
         response = {
             "name": driver_name,
             "version": ned.get("version"),
-            "package_name": ned.get('package_name'),
+            "package_name": ned.get("package_name"),
             "description": type(ned_instance).__doc__,
-            "filename": filename
+            "filename": filename,
         }
 
         return response
@@ -155,11 +149,13 @@ class NEDManager:
                 package_name = "n/a"
                 description = "n/a"
                 filename = None
-            result.append({
-                "name": class_name,
-                "version": version,
-                "package_name": package_name,
-                "description": description,
-                "filename": filename,
-            })
+            result.append(
+                {
+                    "name": class_name,
+                    "version": version,
+                    "package_name": package_name,
+                    "description": description,
+                    "filename": filename,
+                }
+            )
         return result

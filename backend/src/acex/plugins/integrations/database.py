@@ -1,11 +1,7 @@
-from .integration_plugin_base import IntegrationPluginBase
 from acex.database import DatabaseManager
-
-from typing import get_origin, get_args, Type, Union
 from pydantic import BaseModel
-from sqlmodel import Session
-import sqlite3
 
+from .integration_plugin_base import IntegrationPluginBase
 
 
 class DatabasePlugin(IntegrationPluginBase):
@@ -39,7 +35,14 @@ class DatabasePlugin(IntegrationPluginBase):
         finally:
             session.close()
 
-    def query(self, filters: dict | None = None, options: list = None, extra_filters: list = None, limit: int = 100, offset: int = 0) -> list:
+    def query(
+        self,
+        filters: dict | None = None,
+        options: list = None,
+        extra_filters: list = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list:
         session_gen = self.db.get_session()
         session = next(session_gen)
         try:
@@ -90,9 +93,9 @@ class DatabasePlugin(IntegrationPluginBase):
             if not obj:
                 return None
             # Konvertera till dict om det är en modellinstans
-            if hasattr(data, 'model_dump'):
+            if hasattr(data, "model_dump"):
                 data_dict = data.model_dump(exclude_unset=True)
-            elif hasattr(data, 'dict'):
+            elif hasattr(data, "dict"):
                 data_dict = data.dict(exclude_unset=True)
             else:
                 data_dict = data

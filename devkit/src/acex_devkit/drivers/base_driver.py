@@ -1,19 +1,24 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
-from acex_devkit.models.node_response import NodeListItem
+from acex_devkit.models.asset import Asset
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.management_connection import ManagementConnection
+from acex_devkit.models.node_response import NodeListItem
+
 
 class ParserBase(ABC):
     @abstractmethod
-    def parse(self, model: Dict[str, Any]) -> Any:
+    def parse(self, model: dict[str, Any]) -> Any:
         """Parsar running-config"""
+
 
 class RendererBase(ABC):
     @abstractmethod
-    def render(self, model: Dict[str, Any]) -> Any:
+    def render(self, model: dict[str, Any]) -> Any:
         """Tar en device‑agnostisk konfigurationsmodell och returnerar
         en transport‑specifik representation (t.ex. string, XML‑tree…)."""
+
 
 class TransportBase(ABC):
     @abstractmethod
@@ -30,8 +35,10 @@ class TransportBase(ABC):
         """Run arbitrary commands. Opt-in per driver."""
         raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
 
+
 class NetworkElementDriver:
     """Kombinerar renderer + transport – exponeras som en plugin."""
+
     renderer_class = None
     transport_class = None
     parser_class = None
@@ -44,7 +51,7 @@ class NetworkElementDriver:
         self.parser = self.parser_class()
 
     @abstractmethod
-    def render(self, configuration: ComposedConfiguration, asset: "Asset") -> Any:
+    def render(self, configuration: ComposedConfiguration, asset: Asset) -> Any:
         """Render configuration from composedconfig and asset."""
         pass
 
@@ -53,5 +60,3 @@ class NetworkElementDriver:
         """
         Parse observed configuration into a composedconfiguration object.
         """
-
-    

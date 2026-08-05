@@ -1,3 +1,3 @@
+from .standard import MethodNotImplemented
 
-
-from .standard import *
+__all__ = ["MethodNotImplemented"]

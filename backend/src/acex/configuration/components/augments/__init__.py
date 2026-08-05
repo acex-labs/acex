@@ -14,6 +14,8 @@ or the explicit per-vendor path::
 
 from .base import Augment
 
+__all__ = ["Augment"]
+
 #
 # Vi behöver inte importera dessa här, man får importera med specifik path i configmap
 #

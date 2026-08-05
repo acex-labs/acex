@@ -1,18 +1,19 @@
+from enum import StrEnum
+from typing import ClassVar
+
 from pydantic import BaseModel
-from typing import Optional, Dict, ClassVar
-from enum import Enum
 
 from acex_devkit.models.container_entry import ContainerEntry
 
 
-class MetadataValueType(str, Enum):
+class MetadataValueType(StrEnum):
     CONCRETE = "concrete"
     EXTERNALVALUE = "externalValue"
     REFERENCE = "reference"
 
 
 class Metadata(BaseModel):
-    type: Optional[str] = "str"
+    type: str | None = "str"
     value_source: MetadataValueType = MetadataValueType.CONCRETE
 
 
@@ -24,12 +25,12 @@ class Reference(ContainerEntry, BaseModel):
 
 class ReferenceTo(Reference):
     pointer: str
-    metadata: Optional[Dict] = {}
+    metadata: dict | None = {}
 
 
 class ReferenceFrom(Reference):
     pointer: str
-    metadata: Optional[Dict] = {}
+    metadata: dict | None = {}
 
 
 class RenderedReference(BaseModel):

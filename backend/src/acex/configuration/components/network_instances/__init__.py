@@ -1,2 +1,3 @@
+from .network_instances import L2Domain, L3Vrf, NetworkInstance
 
-from .network_instances import *
+__all__ = ["L3Vrf", "L2Domain", "NetworkInstance"]

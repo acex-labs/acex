@@ -1,31 +1,28 @@
-from typing import Optional, List, Set
 from datetime import datetime
 
-from fastapi import HTTPException
-from sqlmodel import select
-from sqlalchemy import delete
-
+from acex.models.asset import Asset, AssetCluster
 from acex.models.collection_agent import (
     CollectionAgent,
-    CollectionAgentCreate,
-    CollectionAgentUpdate,
-    CollectionAgentResponse,
     CollectionAgentAck,
-    CollectionAgentNodeLink,
+    CollectionAgentCreate,
     CollectionAgentMatchRule,
     CollectionAgentMatchRuleCreate,
     CollectionAgentMatchRuleResponse,
+    CollectionAgentNodeLink,
+    CollectionAgentResponse,
+    CollectionAgentUpdate,
 )
-from acex.models.node import Node, AssetRefType
-from acex.models.asset import Asset, AssetCluster
-from acex.models.management_connections import ManagementConnection
+from acex.models.credential import Credential, NodeCredential
 from acex.models.logical_node import LogicalNode
-from acex.models.credential import NodeCredential, Credential
+from acex.models.management_connections import ManagementConnection
+from acex.models.node import AssetRefType, Node
 from acex.models.regions import SiteRegionAssignment
+from fastapi import HTTPException
+from sqlalchemy import delete
+from sqlmodel import select
 
 
 class CollectionAgentManager:
-
     def __init__(self, db_manager):
         self.db = db_manager
 
@@ -34,7 +31,7 @@ class CollectionAgentManager:
         if agent:
             agent.config_revision = (agent.config_revision or 0) + 1
 
-    def _resolve_rule_nodes(self, session, rules: List[CollectionAgentMatchRule]) -> Set[int]:
+    def _resolve_rule_nodes(self, session, rules: list[CollectionAgentMatchRule]) -> set[int]:
         if not rules:
             return set()
 
@@ -50,10 +47,13 @@ class CollectionAgentManager:
                 if rule.role:
                     statement = statement.where(LogicalNode.role.ilike(f"{rule.role}%"))
                 if rule.region:
-                    site_names = list(session.exec(
-                        select(SiteRegionAssignment.site_name)
-                        .where(SiteRegionAssignment.region_name == rule.region)
-                    ).all())
+                    site_names = list(
+                        session.exec(
+                            select(SiteRegionAssignment.site_name).where(
+                                SiteRegionAssignment.region_name == rule.region
+                            )
+                        ).all()
+                    )
                     if site_names:
                         statement = statement.where(LogicalNode.site.in_(site_names))
                     else:
@@ -76,12 +76,10 @@ class CollectionAgentManager:
 
     def _get_agent_response(self, session, agent: CollectionAgent) -> CollectionAgentResponse:
         node_links = session.exec(
-            select(CollectionAgentNodeLink)
-            .where(CollectionAgentNodeLink.collection_agent_id == agent.id)
+            select(CollectionAgentNodeLink).where(CollectionAgentNodeLink.collection_agent_id == agent.id)
         ).all()
         rules = session.exec(
-            select(CollectionAgentMatchRule)
-            .where(CollectionAgentMatchRule.collection_agent_id == agent.id)
+            select(CollectionAgentMatchRule).where(CollectionAgentMatchRule.collection_agent_id == agent.id)
         ).all()
 
         explicit_node_ids = [link.node_id for link in node_links]
@@ -101,8 +99,13 @@ class CollectionAgentManager:
             nodes=explicit_node_ids,
             rules=[
                 CollectionAgentMatchRuleResponse(
-                    id=r.id, region=r.region, site=r.site, vendor=r.vendor,
-                    os=r.os, status=r.status, role=r.role,
+                    id=r.id,
+                    region=r.region,
+                    site=r.site,
+                    vendor=r.vendor,
+                    os=r.os,
+                    status=r.status,
+                    role=r.role,
                 )
                 for r in rules
             ],
@@ -129,9 +132,9 @@ class CollectionAgentManager:
 
     def list(
         self,
-        name: Optional[str] = None,
-        enabled: Optional[bool] = None,
-    ) -> List[CollectionAgentResponse]:
+        name: str | None = None,
+        enabled: bool | None = None,
+    ) -> list[CollectionAgentResponse]:
         session = next(self.db.get_session())
         try:
             statement = select(CollectionAgent)
@@ -161,7 +164,7 @@ class CollectionAgentManager:
             if not agent:
                 raise HTTPException(status_code=404, detail="CollectionAgent not found")
 
-            for field in ['name', 'description', 'interval_seconds', 'enabled']:
+            for field in ["name", "description", "interval_seconds", "enabled"]:
                 value = getattr(payload, field)
                 if value is not None:
                     setattr(agent, field, value)
@@ -180,12 +183,8 @@ class CollectionAgentManager:
             if not agent:
                 raise HTTPException(status_code=404, detail="CollectionAgent not found")
 
-            session.execute(delete(CollectionAgentNodeLink).where(
-                CollectionAgentNodeLink.collection_agent_id == id
-            ))
-            session.execute(delete(CollectionAgentMatchRule).where(
-                CollectionAgentMatchRule.collection_agent_id == id
-            ))
+            session.execute(delete(CollectionAgentNodeLink).where(CollectionAgentNodeLink.collection_agent_id == id))
+            session.execute(delete(CollectionAgentMatchRule).where(CollectionAgentMatchRule.collection_agent_id == id))
 
             session.delete(agent)
             session.commit()
@@ -206,8 +205,7 @@ class CollectionAgentManager:
                 raise HTTPException(status_code=404, detail="Node not found")
 
             existing = session.exec(
-                select(CollectionAgentNodeLink)
-                .where(
+                select(CollectionAgentNodeLink).where(
                     CollectionAgentNodeLink.collection_agent_id == id,
                     CollectionAgentNodeLink.node_id == node_id,
                 )
@@ -226,8 +224,7 @@ class CollectionAgentManager:
         session = next(self.db.get_session())
         try:
             link = session.exec(
-                select(CollectionAgentNodeLink)
-                .where(
+                select(CollectionAgentNodeLink).where(
                     CollectionAgentNodeLink.collection_agent_id == id,
                     CollectionAgentNodeLink.node_id == node_id,
                 )
@@ -252,16 +249,25 @@ class CollectionAgentManager:
 
             rule = CollectionAgentMatchRule(
                 collection_agent_id=id,
-                region=payload.region, site=payload.site, vendor=payload.vendor,
-                os=payload.os, status=payload.status, role=payload.role,
+                region=payload.region,
+                site=payload.site,
+                vendor=payload.vendor,
+                os=payload.os,
+                status=payload.status,
+                role=payload.role,
             )
             session.add(rule)
             self._bump_revision(session, id)
             session.commit()
             session.refresh(rule)
             return CollectionAgentMatchRuleResponse(
-                id=rule.id, region=rule.region, site=rule.site, vendor=rule.vendor,
-                os=rule.os, status=rule.status, role=rule.role,
+                id=rule.id,
+                region=rule.region,
+                site=rule.site,
+                vendor=rule.vendor,
+                os=rule.os,
+                status=rule.status,
+                role=rule.role,
             )
         finally:
             session.close()
@@ -270,8 +276,7 @@ class CollectionAgentManager:
         session = next(self.db.get_session())
         try:
             rule = session.exec(
-                select(CollectionAgentMatchRule)
-                .where(
+                select(CollectionAgentMatchRule).where(
                     CollectionAgentMatchRule.id == rule_id,
                     CollectionAgentMatchRule.collection_agent_id == id,
                 )
@@ -311,14 +316,12 @@ class CollectionAgentManager:
 
             # Resolve nodes
             node_links = session.exec(
-                select(CollectionAgentNodeLink)
-                .where(CollectionAgentNodeLink.collection_agent_id == id)
+                select(CollectionAgentNodeLink).where(CollectionAgentNodeLink.collection_agent_id == id)
             ).all()
             explicit_ids = {link.node_id for link in node_links}
 
             rules = session.exec(
-                select(CollectionAgentMatchRule)
-                .where(CollectionAgentMatchRule.collection_agent_id == id)
+                select(CollectionAgentMatchRule).where(CollectionAgentMatchRule.collection_agent_id == id)
             ).all()
             rule_ids = self._resolve_rule_nodes(session, rules)
             all_node_ids = sorted(explicit_ids | rule_ids)
@@ -326,10 +329,11 @@ class CollectionAgentManager:
             nodes = session.exec(select(Node).where(Node.id.in_(all_node_ids))).all() if all_node_ids else []
 
             # Management connections
-            mgmt_connections = session.exec(
-                select(ManagementConnection)
-                .where(ManagementConnection.node_id.in_(all_node_ids))
-            ).all() if all_node_ids else []
+            mgmt_connections = (
+                session.exec(select(ManagementConnection).where(ManagementConnection.node_id.in_(all_node_ids))).all()
+                if all_node_ids
+                else []
+            )
 
             node_ip_map = {}
             node_conn_type_map = {}
@@ -343,27 +347,29 @@ class CollectionAgentManager:
             asset_ids = [n.asset_ref_id for n in nodes if n.asset_ref_type == AssetRefType.asset]
             cluster_ids = [n.asset_ref_id for n in nodes if n.asset_ref_type == AssetRefType.asset_cluster]
             assets = session.exec(select(Asset).where(Asset.id.in_(asset_ids))).all() if asset_ids else []
-            clusters = session.exec(select(AssetCluster).where(AssetCluster.id.in_(cluster_ids))).all() if cluster_ids else []
+            clusters = (
+                session.exec(select(AssetCluster).where(AssetCluster.id.in_(cluster_ids))).all() if cluster_ids else []
+            )
             ref_map = {(AssetRefType.asset, a.id): a for a in assets}
             ref_map.update({(AssetRefType.asset_cluster, c.id): c for c in clusters})
 
             # Logical nodes for hostname
             ln_ids = [n.logical_node_id for n in nodes]
-            logical_nodes = session.exec(
-                select(LogicalNode).where(LogicalNode.id.in_(ln_ids))
-            ).all() if ln_ids else []
+            logical_nodes = session.exec(select(LogicalNode).where(LogicalNode.id.in_(ln_ids))).all() if ln_ids else []
             ln_map = {ln.id: ln.hostname for ln in logical_nodes}
 
             # Node ↔ Credential mappings {node_id: {credential_type: credential_id}}
-            node_creds = session.exec(
-                select(NodeCredential).where(NodeCredential.node_id.in_(all_node_ids))
-            ).all() if all_node_ids else []
+            node_creds = (
+                session.exec(select(NodeCredential).where(NodeCredential.node_id.in_(all_node_ids))).all()
+                if all_node_ids
+                else []
+            )
             cred_ids = {nc.credential_id for nc in node_creds}
-            cred_map = {
-                c.id: c for c in session.exec(
-                    select(Credential).where(Credential.id.in_(cred_ids))
-                ).all()
-            } if cred_ids else {}
+            cred_map = (
+                {c.id: c for c in session.exec(select(Credential).where(Credential.id.in_(cred_ids))).all()}
+                if cred_ids
+                else {}
+            )
             node_cred_map = {}
             for nc in node_creds:
                 cred = cred_map.get(nc.credential_id)
@@ -373,16 +379,18 @@ class CollectionAgentManager:
             targets = []
             for node in nodes:
                 ref = ref_map.get((node.asset_ref_type, node.asset_ref_id))
-                targets.append({
-                    "node_id": node.id,
-                    "hostname": ln_map.get(node.logical_node_id),
-                    "target_ip": node_ip_map.get(node.id),
-                    "connection_type": node_conn_type_map.get(node.id),
-                    "ned_id": ref.ned_id if ref else None,
-                    "vendor": getattr(ref, "vendor", None),
-                    "os": getattr(ref, "os", None),
-                    "credentials": node_cred_map.get(node.id, {}),
-                })
+                targets.append(
+                    {
+                        "node_id": node.id,
+                        "hostname": ln_map.get(node.logical_node_id),
+                        "target_ip": node_ip_map.get(node.id),
+                        "connection_type": node_conn_type_map.get(node.id),
+                        "ned_id": ref.ned_id if ref else None,
+                        "vendor": getattr(ref, "vendor", None),
+                        "os": getattr(ref, "os", None),
+                        "credentials": node_cred_map.get(node.id, {}),
+                    }
+                )
 
             # Update poll timestamp
             agent.last_manifest_poll = datetime.utcnow().isoformat()

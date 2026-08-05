@@ -1,10 +1,15 @@
-
-
-from acex.models.asset import AssetClusterCreate, AssetClusterUpdate, AssetCluster, AssetClusterLink, AssetClusterResponse, AssetClusterAssetResponse
+from acex.models.asset import (
+    AssetCluster,
+    AssetClusterAssetResponse,
+    AssetClusterCreate,
+    AssetClusterLink,
+    AssetClusterResponse,
+    AssetClusterUpdate,
+)
 from fastapi import HTTPException
 
-class AssetClusterManager:
 
+class AssetClusterManager:
     def __init__(self, db_manager):
         self.db = db_manager
 
@@ -45,18 +50,13 @@ class AssetClusterManager:
                     os_version=asset.os_version,
                     hardware_model=asset.hardware_model,
                     ned_id=asset.ned_id,
-                    cluster_index=order_map.get(asset.id)
+                    cluster_index=order_map.get(asset.id),
                 )
                 for asset in cluster.assets
             ]
-            assets.sort(key=lambda a: (a.cluster_index if a.cluster_index is not None else 0))
+            assets.sort(key=lambda a: a.cluster_index if a.cluster_index is not None else 0)
 
-            return AssetClusterResponse(
-                id=cluster.id,
-                name=cluster.name,
-                ned_id=cluster.ned_id,
-                assets=assets
-            )
+            return AssetClusterResponse(id=cluster.id, name=cluster.name, ned_id=cluster.ned_id, assets=assets)
         finally:
             session.close()
 
@@ -73,9 +73,7 @@ class AssetClusterManager:
                 cluster.ned_id = payload.ned_id
 
             if payload.asset_ids is not None:
-                session.exec(
-                    AssetClusterLink.__table__.delete().where(AssetClusterLink.cluster_id == id)
-                )
+                session.exec(AssetClusterLink.__table__.delete().where(AssetClusterLink.cluster_id == id))
                 for order, asset_id in enumerate(payload.asset_ids):
                     link = AssetClusterLink(asset_id=asset_id, cluster_id=id, order=order)
                     session.add(link)

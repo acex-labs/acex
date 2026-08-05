@@ -57,19 +57,10 @@ from acex import AutomationEngine
 engine = AutomationEngine()
 
 # Database (Postgres)
-db = Connection(
-    dbname="ace",
-    user="postgres",
-    password="",
-    host="localhost",
-    backend="postgresql"
-)
+db = Connection(dbname="ace", user="postgres", password="", host="localhost", backend="postgresql")
 
 # External datasources
-netbox = Netbox(
-    url="https://netbox.domain.tld/",
-    token=os.getenv("NETBOX_TOKEN")
-)
+netbox = Netbox(url="https://netbox.domain.tld/", token=os.getenv("NETBOX_TOKEN"))
 
 ae.add_integration("ipam", netbox)
 app = ae.create_app()
@@ -83,7 +74,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=80,
     )
-    
 ```
 
 ### Configuration as code
@@ -94,16 +84,13 @@ if __name__ == "__main__":
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.interfaces import Loopback
 
+
 class LoopbackIf(ConfigMap):
     def compile(self, context):
 
-        lo0 = Loopback(
-            index=0,
-            name="Lo0",
-            description = "MPLS Loopback",
-            ipv4 = f"192.0.2.2/24"
-        )
+        lo0 = Loopback(index=0, name="Lo0", description="MPLS Loopback", ipv4=f"192.0.2.2/24")
         context.configuration.add(lo0)
+
 
 lo = LoopbackIf()
 lo.filters = FilterAttribute("role").eq("core")
@@ -116,16 +103,13 @@ lo.filters = FilterAttribute("role").eq("core")
 from acex.config_map import ConfigMap, FilterAttribute
 from acex.configuration.components.interfaces import Loopback
 
+
 class LoopbackIf(ConfigMap):
     def compile(self, context):
 
-        lo0 = Loopback(
-            index=0,
-            name="Lo0",
-            description = "MPLS Loopback",
-            ipv4 = f"192.0.2.{context.logical_node.id}/24"
-        )
+        lo0 = Loopback(index=0, name="Lo0", description="MPLS Loopback", ipv4=f"192.0.2.{context.logical_node.id}/24")
         context.configuration.add(lo0)
+
 
 lo = LoopbackIf()
 lo.filters = FilterAttribute("role").eq("core")
@@ -144,10 +128,12 @@ class LoopbackIf(ConfigMap):
         lo0 = Loopback(
             index=0,
             name="Lo0",
-            description = "MPLS Loopback",
-            ipv4 = context.integrations.ipam.data.ip_addresses({"query_key": "match_value"})
+            description="MPLS Loopback",
+            ipv4=context.integrations.ipam.data.ip_addresses({"query_key": "match_value"}),
         )
         context.configuration.add(lo0)
+
+
 lo = LoopbackIf()
 lo.filters = FilterAttribute("role").eq("core")
 ```

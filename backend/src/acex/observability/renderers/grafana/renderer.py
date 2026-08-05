@@ -1,11 +1,8 @@
-from typing import Optional
-
-from fastapi import HTTPException
-
 from acex.observability.registry import TelemetryRegistry
-from acex.observability.renderers.grafana.dashboards import DASHBOARDS
 from acex.observability.renderers.grafana import datasources as ds_renderer
+from acex.observability.renderers.grafana.dashboards import DASHBOARDS
 from acex.observability.settings import InfluxDBSettings
+from fastapi import HTTPException
 
 
 class GrafanaRenderer:
@@ -18,16 +15,13 @@ class GrafanaRenderer:
     def __init__(
         self,
         registry: TelemetryRegistry,
-        influxdb_settings: Optional[InfluxDBSettings] = None,
+        influxdb_settings: InfluxDBSettings | None = None,
     ):
         self.registry = registry
         self.influxdb_settings = influxdb_settings
 
     def list_dashboards(self) -> list[dict]:
-        return [
-            {"uid": uid, "title": title}
-            for uid, (title, _builder) in DASHBOARDS.items()
-        ]
+        return [{"uid": uid, "title": title} for uid, (title, _builder) in DASHBOARDS.items()]
 
     def get_dashboard(self, uid: str) -> dict:
         entry = DASHBOARDS.get(uid)

@@ -2,7 +2,9 @@
 
 Main public API exports.
 """
+
 import importlib.metadata
+
 __version__ = importlib.metadata.version("acex")
 
 # Main API - AutomationEngine is the primary interface

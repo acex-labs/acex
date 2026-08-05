@@ -1,20 +1,19 @@
-from typing import Callable, Union, Awaitable
-from acex.config_map import ConfigMap, ConfigMapContext
 import inspect
-from acex.models import LogicalNodeResponse, LogicalNodeConfigResponse
-from acex.configuration import Configuration
-import traceback
 import sys
+import traceback
+from collections.abc import Awaitable, Callable
+
+from acex.config_map import ConfigMap, ConfigMapContext
+from acex.configuration import Configuration
+from acex.models import LogicalNodeConfigResponse, LogicalNodeResponse
 
 
-
-class CompiledLogicalNode: 
-
+class CompiledLogicalNode:
     def __init__(self, configuration: Configuration, logical_node: dict, integrations):
         self.logical_node = logical_node
         self.configuration = configuration
         self.context = ConfigMapContext(logical_node, configuration, integrations)
-        self.meta_data = {} # Får inte heta "metadata" pga SQLModel
+        self.meta_data = {}  # Får inte heta "metadata" pga SQLModel
         self.processors = []
         self.completed_processors = []
         self.errors = []
@@ -57,11 +56,9 @@ class CompiledLogicalNode:
         else:
             processor(self.context)
 
-
     async def compile(self):
         # run all registered processors
         for processor in self.processors:
-
             # Try each registered processor.
             try:
                 await self.run_processor(processor)
@@ -77,8 +74,6 @@ class CompiledLogicalNode:
                 print(tb_str)
                 continue
 
-
-
-    def register(self, fn: Callable[[dict], Union[dict, Awaitable[dict]]]):
+    def register(self, fn: Callable[[dict], dict | Awaitable[dict]]):
         """Register a new compile processor."""
         self.processors.append(fn)

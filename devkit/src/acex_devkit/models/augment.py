@@ -1,5 +1,5 @@
-from typing import Dict, Optional
-from pydantic import BaseModel, ConfigDict, Field, SerializeAsAny
+from pydantic import BaseModel, ConfigDict, SerializeAsAny
+
 
 # --- Augments --------------------------------------------------------------
 # Vendor/os-specific augments mount on target tree components via the
@@ -19,6 +19,7 @@ class AugmentAttributes(BaseModel):
     Augments live on a target node's `augments` dict, keyed by `type`. The
     target itself is implicit (it's the node carrying this augment).
     """
+
     model_config = ConfigDict(extra="allow")
     type: str
 
@@ -35,4 +36,5 @@ class Augmentable(BaseModel):
     AugmentAttributes, this round-trips subclass-declared fields through
     serialize → JSON → re-validate without devkit knowing the subclasses.
     """
-    augments: Dict[str, SerializeAsAny[AugmentAttributes]] = {}
+
+    augments: dict[str, SerializeAsAny[AugmentAttributes]] = {}

@@ -1,2 +1,21 @@
+from .interfaces import (
+    FrontpanelPort,
+    Interface,
+    InterfaceTemplate,
+    LagInterface,
+    Loopback,
+    ManagementPort,
+    Subinterface,
+    Svi,
+)
 
-from .interfaces import *
+__all__ = [
+    "InterfaceTemplate",
+    "Interface",
+    "FrontpanelPort",
+    "ManagementPort",
+    "LagInterface",
+    "Svi",
+    "Loopback",
+    "Subinterface",
+]

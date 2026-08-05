@@ -1,5 +1,5 @@
-from fastapi import APIRouter
 from acex.constants import BASE_URL
+from fastapi import APIRouter
 
 
 def create_router(automation_engine):
@@ -8,11 +8,6 @@ def create_router(automation_engine):
 
     dcm = automation_engine.device_config_manager
 
-    router.add_api_route(
-        "/configuration/changes",
-        dcm.list_changes,
-        methods=["GET"],
-        tags=tags
-    )
+    router.add_api_route("/configuration/changes", dcm.list_changes, methods=["GET"], tags=tags)
 
     return router

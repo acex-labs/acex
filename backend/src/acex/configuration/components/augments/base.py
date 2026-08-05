@@ -31,8 +31,9 @@ singleton, `target` may be omitted entirely — it's inferred::
 route the augment; they don't appear on the rendered `AugmentAttributes`
 payload (location IS target, dict key IS the type discriminator).
 """
+
 from string import Template
-from typing import ClassVar, Tuple, Type
+from typing import ClassVar
 
 from acex.configuration.components.base_component import ConfigComponent
 
@@ -51,7 +52,8 @@ class Augment(ConfigComponent):
     so any registered ConfigComponent type is a candidate target without
     Augment needing per-type handling.
     """
-    valid_targets: ClassVar[Tuple[Type[ConfigComponent], ...]] = ()
+
+    valid_targets: ClassVar[tuple[type[ConfigComponent], ...]] = ()
     default_vendor: ClassVar[str] = None
     singleton: ClassVar[bool] = True
 
@@ -63,9 +65,7 @@ class Augment(ConfigComponent):
             raise ValueError(f"{self.__class__.__name__} requires a 'target' kwarg")
 
         if not self.__class__.singleton and self.kwargs.get("name") is None:
-            raise ValueError(
-                f"{self.__class__.__name__} is not a singleton — 'name' is required"
-            )
+            raise ValueError(f"{self.__class__.__name__} is not a singleton — 'name' is required")
 
         target_is_class = isinstance(target, type)
         target_type = target if target_is_class else type(target)
@@ -73,10 +73,7 @@ class Augment(ConfigComponent):
         if self.valid_targets and not issubclass(target_type, self.valid_targets):
             valid_names = [c.__name__ for c in self.valid_targets]
             label = f"class {target_type.__name__}" if target_is_class else target_type.__name__
-            raise ValueError(
-                f"{self.__class__.__name__} cannot target {label}; "
-                f"valid targets: {valid_names}"
-            )
+            raise ValueError(f"{self.__class__.__name__} cannot target {label}; valid targets: {valid_names}")
 
         # Stash on the component for Configuration to use during as_model().
         # Not put back into kwargs — these are routing data, not model fields.
@@ -93,7 +90,7 @@ class Augment(ConfigComponent):
           - BaseModel         → singleton object (continue traversal)
         """
         import typing
-        from pydantic import BaseModel
+
         from acex_devkit.models import AttributeValue
         from acex_devkit.models.composed_configuration import ComposedConfiguration
 
@@ -129,15 +126,9 @@ class Augment(ConfigComponent):
         target_type = target if target_is_class else type(target)
         mapped = Configuration.COMPONENT_MAPPING.get(target_type)
         if mapped is None:
-            raise ValueError(
-                f"No COMPONENT_MAPPING entry for {target_type.__name__}; "
-                f"cannot use as augment target"
-            )
+            raise ValueError(f"No COMPONENT_MAPPING entry for {target_type.__name__}; cannot use as augment target")
         if isinstance(mapped, Template):
-            raise ValueError(
-                f"{target_type.__name__}: Template-path targets not yet "
-                f"supported for augments"
-            )
+            raise ValueError(f"{target_type.__name__}: Template-path targets not yet supported for augments")
         # If the path resolves to a single model object (not a Dict) in the
         # composed configuration tree, treat it as a singleton.
         if Augment._is_singleton_path(mapped):

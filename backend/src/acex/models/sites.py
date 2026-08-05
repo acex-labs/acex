@@ -1,7 +1,6 @@
-from sqlmodel import SQLModel, Field
-from typing import Optional
-
-from acex_devkit.models.site import SiteBase as SiteSchema, SiteResponse
+from acex_devkit.models.site import SiteBase as SiteSchema
+from acex_devkit.models.site import SiteResponse
+from sqlmodel import Field, SQLModel
 
 
 class SiteBase(SiteSchema, SQLModel):
@@ -9,4 +8,7 @@ class SiteBase(SiteSchema, SQLModel):
 
 
 class Site(SiteBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
+
+
+__all__ = ["SiteBase", "Site", "SiteResponse"]

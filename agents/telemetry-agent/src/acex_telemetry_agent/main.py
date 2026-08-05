@@ -1,8 +1,8 @@
 """Telemetry Agent entrypoint — polls config manifest, writes telegraf.conf."""
 
+import logging
 import os
 import sys
-import logging
 
 from acex_client.acex.acex import Acex
 

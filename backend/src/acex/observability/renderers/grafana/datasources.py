@@ -14,20 +14,13 @@ matching datasource:
 UIDs are deterministic (`acex-influxdb-{index}`) so re-runs are
 idempotent — same UID, same datasource, no duplicates.
 """
-from typing import Optional
 
 from acex.observability.agents.models import InfluxDBVersion
 from acex.observability.settings import InfluxDBOutput, InfluxDBSettings
 
 
 def _slugify_url(url: str) -> str:
-    return (
-        url.replace("https://", "")
-        .replace("http://", "")
-        .replace(":", "-")
-        .replace("/", "-")
-        .rstrip("-")
-    )
+    return url.replace("https://", "").replace("http://", "").replace(":", "-").replace("/", "-").rstrip("-")
 
 
 def datasource_uid(index: int) -> str:
@@ -88,7 +81,7 @@ def list_datasources(settings: InfluxDBSettings) -> list[dict]:
     ]
 
 
-def find_datasource(settings: InfluxDBSettings, uid: str) -> Optional[dict]:
+def find_datasource(settings: InfluxDBSettings, uid: str) -> dict | None:
     """Return the full datasource definition for a given UID, or None."""
     for i, o in enumerate(settings.outputs):
         if datasource_uid(i) == uid:

@@ -1,35 +1,33 @@
-from typing import Optional, List, Set
+import builtins
 from datetime import datetime
 
-from fastapi import HTTPException
-
+from acex.models.asset import Asset
+from acex.models.logical_node import LogicalNode
+from acex.models.management_connections import ManagementConnection
+from acex.models.node import Node
+from acex.models.regions import SiteRegionAssignment
 from acex.observability.agents.models import (
+    InfluxDBVersion,
+    OutputDestination,
+    OutputDestinationCreate,
+    OutputDestinationResponse,
+    OutputDestinationUpdate,
     TelemetryAgent,
     TelemetryAgentAck,
-    TelemetryAgentCreate,
-    TelemetryAgentUpdate,
-    TelemetryAgentResponse,
-    TelemetryAgentNodeLink,
     TelemetryAgentCapabilityLink,
+    TelemetryAgentCreate,
     TelemetryAgentMatchRule,
     TelemetryAgentMatchRuleCreate,
     TelemetryAgentMatchRuleResponse,
-    OutputDestination,
-    OutputDestinationCreate,
-    OutputDestinationUpdate,
-    OutputDestinationResponse,
-    InfluxDBVersion,
+    TelemetryAgentNodeLink,
+    TelemetryAgentResponse,
+    TelemetryAgentUpdate,
 )
 from acex.observability.capability import TelemetryCapability
-from acex.models.node import Node
-from acex.models.asset import Asset
-from acex.models.management_connections import ManagementConnection
-from acex.models.logical_node import LogicalNode
-from acex.models.regions import SiteRegionAssignment
+from fastapi import HTTPException
 
 
 class TelemetryAgentManager:
-
     def __init__(self, db_manager, telemetry_registry=None, influxdb_settings=None):
         self.db = db_manager
         self.telemetry_registry = telemetry_registry
@@ -47,15 +45,16 @@ class TelemetryAgentManager:
         """
         session = next(self.db.get_session())
         try:
-            affected: Set[int] = {
-                row[0] for row in (
+            affected: set[int] = {
+                row[0]
+                for row in (
                     session.query(TelemetryAgentNodeLink.telemetry_agent_id)
                     .filter(TelemetryAgentNodeLink.node_id == node_id)
                     .all()
                 )
             }
 
-            rules_by_agent: dict[int, List[TelemetryAgentMatchRule]] = {}
+            rules_by_agent: dict[int, list[TelemetryAgentMatchRule]] = {}
             for r in session.query(TelemetryAgentMatchRule).all():
                 rules_by_agent.setdefault(r.telemetry_agent_id, []).append(r)
             for agent_id, agent_rules in rules_by_agent.items():
@@ -73,7 +72,7 @@ class TelemetryAgentManager:
         finally:
             session.close()
 
-    def _resolve_rule_nodes(self, session, rules: List[TelemetryAgentMatchRule]) -> Set[int]:
+    def _resolve_rule_nodes(self, session, rules: list[TelemetryAgentMatchRule]) -> set[int]:
         """Resolve node IDs matching any of the given rules."""
         if not rules:
             return set()
@@ -92,7 +91,8 @@ class TelemetryAgentManager:
                     query = query.filter(LogicalNode.role.ilike(f"{rule.role}%"))
                 if rule.region:
                     site_names = [
-                        row[0] for row in session.query(SiteRegionAssignment.site_name)
+                        row[0]
+                        for row in session.query(SiteRegionAssignment.site_name)
                         .filter(SiteRegionAssignment.region_name == rule.region)
                         .all()
                     ]
@@ -121,9 +121,7 @@ class TelemetryAgentManager:
 
     def _get_agent_response(self, session, agent: TelemetryAgent) -> TelemetryAgentResponse:
         node_links = (
-            session.query(TelemetryAgentNodeLink)
-            .filter(TelemetryAgentNodeLink.telemetry_agent_id == agent.id)
-            .all()
+            session.query(TelemetryAgentNodeLink).filter(TelemetryAgentNodeLink.telemetry_agent_id == agent.id).all()
         )
         cap_links = (
             session.query(TelemetryAgentCapabilityLink)
@@ -131,16 +129,10 @@ class TelemetryAgentManager:
             .all()
         )
         rules = (
-            session.query(TelemetryAgentMatchRule)
-            .filter(TelemetryAgentMatchRule.telemetry_agent_id == agent.id)
-            .all()
+            session.query(TelemetryAgentMatchRule).filter(TelemetryAgentMatchRule.telemetry_agent_id == agent.id).all()
         )
 
-        outputs = (
-            session.query(OutputDestination)
-            .filter(OutputDestination.telemetry_agent_id == agent.id)
-            .all()
-        )
+        outputs = session.query(OutputDestination).filter(OutputDestination.telemetry_agent_id == agent.id).all()
 
         explicit_node_ids = [link.node_id for link in node_links]
         rule_matched_ids = self._resolve_rule_nodes(session, rules)
@@ -158,17 +150,27 @@ class TelemetryAgentManager:
             nodes=explicit_node_ids,
             rules=[
                 TelemetryAgentMatchRuleResponse(
-                    id=r.id, site=r.site, vendor=r.vendor,
-                    os=r.os, status=r.status, role=r.role,
+                    id=r.id,
+                    site=r.site,
+                    vendor=r.vendor,
+                    os=r.os,
+                    status=r.status,
+                    role=r.role,
                 )
                 for r in rules
             ],
             resolved_nodes=resolved,
             outputs=[
                 OutputDestinationResponse(
-                    id=o.id, influxdb_version=o.influxdb_version, url=o.url,
-                    token=o.token, organization=o.organization, bucket=o.bucket,
-                    database=o.database, username=o.username, password=o.password,
+                    id=o.id,
+                    influxdb_version=o.influxdb_version,
+                    url=o.url,
+                    token=o.token,
+                    organization=o.organization,
+                    bucket=o.bucket,
+                    database=o.database,
+                    username=o.username,
+                    password=o.password,
                 )
                 for o in outputs
             ],
@@ -182,9 +184,7 @@ class TelemetryAgentManager:
             session.flush()
 
             for cap in payload.capabilities:
-                link = TelemetryAgentCapabilityLink(
-                    telemetry_agent_id=agent.id, capability=cap
-                )
+                link = TelemetryAgentCapabilityLink(telemetry_agent_id=agent.id, capability=cap)
                 session.add(link)
 
             session.commit()
@@ -195,10 +195,10 @@ class TelemetryAgentManager:
 
     def list(
         self,
-        name: Optional[str] = None,
-        capability: Optional[TelemetryCapability] = None,
-        node_id: Optional[int] = None,
-    ) -> List[TelemetryAgentResponse]:
+        name: str | None = None,
+        capability: TelemetryCapability | None = None,
+        node_id: int | None = None,
+    ) -> list[TelemetryAgentResponse]:
         session = next(self.db.get_session())
         try:
             query = session.query(TelemetryAgent)
@@ -212,9 +212,7 @@ class TelemetryAgentManager:
                 )
 
             if node_id is not None:
-                query = query.join(TelemetryAgentNodeLink).filter(
-                    TelemetryAgentNodeLink.node_id == node_id
-                )
+                query = query.join(TelemetryAgentNodeLink).filter(TelemetryAgentNodeLink.node_id == node_id)
 
             agents = query.all()
             return [self._get_agent_response(session, agent) for agent in agents]
@@ -248,9 +246,7 @@ class TelemetryAgentManager:
                     TelemetryAgentCapabilityLink.telemetry_agent_id == id
                 ).delete()
                 for cap in payload.capabilities:
-                    link = TelemetryAgentCapabilityLink(
-                        telemetry_agent_id=id, capability=cap
-                    )
+                    link = TelemetryAgentCapabilityLink(telemetry_agent_id=id, capability=cap)
                     session.add(link)
 
             self._bump_revision(session, id)
@@ -270,15 +266,9 @@ class TelemetryAgentManager:
             session.query(TelemetryAgentCapabilityLink).filter(
                 TelemetryAgentCapabilityLink.telemetry_agent_id == id
             ).delete()
-            session.query(TelemetryAgentNodeLink).filter(
-                TelemetryAgentNodeLink.telemetry_agent_id == id
-            ).delete()
-            session.query(TelemetryAgentMatchRule).filter(
-                TelemetryAgentMatchRule.telemetry_agent_id == id
-            ).delete()
-            session.query(OutputDestination).filter(
-                OutputDestination.telemetry_agent_id == id
-            ).delete()
+            session.query(TelemetryAgentNodeLink).filter(TelemetryAgentNodeLink.telemetry_agent_id == id).delete()
+            session.query(TelemetryAgentMatchRule).filter(TelemetryAgentMatchRule.telemetry_agent_id == id).delete()
+            session.query(OutputDestination).filter(OutputDestination.telemetry_agent_id == id).delete()
 
             session.delete(agent)
             session.commit()
@@ -358,8 +348,12 @@ class TelemetryAgentManager:
             session.commit()
             session.refresh(rule)
             return TelemetryAgentMatchRuleResponse(
-                id=rule.id, site=rule.site, vendor=rule.vendor,
-                os=rule.os, status=rule.status, role=rule.role,
+                id=rule.id,
+                site=rule.site,
+                vendor=rule.vendor,
+                os=rule.os,
+                status=rule.status,
+                role=rule.role,
             )
         finally:
             session.close()
@@ -409,9 +403,15 @@ class TelemetryAgentManager:
             session.commit()
             session.refresh(dest)
             return OutputDestinationResponse(
-                id=dest.id, influxdb_version=dest.influxdb_version, url=dest.url,
-                token=dest.token, organization=dest.organization, bucket=dest.bucket,
-                database=dest.database, username=dest.username, password=dest.password,
+                id=dest.id,
+                influxdb_version=dest.influxdb_version,
+                url=dest.url,
+                token=dest.token,
+                organization=dest.organization,
+                bucket=dest.bucket,
+                database=dest.database,
+                username=dest.username,
+                password=dest.password,
             )
         finally:
             session.close()
@@ -427,7 +427,16 @@ class TelemetryAgentManager:
             if not dest:
                 raise HTTPException(status_code=404, detail="Output destination not found")
 
-            for field in ['influxdb_version', 'url', 'token', 'organization', 'bucket', 'database', 'username', 'password']:
+            for field in [
+                "influxdb_version",
+                "url",
+                "token",
+                "organization",
+                "bucket",
+                "database",
+                "username",
+                "password",
+            ]:
                 value = getattr(payload, field)
                 if value is not None:
                     setattr(dest, field, value)
@@ -436,9 +445,15 @@ class TelemetryAgentManager:
             session.commit()
             session.refresh(dest)
             return OutputDestinationResponse(
-                id=dest.id, influxdb_version=dest.influxdb_version, url=dest.url,
-                token=dest.token, organization=dest.organization, bucket=dest.bucket,
-                database=dest.database, username=dest.username, password=dest.password,
+                id=dest.id,
+                influxdb_version=dest.influxdb_version,
+                url=dest.url,
+                token=dest.token,
+                organization=dest.organization,
+                bucket=dest.bucket,
+                database=dest.database,
+                username=dest.username,
+                password=dest.password,
             )
         finally:
             session.close()
@@ -492,16 +507,12 @@ class TelemetryAgentManager:
             capabilities = [link.capability for link in cap_links]
 
             node_links = (
-                session.query(TelemetryAgentNodeLink)
-                .filter(TelemetryAgentNodeLink.telemetry_agent_id == id)
-                .all()
+                session.query(TelemetryAgentNodeLink).filter(TelemetryAgentNodeLink.telemetry_agent_id == id).all()
             )
             explicit_ids = {link.node_id for link in node_links}
 
             rules = (
-                session.query(TelemetryAgentMatchRule)
-                .filter(TelemetryAgentMatchRule.telemetry_agent_id == id)
-                .all()
+                session.query(TelemetryAgentMatchRule).filter(TelemetryAgentMatchRule.telemetry_agent_id == id).all()
             )
             rule_ids = self._resolve_rule_nodes(session, rules)
 
@@ -510,10 +521,10 @@ class TelemetryAgentManager:
             nodes = session.query(Node).filter(Node.id.in_(all_node_ids)).all() if all_node_ids else []
 
             mgmt_connections = (
-                session.query(ManagementConnection)
-                .filter(ManagementConnection.node_id.in_(all_node_ids))
-                .all()
-            ) if all_node_ids else []
+                (session.query(ManagementConnection).filter(ManagementConnection.node_id.in_(all_node_ids)).all())
+                if all_node_ids
+                else []
+            )
 
             node_ip_map = {}
             for conn in mgmt_connections:
@@ -521,16 +532,10 @@ class TelemetryAgentManager:
                     node_ip_map[conn.node_id] = conn.target_ip
 
             ln_ids = [n.logical_node_id for n in nodes]
-            logical_nodes = (
-                session.query(LogicalNode).filter(LogicalNode.id.in_(ln_ids)).all()
-            ) if ln_ids else []
+            logical_nodes = (session.query(LogicalNode).filter(LogicalNode.id.in_(ln_ids)).all()) if ln_ids else []
             ln_map = {ln.id: ln.hostname for ln in logical_nodes}
 
-            outputs = (
-                session.query(OutputDestination)
-                .filter(OutputDestination.telemetry_agent_id == id)
-                .all()
-            )
+            outputs = session.query(OutputDestination).filter(OutputDestination.telemetry_agent_id == id).all()
 
             agent.last_config_poll = datetime.utcnow().isoformat()
             session.commit()
@@ -542,11 +547,11 @@ class TelemetryAgentManager:
     def _render_telegraf_config(
         self,
         agent: TelemetryAgent,
-        capabilities: List[TelemetryCapability],
-        nodes: List[Node],
+        capabilities: builtins.list[TelemetryCapability],
+        nodes: builtins.list[Node],
         node_ip_map: dict,
         ln_map: dict,
-        outputs: List[OutputDestination],
+        outputs: builtins.list[OutputDestination],
     ) -> str:
         lines = []
 
@@ -555,12 +560,13 @@ class TelemetryAgentManager:
         lines.append("")
         lines.append("[agent]")
         lines.append('  hostname = ""')
-        lines.append("  interval = \"60s\"")
-        lines.append("  flush_interval = \"10s\"")
+        lines.append('  interval = "60s"')
+        lines.append('  flush_interval = "10s"')
         lines.append("")
 
         if self.telemetry_registry is not None:
             from acex.observability.renderers import render_inputs
+
             agent_node_ids = {n.id for n in nodes}
             components = self.telemetry_registry.for_telegraf_agent(
                 node_ids=agent_node_ids,
@@ -582,13 +588,13 @@ class TelemetryAgentManager:
 
         return "\n".join(lines)
 
-    def _render_output_block(self, dest) -> List[str]:
+    def _render_output_block(self, dest) -> builtins.list[str]:
         """
         Render one [[outputs.X]] block. Works for both OutputDestination
         (DB row) and InfluxDBOutput (in-memory default) — both have the
         same field names accessed via attribute lookup.
         """
-        version = getattr(dest, "influxdb_version", None) or getattr(dest, "version")
+        version = getattr(dest, "influxdb_version", None) or dest.version
         url = dest.url
         token = getattr(dest, "token", None)
         organization = getattr(dest, "organization", None)
@@ -598,7 +604,7 @@ class TelemetryAgentManager:
         password = getattr(dest, "password", None)
         content_encoding = getattr(dest, "content_encoding", None)
 
-        lines: List[str] = []
+        lines: list[str] = []
         if version == InfluxDBVersion.v3:
             # InfluxDB v3 (IOx / Cloud Dedicated / Enterprise) — native plugin.
             # v3 went back to "database" terminology; "organization" remains optional.

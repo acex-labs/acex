@@ -1,21 +1,20 @@
-from typing import Optional
-from enum import Enum
-from sqlmodel import SQLModel, Field
+from enum import StrEnum
 
 from acex.observability.capability import TelemetryCapability
+from sqlmodel import Field, SQLModel
 
 
 class TelemetryAgentBase(SQLModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class TelemetryAgent(TelemetryAgentBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     config_revision: int = Field(default=0)
-    last_config_poll: Optional[str] = None
+    last_config_poll: str | None = None
     acked_revision: int = Field(default=0)
-    acked_at: Optional[str] = None
+    acked_at: str | None = None
 
 
 class TelemetryAgentNodeLink(SQLModel, table=True):
@@ -29,16 +28,16 @@ class TelemetryAgentCapabilityLink(SQLModel, table=True):
 
 
 class TelemetryAgentMatchRuleBase(SQLModel):
-    region: Optional[str] = None
-    site: Optional[str] = None
-    vendor: Optional[str] = None
-    os: Optional[str] = None
-    status: Optional[str] = None
-    role: Optional[str] = None
+    region: str | None = None
+    site: str | None = None
+    vendor: str | None = None
+    os: str | None = None
+    status: str | None = None
+    role: str | None = None
 
 
 class TelemetryAgentMatchRule(TelemetryAgentMatchRuleBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     telemetry_agent_id: int = Field(foreign_key="telemetryagent.id")
 
 
@@ -50,7 +49,7 @@ class TelemetryAgentMatchRuleResponse(TelemetryAgentMatchRuleBase):
     id: int
 
 
-class InfluxDBVersion(str, Enum):
+class InfluxDBVersion(StrEnum):
     v1 = "v1"
     v2 = "v2"
     v3 = "v3"
@@ -60,17 +59,17 @@ class OutputDestinationBase(SQLModel):
     influxdb_version: InfluxDBVersion = InfluxDBVersion.v2
     url: str = "http://localhost:8086"
     # v2 fields
-    token: Optional[str] = None
-    organization: Optional[str] = None
-    bucket: Optional[str] = None
+    token: str | None = None
+    organization: str | None = None
+    bucket: str | None = None
     # v1 fields
-    database: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
+    database: str | None = None
+    username: str | None = None
+    password: str | None = None
 
 
 class OutputDestination(OutputDestinationBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     telemetry_agent_id: int = Field(foreign_key="telemetryagent.id")
 
 
@@ -79,14 +78,14 @@ class OutputDestinationCreate(OutputDestinationBase):
 
 
 class OutputDestinationUpdate(SQLModel):
-    influxdb_version: Optional[InfluxDBVersion] = None
-    url: Optional[str] = None
-    token: Optional[str] = None
-    organization: Optional[str] = None
-    bucket: Optional[str] = None
-    database: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
+    influxdb_version: InfluxDBVersion | None = None
+    url: str | None = None
+    token: str | None = None
+    organization: str | None = None
+    bucket: str | None = None
+    database: str | None = None
+    username: str | None = None
+    password: str | None = None
 
 
 class OutputDestinationResponse(OutputDestinationBase):
@@ -95,14 +94,14 @@ class OutputDestinationResponse(OutputDestinationBase):
 
 class TelemetryAgentCreate(SQLModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     capabilities: list[TelemetryCapability] = []
 
 
 class TelemetryAgentUpdate(SQLModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    capabilities: Optional[list[TelemetryCapability]] = None
+    name: str | None = None
+    description: str | None = None
+    capabilities: list[TelemetryCapability] | None = None
 
 
 class TelemetryAgentAck(SQLModel):
@@ -112,9 +111,9 @@ class TelemetryAgentAck(SQLModel):
 class TelemetryAgentResponse(TelemetryAgentBase):
     id: int
     config_revision: int = 0
-    last_config_poll: Optional[str] = None
+    last_config_poll: str | None = None
     acked_revision: int = 0
-    acked_at: Optional[str] = None
+    acked_at: str | None = None
     capabilities: list[TelemetryCapability] = []
     nodes: list[int] = []
     rules: list[TelemetryAgentMatchRuleResponse] = []

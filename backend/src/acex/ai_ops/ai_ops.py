@@ -1,12 +1,26 @@
 import json
-from openai import AsyncOpenAI
+
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
-from .settings import DEFAULT_SYSTEM_PROMPTS, CONFIG_ANALYSIS_SYSTEM_PROMPT, CONFIG_ANALYSIS_TASK_PROMPTS, ANALYSIS_MAX_TOKENS, CHAT_MAX_TOKENS
+from openai import AsyncOpenAI
+
+from .settings import (
+    ANALYSIS_MAX_TOKENS,
+    CONFIG_ANALYSIS_SYSTEM_PROMPT,
+    CONFIG_ANALYSIS_TASK_PROMPTS,
+)
+
 
 class AIOpsManager:
-    
-    def __init__(self, api_key: str = None, base_url: str = None, mcp_server_url: str = "http://localhost:8000/mcp", model: str = "openai/gpt-oss-120b", system_prompt: str | list[str] = None, analysis_max_tokens: int = 4096):
+    def __init__(
+        self,
+        api_key: str = None,
+        base_url: str = None,
+        mcp_server_url: str = "http://localhost:8000/mcp",
+        model: str = "openai/gpt-oss-120b",
+        system_prompt: str | list[str] = None,
+        analysis_max_tokens: int = 4096,
+    ):
         """
         Initialize AI Ops Manager with OpenAI client and MCP server.
 
@@ -22,15 +36,20 @@ class AIOpsManager:
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         transport = StreamableHttpTransport(url=mcp_server_url)
         self.mcp = Client(transport)
-        
+
         # Convert system_prompt to list of message dicts
         if system_prompt is None:
-            self.system_messages = [{"role": "system", "content": "You are a helpful network automation assistant with access to network configuration tools."}]
+            self.system_messages = [
+                {
+                    "role": "system",
+                    "content": """You are a helpful network automation assistant 
+                    with access to network configuration tools.""",
+                }
+            ]
         elif isinstance(system_prompt, str):
             self.system_messages = [{"role": "system", "content": system_prompt}]
         else:
             self.system_messages = [{"role": "system", "content": msg} for msg in system_prompt]
-
 
     def _convert_tools(self, tool_list):
         """
@@ -42,8 +61,8 @@ class AIOpsManager:
                 "function": {
                     "name": t.name,
                     "description": getattr(t, "description", "") or "",
-                    "parameters": getattr(t, "parameters", {"type": "object", "properties": {}})
-                }
+                    "parameters": getattr(t, "parameters", {"type": "object", "properties": {}}),
+                },
             }
             for t in tool_list
         ]
@@ -56,7 +75,6 @@ class AIOpsManager:
             args = {}
         result = await self.mcp.call_tool(tool_name, arguments=args)
         return result
-    
 
     async def analyze_config_diff(self, task: str, diff: str, context: str = ""):
         """Stream a focused config-diff analysis without MCP tool calling.
@@ -81,7 +99,12 @@ class AIOpsManager:
         ]
 
         import sys
-        print(f"[AI] analyze_config_diff: task={task} model={self.model} diff_len={len(diff)}", flush=True, file=sys.stderr)
+
+        print(
+            f"[AI] analyze_config_diff: task={task} model={self.model} diff_len={len(diff)}",
+            flush=True,
+            file=sys.stderr,
+        )
         try:
             stream = await self.client.chat.completions.create(
                 model=self.model,
@@ -102,7 +125,13 @@ class AIOpsManager:
                     yield delta.content
         print(f"[AI] stream done, yielded {chunk_count} chunks", flush=True, file=sys.stderr)
 
-    async def ask(self, prompt: str, conversation_history: list[dict] = None, context: str | None = None, extra_system_prompts: list[str] | None = None):
+    async def ask(
+        self,
+        prompt: str,
+        conversation_history: list[dict] = None,
+        context: str | None = None,
+        extra_system_prompts: list[str] | None = None,
+    ):
         """Stream AI response with tool calling support and conversation history
 
         Args:
@@ -130,15 +159,12 @@ class AIOpsManager:
                     *extra_messages,
                     *context_messages,
                     *conversation_history,
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ]
 
                 # First request - check if tools are needed
                 response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    tools=tools,
-                    tool_choice="auto"
+                    model=self.model, messages=messages, tools=tools, tool_choice="auto"
                 )
 
                 msg = response.choices[0].message
@@ -169,20 +195,24 @@ class AIOpsManager:
                                 tool_output = tool_output_text
 
                             # Add tool result to messages
-                            tool_messages.append({
-                                "role": "tool",
-                                "tool_call_id": call.id,
-                                "name": call.function.name,
-                                "content": json.dumps(tool_output)
-                            })
+                            tool_messages.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": call.id,
+                                    "name": call.function.name,
+                                    "content": json.dumps(tool_output),
+                                }
+                            )
                         except Exception as e:
                             yield f"[Error calling {call.function.name}: {str(e)}]\n"
-                            tool_messages.append({
-                                "role": "tool",
-                                "tool_call_id": call.id,
-                                "name": call.function.name,
-                                "content": json.dumps({"error": str(e)})
-                            })
+                            tool_messages.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": call.id,
+                                    "name": call.function.name,
+                                    "content": json.dumps({"error": str(e)}),
+                                }
+                            )
 
                     # Now make a single LLM call with all tool results
                     # Build final messages with tool results
@@ -191,35 +221,40 @@ class AIOpsManager:
                     ]
 
                     # Add assistant message with tool calls
-                    final_messages.append({
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": [
-                            {
-                                "id": call.id,
-                                "type": "function",
-                                "function": {
-                                    "name": call.function.name,
-                                    "arguments": call.function.arguments if isinstance(call.function.arguments, str) else json.dumps(call.function.arguments)
+                    final_messages.append(
+                        {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": call.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": call.function.name,
+                                        "arguments": (
+                                            call.function.arguments
+                                            if isinstance(call.function.arguments, str)
+                                            else json.dumps(call.function.arguments)
+                                        ),
+                                    },
                                 }
-                            }
-                            for call in msg.tool_calls
-                        ]
-                    })
+                                for call in msg.tool_calls
+                            ],
+                        }
+                    )
 
                     # Add all tool results
                     final_messages.extend(tool_messages)
 
                     # Debug: log the final message structure
                     import sys
+
                     print(f"[DEBUG] Final messages count: {len(final_messages)}", file=sys.stderr)
                     print(f"[DEBUG] Last message: {json.dumps(final_messages[-1], indent=2)}", file=sys.stderr)
 
                     try:
                         stream = await self.client.chat.completions.create(
-                            model=self.model,
-                            messages=final_messages,
-                            stream=True
+                            model=self.model, messages=final_messages, stream=True
                         )
 
                         async for chunk in stream:
@@ -230,15 +265,12 @@ class AIOpsManager:
                     except Exception as e:
                         yield f"\n[Error in LLM stream: {str(e)}]\n"
                         import traceback
+
                         yield f"[Traceback: {traceback.format_exc()}]\n"
                 else:
                     # No tools needed - stream initial response
                     stream = await self.client.chat.completions.create(
-                        model=self.model,
-                        messages=messages,
-                        tools=tools,
-                        tool_choice="auto",
-                        stream=True
+                        model=self.model, messages=messages, tools=tools, tool_choice="auto", stream=True
                     )
 
                     async for chunk in stream:
@@ -253,15 +285,17 @@ class AIOpsManager:
                 *self.system_messages,
                 *extra_messages,
                 *context_messages,
-                {"role": "system", "content": "The tool server (MCP) is currently unavailable. Answer based on the page context provided. Do not claim you cannot access data that is already present in the page context."},
+                {
+                    "role": "system",
+                    "content": (
+                        "The tool server (MCP) is currently unavailable. Answer based on the page context "
+                        "provided. Do not claim you cannot access data that is already present in the page context."
+                    ),
+                },
                 *conversation_history,
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ]
-            stream = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                stream=True
-            )
+            stream = await self.client.chat.completions.create(model=self.model, messages=messages, stream=True)
             async for chunk in stream:
                 if chunk.choices:
                     delta = chunk.choices[0].delta

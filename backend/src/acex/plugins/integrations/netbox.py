@@ -1,22 +1,18 @@
+from acex.models import AssetResponse, LogicalNodeResponse
+from acex.utils import RestClient
+
 from .integration_plugin_base import IntegrationPluginBase
 from .integration_plugin_factory_base import IntegrationPluginFactoryBase
-from acex.utils import RestClient
-from acex.models import AssetResponse, LogicalNodeResponse
 
-import json
-from requests import Response
-
-
-# TODO: Fixa en egen hantering av response formatering. 
+# TODO: Fixa en egen hantering av response formatering.
 # Behöver få med:
 # - DatasourceValue
 # - Metadata
 # - Modellering och validering av standardobjekt
-# - Hämta interface uppmappade i netbox för assets? 
+# - Hämta interface uppmappade i netbox för assets?
 
 
-class Netbox(IntegrationPluginFactoryBase): 
-
+class Netbox(IntegrationPluginFactoryBase):
     def __init__(self, url: str, token: str, verify_ssl: bool = True):
         """
         Used to define the connection to netbox. This is a factory class
@@ -28,13 +24,12 @@ class Netbox(IntegrationPluginFactoryBase):
         self.rest.add_header("Authorization", f"Token {self.token}")
         self.rest.add_header("Content-Type", "application/json")
 
-
-    def create_plugin(self, type: str|None = None) -> 'NetboxPlugin':
+    def create_plugin(self, type: str | None = None) -> IntegrationPluginBase:
         """
         Create a plugin instance for a specific model.
         If no type is selected, generic plugin is returned.
         :param type: string representing the model/type to retreive.
-        :return: An instance of NetboxPlugin.
+        :return: An instance of NetboxObjectPlugin or NetboxGenericPlugin.
         """
         if type is not None:
             return NetboxObjectPlugin(type, restclient=self.rest)
@@ -43,18 +38,13 @@ class Netbox(IntegrationPluginFactoryBase):
 
 
 class NetboxGenericPlugin(IntegrationPluginBase):
-    RESOURCE_TYPES = [
-        "prefixes",
-        "ip_addresses"
-    ]
+    RESOURCE_TYPES = ["prefixes", "ip_addresses"]
 
-    DATA_TYPES= [
-        "ip_addresses"
-    ]
+    DATA_TYPES = ["ip_addresses"]
 
     def __init__(self, restclient: RestClient):
         self.rest = restclient
-    
+
     def __repr__(self):
         return f"{self.__class__.__name__}:{self.rest.base_url}"
 
@@ -74,10 +64,10 @@ class NetboxGenericPlugin(IntegrationPluginBase):
             case "ip_addresses":
                 return json_dict["address"]
 
-    def query(self, kind: str, query: dict): 
+    def query(self, kind: str, query: dict):
         endpoint = self._type_to_endpoint(kind)
         if "id" in query:
-            endpoint = endpoint + f"/{query["id"]}"
+            endpoint = endpoint + f"/{query['id']}"
         data = self.rest.get(endpoint, query).json()
         return self._get_output_from_response(kind, data)
 
@@ -88,18 +78,16 @@ class NetboxObjectPlugin(IntegrationPluginBase):
     inventory. Will be instanciated for each model used. Using the Netbox class
     to define the connection details.
     """
+
     PLUGIN_NAME = "netbox"
     OBJECT_TYPES = ["assets", "logical_nodes"]
     ENTITY_ENDPOINTS = {
         "assets": "dcim/devices/",
         "logical_nodes": "dcim/devices/",
     }
-    OBJ_CLASS_MAP = {
-        "assets": AssetResponse,
-        "logical_nodes": LogicalNodeResponse
-    }
+    OBJ_CLASS_MAP = {"assets": AssetResponse, "logical_nodes": LogicalNodeResponse}
 
-    def __init__(self, type:str, restclient: RestClient):
+    def __init__(self, type: str, restclient: RestClient):
         """
         Initialize the Netbox datasource plugin with a Netbox API client.
         :param url: The base URL of the Netbox instance.
@@ -109,12 +97,11 @@ class NetboxObjectPlugin(IntegrationPluginBase):
         self.rest = restclient
         self.type = type
 
-
     def _get_endpoint(self, id: str = None, filters: dict | None = None) -> str:
         """
         Return endpoint for the object type.
         """
-        url =  self.__class__.ENTITY_ENDPOINTS.get(self.type, "")
+        url = self.__class__.ENTITY_ENDPOINTS.get(self.type, "")
         if id is not None:
             url += f"{id}/"
         elif filters:
@@ -125,13 +112,11 @@ class NetboxObjectPlugin(IntegrationPluginBase):
         model = self.__class__.OBJ_CLASS_MAP.get(self.type)
         return model(**json_data)
 
-
     def get(self, id: str):
         response = self.rest.get(self._get_endpoint(id=id))
         response = self._format_model(response.json())
         print(response.json())
         return response
-
 
     def query(self, filters: dict | None = None) -> list:
         response = []

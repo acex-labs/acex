@@ -1,7 +1,8 @@
 from acex.configuration.components.base_component import ConfigComponent
 from acex_devkit.models.composed_configuration import DnsServerAttributes
 
-class DnsServer(ConfigComponent): 
+
+class DnsServer(ConfigComponent):
     type = "dns_server"
     model_cls = DnsServerAttributes
 

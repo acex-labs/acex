@@ -1,8 +1,8 @@
 import inspect
-from acex.models.sites import Site, SiteBase, SiteResponse
+
 from acex.models.pagination import PaginatedResponse
+from acex.models.sites import Site, SiteBase, SiteResponse
 from acex_devkit.models.contact import ContactResponse
-from typing import List
 
 
 class SiteService:
@@ -23,9 +23,9 @@ class SiteService:
         """Berika site med tillhörande kontakter via assignments."""
         if site is None:
             return None
-        data = site.model_dump() if hasattr(site, 'model_dump') else dict(site)
+        data = site.model_dump() if hasattr(site, "model_dump") else dict(site)
         contacts = []
-        if self.inventory and hasattr(self.inventory, 'contact_assignment_manager'):
+        if self.inventory and hasattr(self.inventory, "contact_assignment_manager"):
             assignments = self.inventory.contact_assignment_manager.list_assignments(site_name=site.name)
             for a in assignments:
                 result = await self.inventory.contacts.query(name=a.contact_name)
@@ -54,12 +54,14 @@ class SiteService:
     ) -> PaginatedResponse[SiteResponse]:
 
         query_filters = {
-            k: v for k, v in {
+            k: v
+            for k, v in {
                 "name": name,
                 "display_name": display_name,
                 "city": city,
                 "country": country,
-            }.items() if v is not None
+            }.items()
+            if v is not None
         }
 
         if region and hasattr(self.inventory, "region_assignment_manager"):

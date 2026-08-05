@@ -1,8 +1,8 @@
 """Grafana Sync entrypoint — reconciles ACEX-generated dashboards/datasources to Grafana."""
 
+import logging
 import os
 import sys
-import logging
 
 from acex_client.acex.acex import Acex
 
@@ -31,10 +31,12 @@ def main():
     grafana_password = os.environ.get("GRAFANA_PASSWORD")
 
     missing = [
-        name for name, value in [
+        name
+        for name, value in [
             ("ACEX_API_URL", api_url),
             ("GRAFANA_URL", grafana_url),
-        ] if not value
+        ]
+        if not value
     ]
     if missing:
         logger.error(f"Missing required env vars: {', '.join(missing)}")
@@ -43,9 +45,7 @@ def main():
     has_token = bool(grafana_token)
     has_basic = bool(grafana_user and grafana_password)
     if has_token == has_basic:
-        logger.error(
-            "Set either GRAFANA_TOKEN or GRAFANA_USER+GRAFANA_PASSWORD (not both, not neither)"
-        )
+        logger.error("Set either GRAFANA_TOKEN or GRAFANA_USER+GRAFANA_PASSWORD (not both, not neither)")
         sys.exit(1)
 
     acex_verify_ssl = _bool_env("ACEX_VERIFY_SSL", False)

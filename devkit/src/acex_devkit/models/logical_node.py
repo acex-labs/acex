@@ -1,5 +1,6 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
 
 from acex_devkit.models.base import PersistedResponse
 from acex_devkit.models.composed_configuration import ComposedConfiguration
@@ -8,8 +9,8 @@ from acex_devkit.models.composed_configuration import ComposedConfiguration
 class LogicalNodeBase(BaseModel):
     hostname: str = Field(default="R1")
     role: str = Field(default="core")
-    site: Optional[str] = Field(default=None)
-    sequence: Optional[int] = Field(default=None)
+    site: str | None = Field(default=None)
+    sequence: int | None = Field(default=None)
 
 
 class LogicalNodeCreate(LogicalNodeBase):
@@ -26,5 +27,5 @@ class LogicalNodeResponse(PersistedResponse, LogicalNodeBase):
 
 class LogicalNodeConfigResponse(PersistedResponse, LogicalNodeBase):
     configuration: ComposedConfiguration
-    meta_data: Dict[str, Any] = {}
+    meta_data: dict[str, Any] = {}
     regions: list[str] = []

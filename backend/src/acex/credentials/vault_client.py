@@ -6,15 +6,13 @@ logger = logging.getLogger("acex.vault")
 
 
 class VaultClient:
-
     def __init__(self, url: str, token: str = None, role_id: str = None, secret_id: str = None, verify: bool = True):
         try:
             import hvac
-        except ImportError:
+        except ImportError as exc:
             raise RuntimeError(
-                "HashiCorp Vault support requires the 'hvac' package. "
-                "Install it with: pip install hvac"
-            )
+                "HashiCorp Vault support requires the 'hvac' package. Install it with: pip install hvac"
+            ) from exc
 
         self._client = hvac.Client(url=url, token=token, verify=verify)
 
@@ -60,4 +58,4 @@ class VaultClient:
             )
             return response["data"]["data"]
         except Exception as e:
-            raise RuntimeError(f"Failed to read Vault secret at '{path}': {e}")
+            raise RuntimeError(f"Failed to read Vault secret at '{path}': {e}") from e

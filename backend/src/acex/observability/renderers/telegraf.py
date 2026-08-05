@@ -5,7 +5,9 @@ Free functions (`render_agent_section`, `render_inputs`) compose into
 `TelemetryAgentManager._render_telegraf_config`, so the per-agent endpoint
 and any future global rendering share the same input source.
 """
-from typing import Any, Iterable
+
+from collections.abc import Iterable
+from typing import Any
 
 from acex.observability.components.base import TelemetryComponent
 
@@ -53,13 +55,15 @@ def render_agent_section(
     flush_interval: str = "10s",
     hostname: str = "",
 ) -> str:
-    return "\n".join([
-        "[agent]",
-        f'  hostname = "{hostname}"',
-        f'  interval = "{interval}"',
-        f'  flush_interval = "{flush_interval}"',
-        "",
-    ])
+    return "\n".join(
+        [
+            "[agent]",
+            f'  hostname = "{hostname}"',
+            f'  interval = "{interval}"',
+            f'  flush_interval = "{flush_interval}"',
+            "",
+        ]
+    )
 
 
 def render_inputs(components: Iterable[TelemetryComponent]) -> str:
@@ -72,10 +76,12 @@ def render_inputs(components: Iterable[TelemetryComponent]) -> str:
         block = c.telegraf_input()
         if block is None:
             continue
-        lines.extend(_render_input_block(
-            plugin=block["plugin"],
-            config=block.get("config", {}),
-            tags=block.get("tags", {}),
-            subtables=block.get("subtables"),
-        ))
+        lines.extend(
+            _render_input_block(
+                plugin=block["plugin"],
+                config=block.get("config", {}),
+                tags=block.get("tags", {}),
+                subtables=block.get("subtables"),
+            )
+        )
     return "\n".join(lines)

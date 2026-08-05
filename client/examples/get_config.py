@@ -1,7 +1,6 @@
-
 from acex_client.acex.acex import Acex
 
-a = Acex(baseurl = "http://127.0.0.1/", verify=False)
+a = Acex(baseurl="http://127.0.0.1/", verify=False)
 
 ni = a.node_instances.get(1)
 

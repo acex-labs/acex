@@ -1,7 +1,6 @@
+from acex.constants import BASE_URL
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
-
-from acex.constants import BASE_URL
 
 
 def create_router(automation_engine):

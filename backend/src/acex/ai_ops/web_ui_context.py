@@ -4,7 +4,7 @@ Not used by CLI, agent, or API integrations.
 """
 
 WEB_UI_SYSTEM_PROMPTS = [
-"""\
+    """\
 ACE-X UI SCHEMA
 ===============
 This is the complete, authoritative map of the ACE-X web UI.
@@ -37,8 +37,7 @@ FORBIDDEN — these do not exist anywhere in ACE-X, never suggest them:
   Interfaces, Cabling, Connections, Links, Ports, Neighbors/Neighbours (as tab names)
   Topology tab on a Node detail page
 """,
-
-"""\
+    """\
 ACE-X UI SKILLS
 ===============
 These are the things a user can accomplish by navigating the UI.
@@ -79,8 +78,7 @@ SKILL: Find what physical hardware exists in inventory
 SKILL: Find all devices in a region
   → Nodes list, filter by region  (or Regions page)
 """,
-
-"""\
+    """\
 PAGE CONTEXT RULES
 ==================
 When a "Page context:" system message is present it shows exactly what the user sees right now.

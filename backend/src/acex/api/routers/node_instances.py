@@ -1,17 +1,18 @@
 import base64
 from datetime import datetime
+
+from acex.config_diff import DiffLogicalNode
+from acex.constants import BASE_URL
+from acex.device_configs.device_config_manager import ConfigOutput
+from acex.models.device_config import DeviceConfig
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from acex.constants import BASE_URL
-from acex.models.device_config import DeviceConfig
-from acex.device_configs.device_config_manager import ConfigOutput
-from acex.config_diff import DiffLogicalNode
-
 
 def get_response_model(func):
     import inspect
+
     sig = inspect.signature(func)
     return_annotation = sig.return_annotation
     if return_annotation is inspect.Signature.empty:
@@ -43,7 +44,7 @@ def create_router(automation_engine):
             methods=[method],
             response_model=response_model,
             response_model_exclude_none=True,
-            tags=tags
+            tags=tags,
         )
 
     # Configuration — desired (rendered text via NED)
@@ -52,7 +53,7 @@ def create_router(automation_engine):
         plug.get_rendered_config,
         methods=["GET"],
         response_class=PlainTextResponse,
-        tags=tags
+        tags=tags,
     )
 
     # Configuration — observed snapshots
@@ -80,41 +81,15 @@ def create_router(automation_engine):
     async def intent_diff(id: str):
         return await differ.diff(node_instance_id=id)
 
+    router.add_api_route("/node_instances/{id}/configuration/observed/", list_observed, methods=["GET"], tags=tags)
+    router.add_api_route("/node_instances/{id}/configuration/observed/", upload_observed, methods=["POST"], tags=tags)
     router.add_api_route(
-        "/node_instances/{id}/configuration/observed/",
-        list_observed,
-        methods=["GET"],
-        tags=tags
+        "/node_instances/{id}/configuration/observed/latest", get_observed_latest, methods=["GET"], tags=tags
     )
+    router.add_api_route("/node_instances/{id}/configuration/observed/diff", diff_observed, methods=["GET"], tags=tags)
     router.add_api_route(
-        "/node_instances/{id}/configuration/observed/",
-        upload_observed,
-        methods=["POST"],
-        tags=tags
+        "/node_instances/{id}/configuration/observed/{hash}", get_observed_by_hash, methods=["GET"], tags=tags
     )
-    router.add_api_route(
-        "/node_instances/{id}/configuration/observed/latest",
-        get_observed_latest,
-        methods=["GET"],
-        tags=tags
-    )
-    router.add_api_route(
-        "/node_instances/{id}/configuration/observed/diff",
-        diff_observed,
-        methods=["GET"],
-        tags=tags
-    )
-    router.add_api_route(
-        "/node_instances/{id}/configuration/observed/{hash}",
-        get_observed_by_hash,
-        methods=["GET"],
-        tags=tags
-    )
-    router.add_api_route(
-        "/node_instances/{id}/configuration/intent_diff",
-        intent_diff,
-        methods=["GET"],
-        tags=tags
-    )
+    router.add_api_route("/node_instances/{id}/configuration/intent_diff", intent_diff, methods=["GET"], tags=tags)
 
     return router

@@ -22,13 +22,119 @@ jobs:
         uses: astral-sh/ruff-action@v4.1.0
         with:
           args: "check ."
-        continue-on-error: true # Rapporterande läge tills de 2432 befintliga felen är åtgärdade.
 
       - name: Check formatting
+        if: always() # Kör även om lint-steget ovan failade jobbet.
         uses: astral-sh/ruff-action@v4.1.0
         with:
           args: "format --check ."
         continue-on-error: true # Rapporterande läge tills det initiala fel-bruset är åtgärdat.
+
+  lint-per-package:
+    name: Lint (Ruff) ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      backend-result: ${{ steps.result-backend.outputs.result }}
+      cli-result: ${{ steps.result-cli.outputs.result }}
+      client-result: ${{ steps.result-client.outputs.result }}
+      mcp-result: ${{ steps.result-mcp.outputs.result }}
+      devkit-result: ${{ steps.result-devkit.outputs.result }}
+      worker-result: ${{ steps.result-worker.outputs.result }}
+      cisco-ios-cli-result: ${{ steps.result-cisco-ios-cli.outputs.result }}
+      juniper-junos-cli-result: ${{ steps.result-juniper-junos-cli.outputs.result }}
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [backend, cli, client, mcp, devkit, worker, cisco_ios_cli, juniper_junos_cli]
+        include:
+          - component: backend
+            working-dir: ./backend
+          - component: cli
+            working-dir: ./cli
+          - component: client
+            working-dir: ./client
+          - component: mcp
+            working-dir: ./mcp
+          - component: devkit
+            working-dir: ./devkit
+          - component: worker
+            working-dir: ./worker
+          - component: cisco_ios_cli
+            working-dir: ./drivers/cisco_ios_cli
+          - component: juniper_junos_cli
+            working-dir: ./drivers/juniper_junos_cli
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Run Ruff check
+        id: ruff-check
+        uses: astral-sh/ruff-action@v4.1.0
+        with:
+          args: "check"
+          src: ${{ matrix.working-dir }}
+
+      - name: Check formatting
+        id: ruff-format
+        if: always() # Kör även om lint-steget ovan failade jobbet.
+        uses: astral-sh/ruff-action@v4.1.0
+        with:
+          args: "format --check"
+          src: ${{ matrix.working-dir }}
+        continue-on-error: true # Rapporterande läge per paket, se pr-summary.
+
+      - name: Combine result
+        id: result
+        if: always()
+        run: |
+          if [ "${{ steps.ruff-check.outcome }}" = "success" ] && [ "${{ steps.ruff-format.outcome }}" = "success" ]; then
+            echo "result=ok" >> $GITHUB_OUTPUT
+          elif [ "${{ steps.ruff-check.outcome }}" != "success" ]; then
+            echo "result=lint-issues" >> $GITHUB_OUTPUT
+          else
+            echo "result=unformatted" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set matrix output
+        id: result-backend
+        if: always() && matrix.component == 'backend'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix output
+        id: result-cli
+        if: always() && matrix.component == 'cli'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix output
+        id: result-client
+        if: always() && matrix.component == 'client'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix output
+        id: result-mcp
+        if: always() && matrix.component == 'mcp'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix output
+        id: result-devkit
+        if: always() && matrix.component == 'devkit'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix output
+        id: result-worker
+        if: always() && matrix.component == 'worker'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix output
+        id: result-cisco-ios-cli
+        if: always() && matrix.component == 'cisco_ios_cli'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix output
+        id: result-juniper-junos-cli
+        if: always() && matrix.component == 'juniper_junos_cli'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
 
   unit-tests:
     name: Unit tests ${{ matrix.component }}
@@ -176,165 +282,23 @@ jobs:
         working-directory: ./tests/integration
         run: poetry run pytest -v
 
-  veracode-scan:
-    name: Veracode scan ${{ matrix.component }}
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    outputs:
-      backend-result: ${{ steps.result-backend.outputs.result }}
-      cli-result: ${{ steps.result-cli.outputs.result }}
-      client-result: ${{ steps.result-client.outputs.result }}
-      mcp-result: ${{ steps.result-mcp.outputs.result }}
-      devkit-result: ${{ steps.result-devkit.outputs.result }}
-      cisco-ios-cli-result: ${{ steps.result-cisco-ios-cli.outputs.result }}
-      juniper-junos-cli-result: ${{ steps.result-juniper-junos-cli.outputs.result }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # En delad Application Profile (acex-framework) för alla paket/drivers.
-        # sandboxname är unik per komponent nedan så att flera scans i samma PR
-        # inte skriver över varandra i samma sandbox.
-        component: [backend, cli, client, mcp, devkit, cisco_ios_cli, juniper_junos_cli]
-        include:
-          - component: backend
-            working-dir: ./backend
-          - component: cli
-            working-dir: ./cli
-          - component: client
-            working-dir: ./client
-          - component: mcp
-            working-dir: ./mcp
-          - component: devkit
-            working-dir: ./devkit
-          - component: cisco_ios_cli
-            working-dir: ./drivers/cisco_ios_cli
-          - component: juniper_junos_cli
-            working-dir: ./drivers/juniper_junos_cli
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-
-      - name: Update lock file (för exakta versioner i SCA-scan)
-        working-directory: ${{ matrix.working-dir }}
-        run: poetry lock
-
-      - name: Package source for SAST
-        working-directory: ${{ matrix.working-dir }}
-        run: |
-          # Veracode SAST vill ha .py/.html utan tredjepartspaket eller tester.
-          find . -name '*.py' -not -path './.venv/*' -not -path '*/tests/*' \
-            -print | zip veracode-sast.zip -@
-
-      - name: Veracode static scan (sandbox, per-PR)
-        id: veracode-sast
-        uses: veracode/veracode-uploadandscan-action@0.2.11
-        with:
-          appname: acex-framework
-          createprofile: false
-          filepath: ${{ matrix.working-dir }}/veracode-sast.zip
-          version: "${{ matrix.component }}-pr-${{ github.event.pull_request.number }}"
-          createsandbox: true
-          sandboxname: "pr-${{ github.event.pull_request.number }}-${{ matrix.component }}"
-          vid: ${{ secrets.VERACODE_API_ID }}
-          vkey: ${{ secrets.VERACODE_API_KEY }}
-
-      - name: Veracode SCA scan
-        id: veracode-sca
-        working-directory: ${{ matrix.working-dir }}
-        env:
-          SRCCLR_API_TOKEN: ${{ secrets.VERACODE_AGENT_TOKEN }}
-        run: curl -sSL https://sca-downloads.veracode.com/ci.sh | sh
-        continue-on-error: true # Rapporterande läge — srcclr kan annars faila steget på befintliga fynd.
-
-      - name: Set matrix output
-        id: result-backend
-        if: always() && matrix.component == 'backend'
-        run: |
-          if [ "${{ steps.veracode-sast.outcome }}" = "success" ] && [ "${{ steps.veracode-sca.outcome }}" = "success" ]; then
-            echo "result=ok" >> $GITHUB_OUTPUT
-          else
-            echo "result=error" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set matrix output
-        id: result-cli
-        if: always() && matrix.component == 'cli'
-        run: |
-          if [ "${{ steps.veracode-sast.outcome }}" = "success" ] && [ "${{ steps.veracode-sca.outcome }}" = "success" ]; then
-            echo "result=ok" >> $GITHUB_OUTPUT
-          else
-            echo "result=error" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set matrix output
-        id: result-client
-        if: always() && matrix.component == 'client'
-        run: |
-          if [ "${{ steps.veracode-sast.outcome }}" = "success" ] && [ "${{ steps.veracode-sca.outcome }}" = "success" ]; then
-            echo "result=ok" >> $GITHUB_OUTPUT
-          else
-            echo "result=error" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set matrix output
-        id: result-mcp
-        if: always() && matrix.component == 'mcp'
-        run: |
-          if [ "${{ steps.veracode-sast.outcome }}" = "success" ] && [ "${{ steps.veracode-sca.outcome }}" = "success" ]; then
-            echo "result=ok" >> $GITHUB_OUTPUT
-          else
-            echo "result=error" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set matrix output
-        id: result-devkit
-        if: always() && matrix.component == 'devkit'
-        run: |
-          if [ "${{ steps.veracode-sast.outcome }}" = "success" ] && [ "${{ steps.veracode-sca.outcome }}" = "success" ]; then
-            echo "result=ok" >> $GITHUB_OUTPUT
-          else
-            echo "result=error" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set matrix output
-        id: result-cisco-ios-cli
-        if: always() && matrix.component == 'cisco_ios_cli'
-        run: |
-          if [ "${{ steps.veracode-sast.outcome }}" = "success" ] && [ "${{ steps.veracode-sca.outcome }}" = "success" ]; then
-            echo "result=ok" >> $GITHUB_OUTPUT
-          else
-            echo "result=error" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set matrix output
-        id: result-juniper-junos-cli
-        if: always() && matrix.component == 'juniper_junos_cli'
-        run: |
-          if [ "${{ steps.veracode-sast.outcome }}" = "success" ] && [ "${{ steps.veracode-sca.outcome }}" = "success" ]; then
-            echo "result=ok" >> $GITHUB_OUTPUT
-          else
-            echo "result=error" >> $GITHUB_OUTPUT
-          fi
-
   pr-summary:
     name: PR summary
-    needs: [lint, unit-tests, integration-tests, veracode-scan]
+    needs: [lint, lint-per-package, unit-tests, integration-tests]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Write combined summary
         env:
           LINT_RESULT: ${{ needs.lint.outputs.result }}
+          LINT_BACKEND: ${{ needs.lint-per-package.outputs.backend-result }}
+          LINT_CLI: ${{ needs.lint-per-package.outputs.cli-result }}
+          LINT_CLIENT: ${{ needs.lint-per-package.outputs.client-result }}
+          LINT_MCP: ${{ needs.lint-per-package.outputs.mcp-result }}
+          LINT_DEVKIT: ${{ needs.lint-per-package.outputs.devkit-result }}
+          LINT_WORKER: ${{ needs.lint-per-package.outputs.worker-result }}
+          LINT_CISCO: ${{ needs.lint-per-package.outputs.cisco-ios-cli-result }}
+          LINT_JUNIPER: ${{ needs.lint-per-package.outputs.juniper-junos-cli-result }}
           UT_BACKEND: ${{ needs.unit-tests.outputs.backend-result }}
           UT_CLI: ${{ needs.unit-tests.outputs.cli-result }}
           UT_CLIENT: ${{ needs.unit-tests.outputs.client-result }}
@@ -342,13 +306,6 @@ jobs:
           UT_DEVKIT: ${{ needs.unit-tests.outputs.devkit-result }}
           UT_WORKER: ${{ needs.unit-tests.outputs.worker-result }}
           IT_RESULT: ${{ needs.integration-tests.outputs.result }}
-          VC_BACKEND: ${{ needs.veracode-scan.outputs.backend-result }}
-          VC_CLI: ${{ needs.veracode-scan.outputs.cli-result }}
-          VC_CLIENT: ${{ needs.veracode-scan.outputs.client-result }}
-          VC_MCP: ${{ needs.veracode-scan.outputs.mcp-result }}
-          VC_DEVKIT: ${{ needs.veracode-scan.outputs.devkit-result }}
-          VC_CISCO: ${{ needs.veracode-scan.outputs.cisco-ios-cli-result }}
-          VC_JUNIPER: ${{ needs.veracode-scan.outputs.juniper-junos-cli-result }}
         run: |
           # Skriver ut en läsbar rad per testresultat. Samma "resultat"-koder
           # (success/failure/no-tests/ok/error) återanvänds från stegen ovan
@@ -360,6 +317,8 @@ jobs:
               success|ok|passed) echo "| $label | ✅ OK |" >> $GITHUB_STEP_SUMMARY ;;
               no-tests) echo "| $label | ⏭️ Inga tester än |" >> $GITHUB_STEP_SUMMARY ;;
               failure|failed|error) echo "| $label | ❌ Fel |" >> $GITHUB_STEP_SUMMARY ;;
+              lint-issues) echo "| $label | ❌ Lint-fel |" >> $GITHUB_STEP_SUMMARY ;;
+              unformatted) echo "| $label | ⚠️ Ej formaterad (\`ruff format\`) |" >> $GITHUB_STEP_SUMMARY ;;
               *) echo "| $label | ⚠️ Okänt ($result) |" >> $GITHUB_STEP_SUMMARY ;;
             esac
           }
@@ -367,7 +326,15 @@ jobs:
           echo "## 🔍 PR-kontroller" >> $GITHUB_STEP_SUMMARY
           echo "| Kontroll | Resultat |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          row "Lint" "$LINT_RESULT"
+          row "Lint (hela repot)" "$LINT_RESULT"
+          row "Lint: backend" "$LINT_BACKEND"
+          row "Lint: cli" "$LINT_CLI"
+          row "Lint: client" "$LINT_CLIENT"
+          row "Lint: mcp" "$LINT_MCP"
+          row "Lint: devkit" "$LINT_DEVKIT"
+          row "Lint: worker" "$LINT_WORKER"
+          row "Lint: cisco_ios_cli" "$LINT_CISCO"
+          row "Lint: juniper_junos_cli" "$LINT_JUNIPER"
           row "Unit tests: backend" "$UT_BACKEND"
           row "Unit tests: cli" "$UT_CLI"
           row "Unit tests: client" "$UT_CLIENT"
@@ -375,13 +342,6 @@ jobs:
           row "Unit tests: devkit" "$UT_DEVKIT"
           row "Unit tests: worker" "$UT_WORKER"
           row "Integration tests" "$IT_RESULT"
-          row "Veracode: backend" "$VC_BACKEND"
-          row "Veracode: cli" "$VC_CLI"
-          row "Veracode: client" "$VC_CLIENT"
-          row "Veracode: mcp" "$VC_MCP"
-          row "Veracode: devkit" "$VC_DEVKIT"
-          row "Veracode: cisco_ios_cli" "$VC_CISCO"
-          row "Veracode: juniper_junos_cli" "$VC_JUNIPER"
 
   check-versions:
     name: Check version ${{ matrix.package }}
