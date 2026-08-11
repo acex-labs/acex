@@ -3,7 +3,7 @@
 Reset script — deletes all inventory data in reverse dependency order.
 
 Deletion order:
-  node instances → logical nodes → assets →
+  node instances → logical nodes → asset clusters → assets →
   region assignments → sites → regions
 
 Note: observed config snapshots (device_config table) have no delete
@@ -79,6 +79,9 @@ def main():
 
     print("\n=== Logical Nodes ===")
     delete_all(base, "/api/v1/inventory/logical_nodes/", "/api/v1/inventory/logical_nodes", "logical node")
+
+    print("\n=== Asset Clusters ===")
+    delete_all(base, "/api/v1/inventory/asset_clusters/", "/api/v1/inventory/asset_clusters", "asset cluster")
 
     print("\n=== Assets ===")
     delete_all(base, "/api/v1/inventory/assets/", "/api/v1/inventory/assets", "asset")

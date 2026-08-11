@@ -15,6 +15,8 @@ Usage:
 import argparse
 import base64
 import json
+import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -44,6 +46,34 @@ def post(base, path, body, *, method="POST"):
         body_bytes = e.read()
         print(f"  ERR  {method} {path}: HTTP {e.code} — {body_bytes.decode()[:120]}")
         return None
+
+
+def get_list(base, path):
+    """GET path and return its items as a list, regardless of {items:[...]} or bare-list shape."""
+    req = urllib.request.Request(f"{base}{path}")
+    try:
+        with urllib.request.urlopen(req) as r:
+            resp = json.loads(r.read())
+            return resp.get("items", resp) if isinstance(resp, dict) else resp
+    except urllib.error.HTTPError as e:
+        print(f"  ERR  GET {path}: HTTP {e.code}")
+        return []
+
+
+def get_or_create(base, list_path, field, value, body):
+    """Reuse an existing resource matched by a single query field, or POST a new one.
+
+    The API has no uniqueness constraints on these resources, so re-running the
+    seed script would otherwise create duplicate rows on every invocation.
+    """
+    query = urllib.parse.urlencode({field: value})
+    existing = get_list(base, f"{list_path}?{query}")
+    if existing:
+        item = existing[0]
+        label = item.get("name") or item.get("hostname") or item["id"]
+        print(f"  =    POST {list_path} → reuse id={item['id']} ({label})")
+        return item
+    return post(base, list_path, body)
 
 
 def get_snapshots(hostname: str) -> list[tuple[str, str]]:
@@ -221,19 +251,23 @@ def main():
 
     print("=== Regions ===")
     for r in REGIONS:
-        post(base, "/api/v1/inventory/regions/", r)
+        get_or_create(base, "/api/v1/inventory/regions/", "name", r["name"], r)
 
     print("\n=== Sites ===")
     site_region_map = {}
     for s in SITES:
         region = s.pop("region")
-        resp = post(base, "/api/v1/inventory/sites/", s)
+        resp = get_or_create(base, "/api/v1/inventory/sites/", "name", s["name"], s)
         if resp:
             site_region_map[s["name"]] = region
         s["region"] = region  # restore for re-runs
 
     print("\n=== Region assignments ===")
     for site_name, region_name in site_region_map.items():
+        existing = get_list(base, f"/api/v1/inventory/region_assignments/?site_name={urllib.parse.quote(site_name)}")
+        if existing:
+            print(f"  =    POST /api/v1/inventory/region_assignments/ → reuse (site={site_name})")
+            continue
         post(base, "/api/v1/inventory/region_assignments/", {
             "site_name": site_name,
             "region_name": region_name,
@@ -242,14 +276,14 @@ def main():
     print("\n=== Assets ===")
     asset_ids: dict[int, int] = {}
     for i, asset in enumerate(ASSETS):
-        resp = post(base, "/api/v1/inventory/assets/", asset)
+        resp = get_or_create(base, "/api/v1/inventory/assets/", "serial_number", asset["serial_number"], asset)
         if resp:
             asset_ids[i] = resp["id"]
 
     print("\n=== Asset Clusters ===")
     cluster_ids: dict[int, int] = {}
     for i, cluster in enumerate(CLUSTER_SPECS):
-        resp = post(base, "/api/v1/inventory/asset_clusters/", {
+        resp = get_or_create(base, "/api/v1/inventory/asset_clusters/", "name", cluster["name"], {
             "name": cluster["name"],
             "ned_id": cluster["ned_id"],
         })
@@ -262,7 +296,7 @@ def main():
     ln_ids: dict[int, int] = {}
     for i, spec in enumerate(NODE_SPECS):
         body = {k: v for k, v in spec.items() if k in _LN_API_FIELDS}
-        resp = post(base, "/api/v1/inventory/logical_nodes/", body)
+        resp = get_or_create(base, "/api/v1/inventory/logical_nodes/", "hostname", spec["hostname"], body)
         if resp:
             ln_ids[i] = resp["id"]
 
@@ -286,7 +320,7 @@ def main():
                 continue
             asset_ref_id = asset_ids[a_idx]
             asset_ref_type = "asset"
-        resp = post(base, "/api/v1/inventory/node_instances/", {
+        resp = get_or_create(base, "/api/v1/inventory/node_instances/", "logical_node_id", ln_ids[i], {
             "asset_ref_id": asset_ref_id,
             "asset_ref_type": asset_ref_type,
             "logical_node_id": ln_ids[i],
@@ -304,6 +338,13 @@ def main():
         snapshots = get_snapshots(spec["hostname"])
         if not snapshots:
             print(f"  SKIP  {spec['hostname']} — no .conf files in configs/{spec['hostname']}/")
+            continue
+        # The server hashes normalized/masked content, not the raw upload, so we
+        # can't precompute a hash to dedup individual snapshots — instead treat
+        # "already has any history" as "already seeded" and skip the whole node.
+        existing = get_list(base, f"/api/v1/inventory/node_instances/{nid}/configuration/observed/")
+        if existing:
+            print(f"  =    {spec['hostname']} — reuse existing {len(existing)} snapshot(s)")
             continue
         print(f"  {spec['hostname']} (node_instance_id={nid}) — {len(snapshots)} snapshot(s)")
         for filename, content in snapshots:

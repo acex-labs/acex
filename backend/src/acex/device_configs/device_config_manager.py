@@ -201,11 +201,18 @@ class DeviceConfigManager:
         finally:
             session.close()
 
-    def get_config_by_hash(self, node_instance_id: str, hash: str) -> StoredDeviceConfig:
+    def get_config_by_id(self, node_instance_id: str, config_id: int) -> StoredDeviceConfig:
 
         session = next(self.db.get_session())
         try:
-            existing = session.query(StoredDeviceConfig).filter(StoredDeviceConfig.hash == hash).first()
+            existing = (
+                session.query(StoredDeviceConfig)
+                .filter(
+                    StoredDeviceConfig.id == config_id,
+                    StoredDeviceConfig.node_instance_id == node_instance_id,
+                )
+                .first()
+            )
             return existing
         finally:
             session.close()
@@ -243,12 +250,12 @@ class DeviceConfigManager:
     def diff_configs(
         self,
         node_instance_id: str,
-        a: str,
-        b: str,
+        a: int,
+        b: int,
     ) -> dict:
         """Return a structured line-by-line diff between two stored configs.
 
-        Query params `a` and `b` are config hashes. The response is a dict with:
+        Query params `a` and `b` are config snapshot ids. The response is a dict with:
           - config_a / config_b: hash + created_at metadata
           - diff: list of {type, line_a?, line_b?, text} — same shape the
                   frontend previously computed locally with computeDiff()
@@ -256,8 +263,16 @@ class DeviceConfigManager:
         """
         session = next(self.db.get_session())
         try:
-            cfg_a = session.query(StoredDeviceConfig).filter(StoredDeviceConfig.hash == a).first()
-            cfg_b = session.query(StoredDeviceConfig).filter(StoredDeviceConfig.hash == b).first()
+            cfg_a = (
+                session.query(StoredDeviceConfig)
+                .filter(StoredDeviceConfig.id == a, StoredDeviceConfig.node_instance_id == node_instance_id)
+                .first()
+            )
+            cfg_b = (
+                session.query(StoredDeviceConfig)
+                .filter(StoredDeviceConfig.id == b, StoredDeviceConfig.node_instance_id == node_instance_id)
+                .first()
+            )
 
             if not cfg_a:
                 raise HTTPException(status_code=404, detail=f"Config not found: {a}")
