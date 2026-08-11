@@ -46,7 +46,7 @@ ae.ai_ops(
     enabled=True,
     base_url=os.getenv("ACEX_AI_API_BASEURL"),
     api_key=os.getenv("ACEX_AI_API_KEY"),
-    model="moonshotai/Kimi-K2.6",
+    model="moonshotai/Kimi-K3",
     mcp_server_url="http://localhost:8000/mcp"
 )
 

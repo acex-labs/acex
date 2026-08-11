@@ -69,13 +69,13 @@ def create_router(automation_engine):
             result.content = base64.b64encode(result.content.encode()).decode()
         return result
 
-    async def get_observed_by_hash(id: str, hash: str):
-        result = dcm.get_config_by_hash(node_instance_id=id, hash=hash)
+    async def get_observed_by_id(id: str, config_id: int):
+        result = dcm.get_config_by_id(node_instance_id=id, config_id=config_id)
         if result and isinstance(result.content, str):
             result.content = base64.b64encode(result.content.encode()).decode()
         return result
 
-    async def diff_observed(id: str, a: str, b: str):
+    async def diff_observed(id: str, a: int, b: int):
         return dcm.diff_configs(node_instance_id=id, a=a, b=b)
 
     async def intent_diff(id: str):
@@ -88,7 +88,7 @@ def create_router(automation_engine):
     )
     router.add_api_route("/node_instances/{id}/configuration/observed/diff", diff_observed, methods=["GET"], tags=tags)
     router.add_api_route(
-        "/node_instances/{id}/configuration/observed/{hash}", get_observed_by_hash, methods=["GET"], tags=tags
+        "/node_instances/{id}/configuration/observed/{config_id}", get_observed_by_id, methods=["GET"], tags=tags
     )
     router.add_api_route("/node_instances/{id}/configuration/intent_diff", intent_diff, methods=["GET"], tags=tags)
 
