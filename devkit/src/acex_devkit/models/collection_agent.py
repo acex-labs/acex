@@ -42,3 +42,11 @@ class CollectionAgentResponse(PersistedResponse, CollectionAgentBase):
     nodes: list[int] = []
     rules: list[CollectionAgentMatchRuleResponse] = []
     resolved_nodes: list[int] = []
+
+
+class CollectionAgentAck(BaseModel):
+    config_revision: int
+
+
+class CollectionAgentMatchRuleCreate(CollectionAgentMatchRuleBase):
+    pass

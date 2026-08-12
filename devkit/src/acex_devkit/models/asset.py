@@ -14,6 +14,19 @@ class Asset(BaseModel):
     ned_id: str | None = None
 
 
+class AssetCreate(Asset):
+    pass
+
+
+class AssetUpdate(BaseModel):
+    vendor: str | None = None
+    serial_number: str | None = None
+    os: str | None = None
+    os_version: str | None = None
+    hardware_model: str | None = None
+    ned_id: str | None = None
+
+
 class AssetResponse(PersistedResponse, Asset):
     type: Literal["asset"] = "asset"
 

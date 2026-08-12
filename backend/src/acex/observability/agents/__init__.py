@@ -1,20 +1,22 @@
 from acex.observability.agents.manager import TelemetryAgentManager
 from acex.observability.agents.models import (
-    InfluxDBVersion,
     OutputDestination,
+    TelemetryAgent,
+    TelemetryAgentCapabilityLink,
+    TelemetryAgentMatchRule,
+    TelemetryAgentNodeLink,
+)
+from acex_devkit.models.telemetry_agent import (
+    InfluxDBVersion,
     OutputDestinationBase,
     OutputDestinationCreate,
     OutputDestinationResponse,
     OutputDestinationUpdate,
-    TelemetryAgent,
     TelemetryAgentBase,
-    TelemetryAgentCapabilityLink,
     TelemetryAgentCreate,
-    TelemetryAgentMatchRule,
     TelemetryAgentMatchRuleBase,
     TelemetryAgentMatchRuleCreate,
     TelemetryAgentMatchRuleResponse,
-    TelemetryAgentNodeLink,
     TelemetryAgentResponse,
     TelemetryAgentUpdate,
 )

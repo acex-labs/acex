@@ -17,6 +17,13 @@ class LogicalNodeCreate(LogicalNodeBase):
     pass
 
 
+class LogicalNodeUpdate(BaseModel):
+    hostname: str | None = None
+    role: str | None = None
+    site: str | None = None
+    sequence: int | None = None
+
+
 class LogicalNodeListResponse(PersistedResponse, LogicalNodeBase):
     regions: list[str] = []
 

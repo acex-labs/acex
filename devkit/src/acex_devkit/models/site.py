@@ -15,5 +15,20 @@ class SiteBase(BaseModel):
     description: str | None = None
 
 
+class SiteCreate(SiteBase):
+    pass
+
+
+class SiteUpdate(BaseModel):
+    name: str | None = None
+    display_name: str | None = None
+    address: str | None = None
+    city: str | None = None
+    country: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    description: str | None = None
+
+
 class SiteResponse(PersistedResponse, SiteBase):
     contacts: list[ContactResponse] = []

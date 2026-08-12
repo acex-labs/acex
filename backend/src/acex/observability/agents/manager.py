@@ -7,23 +7,25 @@ from acex.models.management_connections import ManagementConnection
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
 from acex.observability.agents.models import (
-    InfluxDBVersion,
     OutputDestination,
+    TelemetryAgent,
+    TelemetryAgentCapabilityLink,
+    TelemetryAgentMatchRule,
+    TelemetryAgentNodeLink,
+)
+from acex.observability.capability import TelemetryCapability
+from acex_devkit.models.telemetry_agent import (
+    InfluxDBVersion,
     OutputDestinationCreate,
     OutputDestinationResponse,
     OutputDestinationUpdate,
-    TelemetryAgent,
     TelemetryAgentAck,
-    TelemetryAgentCapabilityLink,
     TelemetryAgentCreate,
-    TelemetryAgentMatchRule,
     TelemetryAgentMatchRuleCreate,
     TelemetryAgentMatchRuleResponse,
-    TelemetryAgentNodeLink,
     TelemetryAgentResponse,
     TelemetryAgentUpdate,
 )
-from acex.observability.capability import TelemetryCapability
 from fastapi import HTTPException
 
 

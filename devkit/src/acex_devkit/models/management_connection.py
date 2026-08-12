@@ -16,6 +16,16 @@ class ManagementConnectionBase(BaseModel):
     target_ip: str | None = None
 
 
+class ManagementConnectionCreate(ManagementConnectionBase):
+    pass
+
+
+class ManagementConnectionUpdate(BaseModel):
+    primary: bool | None = None
+    connection_type: ConnectionType | None = None
+    target_ip: str | None = None
+
+
 class ManagementConnectionResponse(PersistedResponse, ManagementConnectionBase):
     node_id: int
 

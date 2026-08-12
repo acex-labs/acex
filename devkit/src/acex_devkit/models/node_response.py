@@ -43,6 +43,17 @@ class NodeListItem(PersistedResponse, NodeBase):
     updated_at: datetime | None = None
 
 
+class NodeCreate(NodeBase):
+    pass
+
+
+class NodeUpdate(BaseModel):
+    asset_ref_id: int | None = None
+    asset_ref_type: AssetRefType | None = None
+    logical_node_id: int | None = None
+    status: NodeStatus | None = None
+
+
 class NodeResponse(PersistedResponse, NodeBase):
     asset: Annotated[AssetResponse | AssetClusterResponse, Field(discriminator="type")]
     logical_node: LogicalNodeResponse

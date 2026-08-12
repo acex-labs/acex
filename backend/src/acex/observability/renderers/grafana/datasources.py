@@ -15,8 +15,8 @@ UIDs are deterministic (`acex-influxdb-{index}`) so re-runs are
 idempotent — same UID, same datasource, no duplicates.
 """
 
-from acex.observability.agents.models import InfluxDBVersion
 from acex.observability.settings import InfluxDBOutput, InfluxDBSettings
+from acex_devkit.models.telemetry_agent import InfluxDBVersion
 
 
 def _slugify_url(url: str) -> str:
