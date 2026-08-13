@@ -1,3 +1,6 @@
+from acex_devkit.models.assignment import (
+    RegionAssignmentCreate as _RegionAssignmentCreateSchema,
+)
 from acex_devkit.models.region import RegionBase as RegionSchema
 from acex_devkit.models.region import RegionResponse, RegionSiteInfo
 from sqlmodel import Field, SQLModel
@@ -17,16 +20,14 @@ class SiteRegionAssignment(SQLModel, table=True):
     site_name: str
 
 
-class SiteRegionAssignmentCreate(SQLModel):
-    region_name: str
-    site_name: str
-
+# Re-exported for API compatibility with the previous backend-local definition.
+RegionAssignmentCreate = _RegionAssignmentCreateSchema
 
 __all__ = [
     "RegionBase",
     "Region",
     "SiteRegionAssignment",
-    "SiteRegionAssignmentCreate",
+    "RegionAssignmentCreate",
     "RegionResponse",
     "RegionSiteInfo",
 ]

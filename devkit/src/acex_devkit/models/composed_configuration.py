@@ -86,7 +86,7 @@ class LoggingComponents(BaseModel):
 
 
 class NtpConfig(BaseModel):
-    enabled: AttributeValue[bool] = AttributeValue(value=False)
+    enabled: AttributeValue[bool] | None = None
 
 
 class NtpServer(ContainerEntry, BaseModel):
@@ -455,7 +455,7 @@ class SnmpPrivProtocol(StrEnum):
 class SnmpConfig(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
-    enabled: AttributeValue[bool] = AttributeValue(value=False)
+    enabled: AttributeValue[bool] | None = None
     engine_id: AttributeValue[str] | None = None
     location: AttributeValue[str] | None = None
     contact: AttributeValue[str] | None = None
@@ -866,7 +866,7 @@ class aaaAccounting(BaseModel):
 class aaaGlobalAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str] | None = None  # ex. default, CONSOLE, etc.
-    enabled: AttributeValue[bool] | None = False  # default False
+    enabled: AttributeValue[bool] | None = None
 
 
 class TripleA(BaseModel):

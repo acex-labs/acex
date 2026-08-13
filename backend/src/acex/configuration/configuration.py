@@ -320,7 +320,7 @@ class Configuration:
     def as_model(self) -> BaseModel:
 
         # Dont edit the actual composed model, we make a model from a copy
-        config = self.composed.copy()
+        config = self.composed.model_copy()
 
         # Apply all values from components to the composed model.
         # Parent paths must be created before child paths (e.g. ACL before ACL entries).
@@ -352,7 +352,7 @@ class Configuration:
 
             # Unwrap single-attribute wrapper models (e.g. SingleAttributeString → AttributeValue)
             model_value = component.model
-            model_fields = component.model.model_fields
+            model_fields = type(component.model).model_fields
             if len(model_fields) == 1 and "value" in model_fields and isinstance(component.model.value, AttributeValue):
                 model_value = component.model.value
 

@@ -1,12 +1,15 @@
 """Collector — uses NEDs to fetch running-configs and uploads to ACEX."""
 
 import asyncio
-import base64
 import logging
 
-import requests
-from acex_client.acex.acex import Acex
+from acex_client import Acex
+from acex_client.exceptions import AcexHTTPError
 from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
+from acex_devkit.models.agent_manifest import ManifestTarget
+from acex_devkit.models.config_snapshot import DeviceConfigUpload
+from acex_devkit.models.credential import CredentialSecret
+from acex_devkit.models.lldp_neighbor import LldpNeighborEntry, LldpNeighborUpload
 from acex_devkit.models.management_connection import ManagementConnection
 from acex_devkit.models.node_response import NodeListItem
 
@@ -17,7 +20,7 @@ class Collector:
     def __init__(self, client: Acex):
         self.client = client
 
-    async def collect_all(self, targets: list[dict], max_concurrent: int = 20) -> list[dict]:
+    async def collect_all(self, targets: list[ManifestTarget], max_concurrent: int = 20) -> list[dict]:
         """Collect configs from all targets concurrently, bounded by max_concurrent."""
         sem = asyncio.Semaphore(max_concurrent)
 
@@ -27,24 +30,20 @@ class Collector:
 
         return list(await asyncio.gather(*[bounded(t) for t in targets]))
 
-    def _fetch_credential_secret(self, credential_id: int) -> dict | None:
+    def _fetch_credential_secret(self, credential_id: int) -> CredentialSecret | None:
         """Fetch decrypted credential fields from ACEX API."""
         try:
-            url = f"{self.client.rest.url}/inventory/credentials/{credential_id}/secret"
-            response = requests.get(url, verify=self.client.rest.verify)
-            if response.ok:
-                return response.json()
-            logger.warning(f"Failed to fetch credentials {credential_id}: {response.status_code}")
+            return self.client.inventory.credentials.secret(credential_id)
         except Exception as e:
             logger.warning(f"Failed to fetch credentials {credential_id}: {e}")
         return None
 
-    async def _collect_one(self, target: dict) -> dict:
+    async def _collect_one(self, target: ManifestTarget) -> dict:
         """Collect config from a single target, dispatching to async or sync driver path."""
-        node_id = target["node_id"]
-        hostname = target.get("hostname", f"node-{node_id}")
-        target_ip = target.get("target_ip")
-        ned_id = target.get("ned_id")
+        node_id = target.node_id
+        hostname = target.hostname or f"node-{node_id}"
+        target_ip = target.target_ip
+        ned_id = target.ned_id
 
         def err(message: str) -> dict:
             return {"node_id": node_id, "hostname": hostname, "status": "error", "message": message}
@@ -54,13 +53,13 @@ class Collector:
         if not ned_id:
             return err("No NED configured")
 
-        credentials = target.get("credentials", {})
+        credentials = target.credentials
         creds = {}
         userpass_id = credentials.get("userpass")
         if userpass_id:
             secret = await asyncio.to_thread(self._fetch_credential_secret, userpass_id)
             if secret:
-                creds = secret.get("fields", {})
+                creds = secret.fields
             else:
                 return err("Failed to fetch credentials")
 
@@ -68,7 +67,7 @@ class Collector:
         if escalation_id:
             secret = await asyncio.to_thread(self._fetch_credential_secret, escalation_id)
             if secret:
-                creds["enable_password"] = secret.get("fields", {}).get("password", "")
+                creds["enable_password"] = secret.fields.get("password", "")
             else:
                 logger.warning(f"Failed to fetch privilege_escalation credential for node {node_id}")
 
@@ -81,14 +80,14 @@ class Collector:
             asset_ref_id=0,
             logical_node_id=0,
             hostname=hostname,
-            vendor=target.get("vendor"),
-            os=target.get("os"),
+            vendor=target.vendor,
+            os=target.os,
             ned_id=ned_id,
         )
         connection = ManagementConnection(
             node_id=node_id,
             target_ip=target_ip,
-            connection_type=target.get("connection_type", "ssh"),
+            connection_type=target.connection_type or "ssh",
         )
 
         logger.info(f"Collecting config from {hostname} ({target_ip}) via {ned_id}")
@@ -152,35 +151,46 @@ class Collector:
         return config_result
 
     def _upload_config(self, node_id: int, hostname: str, config_content: str) -> dict:
-        """Upload collected config to ACEX device_configs API."""
-        encoded = base64.b64encode(config_content.encode()).decode()
-        url = f"{self.client.rest.url}/operations/device_configs/"
-
-        response = requests.post(
-            url,
-            json={"node_instance_id": str(node_id), "content": encoded},
-            verify=self.client.rest.verify,
-        )
-
-        if response.status_code == 409:
-            return {"node_id": node_id, "hostname": hostname, "status": "unchanged", "message": "Config not changed"}
-        elif response.ok:
-            return {"node_id": node_id, "hostname": hostname, "status": "ok", "message": "Config uploaded"}
-        else:
+        """Upload collected config to ACEX observed-configuration API."""
+        try:
+            self.client.inventory.node_instances.upload_observed(
+                str(node_id),
+                payload=DeviceConfigUpload(content=config_content),
+            )
+        except AcexHTTPError as e:
+            if e.status_code == 409:
+                return {
+                    "node_id": node_id,
+                    "hostname": hostname,
+                    "status": "unchanged",
+                    "message": "Config not changed",
+                }
             return {
                 "node_id": node_id,
                 "hostname": hostname,
                 "status": "error",
-                "message": f"Upload failed ({response.status_code})",
+                "message": f"Upload failed ({e.status_code})",
             }
+        except Exception as e:
+            return {
+                "node_id": node_id,
+                "hostname": hostname,
+                "status": "error",
+                "message": f"Upload failed: {e}",
+            }
+        return {"node_id": node_id, "hostname": hostname, "status": "ok", "message": "Config uploaded"}
 
     def _upload_neighbors(self, node_id: int, neighbors: list[dict]):
         """Upload LLDP/CDP neighbors to ACEX API."""
-        url = f"{self.client.rest.url}/operations/lldp_neighbors/"
-        response = requests.post(
-            url,
-            json={"node_instance_id": node_id, "neighbors": neighbors},
-            verify=self.client.rest.verify,
-        )
-        if response.status_code not in (200, 409):
-            logger.warning(f"  Node #{node_id}: neighbor upload failed ({response.status_code})")
+        try:
+            self.client.operations.lldp.upload(
+                payload=LldpNeighborUpload(
+                    node_instance_id=node_id,
+                    neighbors=[LldpNeighborEntry(**n) for n in neighbors],
+                ),
+            )
+        except AcexHTTPError as e:
+            if e.status_code not in (200, 409):
+                logger.warning(f"  Node #{node_id}: neighbor upload failed ({e.status_code})")
+        except Exception as e:
+            logger.warning(f"  Node #{node_id}: neighbor upload failed: {e}")

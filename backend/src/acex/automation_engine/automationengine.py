@@ -234,8 +234,8 @@ class AutomationEngine:
     def _make_influxdb_output(
         url, version, token, organization, bucket, database, username, password, content_encoding
     ):
-        from acex.observability.agents.models import InfluxDBVersion
         from acex.observability.settings import InfluxDBOutput
+        from acex_devkit.models.telemetry_agent import InfluxDBVersion
 
         return InfluxDBOutput(
             version=InfluxDBVersion(version),

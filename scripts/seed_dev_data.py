@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Seed script for local development — populates the database with regions,
-sites, region assignments, assets, logical nodes, node instances, and
-configuration history.
+sites, region assignments, assets, asset clusters, logical nodes, node
+instances, and configuration history.
 
 Config snapshots are read from scripts/configs/{hostname}/*.conf (sorted
 alphabetically), so adding a new revision is as simple as dropping another
@@ -13,71 +13,33 @@ Usage:
 """
 
 import argparse
-import base64
-import json
-import urllib.error
-import urllib.parse
-import urllib.request
+import os
 from pathlib import Path
+
+from acex_client import Acex
+from acex_client.auth import NullAuthProvider
+from acex_devkit.models.config_snapshot import DeviceConfigUpload
+from acex_devkit.models.lldp_neighbor import LldpNeighborEntry, LldpNeighborUpload
 
 CONFIGS_DIR = Path(__file__).parent / "configs"
 
 
-def b64(text):
-    return base64.b64encode(text.encode()).decode()
-
-
-def post(base, path, body, *, method="POST"):
-    data = json.dumps(body).encode()
-    req = urllib.request.Request(
-        f"{base}{path}", data=data,
-        headers={"Content-Type": "application/json"},
-        method=method,
-    )
-    try:
-        with urllib.request.urlopen(req) as r:
-            resp = json.loads(r.read())
-            label = resp.get("name") or resp.get("id") or resp.get("hash") or ""
-            if isinstance(label, str) and len(label) > 12:
-                label = label[:12] + "…"
-            print(f"  OK   {method} {path} → {label}")
-            return resp
-    except urllib.error.HTTPError as e:
-        body_bytes = e.read()
-        print(f"  ERR  {method} {path}: HTTP {e.code} — {body_bytes.decode()[:120]}")
-        return None
-
-
-def get_list(base, path):
-    """GET path and return its items as a list, regardless of {items:[...]} or bare-list shape."""
-    req = urllib.request.Request(f"{base}{path}")
-    try:
-        with urllib.request.urlopen(req) as r:
-            resp = json.loads(r.read())
-            return resp.get("items", resp) if isinstance(resp, dict) else resp
-    except urllib.error.HTTPError as e:
-        print(f"  ERR  GET {path}: HTTP {e.code}")
-        return []
-
-
-def get_or_create(base, list_path, field, value, body):
-    """Reuse an existing resource matched by a single query field, or POST a new one.
+def get_or_create(resource, match_field, match_value, body):
+    """Reuse an existing resource matched by a single query field, or create a new one.
 
     The API has no uniqueness constraints on these resources, so re-running the
     seed script would otherwise create duplicate rows on every invocation.
     """
-    query = urllib.parse.urlencode({field: value})
-    existing = get_list(base, f"{list_path}?{query}")
+    existing = resource.query(**{match_field: match_value})
     if existing:
-        item = existing[0]
-        label = item.get("name") or item.get("hostname") or item["id"]
-        print(f"  =    POST {list_path} → reuse id={item['id']} ({label})")
+        item = existing.items[0]
+        print(f"  =    reuse id={item.id} ({match_value})")
         return item
-    return post(base, list_path, body)
+    return resource.create(**body)
 
 
 def get_snapshots(hostname: str) -> list[tuple[str, str]]:
-    """Return [(filename, content), …] for all *.conf files under configs/{hostname}/, sorted."""
+    """Return [(filename, content), ...] for all *.conf files under configs/{hostname}/, sorted."""
     node_dir = CONFIGS_DIR / hostname
     if not node_dir.is_dir():
         return []
@@ -159,17 +121,17 @@ NODE_SPECS = [
     {
         "hostname": "sto-office1-dist-1", "role": "distribution", "site": "sto-office1", "sequence": 1, "asset_idx": 1,
         "lldp": [
-            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "sto-office1-core-1",      "remote_interface": "GigabitEthernet1/0/2"},
-            {"local_interface": "GigabitEthernet1/0/2",  "remote_device": "sto-office1-acc-1",        "remote_interface": "GigabitEthernet1/0/49"},
-            {"local_interface": "GigabitEthernet1/0/3",  "remote_device": "sto-office1-acc-stack-1",  "remote_interface": "GigabitEthernet1/0/49"},
+            {"local_interface": "GigabitEthernet1/0/1", "remote_device": "sto-office1-core-1",      "remote_interface": "GigabitEthernet1/0/2"},
+            {"local_interface": "GigabitEthernet1/0/2", "remote_device": "sto-office1-acc-1",        "remote_interface": "GigabitEthernet1/0/49"},
+            {"local_interface": "GigabitEthernet1/0/3", "remote_device": "sto-office1-acc-stack-1",  "remote_interface": "GigabitEthernet1/0/49"},
         ],
     },
     {
         "hostname": "sto-office1-dist-2", "role": "distribution", "site": "sto-office1", "sequence": 2, "asset_idx": 2,
         "lldp": [
-            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "sto-office1-core-1",      "remote_interface": "GigabitEthernet1/0/3"},
-            {"local_interface": "GigabitEthernet1/0/2",  "remote_device": "sto-office1-acc-2",        "remote_interface": "GigabitEthernet1/0/49"},
-            {"local_interface": "GigabitEthernet1/0/3",  "remote_device": "sto-office1-acc-stack-1",  "remote_interface": "GigabitEthernet2/0/49"},
+            {"local_interface": "GigabitEthernet1/0/1", "remote_device": "sto-office1-core-1",      "remote_interface": "GigabitEthernet1/0/3"},
+            {"local_interface": "GigabitEthernet1/0/2", "remote_device": "sto-office1-acc-2",        "remote_interface": "GigabitEthernet1/0/49"},
+            {"local_interface": "GigabitEthernet1/0/3", "remote_device": "sto-office1-acc-stack-1",  "remote_interface": "GigabitEthernet2/0/49"},
         ],
     },
     # STO-OFFICE1: access layer
@@ -179,17 +141,17 @@ NODE_SPECS = [
         "hostname": "sto-office1-acc-1", "role": "access", "site": "sto-office1", "sequence": 1, "asset_idx": 7,
         "lldp": [
             {"local_interface": "GigabitEthernet1/0/49", "remote_device": "sto-office1-dist-1",  "remote_interface": "GigabitEthernet1/0/2"},
-            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "SEP1C1D864A2F01",     "remote_interface": "Port 1"},
-            {"local_interface": "GigabitEthernet1/0/2",  "remote_device": "SEP1C1D864A2F02",     "remote_interface": "Port 1"},
-            {"local_interface": "GigabitEthernet1/0/3",  "remote_device": "SEP1C1D864A2F03",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet1/0/1", "remote_device": "SEP1C1D864A2F01",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet1/0/2", "remote_device": "SEP1C1D864A2F02",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet1/0/3", "remote_device": "SEP1C1D864A2F03",     "remote_interface": "Port 1"},
         ],
     },
     {
         "hostname": "sto-office1-acc-2", "role": "access", "site": "sto-office1", "sequence": 2, "asset_idx": 8,
         "lldp": [
             {"local_interface": "GigabitEthernet1/0/49", "remote_device": "sto-office1-dist-2",  "remote_interface": "GigabitEthernet1/0/2"},
-            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "SEP2A3B4C5D6E01",     "remote_interface": "Port 1"},
-            {"local_interface": "GigabitEthernet1/0/2",  "remote_device": "SEP2A3B4C5D6E02",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet1/0/1", "remote_device": "SEP2A3B4C5D6E01",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet1/0/2", "remote_device": "SEP2A3B4C5D6E02",     "remote_interface": "Port 1"},
         ],
     },
     # 3-member Cisco 9300 StackWise-480; dual-homed: member 1 → dist-1, member 2 → dist-2.
@@ -198,9 +160,9 @@ NODE_SPECS = [
         "lldp": [
             {"local_interface": "GigabitEthernet1/0/49", "remote_device": "sto-office1-dist-1",  "remote_interface": "GigabitEthernet1/0/3"},
             {"local_interface": "GigabitEthernet2/0/49", "remote_device": "sto-office1-dist-2",  "remote_interface": "GigabitEthernet1/0/3"},
-            {"local_interface": "GigabitEthernet1/0/1",  "remote_device": "SEP3F4E5D6C7B01",     "remote_interface": "Port 1"},
-            {"local_interface": "GigabitEthernet2/0/1",  "remote_device": "SEP3F4E5D6C7B02",     "remote_interface": "Port 1"},
-            {"local_interface": "GigabitEthernet3/0/1",  "remote_device": "SEP3F4E5D6C7B03",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet1/0/1", "remote_device": "SEP3F4E5D6C7B01",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet2/0/1", "remote_device": "SEP3F4E5D6C7B02",     "remote_interface": "Port 1"},
+            {"local_interface": "GigabitEthernet3/0/1", "remote_device": "SEP3F4E5D6C7B03",     "remote_interface": "Port 1"},
         ],
     },
     # AMS-DC1: spine-leaf (core → leaf × 2) + OOB
@@ -245,60 +207,59 @@ def main():
     )
     parser.add_argument("--base-url", default="http://localhost:80", help="API base URL")
     args = parser.parse_args()
-    base = args.base_url.rstrip("/")
 
-    print(f"\nSeeding {base}\n")
+    print(f"\nSeeding {args.base_url}\n")
+
+    client = Acex(base_url=args.base_url, auth=NullAuthProvider(), verify=False)
 
     print("=== Regions ===")
     for r in REGIONS:
-        get_or_create(base, "/api/v1/inventory/regions/", "name", r["name"], r)
+        get_or_create(client.inventory.regions, "name", r["name"], r)
 
     print("\n=== Sites ===")
     site_region_map = {}
     for s in SITES:
         region = s.pop("region")
-        resp = get_or_create(base, "/api/v1/inventory/sites/", "name", s["name"], s)
+        body = dict(s)
+        resp = get_or_create(client.inventory.sites, "name", s["name"], body)
         if resp:
             site_region_map[s["name"]] = region
         s["region"] = region  # restore for re-runs
 
     print("\n=== Region assignments ===")
     for site_name, region_name in site_region_map.items():
-        existing = get_list(base, f"/api/v1/inventory/region_assignments/?site_name={urllib.parse.quote(site_name)}")
+        existing = client.inventory.region_assignments.query(site_name=site_name)
         if existing:
-            print(f"  =    POST /api/v1/inventory/region_assignments/ → reuse (site={site_name})")
+            print(f"  =    reuse (site={site_name})")
             continue
-        post(base, "/api/v1/inventory/region_assignments/", {
-            "site_name": site_name,
-            "region_name": region_name,
-        })
+        client.inventory.region_assignments.create(region_name=region_name, site_name=site_name)
 
     print("\n=== Assets ===")
     asset_ids: dict[int, int] = {}
     for i, asset in enumerate(ASSETS):
-        resp = get_or_create(base, "/api/v1/inventory/assets/", "serial_number", asset["serial_number"], asset)
+        resp = get_or_create(client.inventory.assets, "serial_number", asset["serial_number"], asset)
         if resp:
-            asset_ids[i] = resp["id"]
+            asset_ids[i] = resp.id
 
     print("\n=== Asset Clusters ===")
     cluster_ids: dict[int, int] = {}
     for i, cluster in enumerate(CLUSTER_SPECS):
-        resp = get_or_create(base, "/api/v1/inventory/asset_clusters/", "name", cluster["name"], {
+        resp = get_or_create(client.inventory.asset_clusters, "name", cluster["name"], {
             "name": cluster["name"],
             "ned_id": cluster["ned_id"],
         })
         if resp:
-            cluster_ids[i] = resp["id"]
+            cluster_ids[i] = resp.id
             member_ids = [asset_ids[a] for a in cluster["asset_idxs"] if a in asset_ids]
-            post(base, f"/api/v1/inventory/asset_clusters/{resp['id']}", {"asset_ids": member_ids}, method="PATCH")
+            client.inventory.asset_clusters.update(resp.id, asset_ids=member_ids)
 
     print("\n=== Logical Nodes ===")
     ln_ids: dict[int, int] = {}
     for i, spec in enumerate(NODE_SPECS):
         body = {k: v for k, v in spec.items() if k in _LN_API_FIELDS}
-        resp = get_or_create(base, "/api/v1/inventory/logical_nodes/", "hostname", spec["hostname"], body)
+        resp = get_or_create(client.inventory.logical_nodes, "hostname", spec["hostname"], body)
         if resp:
-            ln_ids[i] = resp["id"]
+            ln_ids[i] = resp.id
 
     print("\n=== Node Instances ===")
     node_ids: dict[int, int] = {}
@@ -320,14 +281,14 @@ def main():
                 continue
             asset_ref_id = asset_ids[a_idx]
             asset_ref_type = "asset"
-        resp = get_or_create(base, "/api/v1/inventory/node_instances/", "logical_node_id", ln_ids[i], {
+        resp = get_or_create(client.inventory.node_instances, "logical_node_id", ln_ids[i], {
             "asset_ref_id": asset_ref_id,
             "asset_ref_type": asset_ref_type,
             "logical_node_id": ln_ids[i],
             "status": "active",
         })
         if resp:
-            node_ids[i] = resp["id"]
+            node_ids[i] = resp.id
 
     print("\n=== Configuration History ===")
     for i, spec in enumerate(NODE_SPECS):
@@ -339,35 +300,31 @@ def main():
         if not snapshots:
             print(f"  SKIP  {spec['hostname']} — no .conf files in configs/{spec['hostname']}/")
             continue
-        # The server hashes normalized/masked content, not the raw upload, so we
-        # can't precompute a hash to dedup individual snapshots — instead treat
-        # "already has any history" as "already seeded" and skip the whole node.
-        existing = get_list(base, f"/api/v1/inventory/node_instances/{nid}/configuration/observed/")
+        existing = client.inventory.node_instances.list_observed(id=nid)
         if existing:
             print(f"  =    {spec['hostname']} — reuse existing {len(existing)} snapshot(s)")
             continue
         print(f"  {spec['hostname']} (node_instance_id={nid}) — {len(snapshots)} snapshot(s)")
         for filename, content in snapshots:
-            resp = post(
-                base,
-                f"/api/v1/inventory/node_instances/{nid}/configuration/observed/",
-                {"content": b64(content)},
+            resp = client.inventory.node_instances.upload_observed(
+                id=nid,
+                payload=DeviceConfigUpload(content=content),
             )
-            if resp:
-                h = (resp.get("hash") or "")[:8]
-                print(f"    {filename} → {h}…")
+            h = (resp.get("hash") or "")[:8]
+            print(f"    {filename} → {h}…")
 
     print("\n=== LLDP Neighbors ===")
     for i, spec in enumerate(NODE_SPECS):
         if i not in node_ids or not spec.get("lldp"):
             continue
         nid = node_ids[i]
-        resp = post(base, "/api/v1/operations/lldp_neighbors/", {
-            "node_instance_id": nid,
-            "neighbors": spec["lldp"],
-        })
-        if resp:
-            print(f"    {spec['hostname']} — {resp.get('count', 0)} neighbor(s)")
+        resp = client.operations.lldp.upload(
+            payload=LldpNeighborUpload(
+                node_instance_id=nid,
+                neighbors=[LldpNeighborEntry(**n) for n in spec["lldp"]],
+            ),
+        )
+        print(f"    {spec['hostname']} — {resp.uploaded} neighbor(s)")
 
     print("\nDone.")
 

@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 
-from acex_client.acex.acex import Acex
+from acex_client import Acex
 
 from acex_telemetry_agent.agent import TelemetryAgent
 
@@ -24,11 +24,11 @@ def main():
         sys.exit(1)
 
     agent_id = int(agent_id)
-    verify_ssl = os.environ.get("ACEX_VERIFY_SSL", "false").lower() == "true"
+    verify_ssl = os.environ.get("ACEX_VERIFY_SSL", "true").lower() == "true"
     config_path = os.environ.get("TELEGRAF_CONFIG_PATH", "/etc/telegraf/telegraf.conf")
     poll_interval = int(os.environ.get("POLL_INTERVAL_SECONDS", "60"))
 
-    client = Acex(baseurl=f"{api_url.rstrip('/')}/", verify=verify_ssl)
+    client = Acex(base_url=f"{api_url.rstrip('/')}/", verify=verify_ssl)
 
     agent = TelemetryAgent(
         client=client,

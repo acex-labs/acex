@@ -1,6 +1,6 @@
 import os
 
-from acex.observability.agents.models import InfluxDBVersion
+from acex_devkit.models.telemetry_agent import InfluxDBVersion
 from pydantic import BaseModel
 
 ENV_PREFIX = "ACEX_INFLUXDB_"

@@ -1,5 +1,12 @@
 """Models for ACE-X DevKit."""
 
+from .agent_manifest import (
+    AckResult,
+    AgentConfigResponse,
+    CollectionAgentManifest,
+    ManifestTarget,
+)
+from .ai_ops import AiAnalysisRequest, AiAnalysisTask, AiAskRequest
 from .asset import (
     Asset,
     AssetClusterAssetResponse,
@@ -7,19 +14,56 @@ from .asset import (
     AssetClusterCreate,
     AssetClusterResponse,
     AssetClusterUpdate,
+    AssetCreate,
     AssetResponse,
+    AssetUpdate,
+)
+from .assignment import (
+    ContactAssignmentCreate,
+    ContactAssignmentResponse,
+    RegionAssignmentCreate,
+    RegionAssignmentResponse,
 )
 from .attribute_value import AttributeValue
+from .auth_config import AuthConfig
 from .base import PersistedResponse
+from .capability import TelemetryCapability
 from .collection_agent import (
+    CollectionAgentAck,
     CollectionAgentBase,
     CollectionAgentCreate,
     CollectionAgentMatchRuleBase,
+    CollectionAgentMatchRuleCreate,
     CollectionAgentMatchRuleResponse,
     CollectionAgentResponse,
     CollectionAgentUpdate,
 )
-from .contact import ContactBase, ContactResponse
+from .compliance import ComplianceResult, SiteComplianceResult
+from .config_components import (
+    ConfigComponentCatalogEntry,
+    ConfigComponentField,
+    ConfigMapGenerateRequest,
+    ConfigMapGenerateResponse,
+    NedDriverEntry,
+    ReconcileMode,
+    ReconcileRequest,
+    ReconcileResponse,
+    TranslateRequest,
+    TranslateResponse,
+)
+from .config_snapshot import (
+    ConfigChangeListItem,
+    ConfigChangeListResult,
+    ConfigDiffEntry,
+    ConfigDiffResult,
+    ConfigDiffSide,
+    ConfigDiffStats,
+    ConfigOutput,
+    ConfigSnapshotDetail,
+    ConfigSnapshotListItem,
+    DeviceConfigUpload,
+)
+from .contact import ContactBase, ContactCreate, ContactResponse, ContactUpdate
 from .credential import (
     CredentialBase,
     CredentialCreate,
@@ -32,25 +76,61 @@ from .credential import (
     NodeCredentialResponse,
 )
 from .external_value import ExternalValue
-from .lldp_neighbor import LldpNeighborBase, LldpNeighborEntry, LldpNeighborResponse, LldpNeighborUpload
+from .lldp_neighbor import (
+    LldpNeighborBase,
+    LldpNeighborEntry,
+    LldpNeighborResponse,
+    LldpNeighborUpload,
+)
+from .lldp_topology import (
+    LldpTopology,
+    LldpTopologyEdge,
+    LldpTopologyNode,
+    LldpUploadResult,
+)
 from .logical_node import (
     LogicalNodeBase,
     LogicalNodeConfigResponse,
     LogicalNodeCreate,
     LogicalNodeListResponse,
     LogicalNodeResponse,
+    LogicalNodeUpdate,
 )
 from .management_connection import (
     ConnectionType,
     ManagementConnection,
     ManagementConnectionBase,
+    ManagementConnectionCreate,
     ManagementConnectionResponse,
+    ManagementConnectionUpdate,
 )
 from .ned import Ned
-from .node_response import AssetRefType, NodeListItem, NodeResponse, NodeStatus
+from .node_response import (
+    AssetRefType,
+    NodeCreate,
+    NodeListItem,
+    NodeResponse,
+    NodeStatus,
+    NodeUpdate,
+)
 from .pagination import PaginatedResponse
-from .region import RegionBase, RegionResponse, RegionSiteInfo
-from .site import SiteBase, SiteResponse
+from .region import RegionBase, RegionCreate, RegionResponse, RegionSiteInfo, RegionUpdate
+from .site import SiteBase, SiteCreate, SiteResponse, SiteUpdate
+from .telemetry_agent import (
+    InfluxDBVersion,
+    OutputDestinationBase,
+    OutputDestinationCreate,
+    OutputDestinationResponse,
+    OutputDestinationUpdate,
+    TelemetryAgentAck,
+    TelemetryAgentBase,
+    TelemetryAgentCreate,
+    TelemetryAgentMatchRuleBase,
+    TelemetryAgentMatchRuleCreate,
+    TelemetryAgentMatchRuleResponse,
+    TelemetryAgentResponse,
+    TelemetryAgentUpdate,
+)
 
 __all__ = [
     "PersistedResponse",
@@ -58,10 +138,14 @@ __all__ = [
     "AttributeValue",
     "ManagementConnection",
     "ManagementConnectionBase",
+    "ManagementConnectionCreate",
     "ManagementConnectionResponse",
+    "ManagementConnectionUpdate",
     "ConnectionType",
     "Asset",
+    "AssetCreate",
     "AssetResponse",
+    "AssetUpdate",
     "AssetClusterBase",
     "AssetClusterCreate",
     "AssetClusterUpdate",
@@ -70,11 +154,14 @@ __all__ = [
     "Ned",
     "LogicalNodeBase",
     "LogicalNodeCreate",
+    "LogicalNodeUpdate",
     "LogicalNodeListResponse",
     "LogicalNodeResponse",
     "LogicalNodeConfigResponse",
+    "NodeCreate",
     "NodeResponse",
     "NodeListItem",
+    "NodeUpdate",
     "AssetRefType",
     "NodeStatus",
     "CredentialBase",
@@ -87,21 +174,81 @@ __all__ = [
     "NodeCredentialCreate",
     "NodeCredentialResponse",
     "ContactBase",
+    "ContactCreate",
     "ContactResponse",
+    "ContactUpdate",
     "SiteBase",
+    "SiteCreate",
     "SiteResponse",
+    "SiteUpdate",
     "RegionBase",
-    "RegionSiteInfo",
+    "RegionCreate",
     "RegionResponse",
+    "RegionSiteInfo",
+    "RegionUpdate",
+    "RegionAssignmentCreate",
+    "RegionAssignmentResponse",
+    "ContactAssignmentCreate",
+    "ContactAssignmentResponse",
     "CollectionAgentBase",
     "CollectionAgentMatchRuleBase",
+    "CollectionAgentMatchRuleCreate",
     "CollectionAgentMatchRuleResponse",
     "CollectionAgentCreate",
     "CollectionAgentUpdate",
     "CollectionAgentResponse",
+    "CollectionAgentAck",
+    "CollectionAgentManifest",
+    "ManifestTarget",
+    "AckResult",
+    "AgentConfigResponse",
     "LldpNeighborBase",
     "LldpNeighborEntry",
     "LldpNeighborUpload",
     "LldpNeighborResponse",
+    "LldpTopology",
+    "LldpTopologyEdge",
+    "LldpTopologyNode",
+    "LldpUploadResult",
+    "ComplianceResult",
+    "SiteComplianceResult",
+    "ConfigOutput",
+    "DeviceConfigUpload",
+    "ConfigSnapshotListItem",
+    "ConfigSnapshotDetail",
+    "ConfigDiffSide",
+    "ConfigDiffEntry",
+    "ConfigDiffStats",
+    "ConfigDiffResult",
+    "ConfigChangeListItem",
+    "ConfigChangeListResult",
+    "ConfigComponentField",
+    "ConfigComponentCatalogEntry",
+    "NedDriverEntry",
+    "ConfigMapGenerateRequest",
+    "ConfigMapGenerateResponse",
+    "ReconcileMode",
+    "ReconcileRequest",
+    "ReconcileResponse",
+    "TranslateRequest",
+    "TranslateResponse",
+    "AuthConfig",
+    "AiAskRequest",
+    "AiAnalysisTask",
+    "AiAnalysisRequest",
+    "TelemetryCapability",
+    "TelemetryAgentBase",
+    "TelemetryAgentCreate",
+    "TelemetryAgentUpdate",
+    "TelemetryAgentAck",
+    "TelemetryAgentResponse",
+    "TelemetryAgentMatchRuleBase",
+    "TelemetryAgentMatchRuleCreate",
+    "TelemetryAgentMatchRuleResponse",
+    "InfluxDBVersion",
+    "OutputDestinationBase",
+    "OutputDestinationCreate",
+    "OutputDestinationUpdate",
+    "OutputDestinationResponse",
     "PaginatedResponse",
 ]

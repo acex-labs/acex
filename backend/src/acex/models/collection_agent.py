@@ -1,11 +1,12 @@
 from acex_devkit.models.collection_agent import (
-    CollectionAgentBase as CollectionAgentSchema,
-)
-from acex_devkit.models.collection_agent import (
+    CollectionAgentAck,
     CollectionAgentCreate,
     CollectionAgentMatchRuleResponse,
     CollectionAgentResponse,
     CollectionAgentUpdate,
+)
+from acex_devkit.models.collection_agent import (
+    CollectionAgentBase as CollectionAgentSchema,
 )
 from acex_devkit.models.collection_agent import (
     CollectionAgentMatchRuleBase as CollectionAgentMatchRuleSchema,
@@ -48,10 +49,6 @@ class CollectionAgentMatchRuleCreate(CollectionAgentMatchRuleBase):
 class CollectionAgentMatchRule(CollectionAgentMatchRuleBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     collection_agent_id: int = Field(foreign_key="collectionagent.id")
-
-
-class CollectionAgentAck(SQLModel):
-    config_revision: int
 
 
 __all__ = [

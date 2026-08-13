@@ -1,4 +1,4 @@
-from acex.models.regions import SiteRegionAssignment, SiteRegionAssignmentCreate
+from acex.models.regions import RegionAssignmentCreate, SiteRegionAssignment
 from fastapi import HTTPException
 
 
@@ -16,7 +16,7 @@ class RegionAssignmentManager:
         if not sites.items:
             raise HTTPException(status_code=404, detail=f"Site '{site_name}' not found")
 
-    async def create_assignment(self, payload: SiteRegionAssignmentCreate) -> SiteRegionAssignment:
+    async def create_assignment(self, payload: RegionAssignmentCreate) -> SiteRegionAssignment:
         await self._validate_refs(payload.region_name, payload.site_name)
 
         existing = self.list_assignments(region_name=payload.region_name, site_name=payload.site_name)

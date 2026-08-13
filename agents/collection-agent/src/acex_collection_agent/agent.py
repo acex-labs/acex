@@ -4,8 +4,9 @@ import asyncio
 import logging
 import time
 
-import requests
-from acex_client.acex.acex import Acex
+from acex_client import Acex
+from acex_devkit.models.agent_manifest import CollectionAgentManifest
+from acex_devkit.models.collection_agent import CollectionAgentAck
 
 from acex_collection_agent.collector import Collector
 
@@ -18,7 +19,7 @@ class CollectionAgent:
     def __init__(self, api_url: str, agent_id: int, verify_ssl: bool = False, max_concurrent: int = 20):
         self.agent_id = agent_id
         self.max_concurrent = max_concurrent
-        self.client = Acex(baseurl=api_url, verify=verify_ssl)
+        self.client = Acex(base_url=api_url, verify=verify_ssl)
         self.collector = Collector(self.client)
         self._last_revision = None
         self._last_collection = 0
@@ -41,8 +42,8 @@ class CollectionAgent:
                     await asyncio.sleep(POLL_INTERVAL)
                     continue
 
-                interval = manifest.get("interval_seconds", 21600)
-                revision = manifest.get("config_revision", 0)
+                interval = manifest.interval_seconds
+                revision = manifest.config_revision
                 now = time.time()
 
                 revision_changed = self._last_revision is not None and revision != self._last_revision
@@ -66,33 +67,28 @@ class CollectionAgent:
                 logger.error(f"Unexpected error: {e}", exc_info=True)
                 await asyncio.sleep(POLL_INTERVAL)
 
-    def _fetch_manifest(self) -> dict | None:
+    def _fetch_manifest(self) -> CollectionAgentManifest | None:
         """Fetch manifest from ACEX API."""
         try:
-            url = f"/inventory/collection_agents/{self.agent_id}/manifest"
-            full_url = f"{self.client.rest.url}{url}"
-            response = requests.get(full_url, verify=self.client.rest.verify)
-            if response.status_code != 200:
-                logger.warning(f"Manifest request failed: {response.status_code} {full_url}")
-                return None
-            data = response.json()
-            if not data:
-                return None
-
-            targets = data.get("targets", [])
-            revision = data.get("config_revision", 0)
-            logger.debug(f"Manifest polled: rev={revision}, {len(targets)} targets")
-            self._ack_manifest(revision)
-            return data
+            manifest = self.client.inventory.collection_agents.manifest(self.agent_id)
         except Exception as e:
             logger.error(f"Failed to fetch manifest: {e}")
             return None
 
+        if manifest is None:
+            return None
+
+        logger.debug(f"Manifest polled: rev={manifest.config_revision}, {len(manifest.targets)} targets")
+        self._ack_manifest(manifest.config_revision)
+        return manifest
+
     def _ack_manifest(self, config_revision: int):
         """Acknowledge receipt of manifest revision to ACEX API."""
         try:
-            url = f"{self.client.rest.url}/inventory/collection_agents/{self.agent_id}/ack"
-            requests.post(url, json={"config_revision": config_revision}, verify=self.client.rest.verify)
+            self.client.inventory.collection_agents.ack(
+                self.agent_id,
+                payload=CollectionAgentAck(config_revision=config_revision),
+            )
         except Exception as e:
             logger.warning(f"Failed to ack manifest: {e}")
 
@@ -119,9 +115,9 @@ class CollectionAgent:
             except Exception as e:
                 logger.error(f"Failed to install NED {ned.name}: {e}")
 
-    async def _collect(self, manifest: dict):
+    async def _collect(self, manifest: CollectionAgentManifest):
         """Run config collection for all targets."""
-        targets = manifest.get("targets", [])
+        targets = manifest.targets
         if not targets:
             logger.info("No targets in manifest, nothing to collect")
             return

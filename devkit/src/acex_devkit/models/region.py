@@ -18,5 +18,15 @@ class RegionSiteInfo(BaseModel):
     longitude: float | None = None
 
 
+class RegionCreate(RegionBase):
+    pass
+
+
+class RegionUpdate(BaseModel):
+    name: str | None = None
+    display_name: str | None = None
+    description: str | None = None
+
+
 class RegionResponse(PersistedResponse, RegionBase):
     sites: list[RegionSiteInfo] = []

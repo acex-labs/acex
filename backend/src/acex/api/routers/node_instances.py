@@ -5,9 +5,9 @@ from acex.config_diff import DiffLogicalNode
 from acex.constants import BASE_URL
 from acex.device_configs.device_config_manager import ConfigOutput
 from acex.models.device_config import DeviceConfig
+from acex_devkit.models.config_snapshot import DeviceConfigUpload
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel
 
 
 def get_response_model(func):
@@ -18,10 +18,6 @@ def get_response_model(func):
     if return_annotation is inspect.Signature.empty:
         return None
     return return_annotation
-
-
-class DeviceConfigUpload(BaseModel):
-    content: str
 
 
 def create_router(automation_engine):

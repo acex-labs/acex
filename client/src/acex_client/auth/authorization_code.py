@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import secrets
 import time
@@ -6,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from urllib.parse import parse_qs, urlencode, urlparse
 
-import requests
+import httpx
 
 from . import token_store
 from .provider import AuthProvider
@@ -37,8 +38,6 @@ class AuthorizationCodeAuth(AuthProvider):
     def _interactive_login(self) -> str:
         code_verifier = secrets.token_urlsafe(64)
         code_challenge = hashlib.sha256(code_verifier.encode()).digest()
-        import base64
-
         code_challenge_b64 = base64.urlsafe_b64encode(code_challenge).rstrip(b"=").decode()
 
         auth_params = urlencode(
@@ -55,7 +54,7 @@ class AuthorizationCodeAuth(AuthProvider):
 
         code = self._wait_for_callback(login_url)
 
-        resp = requests.post(
+        resp = httpx.post(
             self._token_url,
             data={
                 "grant_type": "authorization_code",
@@ -70,7 +69,7 @@ class AuthorizationCodeAuth(AuthProvider):
         return self._store_and_return(resp.json())
 
     def _refresh(self, refresh_token: str) -> str:
-        resp = requests.post(
+        resp = httpx.post(
             self._token_url,
             data={
                 "grant_type": "refresh_token",
@@ -123,6 +122,9 @@ class AuthorizationCodeAuth(AuthProvider):
 
     def _discover(self, issuer_url: str) -> dict:
         url = issuer_url.rstrip("/") + "/.well-known/openid-configuration"
-        resp = requests.get(url, verify=self.verify_ssl)
+        resp = httpx.get(url, verify=self.verify_ssl)
         resp.raise_for_status()
         return resp.json()
+
+
+__all__ = ["AuthorizationCodeAuth"]

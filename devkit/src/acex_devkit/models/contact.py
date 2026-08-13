@@ -13,5 +13,19 @@ class ContactBase(BaseModel):
     role: str | None = None
 
 
+class ContactCreate(ContactBase):
+    pass
+
+
+class ContactUpdate(BaseModel):
+    name: str | None = None
+    display_name: str | None = None
+    first_name: str | None = None
+    family_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    role: str | None = None
+
+
 class ContactResponse(PersistedResponse, ContactBase):
     pass
