@@ -189,6 +189,8 @@ class CredentialManager:
             if not cred:
                 raise HTTPException(status_code=404, detail="Credential not found")
             session.query(CredentialField).filter(CredentialField.credential_id == cred.id).delete()
+            session.query(NodeCredential).filter(NodeCredential.credential_id == cred.id).delete()
+            session.query(SiteCredential).filter(SiteCredential.credential_id == cred.id).delete()
             session.delete(cred)
             session.commit()
 
