@@ -24,7 +24,6 @@ class NodeService:
     async def _enrich_data(self, node):
         """När en specific node hämtas vill vi,
         berika responsen med datat från refererade objekt."""
-
         if node is None:
             return None
 
@@ -41,7 +40,6 @@ class NodeService:
         if ln is not None:
             node["logical_node"] = ln.model_dump()
             node["regions"] = ln.regions if ln.regions else []
-
         return NodeResponse(**node)
 
     async def get_rendered_config(self, id: str):
@@ -80,6 +78,12 @@ class NodeService:
         return config
 
     async def create(self, logical_node: Node):
+        if logical_node.asset_ref_type == "asset_cluster":
+            self.inventory.asset_cluster_manager.get_cluster(logical_node.asset_ref_id)  # raises 404 itself
+        else:
+            asset = await self.inventory.assets.get(logical_node.asset_ref_id)
+            if asset is None:
+                raise HTTPException(status_code=404, detail=f"Asset {logical_node.asset_ref_id} not found")
         result = await self._call_method(self.adapter.create, logical_node)
         node_id = getattr(result, "id", None)
         if node_id is not None:
