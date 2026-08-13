@@ -90,6 +90,20 @@ class RestClient:
             raise AcexConnectionError(str(e)) from e
         return self._handle(response, raw=raw)
 
+    def download(self, path: str, *, params: dict[str, Any] | None = None) -> bytes:
+        """Issue a GET request and return raw binary content (response.content)."""
+        try:
+            response = self._client.get(path, params=params)
+        except httpx.TimeoutException as e:
+            raise AcexTimeoutError(str(e)) from e
+        except httpx.ConnectError as e:
+            raise AcexConnectionError(str(e)) from e
+        if response.status_code == 204:
+            return b""
+        if response.status_code >= 400:
+            self._raise_for_status(response.status_code, response.text)
+        return response.content
+
     def stream(
         self,
         method: str,

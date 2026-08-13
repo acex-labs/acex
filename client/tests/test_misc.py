@@ -127,7 +127,7 @@ def test_neds_list_and_get(rest):
             },
         )
     )
-    listed = Neds(rest).list()
+    listed = Neds(rest).query()
     assert len(listed) == 1
     assert listed[0].name == "cisco-ios"
 
@@ -140,11 +140,8 @@ def test_neds_download(rest):
     respx.get("http://test/api/v1/neds/download/driver.whl").mock(
         return_value=Response(200, content=b"binary wheel bytes", headers={"content-type": "application/octet-stream"})
     )
-    # Download returns binary, which RestClient's raw mode returns as text.
-    # For binary content the caller should drop to rest.request(raw=True)
-    # and read response bytes directly.
-    data = rest.request("GET", "/neds/download/driver.whl", raw=True)
-    assert "binary" in data
+    data = Neds(rest).download(filename="driver.whl")
+    assert data == b"binary wheel bytes"
 
 
 # ---------------------------------------------------------------------------

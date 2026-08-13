@@ -1,7 +1,6 @@
 """Collector — uses NEDs to fetch running-configs and uploads to ACEX."""
 
 import asyncio
-import base64
 import logging
 
 from acex_client import Acex
@@ -153,11 +152,10 @@ class Collector:
 
     def _upload_config(self, node_id: int, hostname: str, config_content: str) -> dict:
         """Upload collected config to ACEX observed-configuration API."""
-        encoded = base64.b64encode(config_content.encode()).decode()
         try:
             self.client.inventory.node_instances.upload_observed(
                 str(node_id),
-                payload=DeviceConfigUpload(content=encoded),
+                payload=DeviceConfigUpload(content=config_content),
             )
         except AcexHTTPError as e:
             if e.status_code == 409:

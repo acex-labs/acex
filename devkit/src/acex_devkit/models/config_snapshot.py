@@ -26,8 +26,8 @@ class ConfigSnapshotDetail(BaseModel):
     """Latest or specific observed config for a node instance.
 
     Returned by `GET .../observed/latest` and `GET .../observed/{config_id}`.
-    Note: backend base64-encodes string content before returning; the client
-    decodes before constructing this model.
+    The client transparently base64-decodes string content before returning;
+    callers always receive plain text.
     """
 
     node_instance_id: str

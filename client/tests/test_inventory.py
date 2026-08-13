@@ -219,6 +219,44 @@ def test_node_instance_upload_and_list_observed(inventory):
 
 
 @respx.mock
+def test_node_instance_upload_encodes_content_as_base64(inventory):
+    route = respx.post("http://test/api/v1/inventory/node_instances/1/configuration/observed/").mock(
+        return_value=Response(200, json={"hash": "abc"})
+    )
+    import base64
+
+    from acex_devkit.models.config_snapshot import DeviceConfigUpload
+
+    inventory.node_instances.upload_observed(id=1, payload=DeviceConfigUpload(content="! hostname R1\n"))
+    assert route.called
+    sent = route.calls[0].request.read()
+    sent_content = __import__("json").loads(sent)["content"]
+    assert sent_content != "! hostname R1\n"
+    assert base64.b64decode(sent_content).decode() == "! hostname R1\n"
+
+
+@respx.mock
+def test_node_instance_get_latest_observed_decodes_content(inventory):
+    import base64
+
+    encoded = base64.b64encode(b"! hostname R1\n").decode()
+    respx.get("http://test/api/v1/inventory/node_instances/1/configuration/observed/latest").mock(
+        return_value=Response(
+            200,
+            json={
+                "node_instance_id": "1",
+                "content": encoded,
+                "hash": "abc",
+                "created_at": "2024-01-01T00:00:00",
+            },
+        )
+    )
+    result = inventory.node_instances.get_latest_observed(id=1)
+    assert result.content == "! hostname R1\n"
+    assert result.hash == "abc"
+
+
+@respx.mock
 def test_node_instance_observed_diff(inventory):
     respx.get("http://test/api/v1/inventory/node_instances/1/configuration/observed/diff").mock(
         return_value=Response(

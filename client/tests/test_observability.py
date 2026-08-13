@@ -72,6 +72,43 @@ def test_agent_config_action(observability):
 
 
 @respx.mock
+def test_agent_ack_action(observability):
+    respx.post("http://test/api/v1/observability/agents/3/ack").mock(
+        return_value=Response(200, json={"id": 3, "acked_revision": 5, "acked_at": "2024-01-01T00:00:00"})
+    )
+    from acex_devkit.models.telemetry_agent import TelemetryAgentAck
+
+    result = observability.agents.ack(id=3, payload=TelemetryAgentAck(config_revision=5))
+    assert result.acked_revision == 5
+
+
+@respx.mock
+def test_agent_get_returns_full_response_for_manifest_use(observability):
+    """Telemetry-agent uses agents.get(id) to poll the manifest-equivalent:
+    the agent object itself carries config_revision."""
+    respx.get("http://test/api/v1/observability/agents/4").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": 4,
+                "name": "tele-1",
+                "description": "first",
+                "config_revision": 7,
+                "acked_revision": 3,
+                "capabilities": ["icmp"],
+                "nodes": [],
+                "rules": [],
+                "resolved_nodes": [],
+                "outputs": [],
+            },
+        )
+    )
+    agent = observability.agents.get(4)
+    assert agent.config_revision == 7
+    assert agent.acked_revision == 3
+
+
+@respx.mock
 def test_agent_outputs_bound(observability):
     respx.get("http://test/api/v1/observability/agents/1/outputs").mock(
         return_value=Response(

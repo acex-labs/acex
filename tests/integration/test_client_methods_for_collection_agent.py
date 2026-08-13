@@ -2,41 +2,30 @@
 Interface contract between acex_client and agents/collection-agent.
 
 agents/collection-agent (agent.py, collector.py) drives ACEX purely through
-acex_client.acex.acex.Acex. This file checks only that the client side of
-that boundary has the shape collection-agent needs:
-does `Acex` expose the right methods, at the right place. No backend, no DB,
-no network — just hasattr()/callable() checks against a bare `Acex` instance.
+acex_client.Acex. This file checks only that the client side of that boundary
+has the shape collection-agent needs: does `Acex` expose the right methods, at
+the right place. No backend, no DB, no network — just hasattr()/callable()
+checks against a bare `Acex` instance.
 
-Agreed method table. The whole client is being restructured into facades
-that mirror the API's own URL-prefix taxonomy (not the OpenAPI tags, which
-disagree with the prefix in at least one case — see neds below):
+Agreed method table (verified against actual collection-agent call sites):
 
-    client.neds.get_missing()                                            GET  /neds/    (diffed against
-                                                                                         local entry points)
-    client.neds.install(ned)                                             GET  /neds/download/{filename}
-    client.neds.get_driver_instance(ned_id)                              (local — resolves an installed entry point,
-                                                                                  no request)
-    client.inventory.collection_agents.get_manifest(id)                  GET  /inventory/collection_agents/{id}/manifest
-    client.inventory.collection_agents.ack_manifest(id, config_revision) POST /inventory/collection_agents/{id}/ack
-    client.inventory.credentials.get_secret(id)                          GET  /inventory/credentials/{id}/secret
-    client.inventory.node_instances.upload_observed_config(id, content)  POST /inventory/node_instances/{id}..
-                                                                                ../configuration/observed/
-    client.operations.lldp_neighbors.upload(node_instance_id, neighbors) POST /operations/lldp_neighbors/
+    client.inventory.collection_agents.manifest(id)        GET  /inventory/collection_agents/{id}/manifest
+    client.inventory.collection_agents.ack(id, payload=)  POST /inventory/collection_agents/{id}/ack
+    client.inventory.credentials.secret(id)               GET  /inventory/credentials/{id}/secret
+    client.inventory.node_instances.upload_observed(id, payload=)  POST /inventory/node_instances/{id}/
+                                                                        configuration/observed/
+    client.operations.lldp.upload(payload=)               POST /operations/lldp_neighbors/
 
-`neds` stays top-level rather than under `inventory`: its router prefix is
-bare `/neds` (not `/inventory/neds`), even though it's tagged "Inventory" in
-the OpenAPI docs. Path wins over tag — the path is the actual contract the
-client calls, the tag is just doc grouping.
+`neds` is consumed by the agent's `_ensure_neds()` startup sync and by the
+collector for loading driver instances:
 
-This table only covers what collection-agent needs. The facade rebuild
-itself is broader (also moves the already-existing `node_instances`,
-`credentials`, `management_connections`), so other call sites
-(cli/src/acex_cli/commands/node.py, client/examples/) need updating too —
-tracked wherever that work lands, not in this file.
+    client.neds.get_missing()        — returns list of NEDs missing locally
+    client.neds.install(ned)          — downloads + pip-installs a NED wheel
+    client.neds.get_driver_instance(ned_id) — resolves an installed driver instance
 """
 
 import pytest
-from acex_client.acex.acex import Acex
+from acex_client import Acex
 from acex_client.auth.provider import AuthProvider
 
 
@@ -51,7 +40,7 @@ class _NoAuth(AuthProvider):
 
 @pytest.fixture(scope="module")
 def client_shape() -> Acex:
-    return Acex(baseurl="http://unused.invalid/", auth=_NoAuth())
+    return Acex(base_url="http://unused.invalid/", auth=_NoAuth())
 
 
 def _resolves(obj, dotted_path: str) -> bool:
@@ -74,14 +63,16 @@ class TestClientInterfaceContract:
     @pytest.mark.parametrize(
         "dotted_path",
         [
+            # Methods verified against collection-agent call sites (agent.py, collector.py)
+            "inventory.collection_agents.manifest",
+            "inventory.collection_agents.ack",
+            "inventory.credentials.secret",
+            "inventory.node_instances.upload_observed",
+            "operations.lldp.upload",
+            # neds.* used by agent._ensure_neds() — not yet on client
             "neds.get_missing",
             "neds.install",
             "neds.get_driver_instance",
-            "inventory.collection_agents.get_manifest",
-            "inventory.collection_agents.ack_manifest",
-            "inventory.credentials.get_secret",
-            "inventory.node_instances.upload_observed_config",
-            "operations.lldp_neighbors.upload",
         ],
     )
     def test_method_exists(self, client_shape, dotted_path):

@@ -4,8 +4,8 @@ import logging
 import os
 import time
 
-import requests
-from acex_client.acex.acex import Acex
+from acex_client import Acex
+from acex_devkit.models.telemetry_agent import TelemetryAgentAck
 
 logger = logging.getLogger("acex_telemetry_agent")
 
@@ -22,7 +22,6 @@ class TelemetryAgent:
         self.agent_id = agent_id
         self.config_path = config_path
         self.poll_interval = poll_interval
-        self.base = f"{client.rest.url}/observability/agents/{agent_id}"
         self._last_revision = None
 
     def run(self):
@@ -30,12 +29,12 @@ class TelemetryAgent:
 
         while True:
             try:
-                manifest = self._fetch_manifest()
-                if manifest is None:
+                agent = self._fetch_agent()
+                if agent is None:
                     time.sleep(self.poll_interval)
                     continue
 
-                revision = manifest.get("config_revision", 0)
+                revision = agent.config_revision
 
                 first_run = self._last_revision is None and not os.path.exists(self.config_path)
                 revision_changed = self._last_revision is not None and revision != self._last_revision
@@ -57,25 +56,16 @@ class TelemetryAgent:
                 logger.error(f"Unexpected error: {e}", exc_info=True)
                 time.sleep(self.poll_interval)
 
-    def _fetch_manifest(self) -> dict | None:
+    def _fetch_agent(self):
         try:
-            response = requests.get(self.base, verify=self.client.rest.verify)
-            if response.status_code != 200:
-                logger.warning(f"Manifest request failed: {response.status_code} {self.base}")
-                return None
-            return response.json()
+            return self.client.observability.agents.get(self.agent_id)
         except Exception as e:
-            logger.error(f"Failed to fetch manifest: {e}")
+            logger.error(f"Failed to fetch agent: {e}")
             return None
 
     def _update_config(self) -> bool:
-        url = f"{self.base}/config"
         try:
-            response = requests.get(url, verify=self.client.rest.verify)
-            if response.status_code != 200:
-                logger.warning(f"Config request failed: {response.status_code} {url}")
-                return False
-            content = response.text
+            content = self.client.observability.agents.config(id=self.agent_id)
 
             os.makedirs(os.path.dirname(self.config_path) or ".", exist_ok=True)
             tmp_path = f"{self.config_path}.tmp"
@@ -90,8 +80,10 @@ class TelemetryAgent:
             return False
 
     def _ack(self, config_revision: int):
-        url = f"{self.base}/ack"
         try:
-            requests.post(url, json={"config_revision": config_revision}, verify=self.client.rest.verify)
+            self.client.observability.agents.ack(
+                id=self.agent_id,
+                payload=TelemetryAgentAck(config_revision=config_revision),
+            )
         except Exception as e:
             logger.warning(f"Failed to ack revision {config_revision}: {e}")
