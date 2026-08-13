@@ -62,6 +62,7 @@ class RestClient:
             auth=_BearerAuth(auth),
             verify=verify,
             timeout=timeout,
+            follow_redirects=True,
         )
 
     def close(self) -> None:
