@@ -89,6 +89,7 @@ class Augment(ConfigComponent):
           - AttributeValue[T] → leaf value, not a valid target (return False)
           - BaseModel         → singleton object (continue traversal)
         """
+        import types
         import typing
 
         from acex_devkit.models import AttributeValue
@@ -100,8 +101,8 @@ class Augment(ConfigComponent):
             if part not in fields:
                 return False
             annotation = fields[part].annotation
-            # Unwrap Optional[X] → X
-            if getattr(annotation, "__origin__", None) is typing.Union:
+            # Unwrap Optional[X] → X (handles both typing.Union and types.UnionType)
+            if getattr(annotation, "__origin__", None) is typing.Union or isinstance(annotation, types.UnionType):
                 args = [a for a in annotation.__args__ if a is not type(None)]
                 annotation = args[0] if args else annotation
             origin = getattr(annotation, "__origin__", None)
