@@ -19,7 +19,7 @@ from acex.configuration.components.lacp import LacpConfig
 from acex.configuration.components.lldp import (
     LldpConfig,
 )
-from acex.configuration.components.network_instances import L3Vrf, NetworkInstance
+from acex.configuration.components.network_instances import L2Domain, L3Vrf, NetworkInstance
 from acex.configuration.components.routing import StaticRoute, StaticRouteNextHop
 from acex.configuration.components.sampling.netflow import (
     NetflowCollector,
@@ -51,6 +51,7 @@ from acex.configuration.components.system.aaa import (
     aaaAccountingEvents,
     aaaAccountingMethods,
     aaaAuthenticationConfig,
+    aaaAuthenticationMethods,
     aaaAuthorizationConfig,
     aaaAuthorizationEvents,
     aaaAuthorizationMethods,
@@ -62,7 +63,14 @@ from acex.configuration.components.system.aaa import (
 from acex.configuration.components.system.clock import Clock
 from acex.configuration.components.system.dhcp import DhcpRelayServer, DHCPSnooping
 from acex.configuration.components.system.dns import DnsServer
-from acex.configuration.components.system.logging import Console, FileLogging, LoggingConfig, RemoteServer, VtyLine
+from acex.configuration.components.system.logging import (
+    Console,
+    FileLogging,
+    LoggingConfig,
+    LoggingEvent,
+    RemoteServer,
+    VtyLine,
+)
 from acex.configuration.components.system.ntp import NtpServer
 from acex.configuration.components.system.services import Services
 from acex.configuration.components.system.snmp import (
@@ -109,6 +117,7 @@ class Configuration:
         VtyLine: "system.logging.vty.lines",
         LoggingConfig: "system.logging.config",
         FileLogging: "system.logging.files.files",
+        LoggingEvent: "system.logging.events.events",
         SnmpGlobal: "system.snmp.config",
         SnmpUser: "system.snmp.users",
         SnmpServer: "system.snmp.trap_servers",
@@ -122,6 +131,7 @@ class Configuration:
         aaaTacacs: Template("system.aaa.server_groups.${server_group}.tacacs"),
         aaaRadius: Template("system.aaa.server_groups.${server_group}.radius"),
         aaaAuthenticationConfig: "system.aaa.authentication.config",
+        aaaAuthenticationMethods: "system.aaa.authentication.config.methods",
         aaaAuthorizationConfig: "system.aaa.authorization.config",
         aaaAuthorizationMethods: "system.aaa.authorization.config.methods",
         aaaAuthorizationEvents: "system.aaa.authorization.config.events",
@@ -139,6 +149,7 @@ class Configuration:
         Subinterface: "interfaces",
         InterfaceTemplate: "interface_templates",
         NetworkInstance: "network_instances",
+        L2Domain: "network_instances",
         L3Vrf: "network_instances",
         Vlan: Template("network_instances.${network_instance}.vlans"),
         StaticRoute: Template("network_instances.${network_instance}.protocols.static_routes"),
@@ -188,9 +199,7 @@ class Configuration:
         self.logical_node_id = logical_node_id
 
         # Komponenter lagras som objekt, mappade till sin position
-        self._components = []
-
-        # Lagra alla Reference object. Läggs till efter att komponenter lagts till
+        self._components = []  # Lagra alla Reference object. Läggs till efter att komponenter lagts till
         self._references = []
 
         # Augments are routed to a separate list and materialized on
@@ -227,6 +236,60 @@ class Configuration:
     def _lookup_mapping(self, component):
         """Resolve a component's path via COMPONENT_MAPPING."""
         return self.COMPONENT_MAPPING.get(type(component))
+
+    # Abstract base classes that are never placed directly in COMPONENT_MAPPING.
+    # Subclasses of these (e.g. FrontpanelPort(Interface)) must be mapped
+    # individually.
+    _ABSTRACT_COMPONENT_BASES = frozenset(
+        {
+            "ConfigComponent",
+            "Interface",
+            "Augment",
+            "Routing",
+        }
+    )
+
+    @classmethod
+    def _all_concrete_subclasses(cls, base):
+        """Recursively collect all non-abstract subclasses of `base`."""
+        result = []
+        for sub in base.__subclasses__():
+            if sub.__name__ in cls._ABSTRACT_COMPONENT_BASES:
+                result.extend(cls._all_concrete_subclasses(sub))
+                continue
+            result.append(sub)
+            result.extend(cls._all_concrete_subclasses(sub))
+        return result
+
+    @classmethod
+    def unmapped_components(cls):
+        """Return list of concrete ConfigComponent subclasses missing from
+        COMPONENT_MAPPING. Empty list means everything is wired.
+
+        Called by tests and by validate_component_mapping() at import time.
+        """
+        from acex.configuration.components.base_component import ConfigComponent
+
+        all_subs = {
+            c for c in cls._all_concrete_subclasses(ConfigComponent) if c.__name__ not in cls._ABSTRACT_COMPONENT_BASES
+        }
+        return sorted([c.__name__ for c in all_subs if c not in cls.COMPONENT_MAPPING])
+
+    @classmethod
+    def validate_component_mapping(cls):
+        """Warn (not raise) if any concrete ConfigComponent subclass is missing
+        from COMPONENT_MAPPING. Called at class-definition time below.
+        """
+        import logging as _logging
+
+        missing = cls.unmapped_components()
+        if missing:
+            _logger = _logging.getLogger("acex.configuration")
+            _logger.warning(
+                "ConfigComponent subclasses missing from COMPONENT_MAPPING: %s. "
+                "These will raise ValueError at runtime if used in a config map.",
+                ", ".join(missing),
+            )
 
     def _get_component_path(self, component) -> str:
         mapped_path = self._lookup_mapping(component)
@@ -437,3 +500,6 @@ class Configuration:
         Serialisera alla komponenter till rätt position i strukturen.
         """
         return self.as_model().model_dump()
+
+
+Configuration.validate_component_mapping()
