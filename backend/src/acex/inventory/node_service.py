@@ -24,7 +24,6 @@ class NodeService:
     async def _enrich_data(self, node):
         """När en specific node hämtas vill vi,
         berika responsen med datat från refererade objekt."""
-
         if node is None:
             return None
 
@@ -41,7 +40,6 @@ class NodeService:
         if ln is not None:
             node["logical_node"] = ln.model_dump()
             node["regions"] = ln.regions if ln.regions else []
-
         return NodeResponse(**node)
 
     async def get_rendered_config(self, id: str):
