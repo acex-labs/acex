@@ -89,13 +89,18 @@ class Acex:
         """Construct an Acex client auto-configuring auth from environment.
 
         `base_url` defaults to the ACEX_BASE_URL env var. Other auth env vars
-        (ACEX_ISSUER_URL, ACEX_CLIENT_ID, ACEX_CLIENT_SECRET, ACEX_VERIFY_SSL)
-        are read by `create_auth_provider`. Pass kwargs to override the
-        Acex constructor defaults.
+        (ACEX_ISSUER_URL, ACEX_CLIENT_ID, ACEX_CLIENT_SECRET) are read by
+        `create_auth_provider`. ACEX_VERIFY_SSL is read here and applied to
+        both the RestClient and the auth provider (unless an explicit `verify`
+        kwarg is passed, which takes precedence).
         """
         import os
 
         url = base_url or os.environ.get("ACEX_BASE_URL", "http://127.0.0.1/")
+        if "verify" not in kwargs:
+            env_verify = os.environ.get("ACEX_VERIFY_SSL")
+            if env_verify is not None:
+                kwargs["verify"] = env_verify.lower() != "false"
         return cls(base_url=url, **kwargs)
 
 
