@@ -79,12 +79,12 @@ class NodeService:
             config = ""
         return config
 
-    async def create(self, logical_node: Node):
+    async def create(self, logical_node: Node) -> NodeResponse:
         result = await self._call_method(self.adapter.create, logical_node)
         node_id = getattr(result, "id", None)
         if node_id is not None:
             self.inventory.telemetry_agent_manager.bump_revisions_for_node(node_id)
-        return result
+        return await self._enrich_data(result)
 
     async def get(self, id: str) -> NodeResponse:
         result = await self._call_method(self.adapter.get, id)
