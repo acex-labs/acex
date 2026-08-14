@@ -17,6 +17,7 @@ from acex.models.logical_node import LogicalNode
 from acex.models.management_connections import ManagementConnection
 from acex.models.node import AssetRefType, Node
 from acex.models.regions import SiteRegionAssignment
+from acex_devkit.models.agent_manifest import AckResult
 from fastapi import HTTPException
 from sqlalchemy import delete
 from sqlmodel import select
@@ -292,7 +293,7 @@ class CollectionAgentManager:
 
     # --- Ack ---
 
-    def ack_manifest(self, id: int, payload: CollectionAgentAck) -> dict:
+    def ack_manifest(self, id: int, payload: CollectionAgentAck) -> AckResult:
         session = next(self.db.get_session())
         try:
             agent = session.get(CollectionAgent, id)
@@ -301,7 +302,11 @@ class CollectionAgentManager:
             agent.acked_revision = payload.config_revision
             agent.acked_at = datetime.utcnow().isoformat()
             session.commit()
-            return {"status": "ok", "acked_revision": agent.acked_revision}
+            return AckResult(
+                id=agent.id,
+                acked_revision=agent.acked_revision,
+                acked_at=agent.acked_at,
+            )
         finally:
             session.close()
 

@@ -1,4 +1,5 @@
 from acex.constants import BASE_URL
+from acex_devkit.models.agent_manifest import AckResult
 from fastapi import APIRouter
 
 
@@ -20,7 +21,9 @@ def create_router(automation_engine):
     router.add_api_route("/collection_agents/{id}/rules", cam.add_rule, methods=["POST"], tags=tags)
     router.add_api_route("/collection_agents/{id}/rules/{rule_id}", cam.remove_rule, methods=["DELETE"], tags=tags)
 
-    router.add_api_route("/collection_agents/{id}/ack", cam.ack_manifest, methods=["POST"], tags=tags)
+    router.add_api_route(
+        "/collection_agents/{id}/ack", cam.ack_manifest, methods=["POST"], response_model=AckResult, tags=tags
+    )
     router.add_api_route("/collection_agents/{id}/manifest", cam.get_manifest, methods=["GET"], tags=tags)
 
     return router

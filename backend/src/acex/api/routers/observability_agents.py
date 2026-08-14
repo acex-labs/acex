@@ -1,4 +1,5 @@
 from acex.constants import BASE_URL
+from acex_devkit.models.agent_manifest import AckResult
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 
@@ -92,6 +93,7 @@ def create_router(automation_engine):
         "/agents/{id}/ack",
         tam.ack,
         methods=["POST"],
+        response_model=AckResult,
         tags=tags,
     )
 
