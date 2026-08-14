@@ -63,7 +63,6 @@ service password-encryption
 {%- else %}
 no service password-encryption
 {%- endif %}
-
 service compress-config
 !
 {%- if configuration.system.config.hostname %}
