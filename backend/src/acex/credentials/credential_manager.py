@@ -20,6 +20,7 @@ from acex.models.credential import (
 )
 from acex.models.logical_node import LogicalNode
 from acex.models.node import Node
+from acex_devkit.models.credential import _validate_field_enums
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
 
@@ -61,7 +62,8 @@ class CredentialManager:
         return fields
 
     def _validate_fields(self, credential_type: str, fields: dict[str, str]):
-        """Validate that only allowed field names are provided."""
+        """Validate that only allowed field names are provided, and that
+        enum-constrained field values are valid."""
         type_fields = self._get_type_fields(credential_type)
         allowed = {name for name, _ in type_fields}
         unknown = set(fields.keys()) - allowed
@@ -71,6 +73,10 @@ class CredentialManager:
                 detail=f"Unknown fields for type '{credential_type}': {', '.join(unknown)}. "
                 f"Allowed: {', '.join(allowed)}",
             )
+        try:
+            _validate_field_enums(credential_type, fields)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
     def _build_response(self, cred: Credential, fields: list[CredentialField]) -> CredentialResponse:
         return CredentialResponse(

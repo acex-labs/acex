@@ -1,6 +1,8 @@
 from acex_devkit.models.capability import TelemetryCapability
 from acex_devkit.models.telemetry_agent import (
     InfluxDBVersion,
+    SnmpSecLevel,
+    SnmpVersion,
 )
 from acex_devkit.models.telemetry_agent import (
     OutputDestinationBase as _OutputDestinationSchema,
@@ -20,6 +22,8 @@ class TelemetryAgent(_TelemetryAgentSchema, SQLModel, table=True):
     last_config_poll: str | None = None
     acked_revision: int = Field(default=0)
     acked_at: str | None = None
+    snmpv2c_credential_id: int | None = Field(default=None, foreign_key="credential.id")
+    snmpv3_credential_id: int | None = Field(default=None, foreign_key="credential.id")
 
 
 class TelemetryAgentNodeLink(SQLModel, table=True):
@@ -45,8 +49,10 @@ class OutputDestination(_OutputDestinationSchema, SQLModel, table=True):
 __all__ = [
     "InfluxDBVersion",
     "OutputDestination",
+    "SnmpSecLevel",
+    "SnmpVersion",
     "TelemetryAgent",
     "TelemetryAgentCapabilityLink",
-    "TelemetryAgentNodeLink",
     "TelemetryAgentMatchRule",
+    "TelemetryAgentNodeLink",
 ]

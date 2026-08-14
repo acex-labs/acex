@@ -12,6 +12,18 @@ class InfluxDBVersion(StrEnum):
     v3 = "v3"
 
 
+class SnmpVersion(StrEnum):
+    v2c = "2c"
+    v3 = "3"
+    both = "both"
+
+
+class SnmpSecLevel(StrEnum):
+    no_auth_no_priv = "noAuthNoPriv"
+    auth_no_priv = "authNoPriv"
+    auth_priv = "authPriv"
+
+
 class OutputDestinationBase(BaseModel):
     influxdb_version: InfluxDBVersion = InfluxDBVersion.v2
     url: str = "http://localhost:8086"
@@ -62,6 +74,18 @@ class TelemetryAgentMatchRuleCreate(TelemetryAgentMatchRuleBase):
 class TelemetryAgentBase(BaseModel):
     name: str
     description: str | None = None
+    snmp_version: SnmpVersion = SnmpVersion.v2c
+    snmp_trap_port: int = 162
+    syslog_port: int = 514
+    snmpv3_sec_level: SnmpSecLevel | None = None
+    # Inline security name — only used with noAuthNoPriv (no credential needed).
+    # With authNoPriv/authPriv the username comes from the mapped credential.
+    snmpv3_sec_name: str | None = None
+    # References to Credentials holding trap receiver secrets.
+    # snmpv2c_credential_id → credential of type "snmp_community" (field: community)
+    # snmpv3_credential_id → credential of type "snmpv3" (fields: username/auth_*/priv_*)
+    snmpv2c_credential_id: int | None = None
+    snmpv3_credential_id: int | None = None
 
 
 class TelemetryAgentCreate(TelemetryAgentBase):
@@ -72,6 +96,13 @@ class TelemetryAgentUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     capabilities: list[TelemetryCapability] | None = None
+    snmp_version: SnmpVersion | None = None
+    snmp_trap_port: int | None = None
+    syslog_port: int | None = None
+    snmpv3_sec_level: SnmpSecLevel | None = None
+    snmpv3_sec_name: str | None = None
+    snmpv2c_credential_id: int | None = None
+    snmpv3_credential_id: int | None = None
 
 
 class TelemetryAgentAck(BaseModel):
@@ -88,3 +119,22 @@ class TelemetryAgentResponse(PersistedResponse, TelemetryAgentBase):
     rules: list[TelemetryAgentMatchRuleResponse] = []
     resolved_nodes: list[int] = []
     outputs: list[OutputDestinationResponse] = []
+
+
+__all__ = [
+    "InfluxDBVersion",
+    "OutputDestinationBase",
+    "OutputDestinationCreate",
+    "OutputDestinationResponse",
+    "OutputDestinationUpdate",
+    "SnmpSecLevel",
+    "SnmpVersion",
+    "TelemetryAgentAck",
+    "TelemetryAgentBase",
+    "TelemetryAgentCreate",
+    "TelemetryAgentMatchRuleBase",
+    "TelemetryAgentMatchRuleCreate",
+    "TelemetryAgentMatchRuleResponse",
+    "TelemetryAgentResponse",
+    "TelemetryAgentUpdate",
+]

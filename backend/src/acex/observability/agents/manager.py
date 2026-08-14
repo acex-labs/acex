@@ -148,6 +148,13 @@ class TelemetryAgentManager:
             acked_at=agent.acked_at,
             name=agent.name,
             description=agent.description,
+            snmp_version=agent.snmp_version,
+            snmp_trap_port=agent.snmp_trap_port,
+            syslog_port=agent.syslog_port,
+            snmpv3_sec_level=agent.snmpv3_sec_level,
+            snmpv3_sec_name=agent.snmpv3_sec_name,
+            snmpv2c_credential_id=agent.snmpv2c_credential_id,
+            snmpv3_credential_id=agent.snmpv3_credential_id,
             capabilities=[link.capability for link in cap_links],
             nodes=explicit_node_ids,
             rules=[
@@ -181,7 +188,7 @@ class TelemetryAgentManager:
     def create(self, payload: TelemetryAgentCreate) -> TelemetryAgentResponse:
         session = next(self.db.get_session())
         try:
-            agent = TelemetryAgent(name=payload.name, description=payload.description)
+            agent = TelemetryAgent(**payload.model_dump(exclude={"capabilities"}, exclude_unset=True))
             session.add(agent)
             session.flush()
 
@@ -242,6 +249,19 @@ class TelemetryAgentManager:
                 agent.name = payload.name
             if payload.description is not None:
                 agent.description = payload.description
+
+            for field in (
+                "snmp_version",
+                "snmp_trap_port",
+                "syslog_port",
+                "snmpv3_sec_level",
+                "snmpv3_sec_name",
+                "snmpv2c_credential_id",
+                "snmpv3_credential_id",
+            ):
+                value = getattr(payload, field)
+                if value is not None:
+                    setattr(agent, field, value)
 
             if payload.capabilities is not None:
                 session.query(TelemetryAgentCapabilityLink).filter(
@@ -578,6 +598,53 @@ class TelemetryAgentManager:
             if inputs_toml.strip():
                 lines.append(inputs_toml)
 
+        # Service inputs — agent-scoped listeners, not registry-driven.
+        cap_set = set(capabilities)
+        from acex.observability.renderers import (
+            render_snmp_trap_input,
+            render_syslog_input,
+        )
+
+        if TelemetryCapability.snmp_trap in cap_set:
+            version = agent.snmp_version.value if agent.snmp_version else "2c"
+            port = agent.snmp_trap_port or 162
+
+            # Receiver secrets come from mapped Credentials.
+            community = None
+            if agent.snmpv2c_credential_id is not None:
+                community = self._get_credential_fields(
+                    agent.snmpv2c_credential_id, expected_type="snmp_community"
+                ).get("community")
+
+            v3: dict = {}
+            if agent.snmpv3_credential_id is not None:
+                f = self._get_credential_fields(agent.snmpv3_credential_id, expected_type="snmpv3")
+                v3 = {
+                    "auth_protocol": f.get("auth_protocol"),
+                    "auth_password": f.get("auth_password"),
+                    "priv_protocol": f.get("priv_protocol"),
+                    "priv_password": f.get("priv_password"),
+                }
+                # Credential username wins; otherwise fall back to inline sec_name.
+                v3["sec_name"] = f.get("username") or agent.snmpv3_sec_name
+            else:
+                # No credential — inline sec_name (only meaningful with noAuthNoPriv).
+                v3["sec_name"] = agent.snmpv3_sec_name
+
+            lines.append(
+                render_snmp_trap_input(
+                    service_address=f"udp://:{port}",
+                    version=version,
+                    community=community,
+                    sec_level=agent.snmpv3_sec_level.value if agent.snmpv3_sec_level else None,
+                    **v3,
+                )
+            )
+
+        if TelemetryCapability.syslog_rfc5424 in cap_set:
+            port = agent.syslog_port or 514
+            lines.append(render_syslog_input(server=f"udp://:{port}"))
+
         # Backend-default outputs (set in app.py via set_influxdb / add_influxdb)
         # apply to every agent, in addition to the agent's own OutputDestinations.
         if self.influxdb_settings is not None:
@@ -589,6 +656,26 @@ class TelemetryAgentManager:
             lines.extend(self._render_output_block(dest))
 
         return "\n".join(lines)
+
+    def _get_credential_fields(self, credential_id: int, expected_type: str) -> dict:
+        """Resolve a mapped credential to its decrypted fields.
+
+        The credential must be of `expected_type`; anything else is a
+        configuration error and surfaces as a 400 in the config endpoint.
+        """
+        cred_mgr = getattr(self.telemetry_registry, "credential_manager", None)
+        if cred_mgr is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Agent references credential {credential_id} but no credential manager is configured",
+            )
+        secret = cred_mgr.get_secret(credential_id)
+        if secret.credential_type != expected_type:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Credential {credential_id} is of type '{secret.credential_type}', expected '{expected_type}'",
+            )
+        return secret.fields
 
     def _render_output_block(self, dest) -> builtins.list[str]:
         """
