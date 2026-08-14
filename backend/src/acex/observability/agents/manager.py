@@ -14,6 +14,7 @@ from acex.observability.agents.models import (
     TelemetryAgentNodeLink,
 )
 from acex.observability.capability import TelemetryCapability
+from acex_devkit.models.agent_manifest import AckResult
 from acex_devkit.models.telemetry_agent import (
     InfluxDBVersion,
     OutputDestinationCreate,
@@ -499,7 +500,7 @@ class TelemetryAgentManager:
 
     # --- Ack ---
 
-    def ack(self, id: int, payload: TelemetryAgentAck) -> dict:
+    def ack(self, id: int, payload: TelemetryAgentAck) -> AckResult:
         session = next(self.db.get_session())
         try:
             agent = session.get(TelemetryAgent, id)
@@ -508,7 +509,11 @@ class TelemetryAgentManager:
             agent.acked_revision = payload.config_revision
             agent.acked_at = datetime.utcnow().isoformat()
             session.commit()
-            return {"status": "ok", "acked_revision": agent.acked_revision}
+            return AckResult(
+                id=agent.id,
+                acked_revision=agent.acked_revision,
+                acked_at=agent.acked_at,
+            )
         finally:
             session.close()
 
