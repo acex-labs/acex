@@ -85,3 +85,61 @@ def render_inputs(components: Iterable[TelemetryComponent]) -> str:
             )
         )
     return "\n".join(lines)
+
+
+def render_snmp_trap_input(
+    service_address: str = "udp://:162",
+    version: str = "2c",
+    community: str | None = None,
+    sec_name: str | None = None,
+    auth_protocol: str | None = None,
+    auth_password: str | None = None,
+    sec_level: str | None = None,
+    priv_protocol: str | None = None,
+    priv_password: str | None = None,
+) -> str:
+    """Render an `[[inputs.snmp_trap]]` block.
+
+    `version` is one of "2c", "3", or "both". Two `[[inputs.snmp_trap]]`
+    blocks cannot share a UDP port, so "both" is rendered as a single
+    v3 block — gosnmp does not filter by configured version when
+    receiving, so v2c traps are still accepted (without community
+    validation). v3 authentication fields are only relevant when
+    version includes "3".
+    """
+    if version == "both":
+        version = "3"
+
+    cfg: dict[str, Any] = {"service_address": service_address, "version": version}
+    if version == "2c":
+        if community:
+            cfg["community"] = community
+    else:
+        if sec_name:
+            cfg["sec_name"] = sec_name
+        if auth_protocol:
+            cfg["auth_protocol"] = auth_protocol
+        if auth_password:
+            cfg["auth_password"] = auth_password
+        if sec_level:
+            cfg["sec_level"] = sec_level
+        if priv_protocol:
+            cfg["priv_protocol"] = priv_protocol
+        if priv_password:
+            cfg["priv_password"] = priv_password
+
+    lines = _render_kv_block("[[inputs.snmp_trap]]", cfg)
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_syslog_input(
+    server: str = "udp://:514",
+) -> str:
+    """Render an `[[inputs.syslog]]` block (RFC5424 over UDP)."""
+    lines = _render_kv_block(
+        "[[inputs.syslog]]",
+        {"server": server, "syslog_standard": "RFC5424"},
+    )
+    lines.append("")
+    return "\n".join(lines)
