@@ -6,7 +6,16 @@ from .agent_manifest import (
     CollectionAgentManifest,
     ManifestTarget,
 )
-from .ai_ops import AiAnalysisRequest, AiAnalysisTask, AiAskRequest
+from .ai_ops import (
+    AiAnalysisRequest,
+    AiAnalysisTask,
+    AiAskRequest,
+    AiChainLevel,
+    AiModelInfo,
+    AiModelsResponse,
+    AiProviderInfo,
+    AiProvidersResponse,
+)
 from .asset import (
     Asset,
     AssetClusterAssetResponse,
@@ -236,6 +245,11 @@ __all__ = [
     "AiAskRequest",
     "AiAnalysisTask",
     "AiAnalysisRequest",
+    "AiChainLevel",
+    "AiModelInfo",
+    "AiModelsResponse",
+    "AiProviderInfo",
+    "AiProvidersResponse",
     "TelemetryCapability",
     "TelemetryAgentBase",
     "TelemetryAgentCreate",

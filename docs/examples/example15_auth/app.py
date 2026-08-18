@@ -34,9 +34,17 @@ ae.add_configmap_dir("config_maps")
 # AI OPS
 ae.ai_ops(
     enabled=True,
-    base_url=os.getenv("ACEX_AI_API_BASEURL"),
-    api_key=os.getenv("ACEX_AI_API_KEY"),
-    mcp_server_url=os.getenv("ACEX_MCP_URL")
+    providers=[
+        {
+            "name": "bergetai",
+            "base_url": os.getenv("ACEX_AI_API_BASEURL"),
+            "api_key": os.getenv("ACEX_AI_API_KEY"),
+        },
+    ],
+    chains={
+        "default": ["bergetai/moonshotai/Kimi-K3"],
+    },
+    mcp_server_url=os.getenv("ACEX_MCP_URL"),
 )
 
 # CORS
