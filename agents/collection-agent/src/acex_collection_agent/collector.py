@@ -33,7 +33,7 @@ class Collector:
     def _fetch_credential_secret(self, credential_id: int) -> CredentialSecret | None:
         """Fetch decrypted credential fields from ACEX API."""
         try:
-            return self.client.inventory.credentials.secret(credential_id)
+            return self.client.inventory.credentials.secret(id=credential_id)
         except Exception as e:
             logger.warning(f"Failed to fetch credentials {credential_id}: {e}")
         return None

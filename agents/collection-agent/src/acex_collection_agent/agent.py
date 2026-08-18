@@ -70,7 +70,7 @@ class CollectionAgent:
     def _fetch_manifest(self) -> CollectionAgentManifest | None:
         """Fetch manifest from ACEX API."""
         try:
-            manifest = self.client.inventory.collection_agents.manifest(self.agent_id)
+            manifest = self.client.inventory.collection_agents.manifest(id=self.agent_id)
         except Exception as e:
             logger.error(f"Failed to fetch manifest: {e}")
             return None
@@ -86,7 +86,7 @@ class CollectionAgent:
         """Acknowledge receipt of manifest revision to ACEX API."""
         try:
             self.client.inventory.collection_agents.ack(
-                self.agent_id,
+                id=self.agent_id,
                 payload=CollectionAgentAck(config_revision=config_revision),
             )
         except Exception as e:
