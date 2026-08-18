@@ -139,22 +139,76 @@ class AutomationEngine:
     def ai_ops(
         self,
         enabled: bool = False,
-        api_key: str = None,
-        base_url: str = None,
+        providers: list[dict] = None,
+        chains: dict[str, list[str]] = None,
         mcp_server_url: str = None,
-        model: str = "openai/gpt-oss-120b",
     ):
-        if enabled is True:
-            if api_key is None or base_url is None or mcp_server_url is None:
-                print(api_key)
-                print("AI OPs is enabled, but missing parameters!")
-                return None
-            # Lazy import - only load when AI ops is actually enabled
-            from acex.ai_ops import AIOpsManager
+        """Configure AI operations: named providers + per-task failover chains.
 
-            self.ai_ops_manager = AIOpsManager(
-                api_key=api_key, base_url=base_url, mcp_server_url=mcp_server_url, model=model
+        Two ways to configure:
+
+        1. In code — pass `providers` and `chains`::
+
+            ae.ai_ops(
+                enabled=True,
+                providers=[
+                    {"name": "groq", "base_url": ..., "api_key": ...},
+                    {"name": "local", "base_url": ..., "api_key": ...,
+                     "static_models": ["qwen3:32b"]},
+                ],
+                chains={
+                    "default":  ["groq/moonshotai/Kimi-K3", "local/qwen3:32b"],
+                    "analysis": ["groq/deepseek-r1"],
+                },
+                mcp_server_url="http://localhost:8000/mcp",
             )
+
+        2. Env vars — ACEX_AI_* (see acex.ai_ops.config and docs/examples/ai_ops.md).
+           Used when `providers` is not given.
+
+        A "default" chain is required; tasks without their own chain inherit it.
+        `mcp_server_url` in code wins over ACEX_AI_MCP_SERVER_URL.
+        """
+        if not enabled:
+            return None
+
+        # Lazy import - only load when AI ops is actually enabled
+        from acex.ai_ops import AIOpsManager
+        from acex.ai_ops.config import AIChainLevel, AIOpsSettings, AIProvider
+
+        if providers is not None:
+            provider_map = {}
+            for p in providers:
+                missing = [k for k in ("base_url", "api_key") if not p.get(k)]
+                if missing:
+                    raise ValueError(
+                        f"AI provider '{p.get('name', '?')}' is missing {', '.join(missing)} "
+                        f"(check your env vars — os.getenv() returned None)"
+                    )
+                provider_map[p["name"]] = AIProvider(**p)
+            chain_map = {
+                task: [AIChainLevel(**(lvl if isinstance(lvl, dict) else _parse_level(lvl))) for lvl in levels]
+                for task, levels in (chains or {}).items()
+            }
+            settings = AIOpsSettings(
+                providers=provider_map,
+                chains=chain_map,
+                mcp_server_url=mcp_server_url,
+            )
+        else:
+            # Env vars
+            settings = AIOpsSettings.from_env()
+            if settings and mcp_server_url:
+                settings.mcp_server_url = mcp_server_url
+
+        if settings is None or not settings.providers or not settings.chains.get("default"):
+            raise ValueError(
+                "AI Ops is enabled, but no valid provider/chain configuration was found. "
+                "Pass providers= and chains= to ae.ai_ops(), or set ACEX_AI_* env vars "
+                "(see docs/examples/ai_ops.md)."
+            )
+
+        self.ai_ops_manager = AIOpsManager(settings=settings)
 
     def add_configmap_dir(self, dir_path: str):
         self.config_compiler.add_config_map_path(dir_path)
@@ -258,3 +312,9 @@ class AutomationEngine:
         """
         print(f"Adding integration {name} with plugin: {integration}")
         self.plugin_manager.register_generic_plugin(name, integration)
+
+
+def _parse_level(value: str) -> dict:
+    """'provider/model' -> {'provider': ..., 'model': ...}"""
+    provider, model = value.split("/", 1)
+    return {"provider": provider, "model": model}
