@@ -3,7 +3,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from acex.plugins.neds.core import RendererBase
+from acex_devkit.drivers import RendererBase
 from acex_devkit.configdiffer import Diff
 from acex_devkit.configdiffer.command import Command, Context
 from acex_devkit.models.composed_configuration import ComposedConfiguration
