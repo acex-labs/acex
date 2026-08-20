@@ -9,6 +9,7 @@ from acex_devkit.configdiffer.command import Command, Context
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.logging import LoggingSeverity
 from acex_devkit.normalizer.engine import NormalizerEngine, OpStats
+
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from .device_types.resolver import get_model

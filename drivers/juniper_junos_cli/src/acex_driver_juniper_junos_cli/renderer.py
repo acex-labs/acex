@@ -7,6 +7,7 @@ from acex_devkit.drivers import RendererBase
 from acex_devkit.configdiffer import Diff
 from acex_devkit.configdiffer.command import Command, Context
 from acex_devkit.models.composed_configuration import ComposedConfiguration
+
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from .augment_renderers import resolve_augment_lines
