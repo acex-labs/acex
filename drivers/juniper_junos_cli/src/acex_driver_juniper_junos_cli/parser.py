@@ -8,6 +8,7 @@ work; calling parse() raises until a real implementation lands.
 
 from acex_devkit.drivers import ParserBase
 
+
 class JunosCLIParser(ParserBase):
     def parse(self, configuration: str):
         raise NotImplementedError(
