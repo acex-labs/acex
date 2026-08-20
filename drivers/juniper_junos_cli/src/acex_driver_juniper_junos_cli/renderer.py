@@ -56,9 +56,7 @@ class JunosCLIRenderer(RendererBase):
         if isinstance(configuration, ComposedConfiguration):
             configuration = configuration.model_dump(mode="json")
         else:
-            raise ValueError(
-                f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}"
-            )
+            raise ValueError(f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}")
 
         processed_config = self.pre_process(configuration, asset)
         template = self._load_template_file()
@@ -70,12 +68,8 @@ class JunosCLIRenderer(RendererBase):
     # lines and rendering is just a join.
 
     def _register(self):
-        self.registry.register(
-            ("system", "config"), self._generate_system_config_commands
-        )
-        self.registry.register(
-            ("interfaces", "*"), self._generate_interface_config_commands
-        )
+        self.registry.register(("system", "config"), self._generate_system_config_commands)
+        self.registry.register(("interfaces", "*"), self._generate_interface_config_commands)
 
     def render_patch(self, diff: Diff, node_instance: Any):
         """Render device commands for a Diff using registered generators."""
@@ -91,9 +85,7 @@ class JunosCLIRenderer(RendererBase):
 
         return "\n".join(c.command for c in commands)
 
-    def _generate_system_config_commands(
-        self, component_change, node_instance
-    ) -> list[Command]:
+    def _generate_system_config_commands(self, component_change, node_instance) -> list[Command]:
         ctx = Context(path=[])
         commands: list[Command] = []
         for attr in component_change.changed_attributes:
@@ -106,14 +98,10 @@ class JunosCLIRenderer(RendererBase):
                         )
                     )
                 elif component_change.op == "remove":
-                    commands.append(
-                        Command(context=ctx, command="delete system host-name")
-                    )
+                    commands.append(Command(context=ctx, command="delete system host-name"))
         return commands
 
-    def _generate_interface_config_commands(
-        self, component_change, node_instance
-    ) -> list[Command]:
+    def _generate_interface_config_commands(self, component_change, node_instance) -> list[Command]:
         # Stub mirroring the Cisco renderer's placeholder — real attribute
         # mapping per change.op / attr.attribute_name lands here.
         ctx = Context(path=component_change.path)
@@ -159,17 +147,13 @@ class JunosCLIRenderer(RendererBase):
                 if (member.get("lacp_enabled") or {}).get("value"):
                     intf["_lacp_enabled"] = True
                     mode = (member.get("lacp_mode") or {}).get("value")
-                    intf["_lacp_mode"] = (
-                        mode if mode in ("active", "passive") else "active"
-                    )
+                    intf["_lacp_mode"] = mode if mode in ("active", "passive") else "active"
                     interval = (member.get("lacp_interval") or {}).get("value")
                     if interval:
                         intf["_lacp_interval"] = interval
                     break
 
-        config["_lag_count"] = sum(
-            1 for i in interfaces.values() if i.get("type") == "ieee8023adLag"
-        )
+        config["_lag_count"] = sum(1 for i in interfaces.values() if i.get("type") == "ieee8023adLag")
 
     def _physical_interface_names(self, config: dict, asset) -> dict:
         """

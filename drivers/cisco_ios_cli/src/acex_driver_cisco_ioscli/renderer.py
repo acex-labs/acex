@@ -66,12 +66,8 @@ class CiscoIOSCLIRenderer(RendererBase):
         for specific command generators, register them each and
         map them to a pattern in the generator-registry
         """
-        self.registry.register(
-            ("system", "config"), self._generate_system_config_commands
-        )
-        self.registry.register(
-            ("interfaces", "*"), self._generate_interface_config_commands
-        )
+        self.registry.register(("system", "config"), self._generate_system_config_commands)
+        self.registry.register(("interfaces", "*"), self._generate_interface_config_commands)
 
     def flatten(self, commands):
         output = []
@@ -141,9 +137,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         if isinstance(configuration, ComposedConfiguration):
             configuration = configuration.model_dump(mode="json")
         else:
-            raise ValueError(
-                f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}"
-            )
+            raise ValueError(f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}")
 
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)
@@ -154,9 +148,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         lines = NormalizerEngine.collapse_and_trim(rendered.splitlines(), OpStats())
         return "\n".join(lines) + "\n"
 
-    def _generate_system_config_commands(
-        self, component_change, node_instance
-    ) -> list[Command]:
+    def _generate_system_config_commands(self, component_change, node_instance) -> list[Command]:
         """
         Generate config related to system config.
         """
@@ -173,9 +165,7 @@ class CiscoIOSCLIRenderer(RendererBase):
                 commands.append(Command(context=ctx, command=cmd_txt))
         return commands
 
-    def _generate_interface_config_commands(
-        self, component_change, node_instance
-    ) -> list[Command]:
+    def _generate_interface_config_commands(self, component_change, node_instance) -> list[Command]:
         """
         Generate config related to interface config.
         """
@@ -190,9 +180,7 @@ class CiscoIOSCLIRenderer(RendererBase):
         # ip ssh source-interface example:
         # {'pointer': 'interfaces.vlan123_svi', 'metadata': {'type': 'str', 'value_source': 'reference'}}
         ssh_config = config.get("system", {}).get("ssh")
-        ssh_raw_interface = (
-            ssh_config.get("config", {}).get("source_interface") if ssh_config else None
-        )
+        ssh_raw_interface = ssh_config.get("config", {}).get("source_interface") if ssh_config else None
         if ssh_raw_interface and isinstance(ssh_raw_interface, dict):
             ref_path = ssh_raw_interface.get("pointer")
             if ref_path:
@@ -208,13 +196,9 @@ class CiscoIOSCLIRenderer(RendererBase):
         return config
 
     def _logging_trap_severity(self, config):
-        logging_trap = (
-            config.get("system", {})
-            .get("logging", {})
-            .get("config", {})
-            .get("augments")
-            or {}
-        ).get("cisco.trap_logging")
+        logging_trap = (config.get("system", {}).get("logging", {}).get("config", {}).get("augments") or {}).get(
+            "cisco.trap_logging"
+        )
         if logging_trap and logging_trap.get("severity"):
             # Translate severity to Cisco IOS format
             raw_severity = LoggingSeverity(logging_trap["severity"].get("value"))
@@ -274,42 +258,22 @@ class CiscoIOSCLIRenderer(RendererBase):
             return
 
         # Sort by line_number
-        sorted_lines = sorted(
-            vty_lines.values(), key=lambda v: v.get("line_number", {}).get("value", 0)
-        )
+        sorted_lines = sorted(vty_lines.values(), key=lambda v: v.get("line_number", {}).get("value", 0))
 
         def _extract_settings(line):
             """Extract a comparable settings dict from a VTY line."""
             # ACL
             ipv4acl = line.get("ipv4acl")
-            acl_name = (
-                ipv4acl.get("pointer", "").split(".")[-1]
-                if ipv4acl and ipv4acl.get("pointer")
-                else None
-            )
-            acl_dir = (
-                line.get("acl_direction", {}).get("value", "in")
-                if line.get("acl_direction")
-                else "in"
-            )
-            acl_ni = (
-                line.get("acl_network_instance", {}).get("value")
-                if line.get("acl_network_instance")
-                else None
-            )
+            acl_name = ipv4acl.get("pointer", "").split(".")[-1] if ipv4acl and ipv4acl.get("pointer") else None
+            acl_dir = line.get("acl_direction", {}).get("value", "in") if line.get("acl_direction") else "in"
+            acl_ni = line.get("acl_network_instance", {}).get("value") if line.get("acl_network_instance") else None
 
             # Transport
-            transport = (
-                line.get("transport_input", {}).get("value", "ssh")
-                if line.get("transport_input")
-                else "ssh"
-            )
+            transport = line.get("transport_input", {}).get("value", "ssh") if line.get("transport_input") else "ssh"
 
             # Logging
             log_sync = (
-                bool(line.get("logging_synchronous", {}).get("value"))
-                if line.get("logging_synchronous")
-                else False
+                bool(line.get("logging_synchronous", {}).get("value")) if line.get("logging_synchronous") else False
             )
 
             # AAA from augments
@@ -323,19 +287,25 @@ class CiscoIOSCLIRenderer(RendererBase):
                     login_auth = (
                         la.get("pointer", "").split(".")[-1]
                         if la and la.get("pointer")
-                        else la.get("value") if la else None
+                        else la.get("value")
+                        if la
+                        else None
                     )
                     ae = aug.get("authorization_exec")
                     authz_exec = (
                         ae.get("pointer", "").split(".")[-1]
                         if ae and ae.get("pointer")
-                        else ae.get("value") if ae else None
+                        else ae.get("value")
+                        if ae
+                        else None
                     )
                     ac = aug.get("authorization_commands")
                     authz_commands = (
                         ac.get("pointer", "").split(".")[-1]
                         if ac and ac.get("pointer")
-                        else ac.get("value") if ac else None
+                        else ac.get("value")
+                        if ac
+                        else None
                     )
                     break
 
@@ -356,11 +326,7 @@ class CiscoIOSCLIRenderer(RendererBase):
             line_num = line.get("line_number", {}).get("value", 0)
             settings = _extract_settings(line)
 
-            if (
-                groups
-                and groups[-1]["settings"] == settings
-                and groups[-1]["end_line"] == line_num - 1
-            ):
+            if groups and groups[-1]["settings"] == settings and groups[-1]["end_line"] == line_num - 1:
                 groups[-1]["end_line"] = line_num
             else:
                 groups.append(
@@ -388,21 +354,13 @@ class CiscoIOSCLIRenderer(RendererBase):
         """
         if asset.type == "asset":
             model_data = get_model(asset.hardware_model, self._model_directory)
-            port_slots = self._render_frontpanel_port_slots(
-                0, configuration, model_data
-            )
+            port_slots = self._render_frontpanel_port_slots(0, configuration, model_data)
             configuration = self._update_frontpanel_ports(configuration, port_slots)
         elif asset.type == "asset_cluster":
             all_slots = []
             for stack_index, member_asset in enumerate(asset.assets):
-                model_data = get_model(
-                    member_asset.hardware_model, self._model_directory
-                )
-                all_slots.extend(
-                    self._render_frontpanel_port_slots(
-                        stack_index, configuration, model_data
-                    )
-                )
+                model_data = get_model(member_asset.hardware_model, self._model_directory)
+                all_slots.extend(self._render_frontpanel_port_slots(stack_index, configuration, model_data))
 
             configuration = self._update_frontpanel_ports(configuration, all_slots)
 
@@ -465,17 +423,11 @@ class CiscoIOSCLIRenderer(RendererBase):
     def _get_slot(self, index, module_index, stack_index, slots):
         """Extracts a slot definition or None"""
         for slot in slots:
-            if (
-                slot["index"] == index
-                and slot["module_index"] == module_index
-                and slot["stack_index"] == stack_index
-            ):
+            if slot["index"] == index and slot["module_index"] == module_index and slot["stack_index"] == stack_index:
                 return slot
         return None
 
-    def _compile_interface_name(
-        self, *, prefix: str, stack_index: int, interface_slot: dict, model_data: dict
-    ):
+    def _compile_interface_name(self, *, prefix: str, stack_index: int, interface_slot: dict, model_data: dict):
         """
         Compiles full interface name from device_types/models file
         """
