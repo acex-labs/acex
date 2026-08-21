@@ -460,7 +460,7 @@ class CiscoIOSCLIRenderer(RendererBase):
 
                 if midx == interface_slot["module_index"]:
                     if v["type"] == "ethernetCsmacd":
-                        speed = v["speed"]['value']
+                        speed = v["speed"]["value"]
                         return speed
                     else:
                         return 0
