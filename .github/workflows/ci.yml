@@ -401,10 +401,27 @@ jobs:
             esac
           done
 
-          summary_text=$(cat <<EOF
-          *Lint:* $(badge "$LINT_RESULT") repot · backend $(badge "$LINT_BACKEND") · cli $(badge "$LINT_CLI") · client $(badge "$LINT_CLIENT") · mcp $(badge "$LINT_MCP") · devkit $(badge "$LINT_DEVKIT") · worker $(badge "$LINT_WORKER") · cisco $(badge "$LINT_CISCO") · juniper $(badge "$LINT_JUNIPER")
-          *Unit tests:* backend $(badge "$UT_BACKEND") · cli $(badge "$UT_CLI") · client $(badge "$UT_CLIENT") · mcp $(badge "$UT_MCP") · devkit $(badge "$UT_DEVKIT") · worker $(badge "$UT_WORKER")
-          *Integration:* $(badge "$IT_RESULT")
+          lint_lines=$(cat <<EOF
+          $(badge "$LINT_RESULT") Hela repot
+          $(badge "$LINT_BACKEND") backend
+          $(badge "$LINT_CLI") cli
+          $(badge "$LINT_CLIENT") client
+          $(badge "$LINT_MCP") mcp
+          $(badge "$LINT_DEVKIT") devkit
+          $(badge "$LINT_WORKER") worker
+          $(badge "$LINT_CISCO") cisco_ios_cli
+          $(badge "$LINT_JUNIPER") juniper_junos_cli
+          EOF
+          )
+
+          test_lines=$(cat <<EOF
+          $(badge "$UT_BACKEND") backend
+          $(badge "$UT_CLI") cli
+          $(badge "$UT_CLIENT") client
+          $(badge "$UT_MCP") mcp
+          $(badge "$UT_DEVKIT") devkit
+          $(badge "$UT_WORKER") worker
+          $(badge "$IT_RESULT") Integration tests
           EOF
           )
 
@@ -414,7 +431,8 @@ jobs:
             --arg author "${PR_AUTHOR}" \
             --arg branches "\`${HEAD_BRANCH}\` → \`${BASE_BRANCH}\`" \
             --arg overall "${overall}" \
-            --arg summary "${summary_text}" \
+            --arg lint_lines "${lint_lines}" \
+            --arg test_lines "${test_lines}" \
             --arg run_url "${RUN_URL}" \
             '{
               text: $text,
@@ -426,7 +444,9 @@ jobs:
                   { type: "mrkdwn", text: ("*Branches:* " + $branches) },
                   { type: "mrkdwn", text: ("*Status:* " + $overall) }
                 ]},
-                { type: "section", text: { type: "mrkdwn", text: $summary } },
+                { type: "divider" },
+                { type: "section", text: { type: "mrkdwn", text: ("*🔍 Lint*\n" + $lint_lines) } },
+                { type: "section", text: { type: "mrkdwn", text: ("*🧪 Tester*\n" + $test_lines) } },
                 { type: "actions", elements: [
                   { type: "button", text: { type: "plain_text", text: "Öppna PR" }, url: env.PR_URL },
                   { type: "button", text: { type: "plain_text", text: "Visa CI-körning" }, url: $run_url }
