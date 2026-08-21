@@ -1,0 +1,148 @@
+name: Slack notifications
+
+# Skickar Slack-notiser vid PR-livscykelhändelser så att teamet ser vad som händer.
+# CI-rapporten postas separat av ci.yml (slack-notify-jobbet) efter att testerna körts.
+on:
+  pull_request:
+    types: [opened, reopened, closed]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  notify:
+    name: Slack-notis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Posta PR-event till Slack
+        if: github.event_name == 'pull_request'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ACTION: ${{ github.event.action }}
+          MERGED: ${{ github.event.pull_request.merged }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          MERGED_BY: ${{ github.event.pull_request.merged_by.login }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL är inte satt — hoppar över."
+            exit 0
+          fi
+
+          if [ "$ACTION" = "closed" ] && [ "$MERGED" = "true" ]; then
+            emoji="✅"
+            headline="PR mergad"
+            actor_line="*Mergad av:* ${MERGED_BY}"
+          elif [ "$ACTION" = "closed" ]; then
+            emoji="🚫"
+            headline="PR stängd (ej mergad)"
+            actor_line="*Stängd av:* ${GITHUB_ACTOR}"
+          elif [ "$ACTION" = "reopened" ]; then
+            emoji="🔁"
+            headline="PR återöppnad"
+            actor_line="*Författare:* ${PR_AUTHOR}"
+          else
+            emoji="🔀"
+            headline="Ny PR öppnad"
+            actor_line="*Författare:* ${PR_AUTHOR}"
+          fi
+
+          payload=$(jq -n \
+            --arg emoji "$emoji" \
+            --arg headline "$headline" \
+            --arg title "<${PR_URL}|#${PR_NUMBER} ${PR_TITLE}>" \
+            --arg actor "$actor_line" \
+            --arg branches "\`${HEAD_BRANCH}\` → \`${BASE_BRANCH}\`" \
+            --arg pr_url "$PR_URL" \
+            '{
+              text: ($emoji + " " + $headline + ": " + $title),
+              blocks: [
+                { type: "section", text: { type: "mrkdwn", text: ($emoji + " *" + $headline + "*\n" + $title) } },
+                { type: "section", fields: [
+                  { type: "mrkdwn", text: $actor },
+                  { type: "mrkdwn", text: ("*Branches:* " + $branches) }
+                ]},
+                { type: "actions", elements: [
+                  { type: "button", text: { type: "plain_text", text: "Öppna PR" }, url: $pr_url }
+                ]}
+              ]
+            }')
+
+          curl -sS -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" > /dev/null
+          echo "Slack-notis skickad ($ACTION)."
+
+      - name: Posta kommentar till Slack
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL är inte satt — hoppar över."
+            exit 0
+          fi
+
+          # Trunkera långa kommentarer så att Slack-meddelandet håller sig läsbart.
+          snippet=$(echo "$COMMENT_BODY" | head -c 280)
+          if [ ${#COMMENT_BODY} -gt 280 ]; then snippet="${snippet}…"; fi
+
+          payload=$(jq -n \
+            --arg url "$COMMENT_URL" \
+            --arg author "$COMMENT_AUTHOR" \
+            --arg issue "<${COMMENT_URL}|#${ISSUE_NUMBER} ${ISSUE_TITLE}>" \
+            --arg snippet "$snippet" \
+            '{
+              text: ("💬 Ny kommentar på " + $issue),
+              blocks: [
+                { type: "section", text: { type: "mrkdwn", text: ("💬 *Ny kommentar på* " + $issue + "\n>>> " + $snippet) } },
+                { type: "context", elements: [ { type: "mrkdwn", text: ("av " + $author + " · <" + $url + "|Visa kommentar>") } ] }
+              ]
+            }')
+
+          curl -sS -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" > /dev/null
+          echo "Slack-notis skickad (issue_comment)."
+
+      - name: Posta review-kommentar till Slack
+        if: github.event_name == 'pull_request_review_comment'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          FILE_PATH: ${{ github.event.comment.path }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL är inte satt — hoppar över."
+            exit 0
+          fi
+
+          snippet=$(echo "$COMMENT_BODY" | head -c 280)
+          if [ ${#COMMENT_BODY} -gt 280 ]; then snippet="${snippet}…"; fi
+
+          payload=$(jq -n \
+            --arg url "$COMMENT_URL" \
+            --arg author "$COMMENT_AUTHOR" \
+            --arg pr "<${url}|#${PR_NUMBER} ${PR_TITLE}>" \
+            --arg file "$FILE_PATH" \
+            --arg snippet "$snippet" \
+            '{
+              text: ("🧵 Review-kommentar på " + $pr),
+              blocks: [
+                { type: "section", text: { type: "mrkdwn", text: ("🧵 *Review-kommentar på* " + $pr + "\n*Fil:* `" + $file + "`\n>>> " + $snippet) } },
+                { type: "context", elements: [ { type: "mrkdwn", text: ("av " + $author + " · <" + $url + "|Visa kommentar>") } ] }
+              ]
+            }')
+
+          curl -sS -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" > /dev/null
+          echo "Slack-notis skickad (review_comment)."
