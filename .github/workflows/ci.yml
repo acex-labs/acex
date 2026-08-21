@@ -9,6 +9,14 @@ on:
     branches: [ main, stage ]
 
 jobs:
+  branch-name:
+    name: Branch name policy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Validate branch name
+        run: scripts/check_branch_name.sh "${{ github.head_ref }}"
+
   lint:
     name: Lint (Ruff)
     runs-on: ubuntu-latest
@@ -286,7 +294,7 @@ jobs:
 
   pr-summary:
     name: PR summary
-    needs: [lint, lint-per-package, unit-tests, integration-tests]
+    needs: [branch-name, lint, lint-per-package, unit-tests, integration-tests]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:

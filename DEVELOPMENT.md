@@ -152,6 +152,41 @@ cd cli
 poetry run pytest
 ```
 
+## Branch Naming
+
+Alla branches måste följa formatet `<prefix>/<description>` (Conventional Commits-stil):
+
+- **Tillåtna prefix:** `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `hotfix`, `ci`, `perf`, `build`
+  (observera: `feature` är inte tillåtet — använd `feat`)
+- **Description:** gemener, siffror och bindestreck (kebab-case)
+
+Exempel: `feat/add-ntp-support`, `fix/static-route-nil-check`, `hotfix/1.2.1-crash-on-boot`
+
+Undantag: `main`, `stage` och `dependabot/*` valideras inte.
+
+Standarden enforcas på tre nivåer:
+
+1. **Lokalt** — en pre-commit-hook (`post-checkout`) varnar direkt när du checkar ut en branch med ogiltigt namn. Aktivera med:
+   ```bash
+   pre-commit install --hook-type post-checkout
+   ```
+2. **CI** — jobbet `Branch name policy` i `.github/workflows/ci.yml` failar PR:s från ogiltigt namngivna branches.
+3. **GitHub ruleset** (manuellt steg, kräver admin) — blockera skapande av felaktiga branches redan på servern:
+   - Gå till **Settings → Rules → Rulesets → New ruleset → New branch ruleset**
+   - **Enforcement status:** Active
+   - **Targets:** Add target → Include all branches (eller exkludera `main`/`stage`)
+   - Under **Branch rules**, aktivera **Restrict branch names** och lägg till mönstren:
+     - `feat/*`, `fix/*`, `chore/*`, `docs/*`, `refactor/*`, `test/*`, `hotfix/*`, `ci/*`, `perf/*`, `build/*`
+     - samt `main` och `stage` (och ev. `dependabot/**`) om du inkluderade alla branches
+   - Spara rulesetet.
+
+Valideringsskriptet som används av både hooken och CI ligger i `scripts/check_branch_name.sh` och kan köras manuellt:
+
+```bash
+scripts/check_branch_name.sh              # validera nuvarande branch
+scripts/check_branch_name.sh fix/my-fix   # validera ett givet namn
+```
+
 ## Building for Distribution
 
 To build individual packages:

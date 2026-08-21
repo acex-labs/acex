@@ -67,12 +67,12 @@ ruff check .
 
 ### Making Changes
 
-1. Create a feature branch: `git checkout -b feature/your-feature`
+1. Create a branch following the naming convention (`<prefix>/<description>`, Conventional Commits style — see DEVELOPMENT.md): `git checkout -b feat/your-feature`
 2. Make your changes
 3. Add tests for your changes
 4. Run tests to ensure they pass
 5. Commit your changes: `git commit -m "Add your feature"`
-6. Push to your fork: `git push origin feature/your-feature`
+6. Push to your fork: `git push origin feat/your-feature`
 7. Create a Pull Request
 
 ### Versioning
