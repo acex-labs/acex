@@ -4,7 +4,9 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    # Feature → stage (testar innan merge till stage)
+    # Stage → main (testar + trigar release vid merge)
+    branches: [ main, stage ]
 
 jobs:
   lint:
@@ -343,6 +345,98 @@ jobs:
           row "Unit tests: worker" "$UT_WORKER"
           row "Integration tests" "$IT_RESULT"
 
+  slack-notify:
+    name: Slack CI-rapport
+    needs: [lint, lint-per-package, unit-tests, integration-tests, pr-summary]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bygg Slack-payload och posta
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          LINT_RESULT: ${{ needs.lint.outputs.result }}
+          LINT_BACKEND: ${{ needs.lint-per-package.outputs.backend-result }}
+          LINT_CLI: ${{ needs.lint-per-package.outputs.cli-result }}
+          LINT_CLIENT: ${{ needs.lint-per-package.outputs.client-result }}
+          LINT_MCP: ${{ needs.lint-per-package.outputs.mcp-result }}
+          LINT_DEVKIT: ${{ needs.lint-per-package.outputs.devkit-result }}
+          LINT_WORKER: ${{ needs.lint-per-package.outputs.worker-result }}
+          LINT_CISCO: ${{ needs.lint-per-package.outputs.cisco-ios-cli-result }}
+          LINT_JUNIPER: ${{ needs.lint-per-package.outputs.juniper-junos-cli-result }}
+          UT_BACKEND: ${{ needs.unit-tests.outputs.backend-result }}
+          UT_CLI: ${{ needs.unit-tests.outputs.cli-result }}
+          UT_CLIENT: ${{ needs.unit-tests.outputs.client-result }}
+          UT_MCP: ${{ needs.unit-tests.outputs.mcp-result }}
+          UT_DEVKIT: ${{ needs.unit-tests.outputs.devkit-result }}
+          UT_WORKER: ${{ needs.unit-tests.outputs.worker-result }}
+          IT_RESULT: ${{ needs.integration-tests.outputs.result }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL är inte satt — hoppar över Slack-notis."
+            exit 0
+          fi
+
+          badge() {
+            case "$1" in
+              success|ok|passed) echo "✅" ;;
+              no-tests) echo "⏭️" ;;
+              failure|failed|error|lint-issues) echo "❌" ;;
+              unformatted) echo "⚠️" ;;
+              *) echo "❓" ;;
+            esac
+          }
+
+          overall="✅ Alla checks gröna"
+          for r in "$LINT_RESULT" "$LINT_BACKEND" "$LINT_CLI" "$LINT_CLIENT" "$LINT_MCP" "$LINT_DEVKIT" "$LINT_WORKER" "$LINT_CISCO" "$LINT_JUNIPER" "$UT_BACKEND" "$UT_CLI" "$UT_CLIENT" "$UT_MCP" "$UT_DEVKIT" "$UT_WORKER" "$IT_RESULT"; do
+            case "$r" in
+              success|ok|passed|no-tests|unformatted|"") ;;
+              *) overall="❌ Minst en check failar"; break ;;
+            esac
+          done
+
+          summary_text=$(cat <<EOF
+          *Lint:* $(badge "$LINT_RESULT") repot · backend $(badge "$LINT_BACKEND") · cli $(badge "$LINT_CLI") · client $(badge "$LINT_CLIENT") · mcp $(badge "$LINT_MCP") · devkit $(badge "$LINT_DEVKIT") · worker $(badge "$LINT_WORKER") · cisco $(badge "$LINT_CISCO") · juniper $(badge "$LINT_JUNIPER")
+          *Unit tests:* backend $(badge "$UT_BACKEND") · cli $(badge "$UT_CLI") · client $(badge "$UT_CLIENT") · mcp $(badge "$UT_MCP") · devkit $(badge "$UT_DEVKIT") · worker $(badge "$UT_WORKER")
+          *Integration:* $(badge "$IT_RESULT")
+          EOF
+          )
+
+          payload=$(jq -n \
+            --arg text "CI-rapport för PR #${PR_NUMBER}" \
+            --arg title "<${PR_URL}|#${PR_NUMBER} ${PR_TITLE}>" \
+            --arg author "${PR_AUTHOR}" \
+            --arg branches "\`${HEAD_BRANCH}\` → \`${BASE_BRANCH}\`" \
+            --arg overall "${overall}" \
+            --arg summary "${summary_text}" \
+            --arg run_url "${RUN_URL}" \
+            '{
+              text: $text,
+              blocks: [
+                { type: "header", text: { type: "plain_text", text: ("CI-rapport: PR #" + env.PR_NUMBER) } },
+                { type: "section", fields: [
+                  { type: "mrkdwn", text: ("*PR:* " + $title) },
+                  { type: "mrkdwn", text: ("*Författare:* " + $author) },
+                  { type: "mrkdwn", text: ("*Branches:* " + $branches) },
+                  { type: "mrkdwn", text: ("*Status:* " + $overall) }
+                ]},
+                { type: "section", text: { type: "mrkdwn", text: $summary } },
+                { type: "actions", elements: [
+                  { type: "button", text: { type: "plain_text", text: "Öppna PR" }, url: env.PR_URL },
+                  { type: "button", text: { type: "plain_text", text: "Visa CI-körning" }, url: $run_url }
+                ]}
+              ]
+            }')
+
+          curl -sS -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" > /dev/null
+          echo "Slack-notis skickad."
+
   check-versions:
     name: Check version ${{ matrix.package }}
     runs-on: ubuntu-latest
@@ -489,7 +583,7 @@ jobs:
         SHOULD_PUBLISH="${{ needs.check-versions.outputs[matrix.should-publish-output] }}"
         echo "should-publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
         if [ "$SHOULD_PUBLISH" = "true" ]; then
-          echo "✅ Will build ${{ matrix.pypi-name }} — publish väntar på godkännande"
+          echo "✅ Will build ${{ matrix.pypi-name }} — publiceras automatiskt efter build"
         else
           echo "⏭️  Skipping ${{ matrix.pypi-name }} - already published"
         fi
@@ -542,13 +636,13 @@ jobs:
       working-directory: ${{ matrix.working-dir }}
       run: poetry build
 
-    - name: Release summary (väntar på godkännande)
+    - name: Release summary
       if: steps.should-publish.outputs.should-publish == 'true'
       working-directory: ${{ matrix.working-dir }}
       run: |
         VERSION=$(poetry version -s)
         echo "### 📦 ${{ matrix.pypi-name }}" >> $GITHUB_STEP_SUMMARY
-        echo "Byggd version **$VERSION** — väntar på godkännande innan publish till PyPI." >> $GITHUB_STEP_SUMMARY
+        echo "Byggd version **$VERSION** — publiceras automatiskt till PyPI i nästa steg." >> $GITHUB_STEP_SUMMARY
 
     - name: Upload build artifact
       if: steps.should-publish.outputs.should-publish == 'true'
@@ -566,7 +660,8 @@ jobs:
       id-token: write  # Krävs för Trusted Publisher (OIDC)
       contents: read
     if: github.ref == 'refs/heads/main'
-    environment: release # Enda gated jobbet — kräver manuellt godkännande innan publish.
+    # Ingen manuell godkännande-gate längre — skyddet ligger i branch
+    # protection på `main` (PR + gröna checks krävs innan merge).
     strategy:
       fail-fast: false
       matrix:
@@ -714,7 +809,7 @@ jobs:
           row() {
             local name="$1" version="$2" should_publish="$3"
             if [ "$should_publish" = "true" ]; then
-              echo "| \`$name\` | $version | ✅ Ny — väntar på godkännande |" >> $GITHUB_STEP_SUMMARY
+              echo "| \`$name\` | $version | ✅ Ny — publiceras automatiskt |" >> $GITHUB_STEP_SUMMARY
             else
               echo "| \`$name\` | $version | ⏭️ Redan publicerad |" >> $GITHUB_STEP_SUMMARY
             fi
@@ -754,7 +849,7 @@ jobs:
           SHOULD_PUBLISH="${{ needs.check-driver-versions.outputs[matrix.should-publish-output] }}"
           echo "should-publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
           if [ "$SHOULD_PUBLISH" = "true" ]; then
-            echo "✅ Will build ${{ matrix.pypi-name }} — publish väntar på godkännande"
+            echo "✅ Will build ${{ matrix.pypi-name }} — publiceras automatiskt efter build"
           else
             echo "⏭️  Skipping ${{ matrix.pypi-name }} - already published"
           fi
@@ -797,13 +892,13 @@ jobs:
         working-directory: ./drivers/${{ matrix.driver }}
         run: poetry build
 
-      - name: Release summary (väntar på godkännande)
+      - name: Release summary
         if: steps.should-publish.outputs.should-publish == 'true'
         working-directory: ./drivers/${{ matrix.driver }}
         run: |
           VERSION=$(poetry version -s)
           echo "### 📦 ${{ matrix.pypi-name }}" >> $GITHUB_STEP_SUMMARY
-          echo "Byggd version **$VERSION** — väntar på godkännande innan publish till PyPI." >> $GITHUB_STEP_SUMMARY
+          echo "Byggd version **$VERSION** — publiceras automatiskt till PyPI i nästa steg." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload build artifact
         if: steps.should-publish.outputs.should-publish == 'true'
@@ -821,7 +916,7 @@ jobs:
       id-token: write
       contents: read
     if: github.ref == 'refs/heads/main'
-    environment: release # Enda gated jobbet — kräver manuellt godkännande innan publish.
+    # Ingen manuell godkännande-gate längre — se publish-packages ovan.
     strategy:
       fail-fast: false
       matrix:
@@ -899,7 +994,7 @@ jobs:
           else
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
-            echo "| acex-collection-agent | $VERSION | ✅ Ny version — kommer pushas (kräver godkännande) |" >> $GITHUB_STEP_SUMMARY
+            echo "| acex-collection-agent | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
           fi
 
   build-and-push-collection-agent:
@@ -910,7 +1005,7 @@ jobs:
       contents: read
       packages: write
     if: github.ref == 'refs/heads/main' && needs.check-collection-agent-image.outputs.exists == 'false'
-    environment: release # Enda gated jobbet — kräver manuellt godkännande innan push.
+    # Ingen manuell godkännande-gate längre — se publish-packages ovan.
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -976,7 +1071,7 @@ jobs:
           else
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
-            echo "| acex-telemetry-agent | $VERSION | ✅ Ny version — kommer pushas (kräver godkännande) |" >> $GITHUB_STEP_SUMMARY
+            echo "| acex-telemetry-agent | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
           fi
 
   build-and-push-telemetry-agent:
@@ -987,7 +1082,7 @@ jobs:
       contents: read
       packages: write
     if: github.ref == 'refs/heads/main' && needs.check-telemetry-agent-image.outputs.exists == 'false'
-    environment: release # Enda gated jobbet — kräver manuellt godkännande innan push.
+    # Ingen manuell godkännande-gate längre — se publish-packages ovan.
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
