@@ -6,7 +6,7 @@ driver instantiable so deployment-side flows (render/render_patch/apply_patch)
 work; calling parse() raises until a real implementation lands.
 """
 
-from acex.plugins.neds.core import ParserBase
+from acex_devkit.drivers import ParserBase
 
 
 class JunosCLIParser(ParserBase):

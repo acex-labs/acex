@@ -3,9 +3,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from acex.plugins.neds.core import RendererBase
 from acex_devkit.configdiffer import Diff
 from acex_devkit.configdiffer.command import Command, Context
+from acex_devkit.drivers import RendererBase
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
@@ -91,7 +91,12 @@ class JunosCLIRenderer(RendererBase):
         for attr in component_change.changed_attributes:
             if attr.attribute_name == "hostname":
                 if component_change.op in ("add", "change"):
-                    commands.append(Command(context=ctx, command=f"set system host-name {attr.after.value}"))
+                    commands.append(
+                        Command(
+                            context=ctx,
+                            command=f"set system host-name {attr.after.value}",
+                        )
+                    )
                 elif component_change.op == "remove":
                     commands.append(Command(context=ctx, command="delete system host-name"))
         return commands

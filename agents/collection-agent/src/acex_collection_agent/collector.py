@@ -33,7 +33,7 @@ class Collector:
     def _fetch_credential_secret(self, credential_id: int) -> CredentialSecret | None:
         """Fetch decrypted credential fields from ACEX API."""
         try:
-            return self.client.inventory.credentials.secret(credential_id)
+            return self.client.inventory.credentials.secret(id=credential_id)
         except Exception as e:
             logger.warning(f"Failed to fetch credentials {credential_id}: {e}")
         return None
@@ -85,6 +85,7 @@ class Collector:
             ned_id=ned_id,
         )
         connection = ManagementConnection(
+            id=1337,  # placeholder, not used in driver transport, needed for object compatibility
             node_id=node_id,
             target_ip=target_ip,
             connection_type=target.connection_type or "ssh",
