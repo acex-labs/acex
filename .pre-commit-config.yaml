@@ -5,3 +5,16 @@ repos:
       - id: ruff-check
         args: [--fix]
       - id: ruff-format
+
+  - repo: local
+    hooks:
+      # Körs efter varje checkout (t.ex. `git checkout -b ...`) och varnar
+      # direkt om branchnamnet bryter mot namnstandarden. En riktig
+      # blockering sker i CI — se .github/workflows/ci.yml.
+      - id: branch-name
+        name: Check branch name
+        entry: scripts/check_branch_name.sh
+        language: script
+        stages: [post-checkout]
+        always_run: true
+        pass_filenames: false
