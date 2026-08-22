@@ -1,3 +1,4 @@
+import logging
 import os
 from collections.abc import Callable
 from pathlib import Path
@@ -6,6 +7,7 @@ from typing import Any
 from acex_devkit.configdiffer import Diff
 from acex_devkit.configdiffer.command import Command, Context
 from acex_devkit.drivers import RendererBase
+from acex_devkit.exceptions import RenderingError
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.logging import LoggingSeverity
 from acex_devkit.normalizer.engine import NormalizerEngine, OpStats
@@ -13,6 +15,8 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from .device_types.resolver import get_model
 from .filters import cidr_to_addrmask
+
+logger = logging.getLogger(__name__)
 
 
 class GeneratorRegistry:
@@ -51,6 +55,11 @@ class CiscoIOSCLIRenderer(RendererBase):
         template_name = "template.j2"
 
         path = Path(__file__).parent
+        if not (path / template_name).is_file():
+            raise RenderingError(
+                f"Template file '{template_name}' not found in {path}"
+            )
+
         env = Environment(
             loader=FileSystemLoader(path), undefined=StrictUndefined
         )  # StrictUndefined to catch undefined variables, testing
@@ -107,12 +116,21 @@ class CiscoIOSCLIRenderer(RendererBase):
         self._register()
 
         commands = []
+        unmatched = []
         for change in diff.get_all_changes():
             generator = self.registry.resolve(tuple(change.path))
             if generator is None:
+                unmatched.append(change.path)
                 continue
             cmds = generator(change, node_instance)
             commands.extend(cmds)
+
+        if unmatched:
+            logger.warning(
+                "render_patch: %d diff change(s) matched no generator and were skipped: %s",
+                len(unmatched),
+                unmatched,
+            )
 
         # TODO: Ordering
 
@@ -137,7 +155,9 @@ class CiscoIOSCLIRenderer(RendererBase):
         if isinstance(configuration, ComposedConfiguration):
             configuration = configuration.model_dump(mode="json")
         else:
-            raise ValueError(f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}")
+            raise RenderingError(
+                f"Configuration must be a ComposedConfiguration instance. Not {type(configuration)}"
+            )
 
         # Give the NED a chance to pre-process the config before rendering
         processed_config = self.pre_process(configuration, asset)
@@ -171,9 +191,31 @@ class CiscoIOSCLIRenderer(RendererBase):
         """
         ctx = Context(path=component_change.path)
         commands = []
-        cmd = Command(context=ctx, command="desc hyvvää hirvi")
 
-        commands.append(cmd)
+        for attr in component_change.changed_attributes:
+            if attr.attribute_name == "description":
+                if component_change.op in ("add", "change"):
+                    cmd_txt = f"description {attr.after.value}"
+                elif component_change.op == "remove":
+                    cmd_txt = "no description"
+                else:
+                    continue
+                commands.append(Command(context=ctx, command=cmd_txt))
+            elif attr.attribute_name == "enabled":
+                if attr.after and attr.after.value:
+                    cmd_txt = "no shutdown"
+                else:
+                    cmd_txt = "shutdown"
+                commands.append(Command(context=ctx, command=cmd_txt))
+
+        if not commands:
+            logger.debug(
+                "No interface commands generated for change at path %s (op=%s, attrs=%s)",
+                component_change.path,
+                component_change.op,
+                [a.attribute_name for a in component_change.changed_attributes],
+            )
+
         return commands
 
     def _ssh_interface(self, config):
@@ -214,16 +256,30 @@ class CiscoIOSCLIRenderer(RendererBase):
         Loops all network_instances and add vrf definition to
         referenced interfaces
         """
-        vrfs = config["network_instances"]
+        vrfs = config.get("network_instances")
+        if not vrfs:
+            return
         for _vrf_name, vrf in vrfs.items():
-            if vrf["name"]["value"] == "global":
-                ...
-            else:
-                for _, interface in vrf["interfaces"].items():
-                    ref_path = interface["pointer"]
-                    if isinstance(ref_path, str) and ref_path:
-                        intf = config["interfaces"][ref_path.split(".")[1]]
-                        intf["vrf"] = vrf["name"]["value"]
+            vrf_name = (vrf.get("name") or {}).get("value")
+            if vrf_name == "global":
+                continue
+            for _, interface in (vrf.get("interfaces") or {}).items():
+                ref_path = interface.get("pointer")
+                if isinstance(ref_path, str) and ref_path:
+                    parts = ref_path.split(".")
+                    if len(parts) < 2:
+                        raise RenderingError(
+                            f"Invalid interface pointer '{ref_path}' in network instance '{vrf_name}': "
+                            "expected format '<type>.<name>'"
+                        )
+                    intf_name = parts[1]
+                    intf = config.get("interfaces", {}).get(intf_name)
+                    if intf is None:
+                        raise RenderingError(
+                            f"Network instance '{vrf_name}' references interface '{intf_name}' "
+                            "which does not exist in configuration"
+                        )
+                    intf["vrf"] = vrf_name
 
     def pre_process(self, configuration, asset) -> dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
@@ -416,6 +472,11 @@ class CiscoIOSCLIRenderer(RendererBase):
                     v["name"] = slot["name"]
 
         for interface in interfaces_without_slots:
+            logger.warning(
+                "Interface '%s' matches no frontpanel slot on this hardware model "
+                "and will be excluded from rendered configuration",
+                interface,
+            )
             configuration["interfaces"].pop(interface)
 
         return configuration
