@@ -1,0 +1,7 @@
+# CODEOWNERS för acex
+# Alla aktiva maintainer kan godkänna varandras PRs.
+# Kombinerat med branch protection på main krävs approval från minst en code owner.
+
+# Default: alla i teamet äger allt
+* @johan-lahti @Moooft @willefrode @janinaamanka
+
