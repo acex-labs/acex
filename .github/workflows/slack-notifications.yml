@@ -2,9 +2,10 @@ name: Slack notifications
 
 # Skickar Slack-notiser vid PR-livscykelhändelser så att teamet ser vad som händer.
 # CI-rapporten postas separat av ci.yml (slack-notify-jobbet) efter att testerna körts.
+# Notis för öppnad PR skickas inte — CI-rapporten från ci.yml kommer strax efter och ersätter den.
 on:
   pull_request:
-    types: [opened, reopened, closed]
+    types: [reopened, closed]
   issue_comment:
     types: [created]
   pull_request_review_comment:
@@ -42,13 +43,9 @@ jobs:
             emoji="🚫"
             headline="PR stängd (ej mergad)"
             actor_line="*Stängd av:* ${GITHUB_ACTOR}"
-          elif [ "$ACTION" = "reopened" ]; then
+          else
             emoji="🔁"
             headline="PR återöppnad"
-            actor_line="*Författare:* ${PR_AUTHOR}"
-          else
-            emoji="🔀"
-            headline="Ny PR öppnad"
             actor_line="*Författare:* ${PR_AUTHOR}"
           fi
 
