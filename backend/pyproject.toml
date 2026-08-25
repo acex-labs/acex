@@ -39,6 +39,11 @@ acex-driver-juniper-junoscli = { path = "../drivers/juniper_junos_cli", develop 
 
 [tool.pytest.ini_options]
 python_functions = ["test_*", "should_*", "when_*"]
+markers = [
+    "unit: no external dependencies",
+    "integration: requires a running backend",
+    "system: requires full stack (frontend + backend)",
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
