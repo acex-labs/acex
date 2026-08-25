@@ -109,8 +109,15 @@ class SyncLogger:
     def error(self, subject: str, context: str, exc: Exception) -> None:
         print(f"  ERROR {subject} ({context}): {exc}")
 
-    def summary(self, created: int, updated: int, skipped: int, errors: int) -> None:
-        print(f"\nDone — created: {created}, updated: {updated}, skipped: {skipped}, errors: {errors}")
+    def decommissioned(self, subject: str, dry_run: bool = False) -> None:
+        prefix = "[dry-run] " if dry_run else ""
+        print(f"  ~     {prefix}{subject}: node_instance.status → 'decommissioned'")
+
+    def summary(self, created: int, updated: int, skipped: int, errors: int, decommissioned: int = 0) -> None:
+        parts = [f"created: {created}", f"updated: {updated}", f"skipped: {skipped}", f"errors: {errors}"]
+        if decommissioned:
+            parts.append(f"decommissioned: {decommissioned}")
+        print(f"\nDone — {', '.join(parts)}")
 
 
 # Syncer
@@ -226,6 +233,28 @@ class NodeSyncer:
         self.log.created(hostname, f"management connection {management_ip} ({connection_type})")
         return False
 
+    def decommission_missing(self, seen_hostnames: set[str], dry_run: bool = False) -> int:
+        count = 0
+        for hostname, ln in self.existing_logical_nodes.items():
+            if hostname in seen_hostnames:
+                continue
+            ni = self.existing_node_instances.get(ln.id)
+            if ni is None:
+                continue
+            if ni.status == "decommissioned":
+                continue
+            if dry_run:
+                self.log.decommissioned(hostname, dry_run=True)
+            else:
+                try:
+                    self.client.inventory.node_instances.update(id=ni.id, status="decommissioned")
+                    self.log.decommissioned(hostname)
+                except Exception as e:
+                    self.log.error(hostname, "decommission", e)
+                    continue
+            count += 1
+        return count
+
     def sync_row(self, row: dict, hostname: str, serial_number: str) -> tuple[bool, bool]:
         cols = self.cols
         site = self._resolve_site(hostname, _str_or_none(row.get(cols.site, "")))
@@ -273,6 +302,8 @@ def sync_nodes(
     sites_delimiter: str | None = None,
     sites_col_key: str = "id",
     sites_col_name: str = "id",
+    decommission_missing: bool = False,
+    dry_run: bool = False,
 ) -> None:
     if cols is None:
         cols = ColumnMap()
@@ -292,6 +323,7 @@ def sync_nodes(
     print(f"Read {len(rows)} rows from {csv_path}\n")
 
     created = updated = skipped = errors = 0
+    seen_hostnames: set[str] = set()
 
     for row in rows:
         hostname = _str_or_none(row.get(cols.hostname, ""))
@@ -305,6 +337,8 @@ def sync_nodes(
             log.skip(hostname, f"empty {cols.serial_number}")
             skipped += 1
             continue
+
+        seen_hostnames.add(hostname)
 
         try:
             is_new, changed = syncer.sync_row(row, hostname, serial_number)
@@ -321,7 +355,15 @@ def sync_nodes(
             skipped += 1
             log.unchanged(hostname)
 
-    log.summary(created, updated, skipped, errors)
+    decommissioned = 0
+    if decommission_missing:
+        if dry_run:
+            print("\nDry run — nodes that would be decommissioned:")
+        else:
+            print("\nDecommissioning nodes not present in CSV...")
+        decommissioned = syncer.decommission_missing(seen_hostnames, dry_run=dry_run)
+
+    log.summary(created, updated, skipped, errors, decommissioned)
     if errors:
         sys.exit(1)
 
@@ -331,6 +373,10 @@ def main() -> None:
     parser.add_argument("--csv", required=True, help="Path to CSV file")
     parser.add_argument("--base-url", default="http://localhost:80", help="ACEX API base URL")
     parser.add_argument("--delimiter", default=",", help="CSV delimiter (default: ',')")
+    parser.add_argument("--decommission-missing", action="store_true",
+                        help="Mark nodes in ACEX not present in the CSV as decommissioned")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Print what would be decommissioned without making any changes (requires --decommission-missing)")
 
     s = parser.add_argument_group("site join", "Resolve site name via a second CSV (optional)")
     s.add_argument("--sites-csv", metavar="PATH", help="Sites CSV used to resolve site names")
@@ -359,7 +405,9 @@ def main() -> None:
         args.csv,
         args.base_url,
         args.delimiter,
-        ColumnMap(
+        decommission_missing=args.decommission_missing,
+        dry_run=args.dry_run,
+        cols=ColumnMap(
             hostname=args.col_hostname,
             role=args.col_role,
             site=args.col_site,
