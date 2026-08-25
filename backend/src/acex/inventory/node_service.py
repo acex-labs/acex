@@ -77,7 +77,7 @@ class NodeService:
             config = ""
         return config
 
-    async def create(self, logical_node: Node):
+    async def create(self, logical_node: Node) -> NodeResponse:
         if logical_node.asset_ref_type == "asset_cluster":
             self.inventory.asset_cluster_manager.get_cluster(logical_node.asset_ref_id)  # raises 404 itself
         else:
@@ -88,7 +88,7 @@ class NodeService:
         node_id = getattr(result, "id", None)
         if node_id is not None:
             self.inventory.telemetry_agent_manager.bump_revisions_for_node(node_id)
-        return result
+        return await self._enrich_data(result)
 
     async def get(self, id: str) -> NodeResponse:
         result = await self._call_method(self.adapter.get, id)
