@@ -36,6 +36,7 @@ from .assignment import (
 from .attribute_value import AttributeValue
 from .auth_config import AuthConfig
 from .base import PersistedResponse
+from .bootstrap import BootstrapProfile, BootstrapUser
 from .capability import TelemetryCapability
 from .collection_agent import (
     CollectionAgentAck,
@@ -250,6 +251,8 @@ __all__ = [
     "AiModelsResponse",
     "AiProviderInfo",
     "AiProvidersResponse",
+    "BootstrapProfile",
+    "BootstrapUser",
     "TelemetryCapability",
     "TelemetryAgentBase",
     "TelemetryAgentCreate",
