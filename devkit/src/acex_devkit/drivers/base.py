@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import Any
 
+from acex_devkit.models.bootstrap import BootstrapProfile
 from acex_devkit.models.management_connection import ManagementConnection
 from acex_devkit.models.node_response import NodeListItem
 
@@ -139,6 +140,21 @@ class NetworkElementDriver:
             Parsed configuration model
         """
         return self.parser.parse(configuration)
+
+    def render_bootstrap(self, profile: BootstrapProfile, asset: Any = None) -> str:
+        """Render an initial (bootstrap/PnP) configuration.
+
+        Opt-in per driver. The bootstrap config should make the device
+        reachable over SSH so that full provisioning can take over.
+
+        Args:
+            profile: Vendor-agnostic bootstrap description
+            asset: Optional asset context (hardware model, os version, ...)
+
+        Returns:
+            Device-specific configuration text
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement render_bootstrap()")
 
     def normalize(self, raw: str) -> str:
         """Strip non-intent data (timestamps, auto-generated certs, etc.).
