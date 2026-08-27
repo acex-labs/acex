@@ -1,0 +1,200 @@
+services:
+
+  #     Infrastructure
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ace
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  influxdb:
+    image: influxdb:2
+    restart: unless-stopped
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-adminpassword}
+      DOCKER_INFLUXDB_INIT_ORG: acex
+      DOCKER_INFLUXDB_INIT_BUCKET: acex
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-acex-dev-token}
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - influxdb
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HTTP_PORT: 8180
+    ports:
+      - "8180:8180"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+
+  vault:
+    image: hashicorp/vault:1.17
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-acex-vault-token}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+
+  # ── ACEX Core
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ace
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      ACEX_ENCRYPTION_KEY: ${ACEX_ENCRYPTION_KEY:-L50Zqr1VmsqTpbByFqXHJx1PIrp3ICZRGDf8Bo7pRh4=}
+      OIDC_ISSUER_URL: http://keycloak:8180/realms/acex
+      OIDC_AUDIENCE: acex
+      OIDC_VERIFY_SSL: "false"
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_TOKEN:-acex-vault-token}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      vault:
+        condition: service_started
+
+  frontend:
+    image: ghcr.io/acex-labs/acex-frontend:sha-88a476f
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      API_URL: http://localhost:8080
+      OIDC_ISSUER_URL: http://localhost:8180/realms/acex
+      OIDC_CLIENT_ID: acex-frontend
+    depends_on:
+      - backend
+
+  #    Agents 
+
+  collection-agent:
+    build:
+      context: .
+      dockerfile: agents/collection-agent/Dockerfile
+    restart: unless-stopped
+    environment:
+      ACEX_API_URL: http://backend:8080
+      COLLECTION_AGENT_ID: ${COLLECTION_AGENT_ID:-}
+      ACEX_VERIFY_SSL: "false"
+      ACEX_CLIENT_ID: acex-agents
+      ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}
+      ACEX_ISSUER_URL: http://keycloak:8180/realms/acex
+    depends_on:
+      - backend
+
+  telemetry-agent:
+    build:
+      context: .
+      dockerfile: agents/telemetry-agent/Dockerfile
+    restart: unless-stopped
+    environment:
+      ACEX_API_URL: http://backend:8080
+      TELEMETRY_AGENT_ID: ${TELEMETRY_AGENT_ID:-}
+      ACEX_VERIFY_SSL: "false"
+      ACEX_CLIENT_ID: acex-agents
+      ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}
+      ACEX_ISSUER_URL: http://keycloak:8180/realms/acex
+      TELEGRAF_CONFIG_PATH: /etc/telegraf/telegraf.conf
+      POLL_INTERVAL_SECONDS: "60"
+    volumes:
+      - telegraf_config:/etc/telegraf
+    depends_on:
+      - backend
+
+  grafana-sync:
+    build:
+      context: .
+      dockerfile: agents/grafana-sync/Dockerfile
+    restart: unless-stopped
+    environment:
+      ACEX_API_URL: http://backend:8080
+      GRAFANA_URL: http://grafana:3000
+      GRAFANA_USER: admin
+      GRAFANA_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      POLL_INTERVAL_SECONDS: "60"
+      ACEX_CLIENT_ID: acex-agents
+      ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}
+      ACEX_ISSUER_URL: http://keycloak:8180/realms/acex
+    depends_on:
+      - backend
+      - grafana
+
+  #    Mock Devices 
+
+  mock-router-1:
+    build:
+      context: mock-device
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MOCK_HOSTNAME: mock-router-1
+      SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
+      SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+    volumes:
+      - ./mock-device/configs:/configs:ro
+
+  mock-router-2:
+    build:
+      context: mock-device
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MOCK_HOSTNAME: mock-router-2
+      SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
+      SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+    volumes:
+      - ./mock-device/configs:/configs:ro
+
+volumes:
+  postgres_data:
+  influxdb_data:
+  grafana_data:
+  telegraf_config:
+  keycloak_data:
