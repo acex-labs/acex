@@ -77,13 +77,13 @@ def list_datasources(settings: InfluxDBSettings) -> list[dict]:
             "url": o.url,
             "version": o.version.value,
         }
-        for i, o in enumerate(settings.outputs)
+        for i, o in enumerate(settings.default_outputs)
     ]
 
 
 def find_datasource(settings: InfluxDBSettings, uid: str) -> dict | None:
     """Return the full datasource definition for a given UID, or None."""
-    for i, o in enumerate(settings.outputs):
+    for i, o in enumerate(settings.default_outputs):
         if datasource_uid(i) == uid:
             return make_datasource(o, i)
     return None

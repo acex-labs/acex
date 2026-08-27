@@ -65,24 +65,6 @@ def create_router(automation_engine):
         tags=tags,
     )
     router.add_api_route(
-        "/agents/{id}/outputs",
-        tam.add_output,
-        methods=["POST"],
-        tags=tags,
-    )
-    router.add_api_route(
-        "/agents/{id}/outputs/{output_id}",
-        tam.update_output,
-        methods=["PATCH"],
-        tags=tags,
-    )
-    router.add_api_route(
-        "/agents/{id}/outputs/{output_id}",
-        tam.remove_output,
-        methods=["DELETE"],
-        tags=tags,
-    )
-    router.add_api_route(
         "/agents/{id}/config",
         tam.get_config,
         methods=["GET"],

@@ -7,7 +7,6 @@ from acex.models.management_connections import ManagementConnection
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
 from acex.observability.agents.models import (
-    OutputDestination,
     TelemetryAgent,
     TelemetryAgentCapabilityLink,
     TelemetryAgentMatchRule,
@@ -17,9 +16,6 @@ from acex.observability.capability import TelemetryCapability
 from acex_devkit.models.agent_manifest import AckResult
 from acex_devkit.models.telemetry_agent import (
     InfluxDBVersion,
-    OutputDestinationCreate,
-    OutputDestinationResponse,
-    OutputDestinationUpdate,
     TelemetryAgentAck,
     TelemetryAgentCreate,
     TelemetryAgentMatchRuleCreate,
@@ -28,6 +24,13 @@ from acex_devkit.models.telemetry_agent import (
     TelemetryAgentUpdate,
 )
 from fastapi import HTTPException
+
+REDACTED = "«redacted»"
+
+
+def _mask(value: str | None, reveal: bool) -> str | None:
+    """Replace a set secret with a placeholder unless `reveal` is True."""
+    return value if reveal or not value else REDACTED
 
 
 class TelemetryAgentManager:
@@ -135,8 +138,6 @@ class TelemetryAgentManager:
             session.query(TelemetryAgentMatchRule).filter(TelemetryAgentMatchRule.telemetry_agent_id == agent.id).all()
         )
 
-        outputs = session.query(OutputDestination).filter(OutputDestination.telemetry_agent_id == agent.id).all()
-
         explicit_node_ids = [link.node_id for link in node_links]
         rule_matched_ids = self._resolve_rule_nodes(session, rules)
         resolved = sorted(set(explicit_node_ids) | rule_matched_ids)
@@ -170,20 +171,6 @@ class TelemetryAgentManager:
                 for r in rules
             ],
             resolved_nodes=resolved,
-            outputs=[
-                OutputDestinationResponse(
-                    id=o.id,
-                    influxdb_version=o.influxdb_version,
-                    url=o.url,
-                    token=o.token,
-                    organization=o.organization,
-                    bucket=o.bucket,
-                    database=o.database,
-                    username=o.username,
-                    password=o.password,
-                )
-                for o in outputs
-            ],
         )
 
     def create(self, payload: TelemetryAgentCreate) -> TelemetryAgentResponse:
@@ -291,7 +278,6 @@ class TelemetryAgentManager:
             ).delete()
             session.query(TelemetryAgentNodeLink).filter(TelemetryAgentNodeLink.telemetry_agent_id == id).delete()
             session.query(TelemetryAgentMatchRule).filter(TelemetryAgentMatchRule.telemetry_agent_id == id).delete()
-            session.query(OutputDestination).filter(OutputDestination.telemetry_agent_id == id).delete()
 
             session.delete(agent)
             session.commit()
@@ -401,103 +387,6 @@ class TelemetryAgentManager:
         finally:
             session.close()
 
-    # --- Output destinations ---
-
-    def add_output(self, id: int, payload: OutputDestinationCreate) -> OutputDestinationResponse:
-        session = next(self.db.get_session())
-        try:
-            agent = session.get(TelemetryAgent, id)
-            if not agent:
-                raise HTTPException(status_code=404, detail="TelemetryAgent not found")
-
-            dest = OutputDestination(
-                telemetry_agent_id=id,
-                influxdb_version=payload.influxdb_version,
-                url=payload.url,
-                token=payload.token,
-                organization=payload.organization,
-                bucket=payload.bucket,
-                database=payload.database,
-                username=payload.username,
-                password=payload.password,
-            )
-            session.add(dest)
-            self._bump_revision(session, id)
-            session.commit()
-            session.refresh(dest)
-            return OutputDestinationResponse(
-                id=dest.id,
-                influxdb_version=dest.influxdb_version,
-                url=dest.url,
-                token=dest.token,
-                organization=dest.organization,
-                bucket=dest.bucket,
-                database=dest.database,
-                username=dest.username,
-                password=dest.password,
-            )
-        finally:
-            session.close()
-
-    def update_output(self, id: int, output_id: int, payload: OutputDestinationUpdate) -> OutputDestinationResponse:
-        session = next(self.db.get_session())
-        try:
-            dest = (
-                session.query(OutputDestination)
-                .filter(OutputDestination.id == output_id, OutputDestination.telemetry_agent_id == id)
-                .first()
-            )
-            if not dest:
-                raise HTTPException(status_code=404, detail="Output destination not found")
-
-            for field in [
-                "influxdb_version",
-                "url",
-                "token",
-                "organization",
-                "bucket",
-                "database",
-                "username",
-                "password",
-            ]:
-                value = getattr(payload, field)
-                if value is not None:
-                    setattr(dest, field, value)
-
-            self._bump_revision(session, id)
-            session.commit()
-            session.refresh(dest)
-            return OutputDestinationResponse(
-                id=dest.id,
-                influxdb_version=dest.influxdb_version,
-                url=dest.url,
-                token=dest.token,
-                organization=dest.organization,
-                bucket=dest.bucket,
-                database=dest.database,
-                username=dest.username,
-                password=dest.password,
-            )
-        finally:
-            session.close()
-
-    def remove_output(self, id: int, output_id: int) -> None:
-        session = next(self.db.get_session())
-        try:
-            dest = (
-                session.query(OutputDestination)
-                .filter(OutputDestination.id == output_id, OutputDestination.telemetry_agent_id == id)
-                .first()
-            )
-            if not dest:
-                raise HTTPException(status_code=404, detail="Output destination not found")
-
-            session.delete(dest)
-            self._bump_revision(session, id)
-            session.commit()
-        finally:
-            session.close()
-
     # --- Ack ---
 
     def ack(self, id: int, payload: TelemetryAgentAck) -> AckResult:
@@ -519,7 +408,15 @@ class TelemetryAgentManager:
 
     # --- Config generation ---
 
-    def get_config(self, id: int) -> str:
+    def get_config(self, id: int, reveal_secrets: bool = False) -> str:
+        """Render this agent's telegraf config.
+
+        Secrets (InfluxDB token/password, SNMP trap community/auth/priv
+        passwords) are masked as "«redacted»" unless `reveal_secrets` is
+        True. The telemetry-agent sidecar always passes `reveal_secrets=True`
+        to get a working config; this default-masked view is for humans
+        (e.g. the frontend's "View config" link).
+        """
         session = next(self.db.get_session())
         try:
             agent = session.get(TelemetryAgent, id)
@@ -562,12 +459,10 @@ class TelemetryAgentManager:
             logical_nodes = (session.query(LogicalNode).filter(LogicalNode.id.in_(ln_ids)).all()) if ln_ids else []
             ln_map = {ln.id: ln.hostname for ln in logical_nodes}
 
-            outputs = session.query(OutputDestination).filter(OutputDestination.telemetry_agent_id == id).all()
-
             agent.last_config_poll = datetime.utcnow().isoformat()
             session.commit()
 
-            return self._render_telegraf_config(agent, capabilities, nodes, node_ip_map, ln_map, outputs)
+            return self._render_telegraf_config(agent, capabilities, nodes, node_ip_map, ln_map, reveal_secrets)
         finally:
             session.close()
 
@@ -578,7 +473,7 @@ class TelemetryAgentManager:
         nodes: builtins.list[Node],
         node_ip_map: dict,
         ln_map: dict,
-        outputs: builtins.list[OutputDestination],
+        reveal_secrets: bool = False,
     ) -> str:
         lines = []
 
@@ -626,9 +521,9 @@ class TelemetryAgentManager:
                 f = self._get_credential_fields(agent.snmpv3_credential_id, expected_type="snmpv3")
                 v3 = {
                     "auth_protocol": f.get("auth_protocol"),
-                    "auth_password": f.get("auth_password"),
+                    "auth_password": _mask(f.get("auth_password"), reveal_secrets),
                     "priv_protocol": f.get("priv_protocol"),
-                    "priv_password": f.get("priv_password"),
+                    "priv_password": _mask(f.get("priv_password"), reveal_secrets),
                 }
                 # Credential username wins; otherwise fall back to inline sec_name.
                 v3["sec_name"] = f.get("username") or agent.snmpv3_sec_name
@@ -640,7 +535,7 @@ class TelemetryAgentManager:
                 render_snmp_trap_input(
                     service_address=f"udp://:{port}",
                     version=version,
-                    community=community,
+                    community=_mask(community, reveal_secrets),
                     sec_level=agent.snmpv3_sec_level.value if agent.snmpv3_sec_level else None,
                     **v3,
                 )
@@ -650,15 +545,11 @@ class TelemetryAgentManager:
             port = agent.syslog_port or 514
             lines.append(render_syslog_input(server=f"udp://:{port}"))
 
-        # Backend-default outputs (set in app.py via set_influxdb / add_influxdb)
-        # apply to every agent, in addition to the agent's own OutputDestinations.
+        # Backend-default outputs (set in app.py via set_influxdb / add_influxdb),
+        # applied to every agent.
         if self.influxdb_settings is not None:
-            for default in self.influxdb_settings.outputs:
-                lines.extend(self._render_output_block(default))
-
-        # Agent-specific outputs
-        for dest in outputs:
-            lines.extend(self._render_output_block(dest))
+            for default in self.influxdb_settings.default_outputs:
+                lines.extend(self._render_output_block(default, reveal_secrets))
 
         return "\n".join(lines)
 
@@ -682,21 +573,17 @@ class TelemetryAgentManager:
             )
         return secret.fields
 
-    def _render_output_block(self, dest) -> builtins.list[str]:
-        """
-        Render one [[outputs.X]] block. Works for both OutputDestination
-        (DB row) and InfluxDBOutput (in-memory default) — both have the
-        same field names accessed via attribute lookup.
-        """
-        version = getattr(dest, "influxdb_version", None) or dest.version
+    def _render_output_block(self, dest, reveal_secrets: bool = False) -> builtins.list[str]:
+        """Render one [[outputs.X]] block for a backend-default InfluxDBOutput."""
+        version = dest.version
         url = dest.url
-        token = getattr(dest, "token", None)
-        organization = getattr(dest, "organization", None)
-        bucket = getattr(dest, "bucket", None)
-        database = getattr(dest, "database", None)
-        username = getattr(dest, "username", None)
-        password = getattr(dest, "password", None)
-        content_encoding = getattr(dest, "content_encoding", None)
+        token = _mask(dest.token, reveal_secrets)
+        organization = dest.organization
+        bucket = dest.bucket
+        database = dest.database
+        username = dest.username
+        password = _mask(dest.password, reveal_secrets)
+        content_encoding = dest.content_encoding
 
         lines: list[str] = []
         if version == InfluxDBVersion.v3:

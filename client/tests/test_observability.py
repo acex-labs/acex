@@ -39,7 +39,6 @@ def test_agent_crud(observability):
                 "nodes": [],
                 "rules": [],
                 "resolved_nodes": [],
-                "outputs": [],
             },
         )
     )
@@ -99,71 +98,12 @@ def test_agent_get_returns_full_response_for_manifest_use(observability):
                 "nodes": [],
                 "rules": [],
                 "resolved_nodes": [],
-                "outputs": [],
             },
         )
     )
     agent = observability.agents.get(4)
     assert agent.config_revision == 7
     assert agent.acked_revision == 3
-
-
-@respx.mock
-def test_agent_outputs_bound(observability):
-    respx.get("http://test/api/v1/observability/agents/1/outputs").mock(
-        return_value=Response(
-            200,
-            json={
-                "items": [
-                    {
-                        "id": 9,
-                        "influxdb_version": "v2",
-                        "url": "http://influx:8086",
-                        "token": "tok",
-                        "organization": "org",
-                        "bucket": "bkt",
-                    }
-                ],
-                "total": 1,
-                "limit": 100,
-                "offset": 0,
-            },
-        )
-    )
-    respx.post("http://test/api/v1/observability/agents/1/outputs").mock(
-        return_value=Response(
-            201,
-            json={
-                "id": 10,
-                "influxdb_version": "v2",
-                "url": "http://influx:8086",
-            },
-        )
-    )
-    respx.patch("http://test/api/v1/observability/agents/1/outputs/10").mock(
-        return_value=Response(
-            200,
-            json={
-                "id": 10,
-                "influxdb_version": "v2",
-                "url": "http://new:8086",
-            },
-        )
-    )
-    respx.delete("http://test/api/v1/observability/agents/1/outputs/10").mock(return_value=Response(204))
-
-    outputs = observability.agents.outputs(1)
-    listed = outputs.query()
-    assert len(listed) == 1
-    assert listed.items[0].id == 9
-
-    new = outputs.create(influxdb_version="v2", url="http://influx:8086", token="t", organization="o", bucket="b")
-    assert new.id == 10
-
-    updated = outputs.update(output_id=10, url="http://new:8086")
-    assert updated.url == "http://new:8086"
-
-    outputs.delete(output_id=10)
 
 
 @respx.mock

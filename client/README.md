@@ -77,14 +77,13 @@ Bound sub-resources are accessed via `.parent_or_id`:
 
 ```python
 client.inventory.collection_agents.rules(1).create(region="eu")
-client.observability.agents.outputs(agent_id).list()
 ```
 
 Via a `LiveInstance`, the bound sub-resource is exposed as an attribute:
 
 ```python
 agent = client.observability.agents.get(1)
-agent.outputs.create(influxdb_version="v2", url="http://influx:8086")
+agent.rules.create(region="eu")
 ```
 
 ## Errors

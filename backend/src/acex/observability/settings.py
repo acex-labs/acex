@@ -4,17 +4,13 @@ from acex_devkit.models.telemetry_agent import InfluxDBVersion
 from pydantic import BaseModel
 
 ENV_PREFIX = "ACEX_INFLUXDB_"
+DEFAULT_GROUP = "default"
 
 
 class InfluxDBOutput(BaseModel):
-    """
-    A single InfluxDB output target.
+    """A single InfluxDB output target."""
 
-    Same shape as `OutputDestination` (the per-agent DB row) so the
-    telegraf renderer can treat both polymorphically.
-    """
-
-    version: InfluxDBVersion = InfluxDBVersion.v2
+    version: InfluxDBVersion = InfluxDBVersion.v3
     url: str = "http://localhost:8086"
     # v2 / v3
     token: str | None = None
@@ -30,25 +26,26 @@ class InfluxDBOutput(BaseModel):
 
 class InfluxDBSettings(BaseModel):
     """
-    Backend-level default InfluxDB outputs applied to every TelemetryAgent.
+    Backend-level InfluxDB outputs applied to every TelemetryAgent's telegraf config.
 
-    Agents can add their own additional `OutputDestination` rows on top —
-    the renderer concatenates defaults + agent-specific into the telegraf
-    config. This means a global setting like a primary + replica InfluxDB
-    is configured once in app.py and inherited by all agents.
+    Outputs are keyed by group name so a future release can target specific
+    telemetry types (e.g. "syslog", "telemetry") with their own output,
+    falling back to the reserved "default" group for anything without an
+    override. Only the "default" group is read anywhere today — group
+    overrides are not yet resolved by the renderer.
 
-    Configured via env vars (ACEX_INFLUXDB_*) for a single output, or via
+    Configured via env vars (ACEX_INFLUXDB_*) for the default group, or via
     `AutomationEngine.set_influxdb(...)` / `add_influxdb(...)`.
     """
 
-    outputs: list[InfluxDBOutput] = []
+    groups: dict[str, list[InfluxDBOutput]] = {}
 
     @classmethod
     def from_env(cls) -> "InfluxDBSettings":
-        """One output from ACEX_INFLUXDB_* env vars, or empty if URL unset."""
+        """Default group from ACEX_INFLUXDB_* env vars, or empty if URL unset."""
         url = os.environ.get(f"{ENV_PREFIX}URL")
         if not url:
-            return cls(outputs=[])
+            return cls(groups={})
 
         kwargs: dict = {"url": url}
         version = os.environ.get(f"{ENV_PREFIX}VERSION")
@@ -66,7 +63,25 @@ class InfluxDBSettings(BaseModel):
             value = os.environ.get(f"{ENV_PREFIX}{field.upper()}")
             if value is not None:
                 kwargs[field] = value
-        return cls(outputs=[InfluxDBOutput(**kwargs)])
+        return cls(groups={DEFAULT_GROUP: [InfluxDBOutput(**kwargs)]})
+
+    @property
+    def default_outputs(self) -> list[InfluxDBOutput]:
+        return self.groups.get(DEFAULT_GROUP, [])
 
     def is_configured(self) -> bool:
-        return bool(self.outputs)
+        return bool(self.default_outputs)
+
+    def redacted(self) -> dict[str, list[dict]]:
+        """Configured groups/outputs with secrets replaced by a boolean flag."""
+        return {
+            group: [
+                {
+                    **output.model_dump(exclude={"token", "password"}),
+                    "token_set": bool(output.token),
+                    "password_set": bool(output.password),
+                }
+                for output in outputs
+            ]
+            for group, outputs in self.groups.items()
+        }

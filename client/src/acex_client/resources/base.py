@@ -433,8 +433,8 @@ def stream(method: str, path_template: str):
 def sub_resource(name: str):
     """Decorator that registers a method as returning a BoundResource.
 
-    Used so a resource facade can expose e.g. `agents.outputs(agent_id)` and
-    so a LiveInstance can expose the same sub-resource via `agent.outputs`.
+    Used so a resource facade can expose e.g. `agents.rules(agent_id)` and
+    so a LiveInstance can expose the same sub-resource via `agent.rules`.
     """
 
     def decorator(fn):

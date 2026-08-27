@@ -24,36 +24,6 @@ class SnmpSecLevel(StrEnum):
     auth_priv = "authPriv"
 
 
-class OutputDestinationBase(BaseModel):
-    influxdb_version: InfluxDBVersion = InfluxDBVersion.v2
-    url: str = "http://localhost:8086"
-    token: str | None = None
-    organization: str | None = None
-    bucket: str | None = None
-    database: str | None = None
-    username: str | None = None
-    password: str | None = None
-
-
-class OutputDestinationCreate(OutputDestinationBase):
-    pass
-
-
-class OutputDestinationUpdate(BaseModel):
-    influxdb_version: InfluxDBVersion | None = None
-    url: str | None = None
-    token: str | None = None
-    organization: str | None = None
-    bucket: str | None = None
-    database: str | None = None
-    username: str | None = None
-    password: str | None = None
-
-
-class OutputDestinationResponse(PersistedResponse, OutputDestinationBase):
-    pass
-
-
 class TelemetryAgentMatchRuleBase(BaseModel):
     region: str | None = None
     site: str | None = None
@@ -118,15 +88,10 @@ class TelemetryAgentResponse(PersistedResponse, TelemetryAgentBase):
     nodes: list[int] = []
     rules: list[TelemetryAgentMatchRuleResponse] = []
     resolved_nodes: list[int] = []
-    outputs: list[OutputDestinationResponse] = []
 
 
 __all__ = [
     "InfluxDBVersion",
-    "OutputDestinationBase",
-    "OutputDestinationCreate",
-    "OutputDestinationResponse",
-    "OutputDestinationUpdate",
     "SnmpSecLevel",
     "SnmpVersion",
     "TelemetryAgentAck",

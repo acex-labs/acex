@@ -5,9 +5,6 @@ from acex_devkit.models.telemetry_agent import (
     SnmpVersion,
 )
 from acex_devkit.models.telemetry_agent import (
-    OutputDestinationBase as _OutputDestinationSchema,
-)
-from acex_devkit.models.telemetry_agent import (
     TelemetryAgentBase as _TelemetryAgentSchema,
 )
 from acex_devkit.models.telemetry_agent import (
@@ -41,14 +38,8 @@ class TelemetryAgentMatchRule(_TelemetryAgentMatchRuleSchema, SQLModel, table=Tr
     telemetry_agent_id: int = Field(foreign_key="telemetryagent.id")
 
 
-class OutputDestination(_OutputDestinationSchema, SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    telemetry_agent_id: int = Field(foreign_key="telemetryagent.id")
-
-
 __all__ = [
     "InfluxDBVersion",
-    "OutputDestination",
     "SnmpSecLevel",
     "SnmpVersion",
     "TelemetryAgent",

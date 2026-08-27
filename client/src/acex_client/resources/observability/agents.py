@@ -1,8 +1,5 @@
 from acex_devkit.models.agent_manifest import AckResult
 from acex_devkit.models.telemetry_agent import (
-    OutputDestinationCreate,
-    OutputDestinationResponse,
-    OutputDestinationUpdate,
     TelemetryAgentAck,
     TelemetryAgentCreate,
     TelemetryAgentMatchRuleCreate,
@@ -17,7 +14,6 @@ from acex_client.resources.base import (
     BoundDeleteMixin,
     BoundListMixin,
     BoundResource,
-    BoundUpdateMixin,
     CreateMixin,
     DeleteMixin,
     GetMixin,
@@ -85,38 +81,6 @@ class ObservabilityAgentNodes(BoundResource, BoundCreateMixin, BoundDeleteMixin)
     create_model = None  # type: ignore
 
 
-class ObservabilityAgentOutputs(BoundResource, BoundListMixin, BoundCreateMixin, BoundUpdateMixin, BoundDeleteMixin):
-    """Nested CRUD for `POST/GET/PATCH/DELETE /observability/agents/{id}/outputs[/...]`."""
-
-    path_template = "/observability/agents/{parent_id}/outputs/{output_id}"
-    response_model = OutputDestinationResponse
-    list_model = OutputDestinationResponse
-    create_model = OutputDestinationCreate
-    update_model = OutputDestinationUpdate
-
-    def _collection_path(self) -> str:
-        return f"/observability/agents/{self.parent_id}/outputs"
-
-    def query(self, limit: int = 100, offset: int = 0, **filters):
-        params = {k: v for k, v in filters.items() if v is not None}
-        params["limit"] = limit
-        params["offset"] = offset
-        data = self.rest.request("GET", self._collection_path(), params=params)
-        if isinstance(data, dict) and "items" in data:
-            items = [self.list_model(**item) for item in data["items"]]
-            return _paginate(items, data, limit, offset)
-        if isinstance(data, list):
-            items = [self.list_model(**item) for item in data]
-            return PaginatedResult(items, len(items), len(items), 0)
-        return PaginatedResult([], 0, limit, offset)
-
-    def create(self, **body):
-        validated = self.create_model(**body)
-        payload = validated.model_dump(exclude_none=True)
-        data = self.rest.request("POST", self._collection_path(), json=payload)
-        return self._make_live(self.response_model(**data))
-
-
 class ObservabilityAgents(
     Resource,
     GetMixin,
@@ -138,9 +102,6 @@ class ObservabilityAgents(
     @sub_resource("nodes")
     def nodes(self, parent_id: int) -> ObservabilityAgentNodes: ...
 
-    @sub_resource("outputs")
-    def outputs(self, parent_id: int) -> ObservabilityAgentOutputs: ...
-
     @action("POST", "{id}/nodes/{node_id}")
     def add_node(self, id: int, node_id: int) -> None: ...
 
@@ -151,4 +112,4 @@ class ObservabilityAgents(
     def ack(self, id: int, payload: TelemetryAgentAck) -> AckResult: ...
 
     @action("GET", "{id}/config")
-    def config(self, id: int) -> str: ...
+    def config(self, id: int, reveal_secrets: bool = None) -> str: ...
