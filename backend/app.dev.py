@@ -1,18 +1,21 @@
 import importlib.metadata as _im
 import os
 
-
 _orig_version = _im.version
+
+
 def _version(name, **kw):
     try:
         return _orig_version(name, **kw)
     except _im.PackageNotFoundError:
         return os.getenv("ACEX_VERSION", "dev")
+
+
 _im.version = _version
 
-import uvicorn
-from acex import AutomationEngine
-from acex.database import Connection
+import uvicorn  # noqa: E402
+from acex import AutomationEngine  # noqa: E402
+from acex.database import Connection  # noqa: E402
 
 db = Connection(
     backend="postgresql",
