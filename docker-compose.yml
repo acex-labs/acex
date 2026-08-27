@@ -112,7 +112,19 @@ services:
     depends_on:
       - backend
 
-  #    Agents 
+  mcp-server:
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      ACEX_API_URL: http://backend:8080/api/v1
+    depends_on:
+      - backend
+
+  #    Agents
 
   collection-agent:
     build:
