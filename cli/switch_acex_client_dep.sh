@@ -25,14 +25,16 @@ if [[ "$1" == "dev" ]]; then
 elif [[ "$1" == "prod" ]]; then
     echo "Byter till versionsberoenden (för publicering)"
 
-        # Läs version från varje beroendets egen pyproject.toml
-    CLIENT_VERSION=$(grep '^version =' "$(dirname "$0")/../client/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    DEVKIT_VERSION=$(grep '^version =' "$(dirname "$0")/../devkit/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-    CISCO_IOS_VERSION=$(grep '^version =' "$(dirname "$0")/../drivers/cisco_ios_cli/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+    # Read major version from the current git tag (unified versioning)
+    MAJOR=$(git -C "$(dirname "$0")" describe --tags --exact-match 2>/dev/null | sed 's/^v//' | cut -d. -f1)
+    if [[ -z "$MAJOR" ]]; then
+        echo "Error: not on an exact git tag. Cannot determine version for prod deps."
+        exit 1
+    fi
 
-    sed "${SED_INPLACE[@]}" 's|acex-client = { path = "../client", develop = true }|acex-client = "^'$CLIENT_VERSION'"|' "$PYPROJECT"
-    sed "${SED_INPLACE[@]}" 's|acex-devkit = { path = "../devkit", develop = true }|acex-devkit = "^'$DEVKIT_VERSION'"|' "$PYPROJECT"
-    sed "${SED_INPLACE[@]}" 's|acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }|acex-driver-cisco-ioscli = "^'$CISCO_IOS_VERSION'"|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-client = { path = "../client", develop = true }|acex-client = "^'$MAJOR'"|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-devkit = { path = "../devkit", develop = true }|acex-devkit = "^'$MAJOR'"|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-driver-cisco-ioscli = { path = "../drivers/cisco_ios_cli", develop = true }|acex-driver-cisco-ioscli = "^'$MAJOR'"|' "$PYPROJECT"
 else
     echo "Använd: $0 dev|prod"
     exit 1

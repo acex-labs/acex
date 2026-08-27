@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     # Feature → stage (testar innan merge till stage)
     # Stage → main (testar + trigar release vid merge)
@@ -468,676 +469,114 @@ jobs:
           curl -sS -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" > /dev/null
           echo "Slack-notis skickad."
 
-  check-versions:
-    name: Check version ${{ matrix.package }}
-    runs-on: ubuntu-latest
-    outputs:
-      backend-should-publish: ${{ steps.check-backend.outputs.should-publish }}
-      backend-version: ${{ steps.check-backend.outputs.version }}
-      cli-should-publish: ${{ steps.check-cli.outputs.should-publish }}
-      cli-version: ${{ steps.check-cli.outputs.version }}
-      client-should-publish: ${{ steps.check-client.outputs.should-publish }}
-      client-version: ${{ steps.check-client.outputs.version }}
-      mcp-should-publish: ${{ steps.check-mcp.outputs.should-publish }}
-      mcp-version: ${{ steps.check-mcp.outputs.version }}
-      devkit-should-publish: ${{ steps.check-devkit.outputs.should-publish }}
-      devkit-version: ${{ steps.check-devkit.outputs.version }}
-    strategy:
-      matrix:
-        package: [backend, cli, client, mcp, devkit]
-        include:
-          - package: backend
-            pypi-name: acex
-            working-dir: ./backend
-          - package: cli
-            pypi-name: acex-cli
-            working-dir: ./cli
-          - package: client
-            pypi-name: acex-client
-            working-dir: ./client
-          - package: mcp
-            pypi-name: acex-mcp-server
-            working-dir: ./mcp
-          - package: devkit
-            pypi-name: acex-devkit
-            working-dir: ./devkit
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
-    
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.13"
-    
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: latest
-    
-    - name: Get package version
-      id: get-version
-      working-directory: ${{ matrix.working-dir }}
-      run: |
-        VERSION=$(poetry version -s)
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "Package version: $VERSION"
-    
-    - name: Check if version exists on PyPI
-      id: check-pypi
-      run: |
-        PACKAGE_NAME="${{ matrix.pypi-name }}"
-        VERSION="${{ steps.get-version.outputs.version }}"
-        
-        # Kolla om versionen redan finns på PyPI
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/${PACKAGE_NAME}/${VERSION}/json")
+  # ── Tag-triggered release pipeline ──────────────────────────────────────────
+  # Triggered by pushing a tag: git tag v7.0.0rc1 && git push --tags
+  # All packages share a single version derived from the tag via
+  # poetry-dynamic-versioning. No manual version bumps in pyproject.toml needed.
 
-        if [ "$HTTP_CODE" = "200" ]; then
-          echo "should-publish=false" >> $GITHUB_OUTPUT
-          echo "⏭️  Version $VERSION already exists on PyPI - skipping"
-        else
-          echo "should-publish=true" >> $GITHUB_OUTPUT
-          echo "✅ Version $VERSION is new - will build and publish"
-        fi
-
-    - name: Set matrix output
-      id: check-backend
-      if: matrix.package == 'backend'
-      run: |
-        echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
-        echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-
-    - name: Set matrix output
-      id: check-cli
-      if: matrix.package == 'cli'
-      run: |
-        echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
-        echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-
-    - name: Set matrix output
-      id: check-client
-      if: matrix.package == 'client'
-      run: |
-        echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
-        echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-
-    - name: Set matrix output
-      id: check-mcp
-      if: matrix.package == 'mcp'
-      run: |
-        echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
-        echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-
-    - name: Set matrix output
-      id: check-devkit
-      if: matrix.package == 'devkit'
-      run: |
-        echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
-        echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-
-  build-packages:
-    name: Build ${{ matrix.package }}
-    needs: check-versions
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    strategy:
-      fail-fast: false  # Fortsätt med andra paket även om ett failar
-      matrix:
-        package: [backend, cli, client, mcp, devkit]
-        include:
-          - package: backend
-            pypi-name: acex
-            should-publish-output: backend-should-publish
-            working-dir: ./backend
-          - package: cli
-            pypi-name: acex-cli
-            should-publish-output: cli-should-publish
-            working-dir: ./cli
-          - package: client
-            pypi-name: acex-client
-            should-publish-output: client-should-publish
-            working-dir: ./client
-          - package: mcp
-            pypi-name: acex-mcp-server
-            should-publish-output: mcp-should-publish
-            working-dir: ./mcp
-          - package: devkit
-            pypi-name: acex-devkit
-            should-publish-output: devkit-should-publish
-            working-dir: ./devkit
-
-    steps:
-    - name: Check if should publish
-      id: should-publish
-      run: |
-        SHOULD_PUBLISH="${{ needs.check-versions.outputs[matrix.should-publish-output] }}"
-        echo "should-publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
-        if [ "$SHOULD_PUBLISH" = "true" ]; then
-          echo "✅ Will build ${{ matrix.pypi-name }} — publiceras automatiskt efter build"
-        else
-          echo "⏭️  Skipping ${{ matrix.pypi-name }} - already published"
-        fi
-
-    - name: Checkout code
-      if: steps.should-publish.outputs.should-publish == 'true'
-      uses: actions/checkout@v5
-
-    - name: Set up Python 3.13
-      if: steps.should-publish.outputs.should-publish == 'true'
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.13"
-
-    - name: Install Poetry
-      if: steps.should-publish.outputs.should-publish == 'true'
-      uses: snok/install-poetry@v1
-      with:
-        version: latest
-        virtualenvs-create: true
-        virtualenvs-in-project: true
-
-    - name: Update lock file
-      if: steps.should-publish.outputs.should-publish == 'true'
-      working-directory: ${{ matrix.working-dir }}
-      run: poetry lock
-
-    - name: Install dependencies - ${{ matrix.package }}
-      if: steps.should-publish.outputs.should-publish == 'true'
-      working-directory: ${{ matrix.working-dir }}
-      run: poetry install --no-interaction
-
-    - name: Switch dependencies to version (prod)
-      if: steps.should-publish.outputs.should-publish == 'true' && matrix.package == 'backend'
-      working-directory: ./backend
-      run: bash switch_deps.sh prod
-
-    - name: Switch acex-client dependency to version (prod)
-      if: steps.should-publish.outputs.should-publish == 'true' && matrix.package == 'cli'
-      working-directory: ./cli
-      run: bash switch_acex_client_dep.sh prod
-
-    - name: Switch dependencies to version (prod)
-      if: steps.should-publish.outputs.should-publish == 'true' && matrix.package == 'client'
-      working-directory: ./client
-      run: bash switch_deps.sh prod
-
-    - name: Build package
-      if: steps.should-publish.outputs.should-publish == 'true'
-      working-directory: ${{ matrix.working-dir }}
-      run: poetry build
-
-    - name: Release summary
-      if: steps.should-publish.outputs.should-publish == 'true'
-      working-directory: ${{ matrix.working-dir }}
-      run: |
-        VERSION=$(poetry version -s)
-        echo "### 📦 ${{ matrix.pypi-name }}" >> $GITHUB_STEP_SUMMARY
-        echo "Byggd version **$VERSION** — publiceras automatiskt till PyPI i nästa steg." >> $GITHUB_STEP_SUMMARY
-
-    - name: Upload build artifact
-      if: steps.should-publish.outputs.should-publish == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist-${{ matrix.package }}
-        path: ${{ matrix.working-dir }}/dist/
-        retention-days: 1
-
-  publish-packages:
+  publish:
     name: Publish ${{ matrix.package }}
-    needs: [check-versions, build-packages]
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # Krävs för Trusted Publisher (OIDC)
-      contents: read
-    if: github.ref == 'refs/heads/main'
-    # Ingen manuell godkännande-gate längre — skyddet ligger i branch
-    # protection på `main` (PR + gröna checks krävs innan merge).
-    strategy:
-      fail-fast: false
-      matrix:
-        package: [backend, cli, client, mcp, devkit]
-        include:
-          - package: backend
-            pypi-name: acex
-            should-publish-output: backend-should-publish
-            working-dir: ./backend
-          - package: cli
-            pypi-name: acex-cli
-            should-publish-output: cli-should-publish
-            working-dir: ./cli
-          - package: client
-            pypi-name: acex-client
-            should-publish-output: client-should-publish
-            working-dir: ./client
-          - package: mcp
-            pypi-name: acex-mcp-server
-            should-publish-output: mcp-should-publish
-            working-dir: ./mcp
-          - package: devkit
-            pypi-name: acex-devkit
-            should-publish-output: devkit-should-publish
-            working-dir: ./devkit
-
-    steps:
-    - name: Check if should publish
-      id: should-publish
-      run: echo "should-publish=${{ needs.check-versions.outputs[matrix.should-publish-output] }}" >> $GITHUB_OUTPUT
-
-    - name: Download build artifact
-      if: steps.should-publish.outputs.should-publish == 'true'
-      uses: actions/download-artifact@v4
-      with:
-        name: dist-${{ matrix.package }}
-        path: ${{ matrix.working-dir }}/dist/
-
-    - name: Publish to PyPI using Trusted Publisher
-      if: steps.should-publish.outputs.should-publish == 'true'
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        packages-dir: ${{ matrix.working-dir }}/dist/
-        verbose: true
-
-    - name: Release summary
-      if: steps.should-publish.outputs.should-publish == 'true'
-      run: |
-        VERSION=$(ls ${{ matrix.working-dir }}/dist/*.tar.gz | head -1 | sed -E 's/.*-([0-9]+\.[0-9]+\.[0-9]+[^.]*)\.tar\.gz/\1/')
-        echo "### 📦 ${{ matrix.pypi-name }}" >> $GITHUB_STEP_SUMMARY
-        echo "Publicerad version **$VERSION** till PyPI." >> $GITHUB_STEP_SUMMARY
-
-
-  # Drivers below, slightly different logic
-
-  check-driver-versions:
-    name: Check driver version ${{ matrix.driver }}
-    runs-on: ubuntu-latest
-    outputs:
-      cisco-ios-cli-should-publish: ${{ steps.check-cisco-ios-cli.outputs.should-publish }}
-      cisco-ios-cli-version: ${{ steps.check-cisco-ios-cli.outputs.version }}
-      juniper-junos-cli-should-publish: ${{ steps.check-juniper-junos-cli.outputs.should-publish }}
-      juniper-junos-cli-version: ${{ steps.check-juniper-junos-cli.outputs.version }}
-    strategy:
-      matrix:
-        driver: [cisco_ios_cli, juniper_junos_cli]
-        include:
-          - driver: cisco_ios_cli
-            pypi-name: acex-driver-cisco-ioscli
-          - driver: juniper_junos_cli
-            pypi-name: acex-driver-juniper-junoscli
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-
-      - name: Get driver version
-        id: get-version
-        working-directory: ./drivers/${{ matrix.driver }}
-        run: |
-          VERSION=$(poetry version -s)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Driver version: $VERSION"
-
-      - name: Check if driver version exists on PyPI
-        id: check-pypi
-        run: |
-          PACKAGE_NAME="${{ matrix.pypi-name }}"
-          VERSION="${{ steps.get-version.outputs.version }}"
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/${PACKAGE_NAME}/${VERSION}/json")
-
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "should-publish=false" >> $GITHUB_OUTPUT
-            echo "⏭️  Version $VERSION already exists on PyPI - skipping"
-          else
-            echo "should-publish=true" >> $GITHUB_OUTPUT
-            echo "✅ Version $VERSION is new - will build and publish"
-          fi
-
-      - name: Set matrix output
-        id: check-cisco-ios-cli
-        if: matrix.driver == 'cisco_ios_cli'
-        run: |
-          echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
-          echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-      - name: Set matrix output
-        id: check-juniper-junos-cli
-        if: matrix.driver == 'juniper_junos_cli'
-        run: |
-          echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
-          echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-
-  version-summary:
-    name: Version summary
-    needs: [check-versions, check-driver-versions]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Write combined summary
-        env:
-          BACKEND_VERSION: ${{ needs.check-versions.outputs.backend-version }}
-          BACKEND_SHOULD_PUBLISH: ${{ needs.check-versions.outputs.backend-should-publish }}
-          CLI_VERSION: ${{ needs.check-versions.outputs.cli-version }}
-          CLI_SHOULD_PUBLISH: ${{ needs.check-versions.outputs.cli-should-publish }}
-          CLIENT_VERSION: ${{ needs.check-versions.outputs.client-version }}
-          CLIENT_SHOULD_PUBLISH: ${{ needs.check-versions.outputs.client-should-publish }}
-          MCP_VERSION: ${{ needs.check-versions.outputs.mcp-version }}
-          MCP_SHOULD_PUBLISH: ${{ needs.check-versions.outputs.mcp-should-publish }}
-          DEVKIT_VERSION: ${{ needs.check-versions.outputs.devkit-version }}
-          DEVKIT_SHOULD_PUBLISH: ${{ needs.check-versions.outputs.devkit-should-publish }}
-          CISCO_VERSION: ${{ needs.check-driver-versions.outputs.cisco-ios-cli-version }}
-          CISCO_SHOULD_PUBLISH: ${{ needs.check-driver-versions.outputs.cisco-ios-cli-should-publish }}
-          JUNIPER_VERSION: ${{ needs.check-driver-versions.outputs.juniper-junos-cli-version }}
-          JUNIPER_SHOULD_PUBLISH: ${{ needs.check-driver-versions.outputs.juniper-junos-cli-should-publish }}
-        run: |
-          row() {
-            local name="$1" version="$2" should_publish="$3"
-            if [ "$should_publish" = "true" ]; then
-              echo "| \`$name\` | $version | ✅ Ny — publiceras automatiskt |" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "| \`$name\` | $version | ⏭️ Redan publicerad |" >> $GITHUB_STEP_SUMMARY
-            fi
-          }
-
-          echo "## 📦 Versionsstatus" >> $GITHUB_STEP_SUMMARY
-          echo "| Paket | Version | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
-          row "acex" "$BACKEND_VERSION" "$BACKEND_SHOULD_PUBLISH"
-          row "acex-cli" "$CLI_VERSION" "$CLI_SHOULD_PUBLISH"
-          row "acex-client" "$CLIENT_VERSION" "$CLIENT_SHOULD_PUBLISH"
-          row "acex-mcp-server" "$MCP_VERSION" "$MCP_SHOULD_PUBLISH"
-          row "acex-devkit" "$DEVKIT_VERSION" "$DEVKIT_SHOULD_PUBLISH"
-          row "acex-driver-cisco-ioscli" "$CISCO_VERSION" "$CISCO_SHOULD_PUBLISH"
-          row "acex-driver-juniper-junoscli" "$JUNIPER_VERSION" "$JUNIPER_SHOULD_PUBLISH"
-
-  build-drivers:
-    name: Build Driver ${{ matrix.driver }}
-    needs: check-driver-versions
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    strategy:
-      fail-fast: false
-      matrix:
-        driver: [cisco_ios_cli, juniper_junos_cli]
-        include:
-          - driver: cisco_ios_cli
-            pypi-name: acex-driver-cisco-ioscli
-            should-publish-output: cisco-ios-cli-should-publish
-          - driver: juniper_junos_cli
-            pypi-name: acex-driver-juniper-junoscli
-            should-publish-output: juniper-junos-cli-should-publish
-    steps:
-      - name: Check if should publish
-        id: should-publish
-        run: |
-          SHOULD_PUBLISH="${{ needs.check-driver-versions.outputs[matrix.should-publish-output] }}"
-          echo "should-publish=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
-          if [ "$SHOULD_PUBLISH" = "true" ]; then
-            echo "✅ Will build ${{ matrix.pypi-name }} — publiceras automatiskt efter build"
-          else
-            echo "⏭️  Skipping ${{ matrix.pypi-name }} - already published"
-          fi
-
-      - name: Checkout code
-        if: steps.should-publish.outputs.should-publish == 'true'
-        uses: actions/checkout@v5
-
-      - name: Set up Python 3.13
-        if: steps.should-publish.outputs.should-publish == 'true'
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-
-      - name: Install Poetry
-        if: steps.should-publish.outputs.should-publish == 'true'
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Update lock file
-        if: steps.should-publish.outputs.should-publish == 'true'
-        working-directory: ./drivers/${{ matrix.driver }}
-        run: poetry lock
-
-      - name: Install dependencies - ${{ matrix.driver }}
-        if: steps.should-publish.outputs.should-publish == 'true'
-        working-directory: ./drivers/${{ matrix.driver }}
-        run: poetry install --no-interaction
-
-      - name: Switch dependencies to version (prod)
-        if: steps.should-publish.outputs.should-publish == 'true'
-        working-directory: ./drivers/${{ matrix.driver }}
-        run: bash switch_deps.sh prod
-
-      - name: Build driver package
-        if: steps.should-publish.outputs.should-publish == 'true'
-        working-directory: ./drivers/${{ matrix.driver }}
-        run: poetry build
-
-      - name: Release summary
-        if: steps.should-publish.outputs.should-publish == 'true'
-        working-directory: ./drivers/${{ matrix.driver }}
-        run: |
-          VERSION=$(poetry version -s)
-          echo "### 📦 ${{ matrix.pypi-name }}" >> $GITHUB_STEP_SUMMARY
-          echo "Byggd version **$VERSION** — publiceras automatiskt till PyPI i nästa steg." >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload build artifact
-        if: steps.should-publish.outputs.should-publish == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-${{ matrix.driver }}
-          path: ./drivers/${{ matrix.driver }}/dist/
-          retention-days: 1
-
-  publish-drivers:
-    name: Publish Driver ${{ matrix.driver }}
-    needs: [check-driver-versions, build-drivers]
-    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       id-token: write
       contents: read
-    if: github.ref == 'refs/heads/main'
-    # Ingen manuell godkännande-gate längre — se publish-packages ovan.
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [backend, cli, client, mcp, devkit, worker]
+        include:
+          - {package: backend, working-dir: ./backend, switch-deps: true, switch-script: switch_deps.sh}
+          - {package: cli, working-dir: ./cli, switch-deps: true, switch-script: switch_acex_client_dep.sh}
+          - {package: client, working-dir: ./client, switch-deps: true, switch-script: switch_deps.sh}
+          - {package: mcp, working-dir: ./mcp, switch-deps: false}
+          - {package: devkit, working-dir: ./devkit, switch-deps: false}
+          - {package: worker, working-dir: ./worker, switch-deps: false}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: snok/install-poetry@v1
+      - name: Switch to prod deps
+        if: ${{ matrix.switch-deps }}
+        working-directory: ${{ matrix.working-dir }}
+        run: bash ${{ matrix.switch-script }} prod
+      - name: Build
+        working-directory: ${{ matrix.working-dir }}
+        run: |
+          poetry lock
+          poetry build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ matrix.working-dir }}/dist/
+          skip-existing: true
+
+  publish-drivers:
+    name: Publish ${{ matrix.driver }}
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         driver: [cisco_ios_cli, juniper_junos_cli]
-        include:
-          - driver: cisco_ios_cli
-            pypi-name: acex-driver-cisco-ioscli
-            should-publish-output: cisco-ios-cli-should-publish
-          - driver: juniper_junos_cli
-            pypi-name: acex-driver-juniper-junoscli
-            should-publish-output: juniper-junos-cli-should-publish
     steps:
-      - name: Check if should publish
-        id: should-publish
-        run: echo "should-publish=${{ needs.check-driver-versions.outputs[matrix.should-publish-output] }}" >> $GITHUB_OUTPUT
-
-      - name: Download build artifact
-        if: steps.should-publish.outputs.should-publish == 'true'
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
         with:
-          name: dist-${{ matrix.driver }}
-          path: ./drivers/${{ matrix.driver }}/dist/
-
-      - name: Publish to PyPI using Trusted Publisher
-        if: steps.should-publish.outputs.should-publish == 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
         with:
-          packages-dir: drivers/${{ matrix.driver }}/dist/
-          verbose: true
-
-      - name: Release summary
-        if: steps.should-publish.outputs.should-publish == 'true'
+          python-version: "3.13"
+      - uses: snok/install-poetry@v1
+      - name: Switch to prod deps
+        working-directory: ./drivers/${{ matrix.driver }}
+        run: bash switch_deps.sh prod
+      - name: Build
+        working-directory: ./drivers/${{ matrix.driver }}
         run: |
-          VERSION=$(ls drivers/${{ matrix.driver }}/dist/*.tar.gz | head -1 | sed -E 's/.*-([0-9]+\.[0-9]+\.[0-9]+[^.]*)\.tar\.gz/\1/')
-          echo "### 📦 ${{ matrix.pypi-name }}" >> $GITHUB_STEP_SUMMARY
-          echo "Publicerad version **$VERSION** till PyPI." >> $GITHUB_STEP_SUMMARY
+          poetry lock
+          poetry build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ./drivers/${{ matrix.driver }}/dist/
+          skip-existing: true
 
-
-  # Container images for agents
-
-  check-collection-agent-image:
-    name: Check Collection Agent image
+  push-agent-images:
+    name: Push ${{ matrix.agent }} image
+    needs: [publish, publish-drivers]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    outputs:
-      exists: ${{ steps.check-image.outputs.exists }}
-      version: ${{ steps.get-version.outputs.version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Get version
-        id: get-version
-        working-directory: ./agents/collection-agent
-        run: |
-          pip install poetry
-          VERSION=$(poetry version -s)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Check if image exists
-        id: check-image
-        run: |
-          VERSION="${{ steps.get-version.outputs.version }}"
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://ghcr.io/v2/${{ github.repository_owner }}/acex-collection-agent/manifests/${VERSION}")
-
-          echo "| Image | Version | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⏭️  Image version $VERSION already exists - skipping"
-            echo "| acex-collection-agent | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "✅ Image version $VERSION is new - will build and push"
-            echo "| acex-collection-agent | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  build-and-push-collection-agent:
-    name: Build & Push Collection Agent
-    needs: [check-collection-agent-image, publish-packages, publish-drivers]
-    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'rc')
     permissions:
       contents: read
       packages: write
-    if: github.ref == 'refs/heads/main' && needs.check-collection-agent-image.outputs.exists == 'false'
-    # Ingen manuell godkännande-gate längre — se publish-packages ovan.
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: [collection-agent, telemetry-agent]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Switch client dependencies to version (prod)
         working-directory: ./client
         run: bash switch_deps.sh prod
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./agents/collection-agent/Dockerfile
+          file: ./agents/${{ matrix.agent }}/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/acex-collection-agent:${{ needs.check-collection-agent-image.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/acex-collection-agent:latest
-
-  check-telemetry-agent-image:
-    name: Check Telemetry Agent image
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    outputs:
-      exists: ${{ steps.check-image.outputs.exists }}
-      version: ${{ steps.get-version.outputs.version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Get version
-        id: get-version
-        working-directory: ./agents/telemetry-agent
-        run: |
-          pip install poetry
-          VERSION=$(poetry version -s)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Check if image exists
-        id: check-image
-        run: |
-          VERSION="${{ steps.get-version.outputs.version }}"
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://ghcr.io/v2/${{ github.repository_owner }}/acex-telemetry-agent/manifests/${VERSION}")
-
-          echo "| Image | Version | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⏭️  Image version $VERSION already exists - skipping"
-            echo "| acex-telemetry-agent | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "✅ Image version $VERSION is new - will build and push"
-            echo "| acex-telemetry-agent | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  build-and-push-telemetry-agent:
-    name: Build & Push Telemetry Agent
-    needs: [check-telemetry-agent-image, publish-packages]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    if: github.ref == 'refs/heads/main' && needs.check-telemetry-agent-image.outputs.exists == 'false'
-    # Ingen manuell godkännande-gate längre — se publish-packages ovan.
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Switch client dependencies to version (prod)
-        working-directory: ./client
-        run: bash switch_deps.sh prod
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./agents/telemetry-agent/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/acex-telemetry-agent:${{ needs.check-telemetry-agent-image.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/acex-telemetry-agent:latest
+            ghcr.io/${{ github.repository_owner }}/acex-${{ matrix.agent }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/acex-${{ matrix.agent }}:latest

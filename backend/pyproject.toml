@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex"
-version = "6.7.0"
+version = "0.0.0"
 description = "ACE-X Backend - Core automation engine and API"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -46,5 +46,10 @@ markers = [
 ]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=2.0.0,<3.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry-dynamic-versioning.backend"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "pep440"
