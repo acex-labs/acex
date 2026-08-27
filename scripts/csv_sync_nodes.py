@@ -255,7 +255,7 @@ class NodeSyncer:
             count += 1
         return count
 
-    def sync_row(self, row: dict, hostname: str, serial_number: str) -> tuple[bool, bool]:
+    def sync_row(self, row: dict, hostname: str, serial_number: str) -> tuple[bool, bool, int]:
         cols = self.cols
         site = self._resolve_site(hostname, _str_or_none(row.get(cols.site, "")))
         status, status_warn = _validate_status(_str_or_none(row.get(cols.status, "")))
@@ -289,7 +289,7 @@ class NodeSyncer:
         if management_ip:
             mgmt_changed = self._sync_management_connection(hostname, ni.id, management_ip, connection_type)
 
-        return is_new, ln_changed or asset_changed or ni_changed or mgmt_changed
+        return is_new, ln_changed or asset_changed or ni_changed or mgmt_changed, ni.id
 
 
 # Entry point
