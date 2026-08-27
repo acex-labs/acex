@@ -6,7 +6,7 @@ import logging
 import time
 
 import requests
-from acex_client.acex.acex import Acex
+from acex_client import Acex
 
 from acex_grafana_sync.grafana_client import GrafanaClient
 
@@ -29,7 +29,7 @@ class GrafanaAgent:
         self.folder_title = folder_title
         self.poll_interval = poll_interval
         self.prune_dashboards = prune_dashboards
-        self.base = f"{client.rest.url}/observability/grafana"
+        self.base = f"{client.api_url}/observability/grafana"
         self._last_digest: str | None = None
         self._last_apply_succeeded = False
 
