@@ -65,7 +65,8 @@ class TelemetryAgent:
 
     def _update_config(self) -> bool:
         try:
-            content = self.client.observability.agents.config(id=self.agent_id)
+            # Real secrets are required here — this file is what telegraf actually runs.
+            content = self.client.observability.agents.config(id=self.agent_id, reveal_secrets=True)
 
             os.makedirs(os.path.dirname(self.config_path) or ".", exist_ok=True)
             tmp_path = f"{self.config_path}.tmp"

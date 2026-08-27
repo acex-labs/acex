@@ -45,13 +45,11 @@ plus three link tables that define **scope**:
   `region` / `vendor` / `os` / `status`, resolved against `Node` /
   `LogicalNode` / `Asset` / `SiteRegionAssignment` at read time (never
   materialized — see `_resolve_rule_nodes` in `manager.py`).
-- `OutputDestination` — per-agent InfluxDB output blocks (v1/v2/v3), in
-  addition to any backend-wide default outputs.
 
 `TelemetryAgentManager` (`observability/agents/manager.py`) is the whole
 CRUD + rendering surface, wired into FastAPI routes 1:1 in
 `api/routers/observability_agents.py`. Mutating any of the above
-(node link, rule, capability, output) calls `_bump_revision()`, which is
+(node link, rule, capability) calls `_bump_revision()`, which is
 what makes the sidecar notice a change on its next poll.
 `bump_revisions_for_node()` is also called from node lifecycle hooks so
 agents whose match rules newly include/exclude a node get bumped even
@@ -63,10 +61,9 @@ without a direct edit to the agent itself.
 2. Resolve the node set: explicit links ∪ rule-matched nodes.
 3. Load those `Node`s, their primary `ManagementConnection` IP, and their
    `LogicalNode` hostname.
-4. Load the agent's `OutputDestination`s.
-5. Stamp `last_config_poll` (every config fetch counts as a poll, not just
+4. Stamp `last_config_poll` (every config fetch counts as a poll, not just
    the outer `get()`).
-6. Delegate to `_render_telegraf_config(...)`.
+5. Delegate to `_render_telegraf_config(...)`.
 
 ### `_render_telegraf_config(...)` — assembling the TOML
 
@@ -75,10 +72,9 @@ without a direct edit to the agent itself.
 2. **Inputs**: pulled from `TelemetryRegistry.for_telegraf_agent(node_ids, capabilities)`
    (see below), rendered by `observability/renderers/telegraf.py::render_inputs`.
 3. **Outputs**: backend-wide default `InfluxDBOutput`s
-   (`influxdb_settings.outputs`, set globally in `app.py`) first, then the
-   agent's own `OutputDestination` rows — both rendered by the same
-   `_render_output_block()` (duck-typed: works on the DB row or the
-   in-memory default since both expose the same attribute names). Handles
+   (`influxdb_settings.default_outputs`, set globally in `app.py` via
+   `set_influxdb`/`add_influxdb`) — the only source of outputs; there is no
+   per-agent output config. Rendered by `_render_output_block()`, handling
    InfluxDB v1 (`influxdb`), v2 (`influxdb_v2`), and v3 (`influxdb_v3`)
    block shapes.
 

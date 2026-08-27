@@ -7,6 +7,15 @@ def create_router(automation_engine):
     tags = ["Observability"]
 
     grafana = automation_engine.inventory.grafana_renderer
+    influxdb_settings = automation_engine.influxdb_settings
+
+    @router.get(
+        "/outputs",
+        tags=tags,
+        summary="Show configured backend-default InfluxDB output groups (secrets redacted)",
+    )
+    async def get_outputs():
+        return {"groups": influxdb_settings.redacted()}
 
     router.add_api_route(
         "/grafana/dashboards",

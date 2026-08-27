@@ -1,5 +1,4 @@
 from acex.observability.agents.models import (
-    OutputDestination,
     TelemetryAgent,
     TelemetryAgentCapabilityLink,
     TelemetryAgentMatchRule,
@@ -34,7 +33,6 @@ system_models = [
     TelemetryAgentNodeLink,
     TelemetryAgentCapabilityLink,
     TelemetryAgentMatchRule,
-    OutputDestination,
     CollectionAgent,
     CollectionAgentNodeLink,
     CollectionAgentMatchRule,
@@ -46,7 +44,6 @@ system_models = [
 ]
 
 __all__ = [
-    "OutputDestination",
     "TelemetryAgent",
     "TelemetryAgentCapabilityLink",
     "TelemetryAgentMatchRule",

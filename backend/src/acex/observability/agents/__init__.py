@@ -1,6 +1,5 @@
 from acex.observability.agents.manager import TelemetryAgentManager
 from acex.observability.agents.models import (
-    OutputDestination,
     TelemetryAgent,
     TelemetryAgentCapabilityLink,
     TelemetryAgentMatchRule,
@@ -8,10 +7,6 @@ from acex.observability.agents.models import (
 )
 from acex_devkit.models.telemetry_agent import (
     InfluxDBVersion,
-    OutputDestinationBase,
-    OutputDestinationCreate,
-    OutputDestinationResponse,
-    OutputDestinationUpdate,
     SnmpSecLevel,
     SnmpVersion,
     TelemetryAgentBase,
@@ -25,11 +20,6 @@ from acex_devkit.models.telemetry_agent import (
 
 __all__ = [
     "InfluxDBVersion",
-    "OutputDestination",
-    "OutputDestinationBase",
-    "OutputDestinationCreate",
-    "OutputDestinationResponse",
-    "OutputDestinationUpdate",
     "SnmpSecLevel",
     "SnmpVersion",
     "TelemetryAgent",

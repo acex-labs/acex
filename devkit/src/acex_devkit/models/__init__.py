@@ -127,10 +127,6 @@ from .region import RegionBase, RegionCreate, RegionResponse, RegionSiteInfo, Re
 from .site import SiteBase, SiteCreate, SiteResponse, SiteUpdate
 from .telemetry_agent import (
     InfluxDBVersion,
-    OutputDestinationBase,
-    OutputDestinationCreate,
-    OutputDestinationResponse,
-    OutputDestinationUpdate,
     TelemetryAgentAck,
     TelemetryAgentBase,
     TelemetryAgentCreate,
@@ -260,9 +256,5 @@ __all__ = [
     "TelemetryAgentMatchRuleCreate",
     "TelemetryAgentMatchRuleResponse",
     "InfluxDBVersion",
-    "OutputDestinationBase",
-    "OutputDestinationCreate",
-    "OutputDestinationUpdate",
-    "OutputDestinationResponse",
     "PaginatedResponse",
 ]

@@ -227,7 +227,7 @@ class AutomationEngine:
     def set_influxdb(
         self,
         url: str,
-        version: str = "v2",
+        version: str = "v3",
         token: str = None,
         organization: str = None,
         bucket: str = None,
@@ -237,13 +237,15 @@ class AutomationEngine:
         content_encoding: str = None,
     ):
         """
-        Replace backend-default InfluxDB outputs with a single one.
+        Replace the backend-default InfluxDB outputs with a single one.
 
-        Backend defaults are applied to every TelemetryAgent in addition to
-        the agent's own OutputDestination rows. Use `add_influxdb(...)` to
-        append additional defaults (e.g. primary + replica).
+        Backend defaults are applied to every TelemetryAgent. Use
+        `add_influxdb(...)` to append additional defaults (e.g. primary +
+        replica).
         """
-        self.influxdb_settings.outputs = [
+        from acex.observability.settings import DEFAULT_GROUP
+
+        self.influxdb_settings.groups[DEFAULT_GROUP] = [
             self._make_influxdb_output(
                 url=url,
                 version=version,
@@ -260,7 +262,7 @@ class AutomationEngine:
     def add_influxdb(
         self,
         url: str,
-        version: str = "v2",
+        version: str = "v3",
         token: str = None,
         organization: str = None,
         bucket: str = None,
@@ -270,7 +272,9 @@ class AutomationEngine:
         content_encoding: str = None,
     ):
         """Append one more backend-default InfluxDB output."""
-        self.influxdb_settings.outputs.append(
+        from acex.observability.settings import DEFAULT_GROUP
+
+        self.influxdb_settings.groups.setdefault(DEFAULT_GROUP, []).append(
             self._make_influxdb_output(
                 url=url,
                 version=version,
