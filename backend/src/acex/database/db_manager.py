@@ -22,7 +22,8 @@ class DatabaseManager:
         from alembic import command
         from alembic.config import Config
 
-        alembic_ini = Path(__file__).resolve().parents[3] / "alembic.ini"
-        alembic_cfg = Config(str(alembic_ini))
+        migrations_dir = Path(__file__).resolve().parent.parent / "migrations"
+        alembic_cfg = Config()
+        alembic_cfg.set_main_option("script_location", str(migrations_dir))
         alembic_cfg.attributes["connection"] = self.connection.engine
         command.upgrade(alembic_cfg, revision)
