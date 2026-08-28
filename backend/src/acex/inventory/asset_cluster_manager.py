@@ -15,11 +15,7 @@ class AssetClusterManager:
 
     def _check_assets_available(self, session, asset_ids: list[int], exclude_cluster_id: int | None = None) -> None:
         for asset_id in asset_ids:
-            link = (
-                session.query(AssetClusterLink)
-                .filter(AssetClusterLink.asset_id == asset_id)
-                .first()
-            )
+            link = session.query(AssetClusterLink).filter(AssetClusterLink.asset_id == asset_id).first()
             if link and link.cluster_id != exclude_cluster_id:
                 raise HTTPException(
                     status_code=409,
