@@ -22,7 +22,7 @@ jinja2 = "^3.1.6"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
-build-backend = "poetry-dynamic-versioning.backend"
+build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.poetry.plugins."acex.neds"]
 cisco_ios_cli = "acex_driver_cisco_ioscli.cisco_ios_cli:CiscoIOSCLIDriver"
