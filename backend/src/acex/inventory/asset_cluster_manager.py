@@ -13,13 +13,33 @@ class AssetClusterManager:
     def __init__(self, db_manager):
         self.db = db_manager
 
+    def _check_assets_available(self, session, asset_ids: list[int], exclude_cluster_id: int | None = None) -> None:
+        for asset_id in asset_ids:
+            link = (
+                session.query(AssetClusterLink)
+                .filter(AssetClusterLink.asset_id == asset_id)
+                .first()
+            )
+            if link and link.cluster_id != exclude_cluster_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Asset {asset_id} is already assigned to cluster {link.cluster_id}",
+                )
+
     def create_cluster(self, payload: AssetClusterCreate) -> AssetCluster:
         session = next(self.db.get_session())
         try:
+            self._check_assets_available(session, payload.asset_ids)
             cluster = AssetCluster.model_validate(payload)
             session.add(cluster)
             session.commit()
             session.refresh(cluster)
+            for order, asset_id in enumerate(payload.asset_ids):
+                link = AssetClusterLink(asset_id=asset_id, cluster_id=cluster.id, order=order)
+                session.add(link)
+            if payload.asset_ids:
+                session.commit()
+                session.refresh(cluster)
             return cluster
         finally:
             session.close()
@@ -73,6 +93,7 @@ class AssetClusterManager:
                 cluster.ned_id = payload.ned_id
 
             if payload.asset_ids is not None:
+                self._check_assets_available(session, payload.asset_ids, exclude_cluster_id=id)
                 session.exec(AssetClusterLink.__table__.delete().where(AssetClusterLink.cluster_id == id))
                 for order, asset_id in enumerate(payload.asset_ids):
                     link = AssetClusterLink(asset_id=asset_id, cluster_id=id, order=order)

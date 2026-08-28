@@ -37,7 +37,7 @@ class AssetClusterBase(BaseModel):
 
 
 class AssetClusterCreate(AssetClusterBase):
-    pass
+    asset_ids: list[int] = []
 
 
 class AssetClusterUpdate(BaseModel):
