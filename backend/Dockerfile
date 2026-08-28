@@ -24,12 +24,16 @@ RUN pip install --no-cache-dir \
     mcp \
     fastmcp \
     cryptography \
-    hvac
+    hvac \
+    alembic
 
 # Backend source
 COPY backend/src/ /app/src/
 COPY backend/app.dev.py /app/app.dev.py
+COPY backend/alembic.ini /app
+#COPY migrations ./migrations
+
 
 ENV PYTHONPATH=/app/src
 
-CMD ["python", "app.dev.py"]
+CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && python app.dev.py"]
