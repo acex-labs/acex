@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 
-from acex_client.acex.acex import Acex
+from acex_client import Acex
 
 from acex_grafana_sync.agent import GrafanaAgent
 from acex_grafana_sync.grafana_client import GrafanaClient
@@ -55,7 +55,7 @@ def main():
     poll_interval = int(os.environ.get("POLL_INTERVAL_SECONDS", "60"))
     prune_dashboards = _bool_env("PRUNE_DASHBOARDS", True)
 
-    client = Acex(baseurl=f"{api_url.rstrip('/')}/", verify=acex_verify_ssl)
+    client = Acex(base_url=f"{api_url.rstrip('/')}/", verify=acex_verify_ssl)
     grafana = GrafanaClient(
         url=grafana_url,
         token=grafana_token if has_token else None,
