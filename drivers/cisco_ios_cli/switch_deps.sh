@@ -23,10 +23,14 @@ if [[ "$1" == "dev" ]]; then
 elif [[ "$1" == "prod" ]]; then
     echo "Byter till versionsberoenden (för publicering)"
 
-    # Läs major-version från varje beroendets egen pyproject.toml
-    DEVKIT_MAJOR=$(grep 'version =' "$(dirname "$0")/../../devkit/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/' | cut -d. -f1)
+    # Read major version from the current git tag (unified versioning)
+    MAJOR=$(git -C "$(dirname "$0")" describe --tags --exact-match 2>/dev/null | sed 's/^v//' | cut -d. -f1)
+    if [[ -z "$MAJOR" ]]; then
+        echo "Error: not on an exact git tag. Cannot determine version for prod deps."
+        exit 1
+    fi
 
-    sed "${SED_INPLACE[@]}" 's|acex-devkit = .*|acex-devkit = "^'$DEVKIT_MAJOR'"|' "$PYPROJECT"
+    sed "${SED_INPLACE[@]}" 's|acex-devkit = .*|acex-devkit = "^'$MAJOR'"|' "$PYPROJECT"
 else
     echo "Använd: $0 dev|prod"
     exit 1

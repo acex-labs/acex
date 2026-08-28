@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-driver-cisco-ioscli"
-version = "2.7.0"
+version = "0.0.0"
 description = "ACE-X Driver: Cisco IOS CLI SSH"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 license = "AGPL-3.0"
@@ -21,8 +21,8 @@ acex-devkit = { path = "../../devkit", develop = true }
 jinja2 = "^3.1.6"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=2.0.0,<3.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.poetry.plugins."acex.neds"]
 cisco_ios_cli = "acex_driver_cisco_ioscli.cisco_ios_cli:CiscoIOSCLIDriver"
@@ -30,3 +30,8 @@ cisco_ios_cli = "acex_driver_cisco_ioscli.cisco_ios_cli:CiscoIOSCLIDriver"
 dev = [
     "ipython (>=9.10.0,<10.0.0)"
 ]
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "pep440"

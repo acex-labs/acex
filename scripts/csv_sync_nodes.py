@@ -341,7 +341,7 @@ def sync_nodes(
         seen_hostnames.add(hostname)
 
         try:
-            is_new, changed = syncer.sync_row(row, hostname, serial_number)
+            is_new, changed, _ = syncer.sync_row(row, hostname, serial_number)
         except Exception as e:
             log.error(hostname, "sync", e)
             errors += 1
