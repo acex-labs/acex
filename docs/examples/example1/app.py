@@ -9,7 +9,7 @@ import os
 db = Connection(
     dbname="ace",
     user="postgres",
-    password="",
+    password="mysecretpassword",
     host="localhost",
     backend="postgresql"
 )
@@ -38,31 +38,32 @@ ae.add_configmap_dir("config_maps")
 # models via GET /ai_ops/providers and can override the model per request.
 # Everything below can also be configured via ACEX_AI_* env vars
 # (see docs/examples/ai_ops.md).
-ae.ai_ops(
-    enabled=True,
-    providers=[
-        {
-            "name": "bergetai",
-            "base_url": os.getenv("ACEX_AI_API_BASEURL"),
-            "api_key": os.getenv("ACEX_AI_API_KEY"),
-        },
-        # Optional secondary provider — used as failover and/or for other tasks:
-        # {
-        #     "name": "local",
-        #     "base_url": "http://localhost:11434/v1",
-        #     "api_key": "ollama",
-        #     "static_models": ["qwen3:32b"],  # when the provider has no /models endpoint
-        # },
-    ],
-    chains={
-        # Ordered failover: first level is the default shown in the frontend,
-        # subsequent levels are tried if the previous one is unreachable (5xx/timeout).
-        "default": ["bergetai/moonshotai/Kimi-K3"],
-        # Tasks without an explicit chain inherit "default". Example override:
-        # "analysis": ["groq/deepseek-r1", "local/qwen3:32b"],
-    },
-    mcp_server_url="http://localhost:8000/mcp",
-)
+
+# ae.ai_ops(
+#     enabled=True,
+#     providers=[
+#         {
+#             "name": "bergetai",
+#             "base_url": os.getenv("ACEX_AI_API_BASEURL"),
+#             "api_key": os.getenv("ACEX_AI_API_KEY"),
+#         },
+#         # Optional secondary provider — used as failover and/or for other tasks:
+#         # {
+#         #     "name": "local",
+#         #     "base_url": "http://localhost:11434/v1",
+#         #     "api_key": "ollama",
+#         #     "static_models": ["qwen3:32b"],  # when the provider has no /models endpoint
+#         # },
+#     ],
+#     chains={
+#         # Ordered failover: first level is the default shown in the frontend,
+#         # subsequent levels are tried if the previous one is unreachable (5xx/timeout).
+#         "default": ["bergetai/moonshotai/Kimi-K3"],
+#         # Tasks without an explicit chain inherit "default". Example override:
+#         # "analysis": ["groq/deepseek-r1", "local/qwen3:32b"],
+#     },
+#     mcp_server_url="http://localhost:8000/mcp",
+# )
 
 
 # CORS
