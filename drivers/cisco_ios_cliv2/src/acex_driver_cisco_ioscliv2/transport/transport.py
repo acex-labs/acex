@@ -1,0 +1,6 @@
+from acex_devkit.drivers import TransportBase
+
+
+class CiscoIOSTransport(TransportBase):
+    def get_config(): ...
+    def send_config(): ...
