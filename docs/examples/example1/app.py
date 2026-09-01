@@ -9,7 +9,7 @@ import os
 db = Connection(
     dbname="ace",
     user="postgres",
-    password="mysecretpassword",
+    password="",
     host="localhost",
     backend="postgresql"
 )
@@ -28,26 +28,40 @@ ae = AutomationEngine(
     # logical_nodes_plugin=netbox,
 )
 
-ae.set_influxdb(
-    url="http://eru614:8181",
-    token="apiv3_lVnJoRcEfuAERSh_bmP1vj5uTY5V6_wq7mNuoZkKDFpDY-abn2Zvc5L-BDTHpjSL6yx0vW_1lg-xamJ5jixYoA",
-    database="acex",
-    content_encoding="gzip",
-    version="v3"
-)
-
 
 ae.add_integration("ipam", netbox)
 ae.add_configmap_dir("config_maps")
 
 
 # AI OPS
+# Named providers + per-task failover chains. The frontend lists providers and
+# models via GET /ai_ops/providers and can override the model per request.
+# Everything below can also be configured via ACEX_AI_* env vars
+# (see docs/examples/ai_ops.md).
 ae.ai_ops(
     enabled=True,
-    base_url=os.getenv("ACEX_AI_API_BASEURL"),
-    api_key=os.getenv("ACEX_AI_API_KEY"),
-    model="moonshotai/Kimi-K2.6",
-    mcp_server_url="http://localhost:8000/mcp"
+    providers=[
+        {
+            "name": "bergetai",
+            "base_url": os.getenv("ACEX_AI_API_BASEURL"),
+            "api_key": os.getenv("ACEX_AI_API_KEY"),
+        },
+        # Optional secondary provider — used as failover and/or for other tasks:
+        # {
+        #     "name": "local",
+        #     "base_url": "http://localhost:11434/v1",
+        #     "api_key": "ollama",
+        #     "static_models": ["qwen3:32b"],  # when the provider has no /models endpoint
+        # },
+    ],
+    chains={
+        # Ordered failover: first level is the default shown in the frontend,
+        # subsequent levels are tried if the previous one is unreachable (5xx/timeout).
+        "default": ["bergetai/moonshotai/Kimi-K3"],
+        # Tasks without an explicit chain inherit "default". Example override:
+        # "analysis": ["groq/deepseek-r1", "local/qwen3:32b"],
+    },
+    mcp_server_url="http://localhost:8000/mcp",
 )
 
 
