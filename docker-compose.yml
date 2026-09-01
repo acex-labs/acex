@@ -91,11 +91,6 @@ services:
       OIDC_VERIFY_SSL: "false"
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: ${VAULT_TOKEN:-acex-vault-token}
-    healthcheck:
-      test: ["CMD", "alembic", "-c", "alembic.ini", "current"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
     depends_on:
       postgres:
         condition: service_healthy
