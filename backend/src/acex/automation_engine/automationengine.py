@@ -79,13 +79,13 @@ class AutomationEngine:
         self._vault_client = None
         self.credential_manager = None  # initialized in set_encryption_key() or lazily
 
-        self._create_db_tables()
+        self._run_migrations()
 
-    def _create_db_tables(self):
+    def _run_migrations(self):
         """
-        Create tables if not exist, use on startup.
+        Apply Alembic migrations up to head, use on startup.
         """
-        self.db.create_tables()
+        self.db.upgrade()
 
     def _ensure_credential_manager(self):
         """Lazily initialize CredentialManager from env var if not set via set_encryption_key()."""

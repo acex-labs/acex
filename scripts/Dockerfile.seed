@@ -1,0 +1,12 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Local dependencies (same pattern as backend/Dockerfile)
+COPY devkit/ /deps/devkit/
+COPY client/ /deps/client/
+RUN pip install --no-cache-dir /deps/devkit /deps/client
+
+COPY scripts/seed_mock_devices.py /app/
+
+CMD ["python", "seed_mock_devices.py"]

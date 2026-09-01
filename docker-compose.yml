@@ -124,6 +124,21 @@ services:
     depends_on:
       - backend
 
+  seed:
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile.seed
+    restart: "no"
+    environment:
+      ACEX_API_URL: http://backend:8080
+      ACEX_CLIENT_ID: acex-agents
+      ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}
+      ACEX_ISSUER_URL: http://keycloak:8180/realms/acex
+      ACEX_VERIFY_SSL: "false"
+    depends_on:
+      backend:
+        condition: service_healthy
+
   #    Agents
 
   collection-agent:
@@ -133,7 +148,7 @@ services:
     restart: unless-stopped
     environment:
       ACEX_API_URL: http://backend:8080
-      COLLECTION_AGENT_ID: ${COLLECTION_AGENT_ID:-}
+      COLLECTION_AGENT_ID: ${COLLECTION_AGENT_ID:-1}
       ACEX_VERIFY_SSL: "false"
       ACEX_CLIENT_ID: acex-agents
       ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}
@@ -148,7 +163,7 @@ services:
     restart: unless-stopped
     environment:
       ACEX_API_URL: http://backend:8080
-      TELEMETRY_AGENT_ID: ${TELEMETRY_AGENT_ID:-}
+      TELEMETRY_AGENT_ID: ${TELEMETRY_AGENT_ID:-1}
       ACEX_VERIFY_SSL: "false"
       ACEX_CLIENT_ID: acex-agents
       ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}
