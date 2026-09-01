@@ -36,4 +36,4 @@ COPY backend/alembic.ini /app
 
 ENV PYTHONPATH=/app/src
 
-CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && python app.dev.py"]
+CMD ["python", "app.dev.py"]
