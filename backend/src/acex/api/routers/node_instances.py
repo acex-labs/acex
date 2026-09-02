@@ -77,8 +77,8 @@ def create_router(automation_engine):
     async def intent_diff(id: str):
         return await differ.diff(node_instance_id=id)
 
-    router.add_api_route("/node_instances/{id}/configuration/observed/", list_observed, methods=["GET"], tags=tags)
-    router.add_api_route("/node_instances/{id}/configuration/observed/", upload_observed, methods=["POST"], tags=tags)
+    router.add_api_route("/node_instances/{id}/configuration/observed", list_observed, methods=["GET"], tags=tags)
+    router.add_api_route("/node_instances/{id}/configuration/observed", upload_observed, methods=["POST"], tags=tags)
     router.add_api_route(
         "/node_instances/{id}/configuration/observed/latest", get_observed_latest, methods=["GET"], tags=tags
     )

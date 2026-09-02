@@ -11,13 +11,13 @@ def create_router(automation_engine):
     tam = automation_engine.inventory.telemetry_agent_manager
 
     router.add_api_route(
-        "/agents/",
+        "/agents",
         tam.create,
         methods=["POST"],
         tags=tags,
     )
     router.add_api_route(
-        "/agents/",
+        "/agents",
         tam.query,
         methods=["GET"],
         tags=tags,

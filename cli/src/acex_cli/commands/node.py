@@ -29,7 +29,7 @@ def _request_get(sdk, path: str, params: dict | None = None) -> requests.Respons
 
 
 def _get_connection(sdk, node_id):
-    return _request_get(sdk, f"/inventory/management_connections/?node_id={node_id}").json()
+    return _request_get(sdk, f"/inventory/management_connections?node_id={node_id}").json()
 
 
 def _get_rendered_config(sdk, node_id: str) -> str:

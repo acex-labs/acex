@@ -152,7 +152,7 @@ def test_neds_download(rest):
 @respx.mock
 def test_ai_ask_streams(rest):
     body = b"event: token\ndata: Hello\nevent: token\ndata:  world\n"
-    respx.post("http://test/api/v1/ai_ops/ai/ask/").mock(
+    respx.post("http://test/api/v1/ai_ops/ai/ask").mock(
         return_value=Response(200, content=body, headers={"content-type": "text/event-stream"})
     )
     from acex_devkit.models.ai_ops import AiAskRequest

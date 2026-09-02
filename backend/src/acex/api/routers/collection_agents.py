@@ -9,8 +9,8 @@ def create_router(automation_engine):
 
     cam = automation_engine.inventory.collection_agent_manager
 
-    router.add_api_route("/collection_agents/", cam.create, methods=["POST"], tags=tags)
-    router.add_api_route("/collection_agents/", cam.query, methods=["GET"], tags=tags)
+    router.add_api_route("/collection_agents", cam.create, methods=["POST"], tags=tags)
+    router.add_api_route("/collection_agents", cam.query, methods=["GET"], tags=tags)
     router.add_api_route("/collection_agents/{id}", cam.get, methods=["GET"], tags=tags)
     router.add_api_route("/collection_agents/{id}", cam.update, methods=["PATCH"], tags=tags)
     router.add_api_route("/collection_agents/{id}", cam.delete, methods=["DELETE"], tags=tags)

@@ -18,7 +18,7 @@ from acex_client.resources.base import (
 class Ai(Resource, ActionMixin):
     """AI assistant — `/ai_ops/ai/*` (SSE-streamed).
 
-    The `Acex` facade probes `HEAD /ai_ops/ai/ask/` at construction; if the
+    The `Acex` facade probes `HEAD /ai_ops/ai/ask` at construction; if the
     backend does not have `ai_ops` mounted, `client.ai` is set to `None`
     rather than an `Ai` instance.
     """
@@ -29,13 +29,13 @@ class Ai(Resource, ActionMixin):
     create_model = None  # type: ignore
     update_model = None  # type: ignore
 
-    @action("HEAD", "ask/")
+    @action("HEAD", "ask")
     def ping(self) -> None: ...
 
-    @stream("POST", "ask/")
+    @stream("POST", "ask")
     def ask(self, payload: AiAskRequest) -> Iterator[str]: ...
 
-    @stream("POST", "config_analysis/")
+    @stream("POST", "config_analysis")
     def analyze(self, payload: AiAnalysisRequest) -> Iterator[str]: ...
 
     def providers(self) -> AiProvidersResponse:

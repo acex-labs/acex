@@ -32,7 +32,7 @@ def download_ned(filename: str):
 def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/neds")
     tags = ["Inventory"]
-    router.add_api_route("/", list_neds, methods=["GET"], tags=tags, response_model=list[Ned])
+    router.add_api_route("", list_neds, methods=["GET"], tags=tags, response_model=list[Ned])
     router.add_api_route("/{ned_id}", get_ned, methods=["GET"], tags=tags, response_model=Ned)
     router.add_api_route("/download/{filename}", download_ned, methods=["GET"], tags=tags)
 

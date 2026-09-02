@@ -139,7 +139,7 @@ def list_assets(
         params["serial_number"] = serial_number
     if assigned is not None:
         params["assigned"] = assigned
-    response = requests.get(f"{BACKEND_API_URL}/inventory/assets/", params=params)
+    response = requests.get(f"{BACKEND_API_URL}/inventory/assets", params=params)
     response.raise_for_status()
     return response.json()
 
@@ -190,7 +190,7 @@ def list_logical_nodes(
         params["hostname"] = hostname
     if assigned is not None:
         params["assigned"] = assigned
-    response = requests.get(f"{BACKEND_API_URL}/inventory/logical_nodes/", params=params)
+    response = requests.get(f"{BACKEND_API_URL}/inventory/logical_nodes", params=params)
     response.raise_for_status()
     return response.json()
 
@@ -273,7 +273,7 @@ def list_node_instances(
         params["asset_ref_id"] = asset_ref_id
     if status is not None:
         params["status"] = status
-    response = requests.get(f"{BACKEND_API_URL}/inventory/node_instances/", params=params)
+    response = requests.get(f"{BACKEND_API_URL}/inventory/node_instances", params=params)
     response.raise_for_status()
     return response.json()
 

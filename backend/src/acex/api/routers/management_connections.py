@@ -12,8 +12,8 @@ def create_router(automation_engine):
 
     manager = automation_engine.mgmt_con_manager
 
-    router.add_api_route("/management_connections/", manager.create_connection, methods=["POST"], tags=tags)
-    router.add_api_route("/management_connections/", manager.list_connections, methods=["GET"], tags=tags)
+    router.add_api_route("/management_connections", manager.create_connection, methods=["POST"], tags=tags)
+    router.add_api_route("/management_connections", manager.list_connections, methods=["GET"], tags=tags)
     router.add_api_route("/management_connections/{id}", manager.get_connection, methods=["GET"], tags=tags)
     router.add_api_route("/management_connections/{id}", manager.delete_connection, methods=["DELETE"], tags=tags)
     return router

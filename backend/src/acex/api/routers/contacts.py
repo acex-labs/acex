@@ -34,10 +34,10 @@ def create_router(automation_engine):
     cam = automation_engine.inventory.contact_assignment_manager
 
     router.add_api_route(
-        "/contact_assignments/", cam.create_assignment, methods=["POST"], response_model=ContactAssignment, tags=tags
+        "/contact_assignments", cam.create_assignment, methods=["POST"], response_model=ContactAssignment, tags=tags
     )
     router.add_api_route(
-        "/contact_assignments/",
+        "/contact_assignments",
         cam.list_assignments,
         methods=["GET"],
         response_model=list[ContactAssignment],
