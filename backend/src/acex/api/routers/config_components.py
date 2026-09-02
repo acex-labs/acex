@@ -1007,7 +1007,7 @@ def create_router(automation_engine):
         return GenerateResponse(code="\n\n".join(code_blocks))
 
     router.add_api_route(
-        "/",
+        "",
         list_components,
         methods=["GET"],
         response_model=ComponentCatalog,

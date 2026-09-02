@@ -9,8 +9,8 @@ def create_router(automation_engine):
     cm = automation_engine.credential_manager
 
     # Credential CRUD
-    router.add_api_route("/credentials/", cm.create, methods=["POST"], tags=tags)
-    router.add_api_route("/credentials/", cm.query, methods=["GET"], tags=tags)
+    router.add_api_route("/credentials", cm.create, methods=["POST"], tags=tags)
+    router.add_api_route("/credentials", cm.query, methods=["GET"], tags=tags)
     router.add_api_route("/credentials/{id}/secret", cm.get_secret, methods=["GET"], tags=tags)
     router.add_api_route("/credentials/{id}", cm.get, methods=["GET"], tags=tags)
     router.add_api_route("/credentials/{id}", cm.update, methods=["PATCH"], tags=tags)

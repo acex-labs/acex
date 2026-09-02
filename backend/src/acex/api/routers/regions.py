@@ -32,10 +32,10 @@ def create_router(automation_engine):
     ram = automation_engine.inventory.region_assignment_manager
 
     router.add_api_route(
-        "/region_assignments/", ram.create_assignment, methods=["POST"], response_model=SiteRegionAssignment, tags=tags
+        "/region_assignments", ram.create_assignment, methods=["POST"], response_model=SiteRegionAssignment, tags=tags
     )
     router.add_api_route(
-        "/region_assignments/",
+        "/region_assignments",
         ram.list_assignments,
         methods=["GET"],
         response_model=list[SiteRegionAssignment],

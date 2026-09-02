@@ -8,7 +8,7 @@ class AdapterBase:
         return {"create": "POST", "get": "GET", "query": "GET", "update": "PATCH", "delete": "DELETE"}.get(capability)
 
     def path(self, capability):
-        return {"create": "/", "get": "/{id}", "query": "/", "update": "/{id}", "delete": "/{id}"}.get(capability)
+        return {"create": "", "get": "/{id}", "query": "", "update": "/{id}", "delete": "/{id}"}.get(capability)
 
     @property
     def capabilities(self):

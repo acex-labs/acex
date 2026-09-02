@@ -40,7 +40,7 @@ def create_router(automation_engine):
     aiom = automation_engine.ai_ops_manager
 
     # HEAD lets the frontend detect whether AI ops is enabled
-    @router.head("/ai/ask/", tags=tags)
+    @router.head("/ai/ask", tags=tags)
     async def ai_enabled():
         return {}
 
@@ -86,7 +86,7 @@ def create_router(automation_engine):
             raise HTTPException(status_code=502, detail=f"Provider '{provider}' did not return a model list")
         return {"provider": provider, "models": models}
 
-    @router.post("/ai/ask/", tags=tags)
+    @router.post("/ai/ask", tags=tags)
     async def ask(request: AskRequest):
         async def sse_stream():
             try:
@@ -106,7 +106,7 @@ def create_router(automation_engine):
 
         return StreamingResponse(sse_stream(), media_type="text/event-stream")
 
-    @router.post("/ai/config_analysis/", tags=tags)
+    @router.post("/ai/config_analysis", tags=tags)
     async def config_analysis(request: ConfigAnalysisRequest):
         """Analyse a config diff with a focused task-specific prompt.
 

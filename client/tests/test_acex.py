@@ -10,7 +10,7 @@ from httpx import Response
 
 @respx.mock
 def test_acex_constructs_with_null_auth():
-    respx.head("http://test/api/v1/ai_ops/ai/ask/").mock(return_value=Response(200))
+    respx.head("http://test/api/v1/ai_ops/ai/ask").mock(return_value=Response(200))
     client = Acex(base_url="http://test/", auth=NullAuthProvider())
     assert client.api_url == "http://test/api/v1"
     assert client.inventory is not None

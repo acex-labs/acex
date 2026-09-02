@@ -10,7 +10,7 @@ and **per-task failover chains** (ordered lists of `provider/model` levels).
   `/models` response (e.g. OpenRouter exposes capabilities and pricing) and
   overridable per model via the provider's `model_meta` config. Fields the
   provider does not report are `null`.
-- Both `POST /ai_ops/ai/ask/` (task `chat`) and `POST /ai_ops/ai/config_analysis/`
+- Both `POST /ai_ops/ai/ask` (task `chat`) and `POST /ai_ops/ai/config_analysis`
   (task `analysis`) accept an optional `model` field. When omitted, the task's
   failover chain is used. An explicit override runs **without failover**.
 - Failover happens only *before the first token*: connection errors, timeouts,

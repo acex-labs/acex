@@ -89,6 +89,10 @@ services:
       OIDC_ISSUER_URL: http://keycloak:8180/realms/acex
       OIDC_AUDIENCE: acex
       OIDC_VERIFY_SSL: "false"
+      # Trust X-Forwarded-Proto/Host from the TLS-terminating proxy so that
+      # redirects (trailing-slash fallbacks etc.) keep the https scheme.
+      # Without this, httpx/requests strip Authorization on https->http redirects -> 401.
+      FORWARDED_ALLOW_IPS: "*"
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: ${VAULT_TOKEN:-acex-vault-token}
     depends_on:
