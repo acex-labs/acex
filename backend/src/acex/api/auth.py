@@ -211,3 +211,29 @@ def get_current_user(
                 detail="Invalid token signature",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from exc
+
+
+def require_scopes(*required: str):
+    """Dependency factory: reject with 403 (and log) if the token lacks any of the given scopes.
+
+    Reads the OIDC `scope` claim from the validated token, e.g.:
+        Depends(require_scopes("nodes:read", "nodes:write"))
+    """
+
+    def dep(request: Request, user: dict = Depends(get_current_user)) -> dict:  # noqa: B008
+        if OIDC_ISSUER_URL is None:
+            return user  # auth disabled — allow everything
+        granted = set(str(user.get("scope", "")).split())
+        missing = [s for s in required if s not in granted]
+        if missing:
+            logger.warning(
+                f"Authorization denied ({request.method} {request.url.path}): "
+                f"user '{user.get('sub', 'unknown')}' missing scope(s) {missing}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing required scope(s): {', '.join(missing)}",
+            )
+        return user
+
+    return dep
