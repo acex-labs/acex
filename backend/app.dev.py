@@ -1,5 +1,7 @@
 import importlib.metadata as _im
+import logging
 import os
+import sys
 
 _orig_version = _im.version
 
@@ -30,6 +32,12 @@ ae = AutomationEngine(db_connection=db)
 ae.add_cors_allowed_origin("*")
 
 app = ae.create_app()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    stream=sys.stdout,
+)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)
