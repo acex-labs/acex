@@ -2,6 +2,7 @@
 
 from acex_devkit.drivers.base import (
     NetworkElementDriver,
+    ObservabilityBase,
     ParserBase,
     RendererBase,
     TransportBase,
@@ -10,6 +11,7 @@ from acex_devkit.drivers.base import (
 __all__ = [
     "NetworkElementDriver",
     "TransportBase",
+    "ObservabilityBase",
     "RendererBase",
     "ParserBase",
 ]

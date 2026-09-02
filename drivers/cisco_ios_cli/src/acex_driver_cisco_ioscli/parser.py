@@ -1,5 +1,6 @@
 import os
 
+from acex_devkit.drivers import ParserBase
 from acex_devkit.models.composed_configuration import (
     ClockConfig,
     ComposedConfiguration,
@@ -42,7 +43,7 @@ def expand_vlans(vlan_str: str) -> list[int]:
     return sorted(vlans)
 
 
-class CiscoIOSCLIParser:
+class CiscoIOSCLIParser(ParserBase):
     def __init__(self):
         self.running_config = None
         self._parsed_config = ComposedConfiguration()
