@@ -328,7 +328,10 @@ class _ActionMeta:
             if value is not None:
                 query[name] = value
         rendered_suffix = self.path_template.format(**path_values) if path_vars else self.path_template
-        full_path = f"{self.resource_path}/{rendered_suffix}" if self.resource_path else rendered_suffix
+        if self.resource_path and rendered_suffix:
+            full_path = f"{self.resource_path}/{rendered_suffix}"
+        else:
+            full_path = self.resource_path or rendered_suffix
         raw = self.return_type is str
         response = rest.request(self.method, full_path, params=query or None, json=body, raw=raw)
         return self._coerce(response)
@@ -421,7 +424,10 @@ def stream(method: str, path_template: str):
                 elif value is not None:
                     query[name] = value
             rendered_suffix = path_template.format(**path_values) if path_vars else path_template
-            full_path = f"{resource_path}/{rendered_suffix}" if resource_path else rendered_suffix
+            if resource_path and rendered_suffix:
+                full_path = f"{resource_path}/{rendered_suffix}"
+            else:
+                full_path = resource_path or rendered_suffix
             yield from self.rest.stream(method.upper(), full_path, params=query or None, json=body)
 
         wrapper._action_meta_factory = (method, path_template, None)  # type: ignore[attr-defined]

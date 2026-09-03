@@ -69,7 +69,7 @@ def _make_eps(installed):
 @patch("acex_client.resources.neds.importlib.metadata.entry_points")
 def test_get_missing_returns_neds_not_installed_locally(mock_eps, neds):
     mock_eps.return_value = _make_eps({})
-    respx.get("http://test/api/v1/neds/").mock(
+    respx.get("http://test/api/v1/neds").mock(
         return_value=Response(
             200,
             json=[
@@ -99,7 +99,7 @@ def test_get_missing_returns_neds_not_installed_locally(mock_eps, neds):
 @patch("acex_client.resources.neds.importlib.metadata.entry_points")
 def test_get_missing_returns_neds_with_version_mismatch(mock_eps, neds):
     mock_eps.return_value = _make_eps({"CiscoIOS": {"package_name": "acex-driver-cisco-ioscli", "version": "0.9.0"}})
-    respx.get("http://test/api/v1/neds/").mock(
+    respx.get("http://test/api/v1/neds").mock(
         return_value=Response(
             200,
             json=[
@@ -123,7 +123,7 @@ def test_get_missing_returns_neds_with_version_mismatch(mock_eps, neds):
 @patch("acex_client.resources.neds.importlib.metadata.entry_points")
 def test_get_missing_returns_empty_when_all_up_to_date(mock_eps, neds):
     mock_eps.return_value = _make_eps({"CiscoIOS": {"package_name": "acex-driver-cisco-ioscli", "version": "1.0.0"}})
-    respx.get("http://test/api/v1/neds/").mock(
+    respx.get("http://test/api/v1/neds").mock(
         return_value=Response(
             200,
             json=[
