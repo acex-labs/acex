@@ -57,9 +57,9 @@ class NodeInstances(
     def upload_observed(self, id: int, payload: DeviceConfigUpload) -> Any:
         encoded = DeviceConfigUpload(content=_b64_encode(payload.content))
         body = encoded.model_dump(exclude_none=True)
-        return self.rest.request("POST", f"{self.path}/{id}/configuration/observed/", json=body)
+        return self.rest.request("POST", f"{self.path}/{id}/configuration/observed", json=body)
 
-    @action("GET", "{id}/configuration/observed/")
+    @action("GET", "{id}/configuration/observed")
     def list_observed(self, id: int) -> list[ConfigSnapshotListItem]: ...
 
     def get_latest_observed(self, id: int, output: ConfigOutput = ConfigOutput.RENDERED) -> ConfigSnapshotDetail:
