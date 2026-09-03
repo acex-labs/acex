@@ -191,7 +191,7 @@ def test_node_instance_configuration_desired(inventory):
 
 @respx.mock
 def test_node_instance_upload_and_list_observed(inventory):
-    respx.post("http://test/api/v1/inventory/node_instances/1/configuration/observed/").mock(
+    respx.post("http://test/api/v1/inventory/node_instances/1/configuration/observed").mock(
         return_value=Response(
             200,
             json={
@@ -202,7 +202,7 @@ def test_node_instance_upload_and_list_observed(inventory):
             },
         )
     )
-    respx.get("http://test/api/v1/inventory/node_instances/1/configuration/observed/").mock(
+    respx.get("http://test/api/v1/inventory/node_instances/1/configuration/observed").mock(
         return_value=Response(
             200, json=[{"id": 100, "hash": "abc", "created_at": "2024-01-01T00:00:00", "node_instance_id": "1"}]
         )
@@ -220,7 +220,7 @@ def test_node_instance_upload_and_list_observed(inventory):
 
 @respx.mock
 def test_node_instance_upload_encodes_content_as_base64(inventory):
-    route = respx.post("http://test/api/v1/inventory/node_instances/1/configuration/observed/").mock(
+    route = respx.post("http://test/api/v1/inventory/node_instances/1/configuration/observed").mock(
         return_value=Response(200, json={"hash": "abc"})
     )
     import base64
