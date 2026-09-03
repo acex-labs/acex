@@ -102,7 +102,7 @@ def test_config_history_list_changes(operations):
 
 @respx.mock
 def test_lldp_upload(operations):
-    respx.post("http://test/api/v1/operations/lldp_neighbors/").mock(
+    respx.post("http://test/api/v1/operations/lldp_neighbors").mock(
         return_value=Response(200, json={"uploaded": 3, "deduplicated": 1, "re_resolved": 0, "errors": []})
     )
     from acex_devkit.models.lldp_neighbor import LldpNeighborEntry, LldpNeighborUpload

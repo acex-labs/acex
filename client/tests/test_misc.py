@@ -29,7 +29,7 @@ def rest():
 
 @respx.mock
 def test_config_components_list(rest):
-    respx.get("http://test/api/v1/config_components/").mock(
+    respx.get("http://test/api/v1/config_components").mock(
         return_value=Response(
             200,
             json=[
@@ -101,7 +101,7 @@ def test_config_components_translate(rest):
 
 @respx.mock
 def test_neds_list_and_get(rest):
-    respx.get("http://test/api/v1/neds/").mock(
+    respx.get("http://test/api/v1/neds").mock(
         return_value=Response(
             200,
             json=[
