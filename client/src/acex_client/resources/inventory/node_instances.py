@@ -62,22 +62,16 @@ class NodeInstances(
     @action("GET", "{id}/configuration/observed")
     def list_observed(self, id: int) -> list[ConfigSnapshotListItem]: ...
 
-    def get_latest_observed(
-        self, id: int, output: ConfigOutput = ConfigOutput.RENDERED
-    ) -> ConfigSnapshotDetail:
+    def get_latest_observed(self, id: int, output: ConfigOutput = ConfigOutput.RENDERED) -> ConfigSnapshotDetail:
         params = {"output": str(output)}
-        data = self.rest.request(
-            "GET", f"{self.path}/{id}/configuration/observed/latest", params=params
-        )
+        data = self.rest.request("GET", f"{self.path}/{id}/configuration/observed/latest", params=params)
         return self._decode_snapshot(data)
 
     def get_observed(
         self, id: int, config_id: int, output: ConfigOutput = ConfigOutput.RENDERED
     ) -> ConfigSnapshotDetail:
         params = {"output": str(output)}
-        data = self.rest.request(
-            "GET", f"{self.path}/{id}/configuration/observed/{config_id}", params=params
-        )
+        data = self.rest.request("GET", f"{self.path}/{id}/configuration/observed/{config_id}", params=params)
         return self._decode_snapshot(data)
 
     @action("GET", "{id}/configuration/observed/diff")
