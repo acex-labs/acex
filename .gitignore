@@ -213,3 +213,8 @@ __marimo__/
 .gitignore
 yang_evaluation.md
 yang_todo.md
+
+# Local bug-report feature tests (not committed)
+backend/tests/unit/bug_report/
+backend/tests/integration/bug_report/
+backend/tests/system/bug_report/
