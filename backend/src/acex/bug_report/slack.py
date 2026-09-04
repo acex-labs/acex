@@ -2,7 +2,6 @@ import logging
 import os
 
 import httpx
-
 from acex.models.bug_report import BugReportCreate
 
 logger = logging.getLogger("acex.bug_report.slack")
@@ -39,9 +38,7 @@ def _build_blocks(payload: BugReportCreate, reporter: str) -> list[dict]:
             {"type": "section", "text": {"type": "mrkdwn", "text": f"*Steps to reproduce:*\n{payload.steps}"}}
         )
     if payload.page_url:
-        blocks.append(
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"*Page:* {payload.page_url}"}}
-        )
+        blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": f"*Page:* {payload.page_url}"}})
     return blocks
 
 

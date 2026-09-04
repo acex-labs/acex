@@ -3,7 +3,6 @@ import logging
 import os
 
 import httpx
-
 from acex.models.bug_report import BugReportCreate
 
 logger = logging.getLogger("acex.bug_report.ado")
@@ -17,10 +16,7 @@ def _auth_header(pat: str) -> str:
 
 
 def _work_item_url(org: str, project: str) -> str:
-    return (
-        f"https://dev.azure.com/{org}/{project}/_apis/wit/workitems"
-        f"/$User%20Story?api-version=7.1"
-    )
+    return f"https://dev.azure.com/{org}/{project}/_apis/wit/workitems/$User%20Story?api-version=7.1"
 
 
 def _parent_url(org: str, project: str, feature_id: int) -> str:
@@ -79,7 +75,8 @@ async def dispatch(
     _feature_id_str = str(feature_id) if feature_id else os.getenv("ADO_BUGFIX_FEATURE_ID")
 
     if not all([_pat, _org, _project, _feature_id_str]):
-        missing = [k for k, v in {"PAT": _pat, "org": _org, "project": _project, "feature_id": _feature_id_str}.items() if not v]
+        cfg = {"PAT": _pat, "org": _org, "project": _project, "feature_id": _feature_id_str}
+        missing = [k for k, v in cfg.items() if not v]
         logger.warning(f"ADO not configured — missing: {missing}")
         return False
 

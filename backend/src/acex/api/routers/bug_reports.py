@@ -1,12 +1,11 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
-
 from acex.api import auth as _auth
 from acex.bug_report import ado as _ado
 from acex.bug_report import slack as _slack
 from acex.constants import BASE_URL
 from acex.models.bug_report import BugReportCreate, BugReportResponse
+from fastapi import APIRouter, Depends, HTTPException, status
 
 logger = logging.getLogger("acex.api.bug_reports")
 
@@ -17,7 +16,7 @@ def create_router(automation_engine):
     @router.post("", response_model=BugReportResponse, status_code=status.HTTP_202_ACCEPTED)
     async def submit_bug_report(
         payload: BugReportCreate,
-        user: dict = Depends(_auth.get_current_user),
+        user: dict = Depends(_auth.get_current_user),  # noqa: B008
     ):
         reporter_id = user.get("sub")
         if not reporter_id:
