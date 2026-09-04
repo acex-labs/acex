@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from acex.api import auth as _auth
+from acex.bug_report import ado as _ado
 from acex.bug_report import slack as _slack
 from acex.constants import BASE_URL
 from acex.models.bug_report import BugReportCreate, BugReportResponse
@@ -33,6 +34,12 @@ def create_router(automation_engine):
                 dispatched_to.append("slack")
         except Exception:
             logger.warning("Slack dispatch failed", exc_info=True)
+
+        try:
+            if await _ado.dispatch(payload, reporter_id, reporter_email):
+                dispatched_to.append("ado")
+        except Exception:
+            logger.warning("ADO dispatch failed", exc_info=True)
 
         return BugReportResponse(
             title=payload.title,
