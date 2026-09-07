@@ -1,0 +1,115 @@
+version 16.12
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname mock-switch-1
+!
+enable password admin
+!
+username admin privilege 15 password 0 admin
+!
+vlan 10
+ name MANAGEMENT
+!
+vlan 20
+ name DATA
+!
+vlan 30
+ name VOICE
+!
+vlan 40
+ name PRINTERS
+!
+spanning-tree mode rapid-pvst
+spanning-tree extend system-id
+spanning-tree vlan 10,20,30,40 priority 4096
+!
+interface Port-channel1
+ description Po1-to-mock-switch-2
+ switchport trunk encapsulation dot1q
+ switchport trunk allowed vlan 10,20,30,40
+ switchport mode trunk
+!
+interface Port-channel2
+ description Po2-to-mock-switch-3
+ switchport trunk encapsulation dot1q
+ switchport trunk allowed vlan 10,20,30,40
+ switchport mode trunk
+!
+interface Port-channel3
+ description Po3-to-mock-switch-4
+ switchport trunk encapsulation dot1q
+ switchport trunk allowed vlan 10,20,30,40
+ switchport mode trunk
+!
+interface GigabitEthernet0/0
+ description Uplink-to-Core
+ switchport trunk encapsulation dot1q
+ switchport trunk allowed vlan 10,20,30,40
+ switchport mode trunk
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description LAG-to-mock-switch-2-1
+ channel-group 1 mode active
+ no shutdown
+!
+interface GigabitEthernet0/2
+ description LAG-to-mock-switch-2-2
+ channel-group 1 mode active
+ no shutdown
+!
+interface GigabitEthernet0/3
+ description LAG-to-mock-switch-3-1
+ channel-group 2 mode active
+ no shutdown
+!
+interface GigabitEthernet0/4
+ description LAG-to-mock-switch-4-1
+ channel-group 3 mode active
+ no shutdown
+!
+interface GigabitEthernet0/5
+ description Access-DATA
+ switchport mode access
+ switchport access vlan 20
+ switchport voice vlan 30
+ spanning-tree portfast
+ no shutdown
+!
+interface GigabitEthernet0/6
+ description Access-DATA
+ switchport mode access
+ switchport access vlan 20
+ switchport voice vlan 30
+ spanning-tree portfast
+ no shutdown
+!
+interface GigabitEthernet0/7
+ description Access-PRINTERS
+ switchport mode access
+ switchport access vlan 40
+ spanning-tree portfast
+ no shutdown
+!
+interface Vlan10
+ description MANAGEMENT
+ ip address 10.10.10.11 255.255.255.0
+ no shutdown
+!
+ip default-gateway 10.10.10.1
+!
+snmp-server community public RO
+snmp-server community private RW
+snmp-server location DC-Row-A-Rack-1
+snmp-server contact noc@acex.local
+!
+lldp run
+!
+line con 0
+line vty 0 4
+ login local
+ transport input ssh
+!
+end

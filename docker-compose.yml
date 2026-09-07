@@ -38,6 +38,9 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
     ports:
       - "3001:3000"
     volumes:
@@ -95,6 +98,11 @@ services:
       FORWARDED_ALLOW_IPS: "*"
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: ${VAULT_TOKEN:-acex-vault-token}
+      SLACK_BUG_REPORT_WEBHOOK: ${SLACK_BUG_REPORT_WEBHOOK:-}
+      ADO_SERVICE_PAT: ${ADO_SERVICE_PAT:-}
+      ADO_ORG: ${ADO_ORG:-}
+      ADO_PROJECT: ${ADO_PROJECT:-}
+      ADO_BUGFIX_FEATURE_ID: ${ADO_BUGFIX_FEATURE_ID:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,13 +112,16 @@ services:
         condition: service_started
 
   frontend:
-    image: ghcr.io/acex-labs/acex-frontend:sha-88a476f
-    platform: linux/amd64
+    build:
+      context: ${FRONTEND_PATH:-../acex-frontend}
+      dockerfile: Dockerfile
+    image: acex-frontend-local
     restart: unless-stopped
     ports:
       - "3000:80"
     environment:
       API_URL: http://localhost:8080
+      GRAFANA_URL: http://localhost:3001
       OIDC_ISSUER_URL: http://localhost:8180/realms/acex
       OIDC_CLIENT_ID: acex-frontend
     depends_on:
@@ -218,6 +229,54 @@ services:
     restart: unless-stopped
     environment:
       MOCK_HOSTNAME: mock-router-2
+      SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
+      SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+    volumes:
+      - ./mock-device/configs:/configs:ro
+
+  mock-switch-1:
+    build:
+      context: mock-device
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MOCK_HOSTNAME: mock-switch-1
+      SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
+      SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+    volumes:
+      - ./mock-device/configs:/configs:ro
+
+  mock-switch-2:
+    build:
+      context: mock-device
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MOCK_HOSTNAME: mock-switch-2
+      SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
+      SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+    volumes:
+      - ./mock-device/configs:/configs:ro
+
+  mock-switch-3:
+    build:
+      context: mock-device
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MOCK_HOSTNAME: mock-switch-3
+      SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
+      SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+    volumes:
+      - ./mock-device/configs:/configs:ro
+
+  mock-switch-4:
+    build:
+      context: mock-device
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MOCK_HOSTNAME: mock-switch-4
       SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
       SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
     volumes:
