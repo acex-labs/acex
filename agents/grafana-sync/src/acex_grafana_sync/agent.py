@@ -181,12 +181,10 @@ class GrafanaAgent:
     # --- Helpers ---
 
     def _fetch_json(self, url: str):
+        # Strip the api_url prefix to produce a relative path for the authenticated client.
+        path = url[len(self.client.api_url):]
         try:
-            response = requests.get(url, verify=self.client.rest.verify, timeout=30)
-            if response.status_code != 200:
-                logger.warning(f"GET {url} failed: {response.status_code} {response.text}")
-                return None
-            return response.json()
+            return self.client.rest.request("GET", path)
         except Exception as e:
-            logger.error(f"GET {url} raised: {e}")
+            logger.warning(f"GET {url} failed: {e}")
             return None
