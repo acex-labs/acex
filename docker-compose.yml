@@ -150,6 +150,9 @@ services:
       ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}
       ACEX_ISSUER_URL: http://keycloak:8180/realms/acex
       ACEX_VERIFY_SSL: "false"
+      ENV_FILE: /env/.env
+    volumes:
+      - .:/env:rw
     depends_on:
       backend:
         condition: service_healthy

@@ -1,25 +1,31 @@
 #!/usr/bin/env python3
 """Seed the minimal inventory chain for the docker-compose mock devices.
 
-Creates (idempotently): collection agent "default", a shared admin/admin
-credential, and for each mock router: asset -> logical node -> node instance
--> management connection -> node credential -> agent node link.
+Creates (idempotently):
+  - collection agent "default"
+  - telemetry agent "default" with SNMP + ICMP capabilities
+  - shared SSH credential (admin/admin) and SNMP community (public)
+  - for each mock device: asset -> logical node -> node instance
+    -> management connection -> credentials -> collection agent link
+    -> telemetry agent link
+  - writes COLLECTION_AGENT_ID and TELEMETRY_AGENT_ID back to .env
 
 Config via env: ACEX_API_URL, ACEX_CLIENT_ID, ACEX_CLIENT_SECRET,
 ACEX_ISSUER_URL (matches the agent services in docker-compose.yml).
 """
 
 import os
+import pathlib
+import re
 import sys
 import time
 
 from acex_client import Acex
-from acex_client.auth import create_auth_provider
 
-API_URL = os.environ.get("ACEX_API_URL", "http://localhost:8080")
-AGENT_NAME = "default"
+API_URL   = os.environ.get("ACEX_API_URL", "http://localhost:8080")
+ENV_FILE  = pathlib.Path(os.environ.get("ENV_FILE", "/env/.env"))
 
-MOCK_ROUTERS = [
+MOCK_DEVICES = [
     {"hostname": "mock-router-1", "serial_number": "MOCK-ROUTER-1", "target_ip": "mock-router-1", "role": "router", "model": "Mock Router"},
     {"hostname": "mock-router-2", "serial_number": "MOCK-ROUTER-2", "target_ip": "mock-router-2", "role": "router", "model": "Mock Router"},
     {"hostname": "mock-switch-1", "serial_number": "MOCK-SWITCH-1", "target_ip": "mock-switch-1", "role": "switch", "model": "Mock Switch"},
@@ -30,7 +36,6 @@ MOCK_ROUTERS = [
 
 
 def make_client() -> Acex:
-    """Build an authenticated client, retrying while backend/keycloak come up."""
     for attempt in range(30):
         try:
             return Acex(base_url=API_URL, verify=False)
@@ -43,39 +48,80 @@ def make_client() -> Acex:
 
 
 def get_or_create(resource, match_field, match_value, body):
-    """Reuse an existing row matched by a unique field, else create it."""
     existing = resource.query(**{match_field: match_value})
     if existing:
         item = existing.items[0]
-        print(f"  =    reuse id={item.id} ({match_value})")
+        print(f"  =  reuse  id={item.id} ({match_value})")
         return item
     item = resource.create(**body)
-    print(f"  +    created id={item.id} ({match_value})")
+    print(f"  +  create id={item.id} ({match_value})")
     return item
+
+
+def patch_env(key: str, value: str) -> None:
+    """Write key=value into .env, replacing existing line or appending."""
+    if not ENV_FILE.exists():
+        return
+    text = ENV_FILE.read_text()
+    pattern = rf"^{re.escape(key)}=.*$"
+    replacement = f"{key}={value}"
+    if re.search(pattern, text, flags=re.MULTILINE):
+        text = re.sub(pattern, replacement, text, flags=re.MULTILINE)
+    else:
+        text = text.rstrip("\n") + f"\n{replacement}\n"
+    ENV_FILE.write_text(text)
+    print(f"  .env  {key}={value}")
 
 
 def main():
     print(f"Seeding mock devices against {API_URL}")
     client = make_client()
 
-    # Collection agent the collection-agent service connects as (COLLECTION_AGENT_ID).
-    agent = get_or_create(
+    # ── Collection agent ──────────────────────────────────────────────────────
+    print("\n[collection agent]")
+    coll_agent = get_or_create(
         client.inventory.collection_agents,
-        "name", AGENT_NAME,
-        {"name": AGENT_NAME, "description": "Default dev collection agent", "interval_seconds": 60},
+        "name", "default",
+        {"name": "default", "description": "Default dev collection agent", "interval_seconds": 60},
     )
-    print(f"Collection agent id={agent.id} (set COLLECTION_AGENT_ID to this)")
+    patch_env("COLLECTION_AGENT_ID", str(coll_agent.id))
 
-    # Shared userpass credential for the mock SSH servers (admin/admin).
-    cred = get_or_create(
+    # ── SSH credential ────────────────────────────────────────────────────────
+    print("\n[credentials]")
+    ssh_cred = get_or_create(
         client.inventory.credentials,
         "name", "mock-device-admin",
         {"name": "mock-device-admin", "credential_type": "userpass",
          "fields": {"username": "admin", "password": "admin"}},
     )
 
-    for spec in MOCK_ROUTERS:
-        print(f"--- {spec['hostname']} ---")
+    # SNMP v2c community credential (used by the telemetry agent)
+    snmp_cred = get_or_create(
+        client.inventory.credentials,
+        "name", "mock-snmp-public",
+        {"name": "mock-snmp-public", "credential_type": "snmp_community",
+         "fields": {"community": "public"}},
+    )
+
+    # ── Telemetry agent ───────────────────────────────────────────────────────
+    print("\n[telemetry agent]")
+    telem_agent = get_or_create(
+        client.observability.agents,
+        "name", "default",
+        {
+            "name": "default",
+            "description": "Default dev telemetry agent",
+            "capabilities": ["snmp", "icmp"],
+            "snmp_version": "2c",
+            "snmpv2c_credential_id": snmp_cred.id,
+        },
+    )
+    patch_env("TELEMETRY_AGENT_ID", str(telem_agent.id))
+
+    # ── Devices ───────────────────────────────────────────────────────────────
+    for spec in MOCK_DEVICES:
+        print(f"\n[{spec['hostname']}]")
+
         asset = get_or_create(
             client.inventory.assets,
             "serial_number", spec["serial_number"],
@@ -94,41 +140,42 @@ def main():
              "logical_node_id": ln.id, "status": "active"},
         )
 
-        # Management connection: how the agent reaches the device (compose DNS name).
-        # NOTE: raw rest.request — the client's ManagementConnectionCreate model
-        # drops node_id (backend requires it in the body). Client contract bug.
+        # Management connection (SSH — used by the collection agent)
         if not client.inventory.management_connections.query(node_id=node.id):
             data = client.rest.request(
-                "POST",
-                "/inventory/management_connections/",
-                json={
-                    "node_id": node.id,
-                    "target_ip": spec["target_ip"],
-                    "connection_type": "ssh",
-                    "primary": True,
-                },
+                "POST", "/inventory/management_connections/",
+                json={"node_id": node.id, "target_ip": spec["target_ip"],
+                      "connection_type": "ssh", "primary": True},
             )
-            print(f"  +    mgmt connection id={data['id']} ({spec['target_ip']})")
+            print(f"  +  create mgmt connection id={data['id']}")
         else:
-            print(f"  =    reuse mgmt connection ({spec['target_ip']})")
+            print(f"  =  reuse  mgmt connection ({spec['target_ip']})")
 
-        # Attach credential + agent membership (both endpoints tolerate re-runs
-        # poorly, so guard by listing first).
+        # SSH credential
         existing_creds = client.inventory.node_credentials(node.id).query()
-        if not any(c.credential_id == cred.id for c in existing_creds):
-            client.inventory.node_credentials(node.id).create(credential_id=cred.id)
-            print("  +    credential attached")
+        if not any(c.credential_id == ssh_cred.id for c in existing_creds):
+            client.inventory.node_credentials(node.id).create(credential_id=ssh_cred.id)
+            print("  +  SSH credential attached")
         else:
-            print("  =    credential already attached")
+            print("  =  SSH credential already attached")
 
-        agent_fresh = client.inventory.collection_agents.get(id=agent.id)
-        if node.id not in agent_fresh.nodes:
-            client.inventory.collection_agents.add_node(id=agent.id, node_id=node.id)
-            print(f"  +    linked to agent {agent.id}")
+        # Collection agent membership
+        coll_fresh = client.inventory.collection_agents.get(id=coll_agent.id)
+        if node.id not in coll_fresh.nodes:
+            client.inventory.collection_agents.add_node(id=coll_agent.id, node_id=node.id)
+            print(f"  +  linked to collection agent")
         else:
-            print(f"  =    already linked to agent {agent.id}")
+            print(f"  =  already linked to collection agent")
 
-    print("Done.")
+        # Telemetry agent membership
+        telem_fresh = client.observability.agents.get(id=telem_agent.id)
+        if node.id not in telem_fresh.nodes:
+            client.observability.agents.add_node(id=telem_agent.id, node_id=node.id)
+            print(f"  +  linked to telemetry agent")
+        else:
+            print(f"  =  already linked to telemetry agent")
+
+    print("\nDone.")
 
 
 if __name__ == "__main__":

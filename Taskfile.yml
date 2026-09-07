@@ -1,0 +1,63 @@
+version: '3'
+
+vars:
+  FRONTEND_PATH:
+    sh: grep -E '^FRONTEND_PATH=' .env 2>/dev/null | cut -d= -f2- | tr -d '"' || echo "../acex-frontend"
+
+tasks:
+  default:
+    desc: List available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  # ── Lifecycle ──────────────────────────────────────────────────────────────
+
+  setup:
+    desc: First-time setup — hosts entry, .env, clone frontend, build, start, seed
+    cmds:
+      - ./setup.sh
+
+  up:
+    desc: Start all services  (task up -- frontend to start one)
+    cmds:
+      - FRONTEND_PATH={{.FRONTEND_PATH}} docker compose up -d {{.CLI_ARGS}}
+
+  down:
+    desc: Stop all services
+    cmds:
+      - docker compose down {{.CLI_ARGS}}
+
+  restart:
+    desc: Restart a service  (task restart -- backend)
+    cmds:
+      - FRONTEND_PATH={{.FRONTEND_PATH}} docker compose restart {{.CLI_ARGS}}
+
+  build:
+    desc: Rebuild images  (task build -- frontend to rebuild one)
+    cmds:
+      - FRONTEND_PATH={{.FRONTEND_PATH}} docker compose build {{.CLI_ARGS}}
+
+  logs:
+    desc: Tail logs  (task logs -- backend to tail one service)
+    cmds:
+      - docker compose logs -f {{.CLI_ARGS}}
+
+  ps:
+    desc: Show status of all containers
+    cmds:
+      - docker compose ps
+
+  # ── Data ──────────────────────────────────────────────────────────────────
+
+  seed:
+    desc: (Re-)provision mock devices and agents, writes IDs to .env
+    cmds:
+      - FRONTEND_PATH={{.FRONTEND_PATH}} docker compose run --rm seed
+
+  reset:
+    desc: Tear down everything (volumes included) and re-run setup
+    prompt: This destroys all data and volumes. Continue?
+    cmds:
+      - docker compose down -v
+      - task: setup
