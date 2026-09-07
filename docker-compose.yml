@@ -122,7 +122,7 @@ services:
     environment:
       API_URL: http://localhost:8080
       GRAFANA_URL: http://localhost:3001
-      OIDC_ISSUER_URL: http://localhost:8180/realms/acex
+      OIDC_ISSUER_URL: http://keycloak:8180/realms/acex
       OIDC_CLIENT_ID: acex-frontend
     depends_on:
       - backend

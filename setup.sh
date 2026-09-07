@@ -16,6 +16,16 @@ if ! docker compose version &>/dev/null; then
   echo "Error: docker compose (v2) is not available." >&2; exit 1
 fi
 
+# /etc/hosts — keycloak must resolve to localhost so the browser and backend
+# use the same issuer URL (http://keycloak:8180/realms/acex) in JWT tokens.
+if grep -qE '^\s*127\.0\.0\.1\s+keycloak' /etc/hosts 2>/dev/null; then
+  ok "keycloak already in /etc/hosts"
+else
+  log "Adding '127.0.0.1 keycloak' to /etc/hosts (requires sudo)…"
+  echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts > /dev/null
+  ok "keycloak added to /etc/hosts"
+fi
+
 # .env
 if [ ! -f .env ]; then
   log "Creating .env from .env.example"
@@ -51,7 +61,7 @@ echo "  ACEX is starting up"
 echo ""
 echo "  Frontend   http://localhost:3000"
 echo "  Backend    http://localhost:8080"
-echo "  Keycloak   http://localhost:8180  (admin / admin)"
+echo "  Keycloak   http://keycloak:8180   (admin / admin)"
 echo "  Grafana    http://localhost:3001  (admin / admin)"
 echo ""
 echo "  Default login: admin / admin"

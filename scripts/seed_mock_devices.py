@@ -20,8 +20,12 @@ API_URL = os.environ.get("ACEX_API_URL", "http://localhost:8080")
 AGENT_NAME = "default"
 
 MOCK_ROUTERS = [
-    {"hostname": "mock-router-1", "serial_number": "MOCK-ROUTER-1", "target_ip": "mock-router-1"},
-    {"hostname": "mock-router-2", "serial_number": "MOCK-ROUTER-2", "target_ip": "mock-router-2"},
+    {"hostname": "mock-router-1", "serial_number": "MOCK-ROUTER-1", "target_ip": "mock-router-1", "role": "router", "model": "Mock Router"},
+    {"hostname": "mock-router-2", "serial_number": "MOCK-ROUTER-2", "target_ip": "mock-router-2", "role": "router", "model": "Mock Router"},
+    {"hostname": "mock-switch-1", "serial_number": "MOCK-SWITCH-1", "target_ip": "mock-switch-1", "role": "switch", "model": "Mock Switch"},
+    {"hostname": "mock-switch-2", "serial_number": "MOCK-SWITCH-2", "target_ip": "mock-switch-2", "role": "switch", "model": "Mock Switch"},
+    {"hostname": "mock-switch-3", "serial_number": "MOCK-SWITCH-3", "target_ip": "mock-switch-3", "role": "switch", "model": "Mock Switch"},
+    {"hostname": "mock-switch-4", "serial_number": "MOCK-SWITCH-4", "target_ip": "mock-switch-4", "role": "switch", "model": "Mock Switch"},
 ]
 
 
@@ -76,12 +80,12 @@ def main():
             client.inventory.assets,
             "serial_number", spec["serial_number"],
             {"vendor": "cisco", "serial_number": spec["serial_number"], "os": "iosxe",
-             "os_version": "17.9.4a", "hardware_model": "Mock Router", "ned_id": "CiscoIOSCLIDriver"},
+             "os_version": "17.9.4a", "hardware_model": spec["model"], "ned_id": "CiscoIOSCLIDriver"},
         )
         ln = get_or_create(
             client.inventory.logical_nodes,
             "hostname", spec["hostname"],
-            {"hostname": spec["hostname"], "role": "router"},
+            {"hostname": spec["hostname"], "role": spec["role"]},
         )
         node = get_or_create(
             client.inventory.node_instances,
