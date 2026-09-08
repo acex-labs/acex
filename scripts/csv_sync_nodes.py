@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pydantic import ValidationError
 
 from acex_client import Acex
-from acex_client.auth import NullAuthProvider
+from acex_client.auth import ClientCredentialsAuth, NullAuthProvider
 
 _VALID_STATUSES = {"planned", "init", "active", "decommissioned"}
 _VALID_CONNECTION_TYPES = {"ssh", "telnet"}
@@ -304,6 +304,9 @@ def sync_nodes(
     sites_col_name: str = "id",
     decommission_missing: bool = False,
     dry_run: bool = False,
+    client_id: str | None = None,
+    client_secret: str | None = None,
+    issuer_url: str | None = None,
 ) -> None:
     if cols is None:
         cols = ColumnMap()
@@ -313,7 +316,10 @@ def sync_nodes(
         site_map = _build_site_map(sites_csv, sites_delimiter or delimiter, sites_col_key, sites_col_name)
         print(f"Loaded {len(site_map)} site mappings from {sites_csv}\n")
 
-    client = Acex(base_url=base_url, auth=NullAuthProvider(), verify=False)
+    auth = None
+    if client_id and client_secret and issuer_url:
+        auth = ClientCredentialsAuth(client_id, client_secret, issuer_url, verify_ssl=True)
+    client = Acex(base_url=base_url, auth=auth, verify=False)
     log = SyncLogger()
     syncer = NodeSyncer(client, cols, site_map, log)
     syncer.prefetch()
@@ -341,7 +347,7 @@ def sync_nodes(
         seen_hostnames.add(hostname)
 
         try:
-            is_new, changed = syncer.sync_row(row, hostname, serial_number)
+            is_new, changed, _ = syncer.sync_row(row, hostname, serial_number)
         except Exception as e:
             log.error(hostname, "sync", e)
             errors += 1
@@ -373,6 +379,11 @@ def main() -> None:
     parser.add_argument("--csv", required=True, help="Path to CSV file")
     parser.add_argument("--base-url", default="http://localhost:80", help="ACEX API base URL")
     parser.add_argument("--delimiter", default=",", help="CSV delimiter (default: ',')")
+
+    a = parser.add_argument_group("auth", "Service account credentials (skips browser login)")
+    a.add_argument("--client-id", metavar="ID", help="OAuth2 client ID")
+    a.add_argument("--client-secret", metavar="SECRET", help="OAuth2 client secret")
+    a.add_argument("--issuer-url", metavar="URL", help="Keycloak realm URL, e.g. https://kc.example.com/realms/myrealm")
     parser.add_argument("--decommission-missing", action="store_true",
                         help="Mark nodes in ACEX not present in the CSV as decommissioned")
     parser.add_argument("--dry-run", action="store_true",
@@ -426,6 +437,9 @@ def main() -> None:
         sites_delimiter=args.sites_delimiter,
         sites_col_key=args.sites_col_key,
         sites_col_name=args.sites_col_name,
+        client_id=args.client_id,
+        client_secret=args.client_secret,
+        issuer_url=args.issuer_url,
     )
 
 
