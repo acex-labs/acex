@@ -128,12 +128,43 @@ class AutomationEngine:
 
         self._vault_client = VaultClient(url=url, token=token, role_id=role_id, secret_id=secret_id, verify=verify)
 
+    def _auto_configure_ai_ops_from_env(self):
+        """Enable AI Ops automatically when ACEX_AI_* env vars are set.
+
+        Lets deployments configure providers and failover chains entirely
+        via the environment, without calling ai_ops() in app.py. An explicit
+        ai_ops() call wins over env vars (guarded by the hasattr check in
+        create_app, which runs after all configuration calls).
+
+        Unset ACEX_AI_PROVIDERS (or leave it empty) to disable.
+        """
+        import os
+
+        from acex.ai_ops.config import AIOpsSettings
+
+        if not os.environ.get("ACEX_AI_PROVIDERS"):
+            return
+
+        settings = AIOpsSettings.from_env()
+        if settings is None:
+            raise ValueError(
+                "ACEX_AI_PROVIDERS is set but no valid AI Ops configuration could be built. "
+                "Set ACEX_AI_PROVIDER_<NAME>_BASEURL and _API_KEY for each provider and "
+                "at least one chain, e.g. ACEX_AI_CHAIN_DEFAULT (see docs/examples/ai_ops.md)"
+            )
+
+        from acex.ai_ops import AIOpsManager
+
+        self.ai_ops_manager = AIOpsManager(settings=settings)
+
     def create_app(self) -> "FastAPI":
         """
         This is the method that creates the full API.
         """
         self._ensure_credential_manager()
         self.inventory.telemetry_registry.credential_manager = self.credential_manager
+        if not hasattr(self, "ai_ops_manager"):
+            self._auto_configure_ai_ops_from_env()
         return self.api.create_app(self)
 
     def ai_ops(
@@ -164,7 +195,9 @@ class AutomationEngine:
             )
 
         2. Env vars — ACEX_AI_* (see acex.ai_ops.config and docs/examples/ai_ops.md).
-           Used when `providers` is not given.
+           Used when `providers` is not given. In fact, calling this method is
+           optional: if ACEX_AI_PROVIDERS is set, create_app() enables AI Ops
+           automatically.
 
         A "default" chain is required; tasks without their own chain inherit it.
         `mcp_server_url` in code wins over ACEX_AI_MCP_SERVER_URL.
@@ -173,8 +206,12 @@ class AutomationEngine:
             return None
 
         # Lazy import - only load when AI ops is actually enabled
+        import os
+
         from acex.ai_ops import AIOpsManager
         from acex.ai_ops.config import AIChainLevel, AIOpsSettings, AIProvider
+
+        env_mcp_server_url = os.environ.get("ACEX_AI_MCP_SERVER_URL")
 
         if providers is not None:
             provider_map = {}
@@ -190,10 +227,11 @@ class AutomationEngine:
                 task: [AIChainLevel(**(lvl if isinstance(lvl, dict) else _parse_level(lvl))) for lvl in levels]
                 for task, levels in (chains or {}).items()
             }
+            # Explicit argument wins over ACEX_AI_MCP_SERVER_URL
             settings = AIOpsSettings(
                 providers=provider_map,
                 chains=chain_map,
-                mcp_server_url=mcp_server_url,
+                mcp_server_url=mcp_server_url or env_mcp_server_url,
             )
         else:
             # Env vars

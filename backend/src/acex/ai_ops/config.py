@@ -29,6 +29,10 @@ Chains (comma-separated provider/model levels, in failover order):
 
 MCP tool server:
   ACEX_AI_MCP_SERVER_URL=http://localhost:8000/mcp
+
+If ACEX_AI_PROVIDERS is set, AutomationEngine.create_app() builds the settings
+from env automatically — no ai_ops() call in app.py needed. Code wins over env;
+unset ACEX_AI_PROVIDERS to disable.
 """
 
 import json
