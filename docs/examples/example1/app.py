@@ -61,7 +61,7 @@ ae.ai_ops(
         # Tasks without an explicit chain inherit "default". Example override:
         # "analysis": ["groq/deepseek-r1", "local/qwen3:32b"],
     },
-    mcp_server_url="http://localhost:8000/mcp",
+    # mcp_server_url="http://localhost:8000/mcp",
 )
 
 

@@ -47,8 +47,13 @@ class AIOpsManager:
             system_prompt: System prompt(s) for the AI assistant. Can be a string or list of strings.
         """
         self.settings = settings
-        transport = StreamableHttpTransport(url=settings.mcp_server_url)
-        self.mcp = Client(transport)
+
+        if settings.mcp_server_url is not None:
+            transport = StreamableHttpTransport(url=settings.mcp_server_url)
+            self.mcp = Client(transport)
+        else:
+            print("Starting AIOps without MCP since no mcp server url is injected")
+            self.mcp = None
 
         # One AsyncOpenAI client per unique provider, created lazily
         self._clients: dict[str, AsyncOpenAI] = {}
