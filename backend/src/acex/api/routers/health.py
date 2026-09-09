@@ -24,6 +24,6 @@ def create_router(automation_engine):
     def health():
         return {"status": "ok", "version": version("acex")}
 
-    router.add_api_route("/", health, methods=["GET"], tags=tags)
+    router.add_api_route("", health, methods=["GET"], tags=tags)
 
     return router
