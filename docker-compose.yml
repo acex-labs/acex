@@ -103,6 +103,12 @@ services:
       ADO_ORG: ${ADO_ORG:-}
       ADO_PROJECT: ${ADO_PROJECT:-}
       ADO_BUGFIX_FEATURE_ID: ${ADO_BUGFIX_FEATURE_ID:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/auth/config"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,7 +128,7 @@ services:
     environment:
       API_URL: http://localhost:8080
       GRAFANA_URL: http://localhost:3001
-      OIDC_ISSUER_URL: http://localhost:8180/realms/acex
+      OIDC_ISSUER_URL: http://keycloak:8180/realms/acex
       OIDC_CLIENT_ID: acex-frontend
     depends_on:
       - backend
@@ -150,6 +156,9 @@ services:
       ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}
       ACEX_ISSUER_URL: http://keycloak:8180/realms/acex
       ACEX_VERIFY_SSL: "false"
+      ENV_FILE: /env/.env
+    volumes:
+      - .:/env:rw
     depends_on:
       backend:
         condition: service_healthy

@@ -2,6 +2,96 @@
 
 Thank you for considering contributing to ACE-X!
 
+## Local Development Environment (Docker)
+
+The fastest way to run a full ACEX stack locally — backend, frontend, agents, mock network devices, Grafana, Keycloak, InfluxDB — is with Docker Compose and the provided setup script.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2)
+- Git
+- [`task`](https://taskfile.dev/#/installation) (optional but recommended — `brew install go-task`)
+
+### One-command setup
+
+```bash
+git clone git@github.com:acex-labs/acex.git
+cd acex
+./setup.sh
+```
+
+Or with Taskfile:
+
+```bash
+task setup
+```
+
+The script will:
+
+1. Add `127.0.0.1 keycloak` to `/etc/hosts` — **this requires a `sudo` prompt** (see below)
+2. Create `.env` from `.env.example`
+3. Clone `acex-frontend` into `../acex-frontend` (sibling of this repo)
+4. Build all Docker images
+5. Start the full stack
+6. Seed mock devices, a collection agent, and a telemetry agent — and write their IDs back to `.env`
+
+### Why does setup need sudo?
+
+ACEX uses Keycloak for authentication. The backend validates JWTs and expects the issuer claim to be `http://keycloak:8180/realms/acex`. For this to work, your browser also needs to reach Keycloak at that same hostname — not `localhost`.
+
+The setup script adds a single line to your system hosts file:
+
+```
+127.0.0.1 keycloak
+```
+
+This makes `keycloak` resolve to your own machine, so the browser, the backend, and the Docker containers all agree on the issuer URL. It is a one-time change and does not affect anything outside of ACEX.
+
+If you prefer to add it manually instead of granting sudo:
+
+```bash
+echo "127.0.0.1 keycloak" | sudo tee -a /etc/hosts
+```
+
+### URLs after startup
+
+| Service  | URL                              | Default credentials |
+|----------|----------------------------------|---------------------|
+| ACEX     | http://localhost:3000            | admin / admin       |
+| Backend  | http://localhost:8080            | —                   |
+| Keycloak | http://keycloak:8180             | admin / admin       |
+| Grafana  | http://localhost:3001            | admin / admin       |
+| InfluxDB | http://localhost:8086            | admin / adminpassword |
+
+> Keycloak can take ~30 seconds to finish importing the realm on the very first boot.
+
+### Daily workflow
+
+```bash
+task up          # start the stack
+task down        # stop the stack
+task logs        # tail all logs  (task logs -- backend  for one service)
+task restart -- frontend   # restart a single service after a code change
+task build -- frontend     # rebuild one image
+task ps          # see what's running
+```
+
+### Re-seeding / resetting
+
+If you add devices or want to reprovisioning agents:
+
+```bash
+task seed        # idempotent — safe to run any time
+```
+
+To wipe everything and start from scratch:
+
+```bash
+task reset       # tears down all containers and volumes, then re-runs setup
+```
+
+---
+
 ## Development Setup
 
 ### Prerequisites

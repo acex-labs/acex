@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pycountry
 from acex_client import Acex
-from acex_client.auth import NullAuthProvider
+from acex_client.auth import ClientCredentialsAuth, NullAuthProvider
 
 
 @dataclass
@@ -235,11 +235,22 @@ class SiteSyncer:
 
 
 # Public entry point
-def sync_sites(csv_path: str, base_url: str, delimiter: str = ",", cols: ColumnMap | None = None) -> None:
+def sync_sites(
+    csv_path: str,
+    base_url: str,
+    delimiter: str = ",",
+    cols: ColumnMap | None = None,
+    client_id: str | None = None,
+    client_secret: str | None = None,
+    issuer_url: str | None = None,
+) -> None:
     if cols is None:
         cols = ColumnMap()
 
-    client = Acex(base_url=base_url, auth=NullAuthProvider(), verify=False)
+    auth = None
+    if client_id and client_secret and issuer_url:
+        auth = ClientCredentialsAuth(client_id, client_secret, issuer_url, verify_ssl=True)
+    client = Acex(base_url=base_url, auth=auth, verify=False)
     log = SyncLogger()
     syncer = SiteSyncer(client, cols, log)
 
@@ -286,6 +297,11 @@ def main() -> None:
     parser.add_argument("--base-url", default="http://localhost:80", help="ACEX API base URL")
     parser.add_argument("--delimiter", default=",", help="CSV delimiter (default: ',')")
 
+    a = parser.add_argument_group("auth", "Service account credentials (skips browser login)")
+    a.add_argument("--client-id", metavar="ID", help="OAuth2 client ID")
+    a.add_argument("--client-secret", metavar="SECRET", help="OAuth2 client secret")
+    a.add_argument("--issuer-url", metavar="URL", help="Keycloak realm URL, e.g. https://kc.example.com/realms/myrealm")
+
     g = parser.add_argument_group("column mapping", "Override CSV column names (defaults match Enet export)")
     g.add_argument("--col-id", default="id", metavar="COL", help="Site identifier column (default: id)")
     g.add_argument("--col-type", default="type", metavar="COL", help="Site type column, used in display name (default: type)")
@@ -311,7 +327,12 @@ def main() -> None:
         continent=args.col_continent,
     )
 
-    sync_sites(args.csv, args.base_url, args.delimiter, cols)
+    sync_sites(
+        args.csv, args.base_url, args.delimiter, cols,
+        client_id=args.client_id,
+        client_secret=args.client_secret,
+        issuer_url=args.issuer_url,
+    )
 
 
 if __name__ == "__main__":
