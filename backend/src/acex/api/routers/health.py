@@ -1,3 +1,5 @@
+from importlib.metadata import version
+
 from acex.config_diff import DiffLogicalNode
 from acex.constants import BASE_URL
 from fastapi import APIRouter
@@ -18,5 +20,10 @@ def create_router(automation_engine):
     )
 
     router.add_api_route("/site/{site_name}", differ.compliance_check_site, methods=["GET"], tags=tags)
+
+    def health():
+        return {"status": "ok", "version": version("acex")}
+
+    router.add_api_route("/", health, methods=["GET"], tags=tags)
 
     return router

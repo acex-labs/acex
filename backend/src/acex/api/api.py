@@ -1,8 +1,8 @@
 import importlib
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 from pathlib import Path
 
-from acex import __version__
 from acex.api import auth as _auth
 from acex.constants import BASE_URL
 from fastapi import Depends, FastAPI
@@ -34,7 +34,7 @@ class Api:
             title="ACE-X - Extendable Automation & Control Ecosystem",
             openapi_url=f"{BASE_URL}/openapi.json",
             docs_url=f"{BASE_URL}/docs",
-            version=__version__,
+            version=version("acex"),
             lifespan=lifespan,
             dependencies=[Depends(lambda: automation_engine), Depends(_auth.get_current_user)],
         )

@@ -17,8 +17,11 @@ and **per-task failover chains** (ordered lists of `provider/model` levels).
   HTTP 429 and 5xx move to the next chain level; 4xx fails immediately
   (configuration problem, not transient).
 - Tasks without their own chain inherit `default`.
+- AI Ops needs **no code at all**: if `ACEX_AI_PROVIDERS` is set in the
+  environment, `create_app()` enables it automatically (see below). An explicit
+  `ae.ai_ops(...)` call always wins over env vars.
 
-## Configuration in code (app.py)
+## Configuration via environment variables only (no app.py changes)
 
 ```python
 ae.ai_ops(
@@ -38,8 +41,6 @@ ae.ai_ops(
 )
 ```
 
-## Configuration via environment variables
-
 ```bash
 # Named providers (comma-separated list, then one block per provider):
 ACEX_AI_PROVIDERS=groq,local
@@ -57,6 +58,17 @@ ACEX_AI_CHAIN_ANALYSIS="groq/deepseek-r1"
 # MCP tool server:
 ACEX_AI_MCP_SERVER_URL=http://localhost:8000/mcp
 ```
+
+`create_app()` enables AI Ops automatically whenever `ACEX_AI_PROVIDERS` is set
+(non-empty) — no `ae.ai_ops()` call needed in app.py:
+
+```python
+app = AutomationEngine(db_connection=Connection()).create_app()
+```
+
+- Partial misconfiguration (providers set but no chain) fails at startup with an
+  actionable error.
+- To disable, leave `ACEX_AI_PROVIDERS` unset or empty.
 
 Code wins over env vars; `ae.ai_ops(enabled=True)` with no arguments reads
 everything from the environment. A `default` chain is required — tasks without
