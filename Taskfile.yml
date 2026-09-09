@@ -27,6 +27,11 @@ tasks:
     desc: Stop all services
     cmds:
       - docker compose down {{.CLI_ARGS}}
+      - |
+        if grep -qE '^\s*127\.0\.0\.1\s+keycloak' /etc/hosts 2>/dev/null; then
+          echo "Removing 'keycloak' from /etc/hosts…"
+          sudo sed -i '' '/^\s*127\.0\.0\.1\s\+keycloak/d' /etc/hosts
+        fi
 
   restart:
     desc: Restart a service  (task restart -- backend)
