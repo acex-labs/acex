@@ -187,6 +187,23 @@ scripts/check_branch_name.sh              # validera nuvarande branch
 scripts/check_branch_name.sh fix/my-fix   # validera ett givet namn
 ```
 
+## Env-filer och hemligheter
+
+Filer som `.env`, `.env.<variant>` och `*.env` kan innehålla hemligheter och
+versioneras aldrig. De matchas av `.gitignore`, och en pre-commit-hook
+(`scripts/check_no_env_files.sh`) blockerar commits som innehåller dem.
+Templates med platshållarvärden checkas in som `*.env.example`.
+
+OBS: `.gitignore` påverkar inte redan trackade filer. Avtracka en FIL som
+redan finns i git (behåll den lokalt) med:
+
+```bash
+git rm --cached backend/.env
+```
+
+Om en hemlighet råkat hamna i historien måste den roteras/ogiltigförklaras —
+git-scrub tar inte bort den från gamla clones.
+
 ## Building for Distribution
 
 To build individual packages:
