@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from acex.models.bug_report import BugReportCreate
 
@@ -23,7 +23,7 @@ async def dispatch(
 
     os.makedirs(directory, exist_ok=True)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     filename = f"{timestamp}_{uuid.uuid4().hex[:8]}.json"
     path = os.path.join(directory, filename)
 
