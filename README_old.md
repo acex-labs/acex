@@ -22,7 +22,7 @@ ACE-X is organized as a monorepo with multiple installable packages:
 | [**acex**](./backend/) | Core backend and API | `pip install acex` |
 | [**acex-cli**](./cli/) | Command-line interface | `pip install acex-cli` |
 | [**acex-worker**](./worker/) | Distributed task worker | `pip install acex-worker` |
-| [**acex-mcp-server**](./mcp/) | MCP server for AI assistants | `pip install acex-mcp-server` |
+| [**acex-mcp**](./mcp/) | MCP server for AI assistants | `pip install acex-mcp` |
 
 ## 🔧 Installation
 
@@ -183,14 +183,14 @@ poetry install
 
 ## 🤖 MCP Server
 
-ACE-X includes a Model Context Protocol (MCP) server for integration with AI assistants like Claude Desktop and VS Code Cline:
+ACE-X includes a Model Context Protocol (MCP) server for integration with AI assistants like Claude Desktop and VS Code Cline. It gives them read-only access to your devices, their intended configuration, and the snapshots collected from them — acting as the calling user, so the backend authorizes every read.
 
 ```bash
 # Install the MCP server
-pip install acex-mcp-server
+pip install acex-mcp
 
-# Run the server
-acex-mcp
+# Run the server (over HTTP)
+ACEX_API_URL=http://localhost:8080 python3 -m acex_mcp
 ```
 
 See [MCP Server Documentation](./mcp/README.md) for configuration details.
