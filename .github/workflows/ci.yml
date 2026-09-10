@@ -496,7 +496,7 @@ jobs:
             pypi-name: acex-client
             working-dir: ./client
           - package: mcp
-            pypi-name: acex-mcp-server
+            pypi-name: acex-mcp
             working-dir: ./mcp
           - package: devkit
             pypi-name: acex-devkit
@@ -599,7 +599,7 @@ jobs:
             should-publish-output: client-should-publish
             working-dir: ./client
           - package: mcp
-            pypi-name: acex-mcp-server
+            pypi-name: acex-mcp
             should-publish-output: mcp-should-publish
             working-dir: ./mcp
           - package: devkit
@@ -711,7 +711,7 @@ jobs:
             should-publish-output: client-should-publish
             working-dir: ./client
           - package: mcp
-            pypi-name: acex-mcp-server
+            pypi-name: acex-mcp
             should-publish-output: mcp-should-publish
             working-dir: ./mcp
           - package: devkit
@@ -852,7 +852,7 @@ jobs:
           row "acex" "$BACKEND_VERSION" "$BACKEND_SHOULD_PUBLISH"
           row "acex-cli" "$CLI_VERSION" "$CLI_SHOULD_PUBLISH"
           row "acex-client" "$CLIENT_VERSION" "$CLIENT_SHOULD_PUBLISH"
-          row "acex-mcp-server" "$MCP_VERSION" "$MCP_SHOULD_PUBLISH"
+          row "acex-mcp" "$MCP_VERSION" "$MCP_SHOULD_PUBLISH"
           row "acex-devkit" "$DEVKIT_VERSION" "$DEVKIT_SHOULD_PUBLISH"
           row "acex-driver-cisco-ioscli" "$CISCO_VERSION" "$CISCO_SHOULD_PUBLISH"
           row "acex-driver-juniper-junoscli" "$JUNIPER_VERSION" "$JUNIPER_SHOULD_PUBLISH"
@@ -1313,3 +1313,82 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-grafana-sync-agent:${{ needs.check-grafana-sync-agent-image.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/acex-grafana-sync-agent:latest
+
+  # Container image for MCP server
+
+  check-mcp-image:
+    name: Check MCP image
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      exists: ${{ steps.check-image.outputs.exists }}
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Get version
+        id: get-version
+        working-directory: ./mcp
+        run: |
+          pip install poetry
+          VERSION=$(poetry version -s)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if image exists
+        id: check-image
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://ghcr.io/v2/${{ github.repository_owner }}/acex-mcp/manifests/${VERSION}")
+
+          echo "| Image | Version | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⏭️  Image version $VERSION already exists - skipping"
+            echo "| acex-mcp | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Image version $VERSION is new - will build and push"
+            echo "| acex-mcp | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  build-and-push-mcp:
+    name: Build & Push MCP
+    needs: [check-mcp-image, publish-packages]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    if: github.ref == 'refs/heads/main' && needs.check-mcp-image.outputs.exists == 'false'
+    # Ingen manuell godkännande-gate längre — se publish-packages ovan.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./mcp/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/acex-mcp:${{ needs.check-mcp-image.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/acex-mcp:latest
