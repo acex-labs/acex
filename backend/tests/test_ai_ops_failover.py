@@ -1,9 +1,20 @@
 """Tests for AIOpsManager failover logic and model listing cache."""
 
+import json
 from unittest.mock import AsyncMock, MagicMock
 
+import mcp.types as mt
 import pytest
-from acex.ai_ops.ai_ops import AIOpsManager, AllLevelsExhaustedError
+from acex.ai_ops.ai_ops import (
+    ANALYSIS_LOCAL_TOOLS,
+    CHAT_LOCAL_TOOLS,
+    LOCAL_TOOLS,
+    AIOpsManager,
+    AllLevelsExhaustedError,
+    PlanEvent,
+    UsageEvent,
+    _hold_partial_marker,
+)
 from acex.ai_ops.config import AIChainLevel, AIOpsSettings, AIProvider
 from openai import APIConnectionError, APIStatusError, APITimeoutError
 
@@ -176,7 +187,18 @@ class TestUsage:
         chunk.usage = MagicMock(prompt_tokens=prompt, completion_tokens=completion, total_tokens=prompt + completion)
         return chunk
 
-    async def test_usage_chunk_captured_not_yielded(self):
+    @staticmethod
+    def _usage_of(chunks):
+        """The usage carried by a stream, if any.
+
+        Usage travels as a trailing UsageEvent rather than as manager state:
+        the manager is a process-wide singleton, so instance state let
+        concurrent users overwrite each other's token counts.
+        """
+        events = [c for c in chunks if isinstance(c, UsageEvent)]
+        return events[-1].data if events else None
+
+    async def test_usage_arrives_as_a_trailing_event(self):
         m, c1, _ = _manager()
 
         async def stream():
@@ -187,8 +209,11 @@ class TestUsage:
 
         c1.chat.completions.create = AsyncMock(return_value=stream())
         chunks = [c async for c in m._stream_with_failover("chat", None, messages=[])]
-        assert len(chunks) == 1  # only content chunk yielded
-        u = m._last_usage
+        # one content chunk, then the usage event — never the raw usage chunk
+        assert len(chunks) == 2
+        assert not isinstance(chunks[0], UsageEvent)
+        assert isinstance(chunks[-1], UsageEvent)
+        u = self._usage_of(chunks)
         assert u["prompt_tokens"] == 100
         assert u["completion_tokens"] == 20
         assert u["total_tokens"] == 120
@@ -216,11 +241,10 @@ class TestUsage:
             yield self._usage_chunk(1_000_000, 500_000)  # 1M in, 0.5M out
 
         c1.chat.completions.create = AsyncMock(return_value=stream())
-        async for _ in m._stream_with_failover("chat", None, messages=[]):
-            pass
+        usage = self._usage_of([c async for c in m._stream_with_failover("chat", None, messages=[])])
         # 1*1.0 + 0.5*2.0 = 2.0 USD
-        assert m._last_usage["cost"] == 2.0
-        assert m._last_usage["currency"] == "USD"
+        assert usage["cost"] == 2.0
+        assert usage["currency"] == "USD"
 
     async def test_no_pricing_means_no_cost(self):
         m, c1, _ = _manager()
@@ -229,12 +253,11 @@ class TestUsage:
             yield self._usage_chunk(100, 20)
 
         c1.chat.completions.create = AsyncMock(return_value=stream())
-        async for _ in m._stream_with_failover("chat", None, messages=[]):
-            pass
-        assert m._last_usage["cost"] is None
-        assert m._last_usage["currency"] is None
+        usage = self._usage_of([c async for c in m._stream_with_failover("chat", None, messages=[])])
+        assert usage["cost"] is None
+        assert usage["currency"] is None
 
-    async def test_usage_reset_between_calls(self):
+    async def test_no_usage_event_when_provider_reports_none(self):
         m, c1, _ = _manager()
 
         async def plain_stream():
@@ -243,9 +266,188 @@ class TestUsage:
             yield chunk
 
         c1.chat.completions.create = AsyncMock(return_value=plain_stream())
-        async for _ in m._stream_with_failover("chat", None, messages=[]):
+        chunks = [c async for c in m._stream_with_failover("chat", None, messages=[])]
+        assert self._usage_of(chunks) is None
+
+
+class TestTextualToolCalls:
+    """Some models write their native tool-call syntax into the content when the
+    provider fails to convert it into a structured tool_calls field. Treating
+    that as a final answer ends the loop early and streams the raw syntax out."""
+
+    @staticmethod
+    def _text_response(content):
+        resp = MagicMock()
+        resp.choices = [MagicMock(message=MagicMock(tool_calls=None, content=content))]
+        return resp
+
+    @staticmethod
+    def _content_stream(pieces):
+        async def gen():
+            for piece in pieces:
+                chunk = MagicMock()
+                chunk.choices = [MagicMock(delta=MagicMock(content=piece))]
+                chunk.usage = None
+                yield chunk
+
+        return gen()
+
+    async def test_model_is_asked_to_retry_the_call_properly(self):
+        m, c1, _ = _manager()
+        c1.chat.completions.create = AsyncMock(
+            side_effect=[
+                self._text_response("<tool_call>get_node<arg_key>node_id</arg_key></tool_call>"),
+                self._text_response("Node 2 is a distribution switch."),
+                self._content_stream(["Node 2 is a distribution switch."]),
+            ]
+        )
+        chunks = [c async for c in m._run_tool_loop("chat", None, [], [LOCAL_TOOLS["plan"]], None)]
+        text = "".join(c for c in chunks if isinstance(c, str))
+        assert "tool_call" not in text
+        # a correction round happened rather than the loop breaking immediately
+        assert c1.chat.completions.create.await_count == 3
+
+    async def test_syntax_never_reaches_the_user(self):
+        m, c1, _ = _manager()
+        c1.chat.completions.create = AsyncMock(
+            side_effect=[
+                self._text_response("Here you go."),
+                self._content_stream(["The answer. ", "<tool_call>get_node</tool_call>", " trailing"]),
+            ]
+        )
+        chunks = [c async for c in m._run_tool_loop("chat", None, [], [], None)]
+        assert "".join(c for c in chunks if isinstance(c, str)) == "The answer. "
+
+    async def test_marker_split_across_chunks_is_still_caught(self):
+        m, c1, _ = _manager()
+        c1.chat.completions.create = AsyncMock(
+            side_effect=[
+                self._text_response("Here you go."),
+                self._content_stream(["Answer. ", "<tool", "_call>get_node</tool_call>"]),
+            ]
+        )
+        chunks = [c async for c in m._run_tool_loop("chat", None, [], [], None)]
+        assert "".join(c for c in chunks if isinstance(c, str)) == "Answer. "
+
+    def test_partial_marker_is_held_back(self):
+        assert _hold_partial_marker("hello <tool") == ("hello ", "<tool")
+        assert _hold_partial_marker("hello <") == ("hello ", "<")
+        assert _hold_partial_marker("hello world") == ("hello world", "")
+
+
+class TestLocalTools:
+    def test_plan_offered_to_both_tasks(self):
+        """Working out which lookups a change requires is the substance of an
+        impact analysis, so planning is not chat-only."""
+        assert "plan" in CHAT_LOCAL_TOOLS
+        assert "plan" in ANALYSIS_LOCAL_TOOLS
+
+    def test_navigate_is_chat_only(self):
+        """navigate_to shows a link in the web UI — meaningless in an analysis."""
+        assert "navigate_to" in CHAT_LOCAL_TOOLS
+        assert "navigate_to" not in ANALYSIS_LOCAL_TOOLS
+
+    def test_every_offered_tool_is_defined(self):
+        for name in set(CHAT_LOCAL_TOOLS) | set(ANALYSIS_LOCAL_TOOLS):
+            assert name in LOCAL_TOOLS, f"{name} is offered but has no definition"
+
+    async def test_plan_call_becomes_an_event_and_is_not_forwarded(self):
+        """A plan is handled locally; forwarding it to MCP would fail, and the
+        steps must reach the UI as an event rather than as prose."""
+        m, c1, _ = _manager()
+        steps = [{"description": "Find neighbours on Gi1/0/2", "tool": "get_neighbors"}]
+
+        planning = MagicMock()
+        planning.choices = [
+            MagicMock(
+                message=MagicMock(
+                    tool_calls=[
+                        MagicMock(
+                            id="c1",
+                            function=MagicMock(
+                                name="plan", arguments=json.dumps({"goal": "Assess impact", "steps": steps})
+                            ),
+                        )
+                    ]
+                )
+            )
+        ]
+        # MagicMock(name=...) sets the mock's repr, not the attribute
+        planning.choices[0].message.tool_calls[0].function.name = "plan"
+
+        async def stream():
+            chunk = MagicMock()
+            chunk.choices = [MagicMock(delta=MagicMock(content="done"))]
+            chunk.usage = None
+            yield chunk
+
+        answer = MagicMock()
+        answer.choices = [MagicMock(message=MagicMock(tool_calls=None))]
+        c1.chat.completions.create = AsyncMock(side_effect=[planning, answer, stream()])
+
+        # mcp=None: a plan must not need the tool server
+        chunks = [c async for c in m._run_tool_loop("chat", None, [], [LOCAL_TOOLS["plan"]], None)]
+
+        plans = [c for c in chunks if isinstance(c, PlanEvent)]
+        assert len(plans) == 1
+        assert plans[0].goal == "Assess impact"
+        assert plans[0].steps == steps
+
+
+class TestToolConversion:
+    async def test_input_schema_reaches_the_model(self):
+        """MCP puts the schema in `inputSchema`, OpenAI expects `parameters`.
+
+        Reading the wrong field does not raise — it advertises every tool as
+        taking no arguments, so the model cannot pass any and some models write
+        the call into their reply as text instead.
+        """
+        m, _, _ = _manager()
+        schema = {
+            "type": "object",
+            "properties": {"node_id": {"type": "integer"}},
+            "required": ["node_id"],
+        }
+        tool = mt.Tool(name="get_node", description="Get one node.", inputSchema=schema)
+
+        converted = m._convert_tools([tool])
+
+        assert converted[0]["function"]["parameters"] == schema
+        assert converted[0]["function"]["name"] == "get_node"
+        assert converted[0]["function"]["description"] == "Get one node."
+
+
+class TestMaxTokens:
+    """`max_tokens=None` means "no limit", and must be omitted from the request.
+
+    The OpenAI SDK serializes an explicit None as `"max_tokens": null`, which
+    strict providers reject with a 400 instead of reading it as unlimited.
+    """
+
+    @staticmethod
+    async def _run(manager, client, max_tokens):
+        async def stream():
+            chunk = MagicMock()
+            chunk.choices = [MagicMock(delta=MagicMock(content="hi"))]
+            chunk.usage = None
+            yield chunk
+
+        answer = MagicMock()
+        answer.choices = [MagicMock(message=MagicMock(tool_calls=None))]
+        client.chat.completions.create = AsyncMock(side_effect=[answer, stream()])
+        async for _ in manager._run_tool_loop("chat", None, [], [], None, max_tokens=max_tokens):
             pass
-        assert m._last_usage is None
+        return client.chat.completions.create.call_args_list
+
+    async def test_omitted_when_unlimited(self):
+        m, c1, _ = _manager()
+        for call in await self._run(m, c1, None):
+            assert "max_tokens" not in call.kwargs
+
+    async def test_sent_when_set(self):
+        m, c1, _ = _manager()
+        for call in await self._run(m, c1, 4096):
+            assert call.kwargs["max_tokens"] == 4096
 
 
 class TestListModels:
