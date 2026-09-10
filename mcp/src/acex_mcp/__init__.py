@@ -1,3 +1,8 @@
 """ACE-X MCP Server - Model Context Protocol server for ACE-X."""
 
-__version__ = "0.2.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("acex-mcp")
+except PackageNotFoundError:  # source tree without an install
+    __version__ = "0.0.0"

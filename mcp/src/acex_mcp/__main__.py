@@ -1,6 +1,10 @@
-"""Allow running acex_mcp as a module: python -m acex_mcp"""
+"""Entry point for `python -m acex_mcp`.
 
-from acex_mcp.server import mcp
+Delegates to the same run() the `acex-mcp` console script uses, so both ways
+of starting the server behave identically.
+"""
+
+from acex_mcp.server import run
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="0.0.0.0", port=8000)
+    run()
