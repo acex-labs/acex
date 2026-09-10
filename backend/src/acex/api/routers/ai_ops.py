@@ -1,10 +1,17 @@
 import json
 from typing import Literal
 
-from acex.ai_ops.ai_ops import USAGE_MARKER, AllLevelsExhaustedError
+from acex.ai_ops.ai_ops import (
+    AllLevelsExhaustedError,
+    NavigateEvent,
+    PlanEvent,
+    ToolCallEvent,
+    UsageEvent,
+)
 from acex.ai_ops.web_ui_context import WEB_UI_SYSTEM_PROMPTS
+from acex.api.auth import get_bearer_token
 from acex.constants import BASE_URL
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -86,8 +93,25 @@ def create_router(automation_engine):
             raise HTTPException(status_code=502, detail=f"Provider '{provider}' did not return a model list")
         return {"provider": provider, "models": models}
 
+    def _sse(chunk) -> str:
+        """One SSE frame. Everything that is not the assistant's prose arrives
+        as a typed event, so the frontend can render it as its own element
+        instead of finding it spliced into the text."""
+        if isinstance(chunk, UsageEvent):
+            return f"data: {json.dumps({'usage': chunk.data})}\n\n"
+        if isinstance(chunk, NavigateEvent):
+            return f"data: {json.dumps({'navigate': chunk.data})}\n\n"
+        if isinstance(chunk, PlanEvent):
+            return f"data: {json.dumps({'plan': {'goal': chunk.goal, 'steps': chunk.steps}})}\n\n"
+        if isinstance(chunk, ToolCallEvent):
+            payload = {"name": chunk.name, "status": chunk.status}
+            if chunk.error:
+                payload["error"] = chunk.error
+            return f"data: {json.dumps({'tool_call': payload})}\n\n"
+        return f"data: {json.dumps({'content': chunk})}\n\n"
+
     @router.post("/ai/ask", tags=tags)
-    async def ask(request: AskRequest):
+    async def ask(request: AskRequest, access_token: str | None = Depends(get_bearer_token)):  # noqa: B008
         async def sse_stream():
             try:
                 async for chunk in aiom.ask(
@@ -96,18 +120,19 @@ def create_router(automation_engine):
                     context=request.context,
                     extra_system_prompts=WEB_UI_SYSTEM_PROMPTS,
                     model=request.model,
+                    access_token=access_token,
                 ):
-                    if chunk == USAGE_MARKER:
-                        yield f"data: {json.dumps({'usage': aiom._last_usage})}\n\n"
-                    else:
-                        yield f"data: {json.dumps({'content': chunk})}\n\n"
+                    yield _sse(chunk)
             except AllLevelsExhaustedError as exc:
                 yield f"data: {json.dumps({'error': str(exc)})}\n\n"
 
         return StreamingResponse(sse_stream(), media_type="text/event-stream")
 
     @router.post("/ai/config_analysis", tags=tags)
-    async def config_analysis(request: ConfigAnalysisRequest):
+    async def config_analysis(
+        request: ConfigAnalysisRequest,
+        access_token: str | None = Depends(get_bearer_token),  # noqa: B008
+    ):
         """Analyse a config diff with a focused task-specific prompt.
 
         Streams an SSE response identical in format to /ai/ask/.
@@ -129,11 +154,14 @@ def create_router(automation_engine):
 
         async def sse_stream():
             try:
-                async for chunk in aiom.analyze_config_diff(request.task, request.diff, context, model=request.model):
-                    if chunk == USAGE_MARKER:
-                        yield f"data: {json.dumps({'usage': aiom._last_usage})}\n\n"
-                    else:
-                        yield f"data: {json.dumps({'content': chunk})}\n\n"
+                async for chunk in aiom.analyze_config_diff(
+                    request.task,
+                    request.diff,
+                    context,
+                    model=request.model,
+                    access_token=access_token,
+                ):
+                    yield _sse(chunk)
             except AllLevelsExhaustedError as exc:
                 yield f"data: {json.dumps({'error': str(exc)})}\n\n"
             except Exception as exc:

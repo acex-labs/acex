@@ -213,6 +213,19 @@ def get_current_user(
             ) from exc
 
 
+def get_bearer_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),  # noqa: B008
+) -> str | None:
+    """The caller's raw bearer token, for forwarding to a downstream service.
+
+    `get_current_user` returns decoded claims and discards the token string, so
+    a route that must act *as* the caller further downstream (the MCP tool
+    server) needs the original credential. Validity is already enforced by the
+    global `get_current_user` dependency; this only hands the string over.
+    """
+    return credentials.credentials if credentials else None
+
+
 def require_scopes(*required: str):
     """Dependency factory: reject with 403 (and log) if the token lacks any of the given scopes.
 

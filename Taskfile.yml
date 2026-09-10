@@ -53,6 +53,23 @@ tasks:
     cmds:
       - docker compose ps
 
+  # ── MCP ───────────────────────────────────────────────────────────────────
+
+  mcp:
+    desc: Run the MCP tool server locally against the compose backend
+    dir: mcp
+    env:
+      ACEX_API_URL: http://localhost:8080
+      ACEX_VERIFY_SSL: "false"
+    cmds:
+      - poetry install
+      - poetry run python -m acex_mcp
+
+  mcp-inspect:
+    desc: Open the MCP Inspector against the running MCP server
+    cmds:
+      - npx @modelcontextprotocol/inspector
+
   # ── Data ──────────────────────────────────────────────────────────────────
 
   seed:

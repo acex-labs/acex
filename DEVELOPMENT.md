@@ -53,7 +53,7 @@ acex/
 │   ├── .venv/
 │   ├── src/acex_worker/
 │   └── pyproject.toml
-├── mcp/             # MCP server (acex-mcp-server)
+├── mcp/             # MCP server (acex-mcp)
 │   ├── .venv/
 │   └── pyproject.toml
 └── devkit/          # Shared models (acex-devkit)
