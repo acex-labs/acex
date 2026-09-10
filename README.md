@@ -428,10 +428,24 @@ The AGPL keeps improvements flowing back to everyone who relies on ACE-X, includ
 
 **Commercial licences** are available for organisations that need to use ACE-X without AGPL obligations — contact **license@acex.dev**.
 
+## Sponsors
+
+### Essity — main sponsor
+
+**[Essity](https://www.essity.com)** has been ACE-X's main sponsor, backing the project from its early stages.
+
+Early sponsorship is the hardest kind to get and the kind that matters most. It arrives before there are packages to install, before there is a UI to demo, and before anyone can be certain the architecture holds. Essity's support came at that point, and it is the reason ACE-X could be built as a coherent system rather than assembled in the gaps between other work.
+
+### Sponsoring ACE-X
+
+If your organisation depends on ACE-X, or wants to shape where it goes next, sponsorship directly funds development, drivers for additional vendors, and documentation. Get in touch at **license@acex.dev**.
+
 ## Authors
 
-**Johan Lahti** &lt;johan.lahti@acebit.se&gt;
-**Jani Naamanka** &lt;jani@naacon.se&gt;
+ACE-X was conceived and originated by **Johan Lahti** — the idea, the architecture and the product are his from the outset.
+
+**Johan Lahti** &lt;johan.lahti@acebit.se&gt; — creator and maintainer
+**Jani Naamanka** &lt;jani@naacon.se&gt; — co-author
 
 ## Links
 
