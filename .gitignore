@@ -150,6 +150,13 @@ ENV/
 env.bak/
 venv.bak/
 
+# Env-filer får aldrig versioneras — de kan innehålla hemligheter.
+# OBS: gitignore påverkar inte redan trackade filer, avtracka med:
+#   git rm --cached <fil>
+.env
+.env.*
+!*.env.example
+
 # Spyder project settings
 .spyderproject
 .spyproject

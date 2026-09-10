@@ -8,6 +8,13 @@ repos:
 
   - repo: local
     hooks:
+      # Förhindrar commits av env-filer (.env, .env.*, *.env, .envrc) som
+      # kan innehålla hemligheter. Templates (*.env.example) är tillåtna.
+      - id: check-no-env-files
+        name: Check for env files
+        entry: scripts/check_no_env_files.sh
+        language: script
+
       # Körs efter varje checkout (t.ex. `git checkout -b ...`) och varnar
       # direkt om branchnamnet bryter mot namnstandarden. En riktig
       # blockering sker i CI — se .github/workflows/ci.yml.
