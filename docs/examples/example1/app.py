@@ -57,11 +57,11 @@ ae.ai_ops(
     chains={
         # Ordered failover: first level is the default shown in the frontend,
         # subsequent levels are tried if the previous one is unreachable (5xx/timeout).
-        "default": ["bergetai/moonshotai/Kimi-K3"],
+        "default": ["bergetai/zai-org/GLM-5.3-Flash"],
         # Tasks without an explicit chain inherit "default". Example override:
         # "analysis": ["groq/deepseek-r1", "local/qwen3:32b"],
     },
-    # mcp_server_url="http://localhost:8000/mcp",
+    mcp_server_url="http://localhost:8000/mcp",
 )
 
 
