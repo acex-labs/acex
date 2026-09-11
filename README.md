@@ -13,136 +13,134 @@ The result is a system where infrastructure changes go through review and land i
 
 ## The ACE architecture
 
-ACE is not a code layout. It is a way of administering and automating a network.
+ACE is an architecture for administering and automating networks. It describes how to organise the problem — not how to write the code. ACE-X is one implementation of it; the sections after this one describe how ACE-X in particular does the job.
 
-### 1. Abstraction, for real
+The architecture rests on seven ideas.
 
-An **asset** is only an asset: a vendor, a serial number, an OS version, a hardware model. It carries no configuration and no identity in the network.
+### 1. The logical network is separate from the hardware that runs it
 
-A **logical node** carries everything else: hostname, role, site, sequence — and all of its configuration. It is always decoupled from the hardware that happens to run it.
+Networks are traditionally administered as a set of devices. ACE separates them into two independent things.
 
-A **node** is the binding of the two, with a lifecycle: `planned → init → active → decommissioned`.
+A **logical node** is a participant in the network: its identity, its role, its place, and all of its configuration. It is what the network design is expressed in.
+
+An **asset** is a piece of hardware: a make, a model, a serial number, a software version. Nothing more. It holds no configuration and has no identity in the network.
+
+A **node** is a binding between the two, and it has a lifecycle of its own — planned, installed, active, retired.
 
 ```
-LogicalNode  ──┐
-  hostname     │
-  role         ├──►  Node  ──►  the actual device
-  site         │     status
-  config       │
-               │
-Asset        ──┘
-  vendor
-  serial
-  os / model
-  ned_id
+logical node          asset
+ identity              make / model
+ role                  serial
+ place        ──┬──    software version
+ configuration  │
+                │
+              node
+      binding + lifecycle
 ```
 
-Because the two are separate:
+The separation is not bookkeeping. It changes what is possible:
 
-- Configuration exists before the hardware does — plan a site, compile its configs, order the equipment later.
-- Replacing hardware after an RMA changes an asset binding, not a single line of intent.
-- A switch stack or an MLAG pair (`AssetCluster`) is several assets behind one logical node.
+- Design and configuration exist before any hardware does. A site can be fully specified and its configuration generated while the equipment is still on order.
+- Replacing failed hardware rebinds an asset. The network design is untouched, because the design never referred to that serial number.
+- Several pieces of hardware can present as one logical participant — a stack, a chassis pair, a redundant pair — without the design knowing or caring.
 
-Configuration is **rendered to** an asset through a driver, and **read from** that asset through the same driver. One driver, both directions, one vendor-neutral model in the middle. Nothing above the driver layer knows that Cisco or Juniper exists.
+### 2. One neutral model in the middle, and symmetric translation
+
+ACE defines a **vendor-neutral model** of what a network node is configured to do. It is the only representation the architecture works in.
+
+Translation to and from any particular platform happens in one place, a **driver**, and it works in both directions:
+
+- **outward** — the neutral model becomes configuration for a specific platform
+- **inward** — a specific platform's configuration becomes the neutral model
+
+One driver, both directions. Because the same driver owns both translations, the two cannot disagree about what a given construct means. And because everything above the driver speaks only the neutral model, no part of the system other than a driver knows which vendors exist.
+
+This is what makes the rest of the architecture possible: intent and reality end up expressed in the same terms, so they can be compared.
 
 ```mermaid
 flowchart LR
-    CM["Config maps<br/>(IaC plane)"] --> DES["Desired<br/>ComposedConfiguration"]
-    SVC["Services<br/>(service plane — planned)"] -.-> DES
-    DES --> DIFF{{"Diff"}}
-    OBS["Observed<br/>ComposedConfiguration"] --> DIFF
-    DIFF --> COMP["Compliance<br/>per node / per site"]
-    DIFF --> PATCH["Rendered patch"]
-    PATCH -->|"operator confirms"| NED
-    NED["NED driver<br/>render · parse · transport"] --> DEV(["Device"])
-    DEV -->|"collection agent"| NED
-    NED --> OBS
-
-    classDef planned stroke-dasharray:5 5,color:#888
-    class SVC planned
+    INT["Declared intent"] --> DES["Desired state"]
+    DES --> DIFF{{"Compare"}}
+    OBS["Observed state"] --> DIFF
+    DIFF --> COMP["Compliance"]
+    DIFF --> CHG["Proposed change"]
+    CHG -->|"decision"| DRV
+    DRV["Driver<br/>translates both ways"] --> DEV(["Network element"])
+    DEV --> DRV
+    DRV --> OBS
 ```
 
-### 2. Declared state is the only source — for configuration *and* for measurement
+### 3. State is declared and derived, never stored
 
-Desired configuration is never stored. It is **compiled on demand** for each logical node from config maps that are plain Python, selected by declarative filters. Ask for a node's configuration and it is computed then and there — so it cannot go stale, and it cannot drift from the code that produced it.
+Desired state is not a document that is edited and saved. It is **derived on demand** from declared intent, every time it is asked for.
 
-Observability follows the same rule. A metric is not something you wire up per device; it is **defined state**, composed from inventory parameters and configuration. A `TelemetryComponent` binds together, in one object:
+The consequence is that desired state cannot go stale and cannot drift from the declaration that produced it. There is no saved artefact to forget to regenerate, and no second copy to reconcile.
 
-- what a collector must do to obtain the measurement
-- the resulting measurement name and tag schema
-- the identity used to query it in a dashboard
-- which capability gates its collection, and which node it belongs to
+The same rule applies to measurement. **What to measure is also declared state**, derived from the network's inventory and its configuration rather than configured per device. If a node exists and its configuration says it does something worth watching, the measurement for it follows — and stops following when it does not. Monitoring cannot fall behind the network, because it is not maintained separately from it.
 
-The telemetry registry is deliberately **not persisted**. It is rebuilt from inventory and configuration on every request, then rendered into collector configuration and Grafana dashboards. There is no second source of truth to fall out of sync.
+### 4. Configuration has two planes, with independent lifecycles
 
-### 3. Two config planes, two lifecycles — that must not block each other
+This is the idea ACE exists for.
 
-This is the problem ACE exists to solve.
+Configuration on a network element arrives from two fundamentally different directions, and they are almost always conflated:
 
-Infrastructure configuration and service configuration compose into the same model for the same node, but they have nothing else in common. Treating them as one thing forces a choice between reckless automation and paralysed operations. ACE refuses the choice.
+**Infrastructure** — how the network is built. It changes slowly and deliberately. It should be written down, reviewed by a second pair of eyes, versioned, and applied when the organisation has agreed it is safe to apply.
 
-|  | **Infrastructure (IaC)** | **Services** |
+**Services** — what the network delivers. It changes constantly and on demand, driven by orders and events. Its value is largely in how fast it can be fulfilled.
+
+Treating these as one thing forces a choice, and both answers are bad. Automate everything, and an infrastructure change reaches production the moment someone merges it. Gate everything, and every service delivery waits for a change window.
+
+|  | **Infrastructure** | **Services** |
 |---|---|---|
-| Written as | Config maps in version control | Service definitions, NSO-style |
-| Changes through | Pull request, peer review, merge | An order, an API call, an event |
-| Delivery | **Never automatic.** A change produces a diff | Direct, closed loop |
-| Applied | Deliberately, in a maintenance window | On demand |
+| Changes | Slowly, deliberately | Continuously, on demand |
+| Authority | Review and agreement | An order or an event |
+| Delivery | Deferred — produces a proposed change | Direct — closed loop |
+| Applied | When the organisation decides | On fulfilment |
 | Optimised for | Control and auditability | Lead time |
 
-A merged infrastructure change does not touch a device. It changes what *should* be true, the next compile picks it up, and the difference against the observed configuration becomes a **reviewable diff** — resolved under control, when the maintenance window opens.
+ACE keeps them as **separate planes over a shared model**. Both contribute to the same node's configuration, but each keeps its own lifecycle. An infrastructure change becomes a proposal that waits for a decision. A service is fulfilled when it is ordered — and fulfilling it must not drag a pending infrastructure change onto the element along with it.
 
-A service, meanwhile, is delivered when it is ordered. It does not queue behind an infrastructure change, and it does not drag pending infrastructure changes onto the device with it.
+**Control over infrastructure, without putting services in a queue behind it.**
 
-**IaC with control, without stopping the service lifecycle.**
+### 5. Difference is the measurement; applying it is a decision
 
-### 4. Compliance is the measurement; enforcement is a decision
+Because intent and reality are expressed in the same model, the distance between them can be computed continuously and reported as **compliance** — per element, per site, across the estate.
 
-ACE-X compares desired against observed continuously and reports the distance as compliance — per node, per site, and in aggregate. Reconciliation is *measured* long before anything is enforced. Nothing about a non-zero diff is an error; a diff is the normal state of a network between maintenance windows.
+A difference is not a fault. Between change windows, a network that differs from its declared intent is behaving exactly as expected. Measuring that distance is a permanent, passive activity; closing it is a separate, deliberate act.
 
-When the window opens, the driver renders the diff as a **patch** — only the delta, never a full configuration replay — which an operator reads before it is sent:
+When the decision is made, the difference is expressed as the **smallest change that closes it** — not a wholesale replacement of the element's configuration. A change is reviewable before it is made, and narrow enough to reason about.
 
-```bash
-acex node config diff plan r1 --format commands   # see exactly what would be sent
-acex node config diff apply r1                    # shows the patch, asks, then sends
-```
+Change in the other direction — reality diverging because someone altered an element directly — is handled by turning reality back into declared intent, so unmanaged change re-enters the system through review rather than being silently overwritten. The same path lets an existing, unmanaged network be adopted rather than rebuilt.
 
-There is deliberately **no API endpoint that pushes configuration**. The API exposes the diff; a human applies it. Enforcement is an operator action with the commands in front of them, not a background process.
+### 6. Observation is distributed, pulled, and granted
 
-Drift in the other direction — someone changed a device by hand — is handled by turning reality back into code. The reconcile path generates **config map source** from the observed state, so unmanaged change re-enters the system as a pull request rather than being silently overwritten:
+The core of an ACE system holds declared state. It does not reach out to network elements itself.
 
-```
-observed drift  ──►  generated config map  ──►  peer review  ──►  merge  ──►  compiled intent
-```
+Observation is performed by **collectors** placed where they can see what they need to see. A collector asks the core what it should be doing, does it, and reports what it reached. Nothing is pushed to a collector, so collectors work across firewalls, management networks and isolated segments without the core needing a path into any of them — and more of them can be added without the core changing.
 
-The same path onboards brownfield networks: point the translator at an existing device configuration and get declarative components back.
+What a collector may do is **granted**, not configured. Each is given a set of capabilities and a scope of the network, and receives only the work that falls inside both. Where observation happens, and by what means, is a matter of policy rather than of per-device setup.
 
-### 5. The edge does the work, and it pulls
+### 7. Three kinds of data, kept distinct
 
-The core holds desired state and never reaches out to a device on its own. Collection agents and telemetry agents poll a manifest carrying a `config_revision`, apply it, then acknowledge the revision they reached. The Grafana reconciler hashes the desired state and does nothing at all when nothing has changed.
+ACE distinguishes three classes of data and does not let them borrow each other's shape:
 
-Each agent is granted **capabilities** (`icmp`, `snmp`, `snmp_trap`, `mdt`, `syslog_rfc5424`) and a set of nodes. It receives only the work those grants cover. Where collection happens is policy, not configuration.
+| | What it is |
+|---|---|
+| **Desired configuration** | What an element should be configured to do |
+| **Observed configuration** | What it is actually configured to do |
+| **Operational data** | What it reports about its running state |
 
-Agents pull, so they work across firewalls and segmented networks, and they scale out without the core changing.
+The first two share one model deliberately — that is precisely what makes them comparable, and it is the basis of compliance.
 
-### 6. Operational data is its own kind of data
+Operational data deliberately does not. Neighbour relationships, routing state, protocol adjacencies, counters — these are not configuration and never were. Forcing them into a configuration model would only make them diffable against something they are not. So operational data is modelled on its own terms, per kind of data, carrying the time it was observed, and correlated back to the network inventory — which also means it can reveal what is attached to the network that was never declared to be there.
 
-ACE keeps three data classes apart, and does not let them borrow each other's shape:
-
-| | What it is | Modelled as |
-|---|---|---|
-| **Desired configuration** | Compiled intent | `ComposedConfiguration` |
-| **Observed configuration** | The device's parsed running config | `ComposedConfiguration` |
-| **Operational data** | What the device reports about its *running state* | Its own models, per data type |
-
-The first two deliberately share one model — that is precisely what makes them comparable. Operational data deliberately does **not**. LLDP neighbours, routing state, protocol adjacencies and interface counters are not configuration and never were; forcing them into a configuration model would only make them diffable against something they are not.
-
-So operational data gets its own path end to end: its own driver methods (`get_lldp_neighbors` alongside `get_config`), its own upload endpoints, its own models carrying a `collected_at` timestamp, and its own correlation back to inventory — a discovered neighbour resolves to a node instance when ACE-X recognises it, and stays an unresolved external device when it does not. That is how the per-site topology graph gets built, and how it can show you the things attached to your network that you never put in it.
-
-LLDP is the type that exists today. Routing state and others follow the same shape.
-
-Physical reality will eventually be **declared** as well — planned cabling as intent. When it is, the desired-versus-observed pattern extends down to the physical layer: cabled as designed, or cabled as the electrician felt like that morning. Until then, physical topology is observed only.
+Physical reality is expected to become **declared** in time, as designed cabling and connectivity. When it does, the desired-versus-observed comparison extends down into the physical layer as well: wired as designed, or wired as someone on site decided that morning.
 
 ---
+
+## How ACE-X implements it
+
+The rest of this document is ACE-X specifically: intent declared as Python, a concrete neutral model, drivers for real platforms, and the interfaces around them.
 
 ## Configuration as code
 
@@ -210,6 +208,31 @@ One vendor-neutral tree, `ComposedConfiguration`, is the pivot for everything:
 | Services | NtpServer, Services |
 
 **69 component types** in total, with vendor-specific `Augment` components for the cases a neutral model should not pretend to cover.
+
+---
+
+## Observability and collection
+
+ACE-X implements declared measurement as **telemetry components**. Each one binds together, in a single object, the four views of one metric that normally drift apart in separate systems:
+
+- what a collector must do to obtain it
+- the measurement name and tag schema it produces
+- the identity used to query it from a dashboard
+- the capability that gates its collection, and the node it belongs to
+
+Telemetry components are produced by **providers** — functions that inspect inventory and configuration and yield the components implied by what they find. The resulting registry is deliberately **not persisted**: it is rebuilt on every request, then rendered into Telegraf collector configuration and into Grafana dashboards and datasources. There is no stored copy to fall out of step with the network.
+
+Collection runs as **agents**, each of which polls a manifest, applies it, and acknowledges the revision it reached:
+
+| Agent | Does |
+|---|---|
+| **collection-agent** | Fetches running configurations and LLDP neighbours through NEDs, uploads them as observed state |
+| **telemetry-agent** | Keeps a local `telegraf.conf` in sync with the rendered central configuration |
+| **grafana-sync** | Reconciles a Grafana instance against generated dashboards and datasources, hashing desired state to no-op when nothing changed |
+
+Agents are granted capabilities from a fixed vocabulary — `icmp`, `snmp`, `snmp_trap`, `mdt`, `syslog_rfc5424` — plus an explicit set of nodes or a match rule. An agent receives only the work covered by both, so a collector in a segmented site never learns about the rest of the estate.
+
+Secrets are never part of a manifest. A manifest carries credential **references** per target — a login, a privilege-escalation credential — and the agent redeems each reference against the credential API only when it is about to connect. The store behind it is backed by Fernet encryption or HashiCorp Vault, with credentials assigned per node or per site.
 
 ---
 
