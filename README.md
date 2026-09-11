@@ -455,9 +455,9 @@ The AGPL keeps improvements flowing back to everyone who relies on ACE-X, includ
 
 ### Essity — main sponsor
 
-**[Essity](https://www.essity.com)** has been ACE-X's main sponsor, backing the project from its early stages.
+**[Essity](https://www.essity.com)** is ACE-X's main sponsor and has backed the project since its early days.
 
-Early sponsorship is the hardest kind to get and the kind that matters most. It arrives before there are packages to install, before there is a UI to demo, and before anyone can be certain the architecture holds. Essity's support came at that point, and it is the reason ACE-X could be built as a coherent system rather than assembled in the gaps between other work.
+Early sponsorship is rare, and Essity's came while ACE-X was still finding its shape as a product. It gave the work room to move faster and a real network environment to be tested against. That is a contribution worth naming, and we are grateful for it.
 
 ### Sponsoring ACE-X
 
