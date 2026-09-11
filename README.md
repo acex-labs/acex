@@ -463,12 +463,17 @@ Early sponsorship is rare, and Essity's came while ACE-X was still finding its s
 
 If your organisation depends on ACE-X, or wants to shape where it goes next, sponsorship directly funds development, drivers for additional vendors, and documentation. Get in touch at **license@acex.dev**.
 
+## Adopters
+
+**[Acebit](https://www.acebit.se)** has used ACE-X in customer projects since early on. Running the framework against real networks, on real deadlines, is what turned it from a design into something that holds up in production.
+
 ## Authors
 
-ACE-X was conceived and originated by **Johan Lahti** — the idea, the architecture and the product are his from the outset.
+ACE-X was conceived and originated by **Johan Lahti** — the idea, the architecture and the product are his from the outset. The original codebase was written on his own time and contributed to the project under the AGPL.
 
 **Johan Lahti** &lt;johan.lahti@acebit.se&gt; — creator and maintainer
 **Jani Naamanka** &lt;jani@naacon.se&gt; — co-author
+**Isak Ljunggren** &lt;isak.ljunggren@acebit.se&gt; — co-author
 
 ## Links
 
