@@ -104,6 +104,9 @@ services:
       ADO_ORG: ${ADO_ORG:-}
       ADO_PROJECT: ${ADO_PROJECT:-}
       ADO_BUGFIX_FEATURE_ID: ${ADO_BUGFIX_FEATURE_ID:-}
+      BUG_REPORT_FILE_DIR: /data/bug-reports
+    volumes:
+      - bug_reports_data:/data/bug-reports
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/auth/config"]
       interval: 5s
@@ -301,3 +304,4 @@ volumes:
   grafana_data:
   telegraf_config:
   keycloak_data:
+  bug_reports_data:
