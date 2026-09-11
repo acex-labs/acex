@@ -8,14 +8,20 @@
     {
       "clientId": "acex",
       "name": "ACEX Frontend",
+      "description": "Browser login. Token targets the API, plus acex-aiops so that client may exchange it for an MCP token on the user's behalf.",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["http://localhost:3000/*", "*"],
-      "webOrigins": ["*"],
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
       },
@@ -29,12 +35,23 @@
             "included.custom.audience": "acex",
             "access.token.claim": "true"
           }
+        },
+        {
+          "name": "acex-aiops-exchange-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "acex-aiops",
+            "access.token.claim": "true"
+          }
         }
       ]
     },
     {
       "clientId": "acex-agents",
       "name": "ACEX Agents",
+      "description": "Service accounts for collection/config agents and seeding. Calls the API directly; no MCP access.",
       "enabled": true,
       "publicClient": false,
       "standardFlowEnabled": false,
@@ -54,11 +71,110 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "acex-mcp",
+      "name": "ACEX MCP Server",
+      "description": "The MCP server as its own protected resource. External MCP clients log in here (public + PKCE, no secret to distribute). Its aud: acex-mcp token is rejected by the ACE-X API - that is the guardrail.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:*/*",
+        "http://127.0.0.1:*/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "acex-mcp-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "acex-mcp",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "acex-mcp-server-exchange-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "acex-mcp-server",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "acex-mcp-server",
+      "name": "ACEX MCP Server (token exchange)",
+      "description": "Used only by the MCP server process to exchange an inbound aud: acex-mcp token for an aud: acex token for the same subject (RFC 8693). No login flows, no service account.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "secret": "acex-mcp-server-secret",
+      "attributes": {
+        "standard.token.exchange.enabled": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "acex-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "acex",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "acex-aiops",
+      "name": "ACEX AI Ops (token exchange)",
+      "description": "Used only by the backend's AI ops to exchange a logged-in user's aud: acex token for an aud: acex-mcp token, so in-product chat reaches MCP as that user.",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "secret": "acex-aiops-secret",
+      "attributes": {
+        "standard.token.exchange.enabled": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "acex-mcp-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "acex-mcp",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
     {
       "username": "admin",
+      "firstName": "ACE-X",
+      "lastName": "Admin",
       "enabled": true,
       "emailVerified": true,
       "email": "admin@acex.local",
@@ -68,7 +184,8 @@
           "value": "admin",
           "temporary": false
         }
-      ]
+      ],
+      "requiredActions": []
     }
   ]
 }

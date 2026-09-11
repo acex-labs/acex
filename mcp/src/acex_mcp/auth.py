@@ -69,5 +69,5 @@ def build_verifier() -> JWTVerifier | None:
     authority = config["authority"]
     audience = config.get("client_id")
     verifier = JWTVerifier(jwks_uri=_discover(authority), issuer=authority, audience=audience)
-    logger.info("inbound auth enabled (issuer=%s, audience=%s)", authority, audience)
+    logger.info(f"inbound auth enabled (issuer={authority}, {audience}")
     return verifier
