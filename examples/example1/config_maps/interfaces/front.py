@@ -1,0 +1,47 @@
+from acex.config_map import ConfigMap, FilterAttribute
+from acex.configuration.components.interfaces import FrontpanelPort
+
+
+class Frontpanel(ConfigMap):
+    def compile(self, context):
+
+        # # routed uplink
+        # if0 = FrontpanelPort(
+        #     index=0,
+        #     name="if0",
+        #     speed=1000000,
+        #     description="Routed uplink to core",
+        #     switchport = False,
+        #     ipv4 = context.integrations.ipam.data.ip_addresses({"id": 28})
+        # )
+        # context.configuration.add(if0)
+
+        # ip = context.integrations.ipam.data.ip_addresses({"id": 27})
+        # # routed uplink
+        # if47 = FrontpanelPort(
+        #     index=47,
+        #     name="if47",
+        #     speed=10000000,
+        #     description="Routed uplink to core",
+        #     switchport = False,
+        #     ipv4 = "192.0.2.1/24",
+        #     enabled=False
+        # )
+        # context.configuration.add(if47)
+
+        if1 = FrontpanelPort(
+            index=0,
+            name="if1",
+            speed=10000000,
+            description="Second switch",
+            module_index=0,
+            switchport = False,
+            stack_index=0,
+            ipv4 = "192.0.2.1/24",
+            enabled=False
+        )
+        context.configuration.add(if1)
+
+
+fp = Frontpanel()
+fp.filters = FilterAttribute("role").eq("core")
