@@ -22,6 +22,5 @@ class OS(StrEnum):
 class Vendor(StrEnum):
     arista = "arista"
     cisco = "cisco"
-    Cisco = "Cisco"
     fortinet = "fortinet"
     juniper = "juniper"
