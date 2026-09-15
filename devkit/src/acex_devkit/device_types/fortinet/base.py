@@ -6,8 +6,8 @@ on each port group is the only thing that tells them apart. FortiGates do not
 stack; HA clustering does not renumber ports.
 """
 
-from acex_devkit.models.asset import OS, Vendor
 from acex_devkit.models.device_type import DeviceType
+from acex_devkit.models.platform import OS, Vendor
 
 
 class FortiGateDevice(DeviceType, abstract=True):

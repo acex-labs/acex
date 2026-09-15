@@ -23,7 +23,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field, model_validator
 
-from acex_devkit.models.asset import OS, Vendor
+from acex_devkit.models.platform import OS, Vendor
 
 
 class Speed(IntEnum):

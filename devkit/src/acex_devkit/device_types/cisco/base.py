@@ -4,8 +4,8 @@ Vendor and OS identity live here so a device declaration only has to state
 its model strings and its ports.
 """
 
-from acex_devkit.models.asset import OS, Vendor
 from acex_devkit.models.device_type import DeviceType, PortModule
+from acex_devkit.models.platform import OS, Vendor
 
 
 class CiscoIOSDevice(DeviceType, abstract=True):

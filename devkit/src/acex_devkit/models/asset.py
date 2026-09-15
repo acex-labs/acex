@@ -1,36 +1,39 @@
-from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, model_validator
 
+from acex_devkit import os_versions  # noqa: F401  (registers the version schemes)
 from acex_devkit.models.base import PersistedResponse
-
-
-class OS(StrEnum):
-    arista_eos = "arista_eos"
-    cisco_ios = "cisco_ios"
-    cisco_iosxe = "cisco_iosxe"
-    cisco_iosxr = "cisco_iosxr"
-    cisco_nxos = "cisco_nxos"
-    fortinet_fortios = "fortinet_fortios"
-    juniper_junos = "juniper_junos"
-
-
-class Vendor(StrEnum):
-    arista = "arista"
-    cisco = "cisco"
-    Cisco = "Cisco"
-    fortinet = "fortinet"
-    juniper = "juniper"
+from acex_devkit.models.os_version import OsVersionScheme
+from acex_devkit.models.platform import OS, Vendor
 
 
 class Asset(BaseModel):
-    vendor: Vendor = Field(default=Vendor.cisco)
-    serial_number: str = Field(default="abc123")
-    os: OS = Field(default=OS.cisco_ios)
-    os_version: str = Field(default="12.0.1")
-    hardware_model: str = Field(default="")
+    vendor: Vendor
+    serial_number: str
+    os: OS
+    hardware_model: str
+
+    # Read off the device, so genuinely unknown until the asset is discovered.
+    os_version: str | None = None
     ned_id: str | None = None
+
+    @model_validator(mode="after")
+    def _check_os_version(self):
+        """Check ``os_version`` against the scheme declared for this asset's ``os``.
+
+        An asset that has not been discovered yet has no version, which is why
+        the field is optional. A version that *is* given must be checkable:
+        every OS is required to declare a scheme, and ``test_os_versions``
+        holds us to it.
+        """
+        if self.os_version is None:
+            return self
+        scheme = OsVersionScheme.for_os(self.os)
+        if scheme is None:
+            raise ValueError(f"no version scheme declared for {self.os.value}")
+        self.os_version = scheme.check(self.os_version)
+        return self
 
 
 class AssetCreate(Asset):

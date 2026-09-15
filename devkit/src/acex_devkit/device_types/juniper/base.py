@@ -6,8 +6,8 @@ group on that member, so uplinks and extension modules land on pic 1 and up.
 Rendering that name is the driver's job; this package declares the hardware.
 """
 
-from acex_devkit.models.asset import OS, Vendor
 from acex_devkit.models.device_type import DeviceType, PortModule
+from acex_devkit.models.platform import OS, Vendor
 
 
 class JuniperEXDevice(DeviceType, abstract=True):

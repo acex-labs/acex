@@ -9,7 +9,6 @@ from functools import cache
 from acex_devkit.device_types import cisco as _cisco  # noqa: F401  (registers Cisco declarations)
 from acex_devkit.device_types import fortinet as _fortinet  # noqa: F401  (registers Fortinet declarations)
 from acex_devkit.device_types import juniper as _juniper  # noqa: F401  (registers Juniper declarations)
-from acex_devkit.models.asset import OS, Vendor
 from acex_devkit.models.device_type import (
     DeviceType,
     InterfaceSlot,
@@ -19,6 +18,7 @@ from acex_devkit.models.device_type import (
     PortModule,
     Speed,
 )
+from acex_devkit.models.platform import OS, Vendor
 
 
 @cache

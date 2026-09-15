@@ -82,6 +82,7 @@ class NetboxPlugin:
             vendor=data.get("device_type", {}).get("manufacturer", {}).get("name"),
             os=data.get("platform", {}).get("name"),
             serial_number=data.get("serial"),
+            os_version=data.get("custom_fields", {}).get("os_version"),
             ned_id=data.get("custom_fields", {}).get("ned_id"),
             hardware_model=data.get("device_type", {}).get("model"),
             interfaces=interfaces,
