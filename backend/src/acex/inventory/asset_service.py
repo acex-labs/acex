@@ -1,7 +1,9 @@
 import inspect
 
-from acex.models import Asset, AssetResponse, PaginatedResponse
+from acex.models import Asset, AssetResponse, AssetUpdate, PaginatedResponse
 from acex.models.node import AssetRefType, Node
+from acex_devkit.models.os_version import OsVersionScheme
+from fastapi import HTTPException
 from sqlalchemy import select
 
 
@@ -63,7 +65,32 @@ class AssetService:
         )
         return PaginatedResponse(items=result["items"], total=result["total"], limit=limit, offset=offset)
 
-    async def update(self, id: str, asset: Asset):
+    async def update(self, id: str, asset: AssetUpdate):
+        """Apply a partial update, checking any field pair that must agree.
+
+        ``os_version`` is only meaningful against an ``os``, and a patch may
+        carry either one alone - so the stored asset supplies whichever half is
+        missing before the pair is checked.
+        """
+        patch = asset.model_dump(exclude_unset=True)
+
+        if "os" in patch or "os_version" in patch:
+            current = await self._call_method(self.adapter.get, id)
+            if current is None:
+                raise HTTPException(status_code=404, detail="Asset not found")
+
+            os_value = patch.get("os", current.os)
+            version = patch.get("os_version", current.os_version)
+            if version is not None:
+                scheme = OsVersionScheme.for_os(os_value)
+                if scheme is None:
+                    raise HTTPException(status_code=422, detail=f"no version scheme declared for {os_value}")
+                try:
+                    patch["os_version"] = scheme.check(version)
+                except ValueError as exc:
+                    raise HTTPException(status_code=422, detail=str(exc)) from exc
+                asset = asset.model_copy(update={"os_version": patch["os_version"]})
+
         result = await self._call_method(self.adapter.update, id, asset)
         return result
 

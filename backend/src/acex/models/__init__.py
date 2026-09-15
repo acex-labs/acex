@@ -6,7 +6,7 @@ from acex.observability.agents.models import (
 )
 from acex_devkit.models import AttributeValue, ExternalValue
 
-from .asset import Asset, AssetCluster, AssetClusterLink, AssetResponse, Ned
+from .asset import Asset, AssetCluster, AssetClusterLink, AssetResponse, AssetUpdate, Ned
 from .collection_agent import CollectionAgent, CollectionAgentMatchRule, CollectionAgentNodeLink
 from .contacts import Contact, ContactAssignment, ContactResponse
 from .credential import Credential, CredentialField, NodeCredential, SiteCredential
@@ -54,6 +54,7 @@ __all__ = [
     "AssetCluster",
     "AssetClusterLink",
     "AssetResponse",
+    "AssetUpdate",
     "Ned",
     "CollectionAgent",
     "CollectionAgentMatchRule",
