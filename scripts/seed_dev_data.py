@@ -84,21 +84,21 @@ SITES = [
 # ned_id=None → server stores raw text without NED processing
 ASSETS = [
     # STO-OFFICE1 — Cisco core/distribution
-    {"vendor": "cisco",   "serial_number": "FCZ2042X001", "os": "iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9500-40X", "ned_id": "CiscoIOSCLIDriver"},
-    {"vendor": "cisco",   "serial_number": "FCZ2042X002", "os": "iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
-    {"vendor": "cisco",   "serial_number": "FCZ2042X003", "os": "iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X001", "os": "cisco_iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9500-40X", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X002", "os": "cisco_iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X003", "os": "cisco_iosxe",  "os_version": "17.9.4a",   "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
     # AMS-DC1 — Juniper core/leaf + Cisco OOB management switch
-    {"vendor": "juniper", "serial_number": "VN3721AB002", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "PTX1000",          "ned_id": "JunosCLI"},
-    {"vendor": "juniper", "serial_number": "VN3721AB003", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5100-48S",      "ned_id": "JunosCLI"},
-    {"vendor": "juniper", "serial_number": "VN3721AB004", "os": "junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5100-48S",      "ned_id": "JunosCLI"},
-    {"vendor": "cisco",   "serial_number": "FGL2318Y001", "os": "nxos",   "os_version": "10.2.5",    "hardware_model": "Nexus 93180YC-FX", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "juniper", "serial_number": "VN3721AB002", "os": "juniper_junos",  "os_version": "22.4R1.10", "hardware_model": "PTX1000",          "ned_id": "juniper_junosCLI"},
+    {"vendor": "juniper", "serial_number": "VN3721AB003", "os": "juniper_junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5100-48S",      "ned_id": "juniper_junosCLI"},
+    {"vendor": "juniper", "serial_number": "VN3721AB004", "os": "juniper_junos",  "os_version": "22.4R1.10", "hardware_model": "QFX5100-48S",      "ned_id": "juniper_junosCLI"},
+    {"vendor": "cisco",   "serial_number": "FGL2318Y001", "os": "cisco_nxos",   "os_version": "10.2.5",    "hardware_model": "Nexus 93180YC-FX", "ned_id": "CiscoIOSCLIDriver"},
     # STO-OFFICE1 — access layer (standalone)
-    {"vendor": "cisco",   "serial_number": "FCZ2042X004", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
-    {"vendor": "cisco",   "serial_number": "FCZ2042X005", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X004", "os": "cisco_iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X005", "os": "cisco_iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
     # STO-OFFICE1 — access stack members (3 × Cisco 9300-48P StackWise-480)
-    {"vendor": "cisco",   "serial_number": "FCZ2042X006", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
-    {"vendor": "cisco",   "serial_number": "FCZ2042X007", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
-    {"vendor": "cisco",   "serial_number": "FCZ2042X008", "os": "iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X006", "os": "cisco_iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X007", "os": "cisco_iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
+    {"vendor": "cisco",   "serial_number": "FCZ2042X008", "os": "cisco_iosxe",  "os_version": "17.12.3a",  "hardware_model": "Catalyst 9300-48P", "ned_id": "CiscoIOSCLIDriver"},
 ]
 
 # asset_idxs references positions in ASSETS above.
