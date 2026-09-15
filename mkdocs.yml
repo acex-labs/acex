@@ -1,0 +1,68 @@
+site_name: ACE-X
+site_description: Declarative network automation platform — config as code for network devices
+site_url: https://acex-labs.github.io/acex
+repo_name: acex-labs/acex
+repo_url: https://github.com/acex-labs/acex
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+  - Guides:
+    - Config Maps: guides/config-maps.md
+    - Filters: guides/filters.md
+    - Integrations: guides/integrations.md
+  - Components:
+    - CLI: components/cli.md
+    - Agents: components/agents.md
+    - Drivers (NEDs): components/drivers.md
+    - MCP Server: components/mcp.md
+  - AI Ops: examples/ai_ops.md
+  - Contributing: contributing.md
+  - Development: development.md
