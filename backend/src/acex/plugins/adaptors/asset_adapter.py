@@ -1,4 +1,4 @@
-from acex.models import Asset, AssetResponse
+from acex.models import Asset, AssetResponse, AssetUpdate
 
 from .adapter_base import AdapterBase
 
@@ -18,7 +18,7 @@ class AssetAdapter(AdapterBase):
         if hasattr(self.plugin, "query"):
             return self.plugin.query(filters, extra_filters=extra_filters, limit=limit, offset=offset)
 
-    def update(self, id: str, asset: Asset):
+    def update(self, id: str, asset: AssetUpdate):
         if hasattr(self.plugin, "update"):
             return self.plugin.update(id, asset)
 

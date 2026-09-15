@@ -7,6 +7,7 @@ from acex_devkit.models.asset import (
     AssetClusterResponse,
     AssetClusterUpdate,
     AssetResponse,
+    AssetUpdate,
 )
 from acex_devkit.models.asset import (
     AssetClusterBase as AssetClusterSchema,
@@ -51,6 +52,7 @@ __all__ = [
     "AssetClusterBase",
     "AssetCluster",
     "AssetResponse",
+    "AssetUpdate",
     "AssetClusterCreate",
     "AssetClusterUpdate",
     "AssetClusterAssetResponse",
