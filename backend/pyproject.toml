@@ -15,20 +15,20 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.13"
-uvicorn = "^0.38.0"
-fastapi = "^0.121.0"
-sqlmodel = "^0.0.27"
-requests = "^2.32.5"
-python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+uvicorn = ">=0.38.0"
+fastapi = ">=0.121.0"
+sqlmodel = ">=0.0.27"
+requests = ">=2.32.5"
+python-jose = {extras = ["cryptography"], version = ">=3.3.0"}
 psycopg2-binary = ">=2.9.10"
-jinja2 = "^3.1.6"
-openai = "^1.54.0"
-mcp = "^1.20.0"
-fastmcp = "^2.13.0.2"
-ipaddress = "^1.0.23"
-hvac = {version = "^2.3.0", optional = true}
+jinja2 = ">=3.1.6"
+openai = ">=1.54.0"
+mcp = ">=1.20.0"
+fastmcp = ">=2.13.0.2"
+ipaddress = ">=1.0.23"
+hvac = {version = ">=2.3.0", optional = true}
 acex-devkit = { path = "../devkit", develop = true }
-alembic = "^1.19.1"
+alembic = ">=1.19.1"
 
 [tool.poetry.scripts]
 acex-api = "acex_api.server:main"

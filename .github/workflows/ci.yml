@@ -1118,7 +1118,8 @@ jobs:
 
   build-and-push-collection-agent:
     name: Build & Push Collection Agent
-    needs: [check-collection-agent-image, publish-packages, publish-drivers]
+    # Inga drivers bakas in i agent-imagen — de hämtas från backend i runtime.
+    needs: [check-collection-agent-image, publish-packages]
     runs-on: ubuntu-latest
     permissions:
       contents: read

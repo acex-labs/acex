@@ -23,6 +23,7 @@ class CollectionAgent:
         self.collector = Collector(self.client)
         self._last_revision = None
         self._last_collection = 0
+        self._neds_synced = False
 
     def run(self):
         """Entry point — delegates to async loop."""
@@ -31,8 +32,6 @@ class CollectionAgent:
     async def _run(self):
         """Main loop — poll manifest every 60s, collect on interval or revision change."""
         logger.info(f"Collection Agent started (agent_id={self.agent_id}, max_concurrent={self.max_concurrent})")
-
-        await asyncio.to_thread(self._ensure_neds)
 
         while True:
             try:
@@ -54,6 +53,7 @@ class CollectionAgent:
                 if should_collect:
                     if revision_changed:
                         logger.info(f"Config revision changed ({self._last_revision} -> {revision})")
+                    await asyncio.to_thread(self._ensure_neds)
                     await self._collect(manifest)
                     self._last_collection = now
 
@@ -93,10 +93,14 @@ class CollectionAgent:
             logger.warning(f"Failed to ack manifest: {e}")
 
     def _ensure_neds(self):
-        """Sync local NEDs against the API at startup.
+        """Sync local NEDs against the API.
 
-        Installs anything missing or version-mismatched. Runs once per process
-        start — to roll out a driver update, restart the agent.
+        Installs anything missing or version-mismatched. Runs at startup and
+        before every collection cycle, so a NED that is registered or bumped on
+        the backend is picked up without restarting the agent. A driver that was
+        already imported at an older version is the exception — its code is
+        replaced on disk but the running process keeps the module it loaded, so
+        that one is only logged.
         """
         try:
             missing = self.client.neds.get_missing()
@@ -105,15 +109,30 @@ class CollectionAgent:
             return
 
         if not missing:
-            logger.info("All NEDs up to date")
+            if not self._neds_synced:
+                logger.info("All NEDs up to date")
+                self._neds_synced = True
             return
 
         for ned in missing:
+            logger.info(f"Installing NED {ned.name} ({ned.package_name}) v{ned.version}")
             try:
-                logger.info(f"Installing NED {ned.name} ({ned.package_name}) v{ned.version}")
-                self.client.neds.install(ned)
+                usable_now = self.client.neds.install(ned)
             except Exception as e:
                 logger.error(f"Failed to install NED {ned.name}: {e}")
+                continue
+
+            if not usable_now:
+                logger.warning(
+                    f"NED {ned.name} v{ned.version} installed, but {ned.package_name} is already "
+                    "imported in this process — restart the agent to run the new code"
+                )
+            elif self.client.neds.get_driver_instance(ned.name) is None:
+                logger.error(f"NED {ned.name} v{ned.version} installed but its driver class failed to load")
+            else:
+                logger.info(f"NED {ned.name} v{ned.version} installed and loaded")
+
+        self._neds_synced = True
 
     async def _collect(self, manifest: CollectionAgentManifest):
         """Run config collection for all targets."""
