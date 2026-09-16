@@ -23,6 +23,9 @@ netbox = Netbox(
 )
 
 ae = AutomationEngine(
+    # Local example app: serve without authentication. A deployment should
+    # configure OIDC with ae.set_oidc(...) instead of doing this.
+    dev_mode=True,
     db_connection=db
 )
 

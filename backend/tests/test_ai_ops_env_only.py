@@ -24,7 +24,9 @@ ENV_MINIMAL = {
 
 
 def _engine():
-    return AutomationEngine(db_connection=Connection())
+    # dev_mode: these tests exercise AI ops routing, not auth, and an engine
+    # without an OIDC issuer otherwise refuses to answer requests.
+    return AutomationEngine(db_connection=Connection(), dev_mode=True)
 
 
 @pytest.fixture(autouse=True)

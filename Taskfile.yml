@@ -53,6 +53,19 @@ tasks:
     cmds:
       - docker compose ps
 
+  # ── API ───────────────────────────────────────────────────────────────────
+
+  api:
+    desc: Run the API locally in dev mode — no auth, any origin — against the compose database
+    dir: backend
+    cmds:
+      - poetry install
+      - >-
+        DB_HOST=localhost
+        DB_PASSWORD="${DB_PASSWORD:-postgres}"
+        ACEX_ENCRYPTION_KEY="${ACEX_ENCRYPTION_KEY:-L50Zqr1VmsqTpbByFqXHJx1PIrp3ICZRGDf8Bo7pRh4=}"
+        poetry run acex-api --dev {{.CLI_ARGS}}
+
   # ── MCP ───────────────────────────────────────────────────────────────────
 
   mcp:

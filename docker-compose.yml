@@ -92,6 +92,9 @@ services:
       OIDC_ISSUER_URL: http://keycloak:8180/realms/acex
       OIDC_AUDIENCE: acex
       OIDC_VERIFY_SSL: "false"
+      # The frontend is served from another origin and calls this API from the
+      # browser, so it has to be named here. Nothing else is trusted.
+      ACEX_CORS_ALLOWED_ORIGINS: ${ACEX_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       # Trust X-Forwarded-Proto/Host from the TLS-terminating proxy so that
       # redirects (trailing-slash fallbacks etc.) keep the https scheme.
       # Without this, httpx/requests strip Authorization on https->http redirects -> 401.

@@ -22,6 +22,18 @@ _JWKS_RETRY_BACKOFF = 30  # seconds between failed JWKS refresh attempts
 _JWKS_MAX_STALE = 24 * 3600  # refuse to serve cached JWKS older than this
 _VERIFY_SSL = os.getenv("OIDC_VERIFY_SSL", "true").lower() != "false"
 
+#: Serving an API with no OIDC issuer configured means serving it to anyone.
+#: That is only ever acceptable while developing locally, so it has to be asked
+#: for: AutomationEngine(dev_mode=True). Otherwise such a deployment is treated
+#: as misconfigured and refuses to answer rather than answering unauthenticated.
+_DEV_MODE = False
+
+
+def set_dev_mode(enabled: bool) -> None:
+    """Allow serving without authentication (called from AutomationEngine.create_app)."""
+    global _DEV_MODE
+    _DEV_MODE = enabled
+
 
 def configure(issuer_url: str, audience: str = "acex", jwks_ttl: int = 3600, verify_ssl: bool = True) -> None:
     """Override OIDC settings at runtime (called from AutomationEngine.create_app)."""
@@ -155,11 +167,22 @@ def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),  # noqa: B008
 ) -> dict:
-    if OIDC_ISSUER_URL is None:
-        return {}
-
+    # Public by design: the frontend reads this before it has a token, and the
+    # container healthcheck polls it. Kept reachable however auth is configured.
     if request.url.path in _PUBLIC_PATHS:
         return {}
+
+    if OIDC_ISSUER_URL is None:
+        if _DEV_MODE:
+            return {}
+        logger.error(
+            f"Refusing ({request.method} {request.url.path}): no OIDC issuer is configured, so no "
+            "request can be authenticated. Configure OIDC, or pass dev_mode=True to run open."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication is not configured on this deployment",
+        )
 
     if credentials is None:
         logger.warning(

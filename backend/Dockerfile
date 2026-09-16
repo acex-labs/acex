@@ -17,4 +17,4 @@ RUN sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_cli/pyproje
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/backend/pyproject.toml && \
     pip install --no-cache-dir /deps/devkit /deps/client /deps/cisco_ios_cli /deps/backend[vault]
 
-CMD ["python", "-m", "acex"]
+CMD ["python", "-m", "acex_api"]

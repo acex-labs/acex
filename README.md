@@ -387,6 +387,7 @@ from acex.plugins.integrations.netbox import Netbox
 db = Connection(dbname="acex", user="postgres", host="localhost", backend="postgresql")
 
 ae = AutomationEngine(db_connection=db)
+ae.set_oidc("https://keycloak.example.net/realms/acex", audience="acex")
 ae.add_integration("ipam", Netbox(url="https://netbox.example.net/", token=NETBOX_TOKEN))
 ae.add_configmap_dir("config_maps")
 ae.add_cors_allowed_origin("https://acex.example.net")
@@ -395,10 +396,20 @@ app = ae.create_app()
 ```
 
 ```bash
-python -m acex
+acex-api          # or: python -m acex_api
 ```
 
-Migrations run on startup. See [`docs/examples/example1/`](docs/examples/example1/) for a complete application, and [`DEVELOPMENT.md`](DEVELOPMENT.md) for working on the packages themselves.
+Migrations run on startup. The service refuses to start unauthenticated or with
+a wildcard CORS origin — set `OIDC_ISSUER_URL`, and name any cross-origin caller
+in `ACEX_CORS_ALLOWED_ORIGINS` (comma-separated; empty means same-origin only).
+
+For local work, `task api` runs it against the compose database in dev mode:
+
+```bash
+acex-api --dev    # no auth, answers any origin, reloads on change
+```
+
+See [`docs/examples/example1/`](docs/examples/example1/) for a complete application, and [`DEVELOPMENT.md`](DEVELOPMENT.md) for working on the packages themselves.
 
 ---
 
