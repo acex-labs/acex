@@ -13,11 +13,12 @@ class NodeAdapter(AdapterBase):
         if hasattr(self.plugin, "get"):
             return self.plugin.get(id)
 
-    def query(self, filters: dict = None, limit: int = 100, offset: int = 0) -> list[Node]:
+    def query(self, filters: dict = None, extra_filters: list = None, limit: int = 100, offset: int = 0) -> list[Node]:
         if hasattr(self.plugin, "query"):
             return self.plugin.query(
                 filters,
                 options=[joinedload(Node.logical_node)],
+                extra_filters=extra_filters,
                 limit=limit,
                 offset=offset,
             )
