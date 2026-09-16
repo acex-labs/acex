@@ -1162,7 +1162,7 @@ and <strong>per-task failover chains</strong> (ordered lists of <code>provider/m
 </code></pre></div>
 <p><code>create_app()</code> enables AI Ops automatically whenever <code>ACEX_AI_PROVIDERS</code> is set
 (non-empty) — no <code>ae.ai_ops()</code> call needed in app.py:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">app</span> <span class="o">=</span> <span class="n">AutomationEngine</span><span class="p">(</span><span class="n">db_connection</span><span class="o">=</span><span class="n">Connection</span><span class="p">())</span><span class="o">.</span><span class="n">create_app</span><span class="p">()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">app</span> <span class="o">=</span> <span class="n">AutomationEngine</span><span class="p">(</span><span class="n">db_connection</span><span class="o">=</span><span class="n">Connection</span><span class="p">(),</span> <span class="n">dev_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">create_app</span><span class="p">()</span>
 </code></pre></div>
 <ul>
 <li>Partial misconfiguration (providers set but no chain) fails at startup with an
