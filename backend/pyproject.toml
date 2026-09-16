@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex"
-version = "6.15.0"
+version = "6.16.0"
 description = "ACE-X Backend - Core automation engine and API"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -9,7 +9,8 @@ homepage = "https://github.com/acex-labs/acex"
 repository = "https://github.com/acex-labs/acex"
 keywords = ["automation", "control", "api"]
 packages = [
-    { include = "acex", from = "src" }
+    { include = "acex", from = "src" },
+    { include = "acex_api", from = "src" }
 ]
 
 [tool.poetry.dependencies]
@@ -28,6 +29,9 @@ ipaddress = "^1.0.23"
 hvac = {version = "^2.3.0", optional = true}
 acex-devkit = { path = "../devkit", develop = true }
 alembic = "^1.19.1"
+
+[tool.poetry.scripts]
+acex-api = "acex_api.server:main"
 
 [tool.poetry.extras]
 vault = ["hvac"]

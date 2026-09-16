@@ -15,7 +15,15 @@ class AutomationEngine:
         logical_nodes_plugin: "IntegrationPluginBase|None" = None,
         sites_plugin: "IntegrationPluginBase|None" = None,
         contacts_plugin: "IntegrationPluginBase|None" = None,
+        dev_mode: bool = False,
     ):
+        """Build the engine.
+
+        `dev_mode` relaxes protections that only make sense to drop while
+        developing locally — most importantly it lets the API serve requests
+        with no authentication configured, which is otherwise refused. Never
+        enable it for a deployment anyone else can reach.
+        """
         # Lazy imports - only load when AutomationEngine is instantiated
         from acex.api.api import Api
         from acex.automation_engine.integrations import Integrations
@@ -33,6 +41,7 @@ class AutomationEngine:
         self.db = DatabaseManager(db_connection)
         self.config_compiler = ConfigCompiler(self.db)
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
+        self.dev_mode = dev_mode
         self.cors_settings_default = True
         self.cors_allowed_origins = []
         self.oidc_issuer_url: str | None = None

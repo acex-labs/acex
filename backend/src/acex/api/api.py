@@ -12,6 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 class Api:
     def create_app(self, automation_engine):
 
+        # Set before anything can serve a request: without it an engine with no
+        # OIDC issuer refuses requests rather than answering them unauthenticated.
+        _auth.set_dev_mode(automation_engine.dev_mode)
+
         if automation_engine.oidc_issuer_url is not None:
             _auth.configure(
                 automation_engine.oidc_issuer_url,
@@ -22,6 +26,11 @@ class Api:
 
         @asynccontextmanager
         async def lifespan(app):
+            if not _auth.OIDC_ISSUER_URL:
+                if automation_engine.dev_mode:
+                    print("AUTH: dev mode — no OIDC issuer configured, every endpoint is open")
+                else:
+                    print("AUTH: no OIDC issuer configured — requests will be refused with 503")
             if _auth.OIDC_ISSUER_URL:
                 try:
                     keys = _auth._get_jwks().get("keys", [])

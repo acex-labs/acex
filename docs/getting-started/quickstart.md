@@ -36,7 +36,9 @@ lo.filters = FilterAttribute("role").eq("core")
 ```python
 from acex import AutomationEngine
 
-ae = AutomationEngine()
+# dev_mode serves without authentication, for local work only. A deployment
+# configures an OIDC issuer with ae.set_oidc(...) instead.
+ae = AutomationEngine(dev_mode=True)
 ae.add_configmap_dir("./config_maps")
 app = ae.create_app()
 ```

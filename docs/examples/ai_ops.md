@@ -63,7 +63,7 @@ ACEX_AI_MCP_SERVER_URL=http://localhost:8000/mcp
 (non-empty) — no `ae.ai_ops()` call needed in app.py:
 
 ```python
-app = AutomationEngine(db_connection=Connection()).create_app()
+app = AutomationEngine(db_connection=Connection(), dev_mode=True).create_app()
 ```
 
 - Partial misconfiguration (providers set but no chain) fails at startup with an
