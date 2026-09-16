@@ -7,16 +7,18 @@ RUN pip install poetry && poetry config virtualenvs.create false
 # Copy local dependencies
 COPY client/ /deps/client/
 COPY devkit/ /deps/devkit/
-COPY drivers/cisco_ios_cli/ /deps/cisco_ios_cli/
 
 # Copy agent
 COPY agents/collection-agent/ /app/
 
-# Adjust paths for container context, fix ned path dep, install everything
+# NEDs are deliberately not baked in: the drivers live in the backend image, and
+# the agent downloads the wheels it needs from the API and pip-installs them at
+# runtime (CollectionAgent._ensure_neds). The container therefore needs to reach
+# a package index for the drivers' own dependencies.
+
+# Adjust paths for container context and install everything
 RUN sed -i 's|../../client|/deps/client|' pyproject.toml && \
-    sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_cli/pyproject.toml && \
     pip install /deps/devkit && \
-    pip install /deps/cisco_ios_cli && \
     poetry install --no-interaction
 
 ENTRYPOINT ["acex-collection-agent"]

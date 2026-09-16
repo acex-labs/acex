@@ -30,7 +30,10 @@ The collection agent:
 - Fetches a manifest from the backend listing which nodes to collect
 - Re-triggers a collection cycle when `config_revision` changes (new nodes added, parameters changed)
 - Uses up to 20 concurrent SSH connections
-- Downloads and installs missing NED drivers at startup via pip
+- Downloads and installs missing NED drivers from the backend via pip before every collection
+  cycle — no driver is baked into the agent image, so a NED added or upgraded on the backend is
+  picked up without rebuilding or restarting the agent (an upgrade of a driver the process has
+  already imported is the exception and is logged as needing a restart)
 - Parses the raw config through the NED driver's parser before uploading — the backend stores the structured `ComposedConfiguration`, not raw text
 
 ### Configuration
