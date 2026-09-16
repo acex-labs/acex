@@ -149,9 +149,7 @@ class NodeService:
         extra_filters = None
         if ip:
             extra_filters = [
-                Node.id.in_(
-                    select(ManagementConnection.node_id).where(ManagementConnection.target_ip.ilike(f"%{ip}%"))
-                )
+                Node.id.in_(select(ManagementConnection.node_id).where(ManagementConnection.target_ip.ilike(f"%{ip}%")))
             ]
 
         result = await self._call_method(
