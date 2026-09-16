@@ -1,10 +1,11 @@
 import inspect
 from datetime import datetime
 
-from acex.models import Node, NodeListResponse, NodeResponse, PaginatedResponse
+from acex.models import ManagementConnection, Node, NodeListResponse, NodeResponse, PaginatedResponse
 from acex.models.node import NodeStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from fastapi import HTTPException
+from sqlalchemy import select
 
 
 class NodeService:
@@ -102,6 +103,7 @@ class NodeService:
         site: str = None,
         region: str = None,
         hostname: str = None,
+        ip: str = None,
         logical_node_id: int = None,
         asset_ref_id: int = None,
         vendor: str = None,
@@ -144,7 +146,15 @@ class NodeService:
         elif site is not None:
             query_filters["logical_node.site"] = site
 
-        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
+        extra_filters = None
+        if ip:
+            extra_filters = [
+                Node.id.in_(select(ManagementConnection.node_id).where(ManagementConnection.target_ip.ilike(f"%{ip}%")))
+            ]
+
+        result = await self._call_method(
+            self.adapter.query, filters=query_filters, extra_filters=extra_filters, limit=limit, offset=offset
+        )
 
         # Bulk-fetch unique assets and clusters to avoid N+1
         asset_ids = {n.asset_ref_id for n in result["items"] if getattr(n, "asset_ref_type", "asset") == "asset"}

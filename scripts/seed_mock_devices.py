@@ -169,7 +169,7 @@ def main():
 
         # Telemetry agent membership
         telem_fresh = client.observability.agents.get(id=telem_agent.id)
-        if node.id not in telem_fresh.nodes:
+        if node.id not in telem_fresh.model.nodes:
             client.observability.agents.add_node(id=telem_agent.id, node_id=node.id)
             print(f"  +  linked to telemetry agent")
         else:
