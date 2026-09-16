@@ -1,0 +1,33 @@
+#!/bin/bash
+# switch_deps.sh for mcp
+# Usage:
+#   ./switch_deps.sh dev   # för lokal utveckling
+#   ./switch_deps.sh prod  # för publicering
+
+set -e
+
+
+
+PYPROJECT="$(dirname "$0")/pyproject.toml"
+
+# Välj rätt sed-flagga för macOS (BSD) eller Linux (GNU)
+if sed --version >/dev/null 2>&1; then
+    SED_INPLACE=(-i)
+else
+    SED_INPLACE=(-i '')
+fi
+
+if [[ "$1" == "dev" ]]; then
+    echo "Byter till path-beroenden (lokal utveckling)"
+    sed "${SED_INPLACE[@]}" 's|acex-client = ".*"|acex-client = { path = "../client", develop = true }|' "$PYPROJECT"
+elif [[ "$1" == "prod" ]]; then
+    echo "Byter till versionsberoenden (för publicering)"
+
+    # Läs major-version från varje beroendets egen pyproject.toml
+    CLIENT_MAJOR=$(grep '^version =' "$(dirname "$0")/../client/pyproject.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/' | cut -d. -f1)
+
+    sed "${SED_INPLACE[@]}" 's|acex-client = { path = "../client", develop = true }|acex-client = "^'$CLIENT_MAJOR'"|' "$PYPROJECT"
+else
+    echo "Använd: $0 dev|prod"
+    exit 1
+fi
