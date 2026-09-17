@@ -19,7 +19,6 @@ ENV_MINIMAL = {
     "ACEX_AI_CHAIN_DEFAULT": "groq/Kimi-K3, local/qwen3:32b",
     "ACEX_AI_CHAIN_ANALYSIS": "groq/deepseek-r1",
     "ACEX_AI_MCP_SERVER_URL": "http://localhost:8000/mcp",
-    "ACEX_ENCRYPTION_KEY": Fernet.generate_key().decode(),
 }
 
 
@@ -34,7 +33,7 @@ def _isolated_env(tmp_path, monkeypatch):
     """Fresh env + writable cwd (sqlite db is created in cwd)."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("ACEX_ENCRYPTION_KEY", Fernet.generate_key().decode())
-    for key in os.environ:
+    for key in list(os.environ):
         if key.startswith("ACEX_AI_"):
             monkeypatch.delenv(key)
     yield
