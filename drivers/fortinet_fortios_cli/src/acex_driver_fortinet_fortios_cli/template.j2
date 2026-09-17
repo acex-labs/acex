@@ -1,0 +1,146 @@
+{%- set sys = configuration.system.config if configuration.system else None %}
+{%- if sys %}
+config system global
+{%-   if sys.hostname %}
+    set hostname {{ sys.hostname.value }}
+{%-   endif %}
+{%-   if sys.domain_name %}
+    set domain {{ sys.domain_name.value }}
+{%-   endif %}
+{%-   if sys.location %}
+    set location "{{ sys.location.value }}"
+{%-   endif %}
+end
+{%- endif %}
+
+{%- if configuration.system.dns and configuration.system.dns.dns_servers %}
+{%-   set dns_servers = configuration.system.dns.dns_servers.values() | list %}
+config system dns
+{%-   if dns_servers | length > 0 and dns_servers[0].address %}
+    set primary {{ dns_servers[0].address.value }}
+{%-   endif %}
+{%-   if dns_servers | length > 1 and dns_servers[1].address %}
+    set secondary {{ dns_servers[1].address.value }}
+{%-   endif %}
+end
+{%- endif %}
+
+{%- if configuration.system.ntp and configuration.system.ntp.servers %}
+config system ntp
+    set ntpsync enable
+    set type custom
+    config ntpserver
+{%-   set ns = namespace(idx=1) %}
+{%-   for _, ntp in configuration.system.ntp.servers.items() %}
+        edit {{ ns.idx }}
+            set server {{ ntp.address.value }}
+{%-     if ntp.prefer and ntp.prefer.value %}
+            set ntpv3 enable
+{%-     endif %}
+        next
+{%-     set ns.idx = ns.idx + 1 %}
+{%-   endfor %}
+    end
+end
+{%- endif %}
+
+{%- set ssh = configuration.system.ssh.config if configuration.system.ssh else None %}
+{%- if ssh and ssh.enable and ssh.enable.value %}
+config system global
+    set admin-ssh-port 22
+end
+{%- endif %}
+
+{%- if configuration.interfaces %}
+config system interface
+{%-   for _, intf in configuration.interfaces.items() %}
+{%-     if intf.type == "managementInterface" %}
+    edit "mgmt"
+{%-       if intf.description %}
+        set description "{{ intf.description.value }}"
+{%-       endif %}
+{%-       if intf.ipv4 %}
+        set ip {{ intf.ipv4.value | ipmask }}
+{%-       endif %}
+        set allowaccess ping ssh https
+        set type physical
+        set role wan
+    next
+{%-     elif intf.type == "ethernetCsmacd" %}
+    edit "{{ intf.name.value }}"
+{%-       if intf.description %}
+        set description "{{ intf.description.value }}"
+{%-       endif %}
+{%-       if intf.mtu %}
+        set mtu-override enable
+        set mtu {{ intf.mtu.value }}
+{%-       endif %}
+{%-       if intf.ipv4 %}
+        set ip {{ intf.ipv4.value | ipmask }}
+        set allowaccess ping
+{%-       endif %}
+{%-       if intf.enabled is defined and not intf.enabled.value %}
+        set status down
+{%-       endif %}
+    next
+{%-     elif intf.type == "l3ipvlan" %}
+    edit "{{ intf.name.value }}"
+        set type vlan
+{%-       if intf.vlan_id %}
+        set vlanid {{ intf.vlan_id.value }}
+{%-       endif %}
+        set interface "{{ intf.parent_interface.value if intf.parent_interface else 'port1' }}"
+{%-       if intf.description %}
+        set description "{{ intf.description.value }}"
+{%-       endif %}
+{%-       if intf.ipv4 %}
+        set ip {{ intf.ipv4.value | ipmask }}
+        set allowaccess ping
+{%-       endif %}
+    next
+{%-     elif intf.type == "softwareLoopback" %}
+    edit "{{ intf.name.value }}"
+        set type loopback
+{%-       if intf.description %}
+        set description "{{ intf.description.value }}"
+{%-       endif %}
+{%-       if intf.ipv4 %}
+        set ip {{ intf.ipv4.value | ipmask }}
+{%-       endif %}
+    next
+{%-     endif %}
+{%-   endfor %}
+end
+{%- endif %}
+
+{%- set ns = namespace(route_idx=1) %}
+{%- for ni_name, ni in configuration.network_instances.items() %}
+{%-   if ni.protocols and ni.protocols.static_routes %}
+config router static
+{%-     for _, route in ni.protocols.static_routes.items() %}
+{%-       if route.next_hops %}
+{%-         for _, hop in route.next_hops.items() %}
+    edit {{ ns.route_idx }}
+        set dst {{ route.prefix.value }}
+        set gateway {{ hop.next_hop.value }}
+    next
+{%-           set ns.route_idx = ns.route_idx + 1 %}
+{%-         endfor %}
+{%-       endif %}
+{%-     endfor %}
+end
+{%-   endif %}
+{%- endfor %}
+
+{%- if configuration.system.snmp and configuration.system.snmp.communities %}
+config system snmp community
+{%-   set ns = namespace(snmp_idx=1) %}
+{%-   for name, com in configuration.system.snmp.communities.items() %}
+    edit {{ ns.snmp_idx }}
+        set name "{{ name }}"
+        set status enable
+    next
+{%-     set ns.snmp_idx = ns.snmp_idx + 1 %}
+{%-   endfor %}
+end
+{%- endif %}

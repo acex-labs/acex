@@ -318,6 +318,7 @@ class L3IpvlanInterface(Interface):
 
     type: Literal["l3ipvlan"] = "l3ipvlan"
     vlan_id: AttributeValue[int] | None = None
+    parent_interface: AttributeValue[str] | None = None
 
 
 class SoftwareLoopbackInterface(Interface):
