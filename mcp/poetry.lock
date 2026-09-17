@@ -12,8 +12,8 @@ develop = true
 
 [package.dependencies]
 acex-devkit = {path = "../devkit", develop = true}
-httpx = ">=0.27.0"
-pydantic = ">=2.12.5"
+httpx = ">=0.27.0,<1.0.0"
+pydantic = "^2.12.5"
 
 [package.source]
 type = "directory"
@@ -21,7 +21,7 @@ url = "../client"
 
 [[package]]
 name = "acex-devkit"
-version = "2.6.0"
+version = "2.4.1"
 description = "ACE-X DevKit - Development kit for building ACE-X drivers and plugins"
 optional = false
 python-versions = "^3.13"
@@ -30,11 +30,11 @@ files = []
 develop = true
 
 [package.dependencies]
-deepdiff = ">=8.6.1"
-ipaddress = ">=1.0.23"
-pydantic = ">=2.12.5"
-sqlmodel = ">=0.0.27"
-typing-extensions = ">=4.0.0"
+deepdiff = "^8.6.1"
+ipaddress = "^1.0.23"
+pydantic = "^2.12.5"
+sqlmodel = "^0.0.27"
+typing-extensions = "^4.0.0"
 
 [package.source]
 type = "directory"
@@ -2204,4 +2204,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "228636b692b8d8898379b277de78167612ffd22fe720846fceeb93a54267b438"
+content-hash = "ce7a5cc81b4ad861c49c848db15299f99bf8e939af2df016ae601fe730e4f4c8"

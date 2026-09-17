@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-devkit"
-version = "2.6.0"
+version = "2.5.0"
 description = "ACE-X DevKit - Development kit for building ACE-X drivers and plugins"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -14,11 +14,11 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.13"
-pydantic = ">=2.12.5"
-typing-extensions = ">=4.0.0"
-deepdiff = ">=8.6.1"
-ipaddress = ">=1.0.23"
-sqlmodel = ">=0.0.27"
+pydantic = "^2.12.5"
+typing-extensions = "^4.0.0"
+deepdiff = "^8.6.1"
+ipaddress = "^1.0.23"
+sqlmodel = "^0.0.27"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

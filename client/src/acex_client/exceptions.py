@@ -43,10 +43,6 @@ class AcexConnectionError(AcexError):
     """Failed to connect to the backend."""
 
 
-class AcexNedInstallError(AcexError):
-    """A NED wheel could not be installed into the running environment."""
-
-
 __all__ = [
     "AcexError",
     "AcexHTTPError",
@@ -57,5 +53,4 @@ __all__ = [
     "AcexServerError",
     "AcexTimeoutError",
     "AcexConnectionError",
-    "AcexNedInstallError",
 ]
