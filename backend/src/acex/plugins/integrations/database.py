@@ -64,7 +64,7 @@ class DatabasePlugin(IntegrationPluginBase):
                         if isinstance(value, list):
                             query = query.filter(col.in_(value))
                         elif isinstance(value, str):
-                            query = query.filter(col.ilike(f"{value}%"))
+                            query = query.filter(col.ilike(f"%{value}%"))
                         else:
                             query = query.filter(col == value)
                     else:
@@ -72,7 +72,7 @@ class DatabasePlugin(IntegrationPluginBase):
                         if isinstance(value, list):
                             query = query.filter(col.in_(value))
                         elif isinstance(value, str):
-                            query = query.filter(col.ilike(f"{value}%"))
+                            query = query.filter(col.ilike(f"%{value}%"))
                         else:
                             query = query.filter(col == value)
             if extra_filters:
