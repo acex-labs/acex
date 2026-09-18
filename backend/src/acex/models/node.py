@@ -13,6 +13,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from acex.models.logical_node import LogicalNode
+    from acex.models.management_connections import ManagementConnection 
 
 
 class NodeBase(SQLModel):
@@ -27,6 +28,9 @@ class Node(NodeBase, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
     updated_at: datetime | None = Field(default=None)
     logical_node: Optional["LogicalNode"] = Relationship(sa_relationship_kwargs={"lazy": "noload"})
+    management_connections: list["ManagementConnection"] = Relationship(
+        sa_relationship_kwargs={"lazy": "noload"}
+    )
 
 
 __all__ = [

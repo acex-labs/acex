@@ -1,5 +1,5 @@
 from acex.models import Node, NodeResponse
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from .adapter_base import AdapterBase
 
@@ -17,7 +17,7 @@ class NodeAdapter(AdapterBase):
         if hasattr(self.plugin, "query"):
             return self.plugin.query(
                 filters,
-                options=[joinedload(Node.logical_node)],
+                options=[joinedload(Node.logical_node), selectinload(Node.management_connections)],
                 extra_filters=extra_filters,
                 limit=limit,
                 offset=offset,

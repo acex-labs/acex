@@ -103,7 +103,7 @@ class NodeService:
         site: str = None,
         region: str = None,
         hostname: str = None,
-        ip: str = None,
+        management_connection_ip: str = None,
         logical_node_id: int = None,
         asset_ref_id: int = None,
         vendor: str = None,
@@ -147,9 +147,9 @@ class NodeService:
             query_filters["logical_node.site"] = site
 
         extra_filters = None
-        if ip:
+        if management_connection_ip:
             extra_filters = [
-                Node.id.in_(select(ManagementConnection.node_id).where(ManagementConnection.target_ip.ilike(f"%{ip}%")))
+                Node.id.in_(select(ManagementConnection.node_id).where(ManagementConnection.target_ip.ilike(f"%{management_connection_ip}%")))
             ]
 
         result = await self._call_method(
@@ -184,6 +184,8 @@ class NodeService:
                 vendor = asset.vendor if asset else None
                 os_val = asset.os if asset else None
                 ned_id = asset.ned_id if asset else None
+            conns = node.management_connections or []
+            primary = next((c for c in conns if c.primary), conns[0] if conns else None)
             items.append(
                 NodeListResponse(
                     **node.model_dump(),
@@ -193,6 +195,7 @@ class NodeService:
                     vendor=vendor,
                     os=os_val,
                     ned_id=ned_id,
+                    management_connection_ip=primary.target_ip if primary else None,
                 )
             )
 
