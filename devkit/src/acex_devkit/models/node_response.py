@@ -39,6 +39,7 @@ class NodeListItem(PersistedResponse, NodeBase):
     vendor: str | None = None
     os: str | None = None
     ned_id: str | None = None
+    management_connection_ip: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
