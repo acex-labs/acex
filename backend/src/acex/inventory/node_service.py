@@ -1,7 +1,14 @@
 import inspect
 from datetime import datetime
 
-from acex.models import ManagementConnection, Node, NodeListResponse, NodeResponse, PaginatedResponse
+from acex.models import (
+    ManagementConnection,
+    ManagementConnectionResponse,
+    Node,
+    NodeListResponse,
+    NodeResponse,
+    PaginatedResponse,
+)
 from acex.models.node import NodeStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from fastapi import HTTPException
@@ -184,8 +191,7 @@ class NodeService:
                 vendor = asset.vendor if asset else None
                 os_val = asset.os if asset else None
                 ned_id = asset.ned_id if asset else None
-            conns = node.management_connections or []
-            primary = next((c for c in conns if c.primary), conns[0] if conns else None)
+            conns = sorted(node.management_connections or [], key=lambda c: (not c.primary, c.id))
             items.append(
                 NodeListResponse(
                     **node.model_dump(),
@@ -195,7 +201,7 @@ class NodeService:
                     vendor=vendor,
                     os=os_val,
                     ned_id=ned_id,
-                    management_connection_ip=primary.target_ip if primary else None,
+                    management_connections=[ManagementConnectionResponse(**c.dict()) for c in conns]
                 )
             )
 
