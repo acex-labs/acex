@@ -158,7 +158,7 @@ class NodeService:
             extra_filters = [
                 Node.id.in_(
                     select(ManagementConnection.node_id).where(
-                        ManagementConnection.target_ip.ilike(f"%{management_connection_ip}%")
+                        ManagementConnection.target_ip.ilike(f"{management_connection_ip}%")
                     )
                 )
             ]
@@ -205,7 +205,7 @@ class NodeService:
                     vendor=vendor,
                     os=os_val,
                     ned_id=ned_id,
-                    management_connections=[ManagementConnectionResponse(**c.dict()) for c in conns],
+                    management_connections=[ManagementConnectionResponse(**c.model_dump()) for c in conns],
                 )
             )
 
