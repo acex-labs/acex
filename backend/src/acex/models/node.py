@@ -13,7 +13,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from acex.models.logical_node import LogicalNode
-    from acex.models.management_connections import ManagementConnection 
+    from acex.models.management_connections import ManagementConnection
 
 
 class NodeBase(SQLModel):
