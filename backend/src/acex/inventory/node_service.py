@@ -156,7 +156,11 @@ class NodeService:
         extra_filters = None
         if management_connection_ip:
             extra_filters = [
-                Node.id.in_(select(ManagementConnection.node_id).where(ManagementConnection.target_ip.ilike(f"%{management_connection_ip}%")))
+                Node.id.in_(
+                    select(ManagementConnection.node_id).where(
+                        ManagementConnection.target_ip.ilike(f"%{management_connection_ip}%")
+                    )
+                )
             ]
 
         result = await self._call_method(
@@ -201,7 +205,7 @@ class NodeService:
                     vendor=vendor,
                     os=os_val,
                     ned_id=ned_id,
-                    management_connections=[ManagementConnectionResponse(**c.dict()) for c in conns]
+                    management_connections=[ManagementConnectionResponse(**c.dict()) for c in conns],
                 )
             )
 
