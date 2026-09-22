@@ -125,7 +125,7 @@ def main():
         asset = get_or_create(
             client.inventory.assets,
             "serial_number", spec["serial_number"],
-            {"vendor": "cisco", "serial_number": spec["serial_number"], "os": "iosxe",
+            {"vendor": "cisco", "serial_number": spec["serial_number"], "os": "cisco_iosxe",
              "os_version": "17.9.4a", "hardware_model": spec["model"], "ned_id": "CiscoIOSCLIDriver"},
         )
         ln = get_or_create(

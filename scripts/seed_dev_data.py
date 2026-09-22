@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 
 from acex_client import Acex
-from acex_client.auth import NullAuthProvider
+from acex_client.auth import ClientCredentialsAuth, NullAuthProvider
 from acex_devkit.models.config_snapshot import DeviceConfigUpload
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry, LldpNeighborUpload
 
@@ -210,7 +210,20 @@ def main():
 
     print(f"\nSeeding {args.base_url}\n")
 
-    client = Acex(base_url=args.base_url, auth=NullAuthProvider(), verify=False)
+    issuer = os.environ.get("ACEX_ISSUER_URL")
+    client_id = os.environ.get("ACEX_CLIENT_ID")
+    client_secret = os.environ.get("ACEX_CLIENT_SECRET")
+    if issuer and client_id and client_secret:
+        auth = ClientCredentialsAuth(
+            client_id=client_id,
+            client_secret=client_secret,
+            issuer_url=issuer,
+            verify_ssl=False,
+        )
+    else:
+        auth = NullAuthProvider()
+
+    client = Acex(base_url=args.base_url, auth=auth, verify=False)
 
     print("=== Regions ===")
     for r in REGIONS:

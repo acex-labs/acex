@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from acex.models.lldp_neighbor import (
     LldpNeighbor,
@@ -88,7 +88,7 @@ class LldpNeighborManager:
             # Delete old entries for this node, insert fresh set
             session.query(LldpNeighbor).filter(LldpNeighbor.node_instance_id == payload.node_instance_id).delete()
 
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             for entry in payload.neighbors:
                 remote_node_id = self._resolve_remote_node(session, entry.remote_device)
                 neighbor = LldpNeighbor(

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Optional
 
 from acex_devkit.models.node_response import (
@@ -25,7 +25,7 @@ class NodeBase(SQLModel):
 
 class Node(NodeBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     updated_at: datetime | None = Field(default=None)
     logical_node: Optional["LogicalNode"] = Relationship(sa_relationship_kwargs={"lazy": "noload"})
     management_connections: list["ManagementConnection"] = Relationship(sa_relationship_kwargs={"lazy": "noload"})
