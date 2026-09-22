@@ -115,6 +115,7 @@ class NodeService:
         asset_ref_id: int = None,
         vendor: str = None,
         os: str = None,
+        role: str = None,
         status: NodeStatus | None = None,
         limit: int = 100,
         offset: int = 0,
@@ -124,6 +125,7 @@ class NodeService:
             k: v
             for k, v in {
                 "logical_node.hostname": hostname,
+                "logical_node.role": role,
                 "logical_node_id": logical_node_id,
                 "asset_ref_id": asset_ref_id,
                 "status": status,
