@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from acex_devkit.models.lldp_neighbor import (
     LldpNeighborBase as LldpNeighborSchema,
@@ -32,7 +32,7 @@ class LldpNeighbor(LldpNeighborSchema, SQLModel, table=True):
         ),
     )
     hash: str = Field(index=True)
-    collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
+    collected_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
 
 
 __all__ = [
