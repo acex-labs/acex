@@ -43,7 +43,7 @@ class RegionAssignmentManager:
         try:
             query = session.query(SiteRegionAssignment)
             if region_name:
-                query = query.filter(SiteRegionAssignment.region_name == region_name)
+                query = query.filter(SiteRegionAssignment.region_name.ilike(f"%{region_name}%"))
             if site_name:
                 query = query.filter(SiteRegionAssignment.site_name == site_name)
             if site_names:

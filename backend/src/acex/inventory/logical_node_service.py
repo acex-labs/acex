@@ -90,7 +90,7 @@ class LogicalNodeService:
                 site_names = [
                     row[0]
                     for row in session.query(SiteRegionAssignment.site_name)
-                    .filter(SiteRegionAssignment.region_name == region)
+                    .filter(SiteRegionAssignment.region_name.ilike(f"%{region}%"))
                     .all()
                 ]
             finally:
