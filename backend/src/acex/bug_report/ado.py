@@ -135,15 +135,17 @@ async def _attach_screenshots(
                 upload.raise_for_status()
                 attachment_url = upload.json().get("url")
                 if attachment_url:
-                    relations.append({
-                        "op": "add",
-                        "path": "/relations/-",
-                        "value": {
-                            "rel": "AttachedFile",
-                            "url": attachment_url,
-                            "attributes": {"comment": f"Screenshot {i + 1}"},
-                        },
-                    })
+                    relations.append(
+                        {
+                            "op": "add",
+                            "path": "/relations/-",
+                            "value": {
+                                "rel": "AttachedFile",
+                                "url": attachment_url,
+                                "attributes": {"comment": f"Screenshot {i + 1}"},
+                            },
+                        }
+                    )
             except Exception:
                 logger.warning("Failed to upload ADO screenshot %d", i + 1, exc_info=True)
 
