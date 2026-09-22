@@ -15,7 +15,7 @@ The result is a system where infrastructure changes go through review and land i
 
 ACE is an architecture for administering and automating networks. It describes how to organise the problem — not how to write the code. ACE-X is one implementation of it; the sections after this one describe how ACE-X in particular does the job.
 
-The architecture rests on seven ideas.
+The architecture rests on seven ideas. Each answers a problem that network administration runs into by itself, and no single one of them is the point — they compound. Separating hardware from the logical network is what lets a design exist before the equipment does. The neutral model is what makes drift measurable at all. Deriving state rather than storing it is what keeps monitoring from falling behind the network. Splitting configuration into two planes is what makes a deferred change tolerable to live with. Each is useful alone; together they remove the trade-offs that otherwise force a choice between control and lead time.
 
 ### 1. The logical network is separate from the hardware that runs it
 
@@ -76,11 +76,15 @@ Desired state is not a document that is edited and saved. It is **derived on dem
 
 The consequence is that desired state cannot go stale and cannot drift from the declaration that produced it. There is no saved artefact to forget to regenerate, and no second copy to reconcile.
 
-The same rule applies to measurement. **What to measure is also declared state**, derived from the network's inventory and its configuration rather than configured per device. If a node exists and its configuration says it does something worth watching, the measurement for it follows — and stops following when it does not. Monitoring cannot fall behind the network, because it is not maintained separately from it.
+The same rule governs observation. Monitoring is conventionally a second system with a second inventory, kept in step with the first by hand: a device is added to the network and someone remembers, or forgets, to add it to the NMS; it is decommissioned and its alerts outlive it; an interface changes role and nothing tells the graphing system. The two truths diverge in the ordinary course of work, and the divergence is invisible until the moment it matters.
+
+So **what to measure is declared state too**, derived from the network's inventory and its configuration rather than configured per device. If a node exists and its configuration says it does something worth watching, the measurement for it follows — and stops following when the configuration stops saying so.
+
+Crucially, this happens at the granularity the declaration itself has. Inventory decides *which* nodes are watched; the configuration decides *what* on each of them, one measurement per declared thing. A node with four BGP peers does not produce one BGP check — it produces four peer sessions to watch, because four peers were declared. Add a fifth to the declaration and it is watched from the next derivation; remove one and it stops being watched. Nobody edits a monitoring system in either direction, and there is no monitoring inventory to keep in step, because there is no second inventory.
+
+What is derived is *what to measure*, not what comes back. Observations are facts about a moment and are recorded as they arrive — but they are correlated back to the same inventory that asked for them, so results can be held against intent instead of pooling in a system that knows nothing about either (see [section 7](#7-four-kinds-of-data-kept-distinct)).
 
 ### 4. Configuration has two planes, with independent lifecycles
-
-This is the idea ACE exists for.
 
 Configuration on a network element arrives from two fundamentally different directions, and they are almost always conflated:
 
@@ -90,6 +94,14 @@ Configuration on a network element arrives from two fundamentally different dire
 
 Treating these as one thing forces a choice, and both answers are bad. Automate everything, and an infrastructure change reaches production the moment someone merges it. Gate everything, and every service delivery waits for a change window.
 
+Most tooling has already made that choice, and is good at the side it picked.
+
+The declarative infrastructure tools that came out of cloud are genuinely good, and pushing a change straight from a pipeline is safe in the environment they were built for: underneath them sits a provider API that *is* the infrastructure, resources are cheap to replace, and a bad apply destroys and recreates something that has existed for minutes. None of that holds for a physical network. The thing on the far side is a device already carrying traffic, it cannot be recreated, the change has to be sequenced, and a bad apply is an outage. Those tools are not wrong — the interface they expect is simply not there. Something has to *be* that interface for a network, and it has to defer rather than push.
+
+The other family either works in steps rather than in state — a runbook is imperative, so there is nothing for reality to be compared against — or is built for service orchestration and is excellent at it: an order arrives, it is fulfilled, the loop closes. That premise is exactly right for services. Carried all the way, it means infrastructure gets pushed on fulfilment too.
+
+Both families are coherent, and each is the correct answer to one of the two directions configuration arrives from. What is missing is not a better tool for either side, but an architecture that does not have to choose — one that is not merely open to both planes, but expects both.
+
 |  | **Infrastructure** | **Services** |
 |---|---|---|
 | Changes | Slowly, deliberately | Continuously, on demand |
@@ -97,6 +109,8 @@ Treating these as one thing forces a choice, and both answers are bad. Automate 
 | Delivery | Deferred — produces a proposed change | Direct — closed loop |
 | Applied | When the organisation decides | On fulfilment |
 | Optimised for | Control and auditability | Lead time |
+
+The table separates two *lifecycles*, not two kinds of configuration. Nothing in a VLAN or a firewall rule decides which column it belongs in — the organisation does, by declaring what it is prepared to hand out on request. The same construct sits in different columns at different organisations, and ACE does not take a position on where the line falls.
 
 ACE keeps them as **separate planes over a shared model**. Both contribute to the same node's configuration, but each keeps its own lifecycle. An infrastructure change becomes a proposal that waits for a decision. A service is fulfilled when it is ordered — and fulfilling it must not drag a pending infrastructure change onto the element along with it.
 
@@ -107,6 +121,10 @@ ACE keeps them as **separate planes over a shared model**. Both contribute to th
 Because intent and reality are expressed in the same model, the distance between them can be computed continuously and reported as **compliance** — per element, per site, across the estate.
 
 A difference is not a fault. Between change windows, a network that differs from its declared intent is behaving exactly as expected. Measuring that distance is a permanent, passive activity; closing it is a separate, deliberate act.
+
+Compliance is something to chase, not a state to hold. An architecture is not finished the day it is first written down — a standard is raised, a better design for a site type emerges, a security baseline tightens, a protocol is replaced. Each of those improvements deliberately moves the target, and the estate falls out of compliance against it the moment it lands. That is not a regression. It is what improving a network looks like once the design is written down, and an architecture that could not express it would be an architecture that penalises anyone for improving the design.
+
+Nothing breaks when this happens, because nothing assumed the estate was compliant to begin with. The new design is simply the next target: the gap against it is computed like any other gap, which turns a redesign from an open-ended ambition into planned work with a known size, closed node by node and site by site as the opportunity arises.
 
 When the decision is made, the difference is expressed as the **smallest change that closes it** — not a wholesale replacement of the element's configuration. A change is reviewable before it is made, and narrow enough to reason about.
 
@@ -120,27 +138,70 @@ Observation is performed by **collectors** placed where they can see what they n
 
 What a collector may do is **granted**, not configured. Each is given a set of capabilities and a scope of the network, and receives only the work that falls inside both. Where observation happens, and by what means, is a matter of policy rather than of per-device setup.
 
-### 7. Three kinds of data, kept distinct
+### 7. Four kinds of data, kept distinct
 
-ACE distinguishes three classes of data and does not let them borrow each other's shape:
+ACE distinguishes four classes of data and does not let them borrow each other's shape:
 
-| | What it is |
-|---|---|
-| **Desired configuration** | What an element should be configured to do |
-| **Observed configuration** | What it is actually configured to do |
-| **Operational data** | What it reports about its running state |
+| | What it is | Answers |
+|---|---|---|
+| **Desired configuration** | What an element should be configured to do | What did we design? |
+| **Observed configuration** | What it is actually configured to do | What is it set to? |
+| **Operational state** | What it reports about the configuration doing its job | Is it working? |
+| **Metrics** | Quality sampled over time | How well, and is it getting worse? |
 
 The first two share one model deliberately — that is precisely what makes them comparable, and it is the basis of compliance.
 
-Operational data deliberately does not. Neighbour relationships, routing state, protocol adjacencies, counters — these are not configuration and never were. Forcing them into a configuration model would only make them diffable against something they are not. So operational data is modelled on its own terms, per kind of data, carrying the time it was observed, and correlated back to the network inventory — which also means it can reveal what is attached to the network that was never declared to be there.
+The other two deliberately do not, and they are not each other either. **Operational state** is structural and discrete: neighbour relationships, routing adjacencies, protocol and session states, learned addresses. Each is a fact with an identity, so it can be correlated back to the network inventory — which is what lets it answer whether a thing is working as designed, and what also makes it reveal whatever is attached to the network that was never declared to be there.
 
-Physical reality is expected to become **declared** in time, as designed cabling and connectivity. When it does, the desired-versus-observed comparison extends down into the physical layer as well: wired as designed, or wired as someone on site decided that morning.
+**Metrics** are quality over time: loss and latency from ICMP, counters and utilisation from SNMP, streamed values from MDT. They are numeric samples carrying the moment they were taken, and the meaning is in the series, not in any one value.
+
+The line between the last two matters because only one of them can ever become intent. Operational state is structural, so it can be declared — physical reality is expected to become **declared** in time, as designed cabling and connectivity, and when it does the desired-versus-observed comparison extends down into the physical layer as well: wired as designed, or wired as someone on site decided that morning. A metric has no such destination. There is no design a latency figure can be held against, only a threshold somebody chose.
 
 ---
 
 ## How ACE-X implements it
 
 The rest of this document is ACE-X specifically: intent declared as Python, a concrete neutral model, drivers for real platforms, and the interfaces around them.
+
+## Two ways to change the network
+
+[Section 4 of the architecture](#4-configuration-has-two-planes-with-independent-lifecycles) divides configuration into two planes. Each plane has a **flow** — the path a change travels from declaration to device — and this is where the division stops being a diagram and starts being something you operate. The planes are what configuration is split into; the flows are how a change reaches an element.
+
+Both flows write through the same neutral model and the same drivers. Authority, timing and blast radius differ completely between them.
+
+### The infrastructure flow — available today
+
+Configuration is written as config maps that compile into configuration components (see [Configuration as code](#configuration-as-code) below), versioned in a repository like any other code, and goes through a normal review process before it merges.
+
+Landing a change does not deliver it. Merging only moves the target: desired state changes, and a diff against observed state appears. That diff is expected, not an alarm — declared configuration is the design an organisation has agreed to work toward, and it is normal for reality to lag behind it between maintenance windows.
+
+Closing the diff is a separate, deliberate act:
+
+```bash
+acex node config diff plan r1                     # what differs, as a tree
+acex node config diff plan r1 --format commands   # the patch that would close it
+acex node config diff apply r1                    # review, confirm, send
+```
+
+Applying happens when the organisation has decided it is safe to — typically inside a planned maintenance window, and for a larger change often across more than one. Infrastructure changes are rarely safe to push live automatically; they need to be planned, sequenced and applied under controlled conditions. ACE-X enforces the deferral, not the schedule: the window itself is not yet a modelled object, and neither is partial application of a diff (see [Project status](#project-status)).
+
+### The service flow — designed, not yet built
+
+The service flow covers a narrower, explicitly bounded slice of configuration: something an organisation has defined in advance as safe to hand out on request. Once a service is defined, it becomes orderable through the REST API, and fulfilling an order rolls the change out directly — no review step, no maintenance window.
+
+This is what makes self-service and order-driven configuration possible. A customer or a user gets a constrained set of options, and acting on them is fast, because the blast radius is bounded by the service definition itself rather than by a human reviewing each order.
+
+### Where the line falls is yours to draw
+
+ACE-X ships no taxonomy of which components are infrastructure and which are services. The split is a decision each organisation makes about its own network, and the same configuration lands on opposite sides of it depending on who is running it.
+
+A service provider hands out customer VLANs and access ports hundreds of times a week: that is the product, it is bounded by a service definition, and it is fulfilled on order. A bank with the same switch and the same VLAN construct treats it as infrastructure — reviewed, versioned, applied in a window — because a VLAN there is part of a segmentation model, not something anyone orders. Neither is using ACE-X wrong.
+
+What draws the line is the **service definition**: the slice of configuration an organisation has explicitly declared safe to hand out, along with the options it may be ordered with. Everything not covered by one stays in the infrastructure plane and takes the reviewed path. The line moves as an organisation's confidence moves — promoting a recurring, well-understood change into a service is a deliberate act of defining one, not a setting to flip.
+
+### Why both, at once
+
+The two flows write to the same model and the same devices, but they never compete for the same authority. Infrastructure stays slow, reviewed and planned; services stay fast, bounded and on demand. Neither blocks the other — closing an infrastructure diff and fulfilling a service order are different operations with different triggers. One is a decision an organisation makes. The other is an order it fulfils.
 
 ## Configuration as code
 
@@ -174,6 +235,16 @@ cm.filters = FilterAttribute("site").eq("hq")
 cm.filters = FilterAttribute("site").eq("hq") & FilterAttribute("role").eq("core")
 cm.filters = FilterAttribute("role").eq("core") | FilterAttribute("role").eq("edge")
 ```
+
+### Why Python, and not a DSL
+
+Most IaC tools define a language of their own. ACE-X does not. We wanted something flexible, and we wanted code to be code — a config map that looks like a program because it is one, with its logic in plain sight. The usual alternative is a DSL dressed as YAML, and the logic never actually leaves: it moves into templating, string interpolation and conventions about what a key name implies, where it is harder to read, harder to review and cannot be tested. Hiding logic is not the same as not having any.
+
+The same goes for everything a configuration language turns out to need. Conditionals, loops, reuse, string handling, modules, packaging, tests, types: DSLs acquire them one at a time, each slightly differently from the last, because nobody sets out to design a general-purpose language and then needs one anyway. Starting from a language that already has them means never designing them. Filter composition is the small version of it — `&` and `|` are operator overloading on ordinary objects, so it is a library rather than a grammar somebody had to invent.
+
+Network automation is already largely a Python discipline, so for many this is a language they have, with the libraries they already use available for whatever the neutral model does not cover. For anyone who has not programmed before it is a genuine threshold, and worth naming as a cost rather than arguing away. It is outweighed — and it is also reduced, because a config map rarely starts from a blank file. The **builder** in the web UI composes one from the component catalogue and hands back the Python. The **translator** turns an existing vendor configuration into components without needing a live node to point at. **Reconcile** turns observed drift back into config map source. The common way in is editing generated code, not authoring it cold.
+
+The obvious objection is that Python is imperative and this is meant to be declarative. Declarativeness here comes from the model rather than from the syntax: `compile()` can only add components, components are placed into `ComposedConfiguration` by type mapping rather than by the order they were written, and desired state is derived from the result rather than from the run. What a config map *does* is imperative; what it *produces* is a declaration. The discipline lives in the API surface, not in a sandbox — a config map is ordinary Python and can do ordinary Python things — but nothing in that surface rewards it, and data from outside has a path of its own.
 
 ### Values from an external source of truth
 
@@ -220,7 +291,9 @@ ACE-X implements declared measurement as **telemetry components**. Each one bind
 - the identity used to query it from a dashboard
 - the capability that gates its collection, and the node it belongs to
 
-Telemetry components are produced by **providers** — functions that inspect inventory and configuration and yield the components implied by what they find. The resulting registry is deliberately **not persisted**: it is rebuilt on every request, then rendered into Telegraf collector configuration and into Grafana dashboards and datasources. There is no stored copy to fall out of step with the network.
+Telemetry components are produced two ways. **Providers** are functions that inspect inventory and configuration and yield the components implied by what they find; `icmp_ping_provider` and `snmp_provider` ship by default, and integrators add their own with `register_provider`. Alongside them, every config component carries a `telemetry()` hook that returns the components implied by *that instance* — the mechanism behind one measurement per declared peer, per declared tunnel, per declared session. It mirrors YANG's `config false` siblings: the construct you declared and the operational state it produces, defined in the same place. The hook is in place on every component but no component overrides it yet, so what ships today is derived per node, not per declared instance.
+
+The resulting registry is deliberately **not persisted**: it is rebuilt on every request, then rendered into Telegraf collector configuration and into Grafana dashboards and datasources. There is no stored copy to fall out of step with the network.
 
 Collection runs as **agents**, each of which polls a manifest, applies it, and acknowledges the revision it reached:
 
@@ -319,7 +392,7 @@ Shipped: `acex-driver-cisco-ioscli`, `acex-driver-juniper-junoscli` — with **1
 
 **Integration plugins** — adapters that back inventory objects with an external source of truth (NetBox is included) or expose queryable data to config maps.
 
-**Telemetry providers** — functions that inspect ACE-X state and yield telemetry components, registered with `register_provider`.
+**Telemetry providers** — functions that inspect ACE-X state and yield telemetry components, registered with `register_provider`. A config component can also derive its own by overriding `telemetry()`, which is how a measurement per declared instance is meant to be expressed.
 
 **Agents** — anything that polls a manifest, applies it and acknowledges a revision.
 
@@ -424,20 +497,21 @@ ACE-X is under active development and pre-1.0 as a whole, though individual pack
 - Vendor-neutral model with rendering and parsing through NEDs (Cisco IOS, Juniper Junos)
 - Observed configuration collection, snapshot history, normalization and secret masking
 - Structural desired-vs-observed diff, compliance per node and per site
-- Patch rendering and operator-confirmed apply through the CLI (`config diff plan` / `apply`)
+- Patch rendering and operator-confirmed apply through the CLI (`config diff plan` / `apply`) — whole diff only, no partial application yet
 - Reconcile and translate — drift and brownfield configs back into config map source
 - Declarative observability: telemetry components, capability-gated agents, generated collector configs, generated Grafana dashboards and datasources
-- Operational data as its own class: LLDP collection, neighbour-to-inventory correlation, per-site topology graph
+- Operational state as its own class: LLDP collection, neighbour-to-inventory correlation, per-site topology graph — modelled relationally, separate from metrics
 - REST API with OIDC, typed client, CLI, MCP server, AI Ops with provider failover
 - Web UI: Network, Configs and Settings modules
 
 **On the roadmap**
 
-- **The service plane.** Closed-loop service delivery — the second half of section 3 — is designed but not yet built. Today all configuration enters through the IaC plane.
+- **The service plane.** Closed-loop service delivery — the second flow described under [Two ways to change the network](#two-ways-to-change-the-network) — is designed but not yet built. Today all configuration enters through the infrastructure plane.
 - **Maintenance windows and change approval.** Applying a patch works, but the window itself is not yet a modelled object: no scheduling, no approval record, no audit trail of who applied which patch when.
 - **Operations module** — workflows, bulk actions, triggers and scheduling are scaffolded in the UI, not implemented.
 - **Declared physical topology.** Planned cabling as intent, so observed LLDP can be diffed against how the network was designed to be wired.
-- **More operational data types** — routing state and others, each with its own model rather than bent into the configuration tree.
+- **Per-instance telemetry derivation.** `ConfigComponent.telemetry()` exists on every component but is overridden by none, so measurement is currently derived per node rather than per declared peer, tunnel or session. The routing protocols this matters most for — BGP, OSPF — are not in the neutral model yet either.
+- **More operational state types** — routing and protocol adjacencies and others, each with its own model rather than bent into the configuration tree.
 - Streaming telemetry (MDT) and syslog ingestion beyond the declared capability vocabulary.
 - The worker package is a scaffold; distributed task execution is not implemented.
 
