@@ -55,7 +55,10 @@ class TestEnvOnlyConfiguration:
         import os, sys
         print(f"\nDEBUG has_ai_ops_manager={hasattr(ae, 'ai_ops_manager')}")
         print(f"DEBUG ACEX_AI_PROVIDERS={os.environ.get('ACEX_AI_PROVIDERS')!r}")
-        print(f"DEBUG all_routes={[(type(r).__name__, getattr(r,'path',getattr(r,'path_format',getattr(r,'url','?')))) for r in app.routes]}")
+        first_inc = next((r for r in app.routes if type(r).__name__ == '_IncludedRouter'), None)
+        print(f"DEBUG _IncludedRouter attrs={[a for a in dir(first_inc) if not a.startswith('__')] if first_inc else 'none'}")
+        if first_inc:
+            print(f"DEBUG prefix={getattr(first_inc,'prefix','?')} routes={[(type(r).__name__,getattr(r,'path','?')) for r in getattr(first_inc,'routes',[])][:3]}")
         assert _ai_ops_routes(app) == [
             "/api/v1/ai_ops/ai/ask",
             "/api/v1/ai_ops/ai/config_analysis",
