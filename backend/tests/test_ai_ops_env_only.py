@@ -52,6 +52,10 @@ class TestEnvOnlyConfiguration:
         app = ae.create_app()
 
         assert isinstance(ae.ai_ops_manager.settings.mcp_server_url, str)
+        import os, sys
+        print(f"\nDEBUG has_ai_ops_manager={hasattr(ae, 'ai_ops_manager')}")
+        print(f"DEBUG ACEX_AI_PROVIDERS={os.environ.get('ACEX_AI_PROVIDERS')!r}")
+        print(f"DEBUG all_routes={[getattr(r,'path','?') for r in app.routes]}")
         assert _ai_ops_routes(app) == [
             "/api/v1/ai_ops/ai/ask",
             "/api/v1/ai_ops/ai/config_analysis",
