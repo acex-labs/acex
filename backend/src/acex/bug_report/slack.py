@@ -39,6 +39,13 @@ def _build_blocks(payload: BugReportCreate, reporter: str) -> list[dict]:
         )
     if payload.page_url:
         blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": f"*Page:* {payload.page_url}"}})
+    if payload.screenshots:
+        count = len(payload.screenshots)
+        noun = "screenshots" if count > 1 else "screenshot"
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"📎 {count} {noun} attached (see file report)"},
+        })
     return blocks
 
 

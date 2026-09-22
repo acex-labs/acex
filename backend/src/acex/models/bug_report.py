@@ -9,6 +9,7 @@ class BugReportCreate(BaseModel):
     severity: Literal["low", "medium", "high", "critical"]
     steps: str | None = Field(default=None, max_length=2000)
     page_url: str | None = None
+    screenshots: list[str] | None = Field(default=None, max_length=3)
 
 
 class BugReportResponse(BaseModel):
