@@ -10,6 +10,7 @@ from acex_devkit.models.asset import (
 )
 from acex_devkit.models.base import PersistedResponse
 from acex_devkit.models.logical_node import LogicalNodeResponse
+from acex_devkit.models.management_connection import ManagementConnectionResponse
 
 
 class AssetRefType(StrEnum):
@@ -39,6 +40,7 @@ class NodeListItem(PersistedResponse, NodeBase):
     vendor: str | None = None
     os: str | None = None
     ned_id: str | None = None
+    management_connections: list[ManagementConnectionResponse] = []
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

@@ -1,10 +1,18 @@
 import inspect
 from datetime import datetime
 
-from acex.models import Node, NodeListResponse, NodeResponse, PaginatedResponse
+from acex.models import (
+    ManagementConnection,
+    ManagementConnectionResponse,
+    Node,
+    NodeListResponse,
+    NodeResponse,
+    PaginatedResponse,
+)
 from acex.models.node import NodeStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from fastapi import HTTPException
+from sqlalchemy import select
 
 
 class NodeService:
@@ -102,6 +110,7 @@ class NodeService:
         site: str = None,
         region: str = None,
         hostname: str = None,
+        management_connection_ip: str = None,
         logical_node_id: int = None,
         asset_ref_id: int = None,
         vendor: str = None,
@@ -144,7 +153,19 @@ class NodeService:
         elif site is not None:
             query_filters["logical_node.site"] = site
 
-        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
+        extra_filters = None
+        if management_connection_ip:
+            extra_filters = [
+                Node.id.in_(
+                    select(ManagementConnection.node_id).where(
+                        ManagementConnection.target_ip.ilike(f"{management_connection_ip}%")
+                    )
+                )
+            ]
+
+        result = await self._call_method(
+            self.adapter.query, filters=query_filters, extra_filters=extra_filters, limit=limit, offset=offset
+        )
 
         # Bulk-fetch unique assets and clusters to avoid N+1
         asset_ids = {n.asset_ref_id for n in result["items"] if getattr(n, "asset_ref_type", "asset") == "asset"}
@@ -174,6 +195,7 @@ class NodeService:
                 vendor = asset.vendor if asset else None
                 os_val = asset.os if asset else None
                 ned_id = asset.ned_id if asset else None
+            conns = sorted(node.management_connections or [], key=lambda c: (not c.primary, c.id))
             items.append(
                 NodeListResponse(
                     **node.model_dump(),
@@ -183,6 +205,7 @@ class NodeService:
                     vendor=vendor,
                     os=os_val,
                     ned_id=ned_id,
+                    management_connections=[ManagementConnectionResponse(**c.model_dump()) for c in conns],
                 )
             )
 

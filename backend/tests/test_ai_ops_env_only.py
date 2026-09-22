@@ -39,7 +39,18 @@ def _isolated_env(tmp_path, monkeypatch):
 
 
 def _ai_ops_routes(app):
-    return sorted({r.path for r in app.routes if "ai_ops" in getattr(r, "path", "")})
+    # In newer FastAPI, include_router wraps routers as _IncludedRouter objects
+    # (no .path attribute); traverse original_router.routes to find APIRoute paths.
+    def _collect(routes):
+        for r in routes:
+            if hasattr(r, "path"):
+                yield r.path
+            else:
+                orig = getattr(r, "original_router", None)
+                if orig:
+                    yield from _collect(orig.routes)
+
+    return sorted({p for p in _collect(app.routes) if "ai_ops" in p})
 
 
 class TestEnvOnlyConfiguration:
