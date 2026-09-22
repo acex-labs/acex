@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ class StoredDeviceConfig(DeviceConfigBase, table=True):
     __tablename__ = "device_config"
     id: int | None = Field(default=None, primary_key=True)
     hash: str = Field(index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
 
 
 class DeviceConfigResponse(BaseModel):
