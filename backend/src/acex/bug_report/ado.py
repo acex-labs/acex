@@ -5,6 +5,8 @@ import os
 import httpx
 from acex.models.bug_report import BugReportCreate
 
+_IMAGE_EXTS = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp"}
+
 logger = logging.getLogger("acex.bug_report.ado")
 
 _SEVERITY_PRIORITY = {"low": 4, "medium": 3, "high": 2, "critical": 1}
@@ -97,4 +99,61 @@ async def dispatch(
 
     created_id = resp.json().get("id")
     logger.info(f"ADO work item created: {created_id}")
+
+    if payload.screenshots and created_id:
+        await _attach_screenshots(payload.screenshots, created_id, _pat, _org, _project)
+
     return True
+
+
+async def _attach_screenshots(
+    data_uris: list[str],
+    work_item_id: int,
+    pat: str,
+    org: str,
+    project: str,
+) -> None:
+    attach_base = f"https://dev.azure.com/{org}/{project}/_apis/wit/attachments"
+    item_url = f"https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{work_item_id}?api-version=7.1"
+    auth = _auth_header(pat)
+
+    relations = []
+    async with httpx.AsyncClient(timeout=30) as client:
+        for i, uri in enumerate(data_uris):
+            try:
+                header, b64 = uri.split(",", 1)
+                mime = header.split(":")[1].split(";")[0]
+                ext = _IMAGE_EXTS.get(mime, ".png")
+                fname = f"screenshot_{i + 1}{ext}"
+                image_bytes = base64.b64decode(b64)
+
+                upload = await client.post(
+                    f"{attach_base}?api-version=7.1&fileName={fname}",
+                    content=image_bytes,
+                    headers={"Authorization": auth, "Content-Type": "application/octet-stream"},
+                )
+                upload.raise_for_status()
+                attachment_url = upload.json().get("url")
+                if attachment_url:
+                    relations.append(
+                        {
+                            "op": "add",
+                            "path": "/relations/-",
+                            "value": {
+                                "rel": "AttachedFile",
+                                "url": attachment_url,
+                                "attributes": {"comment": f"Screenshot {i + 1}"},
+                            },
+                        }
+                    )
+            except Exception:
+                logger.warning("Failed to upload ADO screenshot %d", i + 1, exc_info=True)
+
+        if relations:
+            patch = await client.patch(
+                item_url,
+                json=relations,
+                headers={"Authorization": auth, "Content-Type": "application/json-patch+json"},
+            )
+            patch.raise_for_status()
+            logger.info("Attached %d screenshot(s) to ADO work item %d", len(relations), work_item_id)
