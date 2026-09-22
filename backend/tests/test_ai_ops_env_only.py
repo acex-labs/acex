@@ -39,7 +39,18 @@ def _isolated_env(tmp_path, monkeypatch):
 
 
 def _ai_ops_routes(app):
-    return sorted({r.path for r in app.routes if "ai_ops" in getattr(r, "path", "")})
+    # In newer FastAPI, include_router wraps routers as _IncludedRouter objects
+    # (no .path attribute); traverse original_router.routes to find APIRoute paths.
+    def _collect(routes):
+        for r in routes:
+            if hasattr(r, "path"):
+                yield r.path
+            else:
+                orig = getattr(r, "original_router", None)
+                if orig:
+                    yield from _collect(orig.routes)
+
+    return sorted({p for p in _collect(app.routes) if "ai_ops" in p})
 
 
 class TestEnvOnlyConfiguration:
@@ -52,15 +63,6 @@ class TestEnvOnlyConfiguration:
         app = ae.create_app()
 
         assert isinstance(ae.ai_ops_manager.settings.mcp_server_url, str)
-        import os, sys
-        print(f"\nDEBUG has_ai_ops_manager={hasattr(ae, 'ai_ops_manager')}")
-        print(f"DEBUG ACEX_AI_PROVIDERS={os.environ.get('ACEX_AI_PROVIDERS')!r}")
-        first_inc = next((r for r in app.routes if type(r).__name__ == '_IncludedRouter'), None)
-        if first_inc:
-            ctx = getattr(first_inc, 'include_context', None)
-            print(f"DEBUG include_context={ctx!r}")
-            orig = getattr(first_inc, 'original_router', None)
-            print(f"DEBUG original_router routes={([(type(r).__name__,getattr(r,'path','?')) for r in getattr(orig,'routes',[])])[:5] if orig else 'none'}")
         assert _ai_ops_routes(app) == [
             "/api/v1/ai_ops/ai/ask",
             "/api/v1/ai_ops/ai/config_analysis",
