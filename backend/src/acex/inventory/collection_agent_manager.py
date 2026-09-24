@@ -343,6 +343,8 @@ class CollectionAgentManager:
             node_ip_map = {}
             node_conn_type_map = {}
             for conn in mgmt_connections:
+                if not conn.target_ip:
+                    continue
                 if conn.node_id not in node_ip_map or conn.primary:
                     node_ip_map[conn.node_id] = conn.target_ip
                     node_conn_type_map[conn.node_id] = conn.connection_type.value
