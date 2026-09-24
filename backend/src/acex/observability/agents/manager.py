@@ -488,6 +488,8 @@ class TelemetryAgentManager:
         lines.append('  flush_interval = "10s"')
         lines.append("")
 
+        has_inputs = False
+
         if self.telemetry_registry is not None:
             from acex.observability.renderers import render_inputs
 
@@ -499,6 +501,7 @@ class TelemetryAgentManager:
             inputs_toml = render_inputs(components)
             if inputs_toml.strip():
                 lines.append(inputs_toml)
+                has_inputs = True
 
         # Service inputs — agent-scoped listeners, not registry-driven.
         cap_set = set(capabilities)
@@ -542,10 +545,19 @@ class TelemetryAgentManager:
                     **v3,
                 )
             )
+            has_inputs = True
 
         if TelemetryCapability.syslog_rfc5424 in cap_set:
             port = agent.syslog_port or 514
             lines.append(render_syslog_input(server=f"udp://:{port}"))
+            has_inputs = True
+
+        # Telegraf requires at least one input to start. When no nodes or
+        # service inputs are configured, emit the internal input so the agent
+        # stays healthy and the InfluxDB output is still reachable.
+        if not has_inputs:
+            lines.append("[[inputs.internal]]")
+            lines.append("")
 
         # Backend-default outputs (set in app.py via set_influxdb / add_influxdb),
         # applied to every agent.
