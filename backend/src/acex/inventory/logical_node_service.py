@@ -15,11 +15,12 @@ from sqlalchemy import select
 class LogicalNodeService:
     """Service layer för LogicalNode business logic inklusive kompilering."""
 
-    def __init__(self, adapter, config_compiler, integrations, db_manager=None):
+    def __init__(self, adapter, config_compiler, integrations, db_manager=None, telemetry_agent_manager=None):
         self.adapter = adapter
         self.config_compiler = config_compiler
         self.integrations = integrations
         self.db_manager = db_manager
+        self.telemetry_agent_manager = telemetry_agent_manager
 
     async def _call_method(self, method, *args, **kwargs):
         """Helper för att hantera både sync och async metoder."""
@@ -139,9 +140,23 @@ class LogicalNodeService:
 
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
+    def _node_ids(self, logical_node_id: str) -> list[int]:
+        # External plugins may use non-integer IDs; those never link to Node rows.
+        if not self.db_manager or not str(logical_node_id).isdigit():
+            return []
+        session = next(self.db_manager.get_session())
+        try:
+            return list(session.scalars(select(Node.id).where(Node.logical_node_id == int(logical_node_id))).all())
+        finally:
+            session.close()
+
     async def update(self, id: str, logical_node: LogicalNode):
-        result = await self._call_method(self.adapter.update, id, logical_node)
-        return result
+        # site/role are telemetry rule fields — agents covering this logical
+        # node's instances before or after the change get a new revision.
+        if self.telemetry_agent_manager is None:
+            return await self._call_method(self.adapter.update, id, logical_node)
+        with self.telemetry_agent_manager.bumping_revisions_for_nodes(self._node_ids(id)):
+            return await self._call_method(self.adapter.update, id, logical_node)
 
     async def delete(self, id: str):
         result = await self._call_method(self.adapter.delete, id)

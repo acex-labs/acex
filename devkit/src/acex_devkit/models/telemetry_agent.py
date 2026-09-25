@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -79,6 +80,32 @@ class TelemetryAgentAck(BaseModel):
     config_revision: int
 
 
+class CapabilityCoverage(BaseModel):
+    """Whether one node-scoped capability made it into the agent's config.
+
+    For `skipped`, `reason` is a stable code (e.g. "no_management_ip",
+    "no_logical_node", "component_error") and `detail` carries free-text
+    context when available.
+    """
+
+    status: Literal["rendered", "skipped"]
+    reason: str | None = None
+    detail: str | None = None
+
+
+class NodeCoverage(BaseModel):
+    """One node the agent covers, and which capabilities are rendered for it.
+
+    `capabilities` holds only granted, node-scoped capabilities (e.g. icmp,
+    snmp) — agent-level listeners such as snmp_trap/syslog are not per node.
+    """
+
+    node_id: int
+    hostname: str | None = None
+    source: Literal["explicit", "rule", "both"]
+    capabilities: dict[TelemetryCapability, CapabilityCoverage] = {}
+
+
 class TelemetryAgentResponse(PersistedResponse, TelemetryAgentBase):
     config_revision: int = 0
     last_config_poll: str | None = None
@@ -88,6 +115,8 @@ class TelemetryAgentResponse(PersistedResponse, TelemetryAgentBase):
     nodes: list[int] = []
     rules: list[TelemetryAgentMatchRuleResponse] = []
     resolved_nodes: list[int] = []
+    # Only populated on single-agent reads (GET /agents/{id}); empty in listings.
+    node_coverage: list[NodeCoverage] = []
 
 
 __all__ = [
@@ -102,4 +131,6 @@ __all__ = [
     "TelemetryAgentMatchRuleResponse",
     "TelemetryAgentResponse",
     "TelemetryAgentUpdate",
+    "CapabilityCoverage",
+    "NodeCoverage",
 ]

@@ -52,6 +52,18 @@ class Inventory:
 
         self.assets = AssetService(assets_adapter)
 
+        # Observability — intent-driven telemetry pipeline (telegraf + grafana)
+        # derived from registered TelemetryComponents. Built lazily per request,
+        # not persisted, so it always reflects current ACEX state. The
+        # TelemetryAgentManager uses it as input source for telegraf config.
+        # Created before the node services, which bump agent revisions on change.
+        self.telemetry_registry = TelemetryRegistry(db_connection)
+        self.telemetry_agent_manager = TelemetryAgentManager(
+            db_connection,
+            self.telemetry_registry,
+            influxdb_settings,
+        )
+
         # Logical Nodes - skapa adapter och wrappa i service layer
         if logical_nodes_plugin:
             print(f"logical nodes plugin: {logical_nodes_plugin}")
@@ -62,7 +74,11 @@ class Inventory:
             logical_nodes_adapter = LogicalNodeAdapter(default_logical_nodes_plugin)
 
         self.logical_nodes = LogicalNodeService(
-            logical_nodes_adapter, config_compiler, integrations, db_manager=db_connection
+            logical_nodes_adapter,
+            config_compiler,
+            integrations,
+            db_manager=db_connection,
+            telemetry_agent_manager=self.telemetry_agent_manager,
         )
 
         # Node instances
@@ -72,16 +88,6 @@ class Inventory:
         self.asset_cluster_manager = AssetClusterManager(db_connection)
         self.collection_agent_manager = CollectionAgentManager(db_connection)
 
-        # Observability — intent-driven telemetry pipeline (telegraf + grafana)
-        # derived from registered TelemetryComponents. Built lazily per request,
-        # not persisted, so it always reflects current ACEX state. The
-        # TelemetryAgentManager uses it as input source for telegraf config.
-        self.telemetry_registry = TelemetryRegistry(db_connection)
-        self.telemetry_agent_manager = TelemetryAgentManager(
-            db_connection,
-            self.telemetry_registry,
-            influxdb_settings,
-        )
         self.grafana_renderer = GrafanaRenderer(self.telemetry_registry, influxdb_settings)
 
         # Contacts
