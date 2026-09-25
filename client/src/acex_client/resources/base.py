@@ -219,6 +219,27 @@ class ListMixin:
         return self.query().items
 
 
+class NameLookupMixin:
+    """Resolve a resource's id from its `name` (requires ListMixin)."""
+
+    def get_id_by_name(self, name: str) -> int:
+        """Return the id of the one item whose name is exactly `name`.
+
+        The server's `name` filter is a case-insensitive prefix match, so the
+        exact comparison happens here. Names are not unique server-side:
+        raises LookupError when none or several items match.
+        """
+        page = self.query(name=name, limit=1000)
+        matches = [item for item in page.items if item.name == name]
+        kind = type(self).__name__
+        if not matches:
+            raise LookupError(f"{kind}: no item named {name!r}")
+        if len(matches) > 1:
+            ids = ", ".join(str(m.id) for m in matches)
+            raise LookupError(f"{kind}: {len(matches)} items named {name!r} (ids {ids}); use the id instead")
+        return matches[0].id
+
+
 class BoundListMixin:
     def query(self, limit: int = 100, offset: int = 0, **filters: Any) -> PaginatedResult:
         params = {k: v for k, v in filters.items() if v is not None}

@@ -18,7 +18,8 @@ from acex.observability.agents.models import (
 from acex.observability.capability import TelemetryCapability
 from acex.observability.components.base import TelemetryComponent
 from acex.observability.registry import AgentComponents
-from acex_devkit.models.agent_manifest import AckResult
+from acex.utils.agent_node_links import set_agent_nodes
+from acex_devkit.models.agent_manifest import AckResult, AgentNodeSet, AgentNodeSetResult
 from acex_devkit.models.telemetry_agent import (
     InfluxDBVersion,
     NodeCoverage,
@@ -302,7 +303,10 @@ class TelemetryAgentManager:
         finally:
             session.close()
 
-    def get(self, id: int) -> TelemetryAgentResponse:
+    def get(self, id: int, include_coverage: bool = False) -> TelemetryAgentResponse:
+        """Single agent. `include_coverage=true` adds `node_coverage`, which runs
+        the telemetry providers (DB queries, per-node credential lookups) — the
+        UI opts in; telemetry agents polling for `config_revision` do not."""
         session = next(self.db.get_session())
         try:
             agent = session.get(TelemetryAgent, id)
@@ -310,12 +314,12 @@ class TelemetryAgentManager:
                 raise HTTPException(status_code=404, detail="TelemetryAgent not found")
             scope = self._agent_scope(session, id)
             response = self._get_agent_response(session, agent, scope)
-            hostnames = self._node_hostnames(session, scope.resolved)
+            hostnames = self._node_hostnames(session, scope.resolved) if include_coverage else {}
         finally:
             session.close()
 
-        # Running providers is too costly for listings, so only single-agent
-        # reads report per-node, per-capability render coverage.
+        if not include_coverage:
+            return response
         coverage = self._agent_components(scope.resolved, response.capabilities).coverage(scope.resolved)
         response.node_coverage = [
             NodeCoverage(
@@ -430,6 +434,22 @@ class TelemetryAgentManager:
             session.delete(link)
             self._bump_revision(session, id)
             session.commit()
+        finally:
+            session.close()
+
+    def set_nodes(self, id: int, payload: AgentNodeSet) -> AgentNodeSetResult:
+        """Declaratively set the agent's explicit nodes (see `AgentNodeSet`)."""
+        session = next(self.db.get_session())
+        try:
+            return set_agent_nodes(
+                session,
+                agent_model=TelemetryAgent,
+                link_model=TelemetryAgentNodeLink,
+                agent_fk="telemetry_agent_id",
+                agent_id=id,
+                node_ids=payload.node_ids,
+                expected_revision=payload.expected_revision,
+            )
         finally:
             session.close()
 

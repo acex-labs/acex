@@ -1,4 +1,4 @@
-from acex_devkit.models.agent_manifest import AckResult, CollectionAgentManifest
+from acex_devkit.models.agent_manifest import AckResult, AgentNodeSet, AgentNodeSetResult, CollectionAgentManifest
 from acex_devkit.models.collection_agent import (
     CollectionAgentAck,
     CollectionAgentCreate,
@@ -18,6 +18,7 @@ from acex_client.resources.base import (
     DeleteMixin,
     GetMixin,
     ListMixin,
+    NameLookupMixin,
     Resource,
     UpdateMixin,
     action,
@@ -71,6 +72,7 @@ class CollectionAgents(
     Resource,
     GetMixin,
     ListMixin,
+    NameLookupMixin,
     CreateMixin,
     UpdateMixin,
     DeleteMixin,
@@ -93,6 +95,11 @@ class CollectionAgents(
 
     @action("DELETE", "{id}/nodes/{node_id}")
     def remove_node(self, id: int, node_id: int) -> None: ...
+
+    @action("PUT", "{id}/nodes")
+    def set_nodes(self, id: int, payload: AgentNodeSet) -> AgentNodeSetResult:
+        """Replace the explicit node set (declarative); [] removes all."""
+        ...
 
     @action("POST", "{id}/ack")
     def ack(self, id: int, payload: CollectionAgentAck) -> AckResult: ...

@@ -3,6 +3,8 @@
 from .agent_manifest import (
     AckResult,
     AgentConfigResponse,
+    AgentNodeSet,
+    AgentNodeSetResult,
     CollectionAgentManifest,
     ManifestTarget,
 )
@@ -207,6 +209,8 @@ __all__ = [
     "ManifestTarget",
     "AckResult",
     "AgentConfigResponse",
+    "AgentNodeSet",
+    "AgentNodeSetResult",
     "LldpNeighborBase",
     "LldpNeighborEntry",
     "LldpNeighborUpload",

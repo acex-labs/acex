@@ -184,7 +184,9 @@ services:
     restart: unless-stopped
     environment:
       ACEX_API_URL: http://backend:8080
-      COLLECTION_AGENT_ID: ${COLLECTION_AGENT_ID:-1}
+      # Looked up by name; the seed script creates an agent named "default".
+      COLLECTION_AGENT_NAME: ${COLLECTION_AGENT_NAME:-default}
+      COLLECTION_AGENT_ID: ${COLLECTION_AGENT_ID:-}  # deprecated
       ACEX_VERIFY_SSL: "false"
       ACEX_CLIENT_ID: acex-agents
       ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}
@@ -199,7 +201,8 @@ services:
     restart: unless-stopped
     environment:
       ACEX_API_URL: http://backend:8080
-      TELEMETRY_AGENT_ID: ${TELEMETRY_AGENT_ID:-1}
+      TELEMETRY_AGENT_NAME: ${TELEMETRY_AGENT_NAME:-default}
+      TELEMETRY_AGENT_ID: ${TELEMETRY_AGENT_ID:-}  # deprecated
       ACEX_VERIFY_SSL: "false"
       ACEX_CLIENT_ID: acex-agents
       ACEX_CLIENT_SECRET: ${ACEX_AGENTS_SECRET:-acex-agents-secret}

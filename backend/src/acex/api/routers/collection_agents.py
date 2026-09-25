@@ -1,5 +1,5 @@
 from acex.constants import BASE_URL
-from acex_devkit.models.agent_manifest import AckResult
+from acex_devkit.models.agent_manifest import AckResult, AgentNodeSetResult
 from fastapi import APIRouter
 
 
@@ -15,6 +15,9 @@ def create_router(automation_engine):
     router.add_api_route("/collection_agents/{id}", cam.update, methods=["PATCH"], tags=tags)
     router.add_api_route("/collection_agents/{id}", cam.delete, methods=["DELETE"], tags=tags)
 
+    router.add_api_route(
+        "/collection_agents/{id}/nodes", cam.set_nodes, methods=["PUT"], response_model=AgentNodeSetResult, tags=tags
+    )
     router.add_api_route("/collection_agents/{id}/nodes/{node_id}", cam.add_node, methods=["POST"], tags=tags)
     router.add_api_route("/collection_agents/{id}/nodes/{node_id}", cam.remove_node, methods=["DELETE"], tags=tags)
 

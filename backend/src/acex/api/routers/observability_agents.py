@@ -1,5 +1,5 @@
 from acex.constants import BASE_URL
-from acex_devkit.models.agent_manifest import AckResult
+from acex_devkit.models.agent_manifest import AckResult, AgentNodeSetResult
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 
@@ -38,6 +38,13 @@ def create_router(automation_engine):
         "/agents/{id}",
         tam.delete,
         methods=["DELETE"],
+        tags=tags,
+    )
+    router.add_api_route(
+        "/agents/{id}/nodes",
+        tam.set_nodes,
+        methods=["PUT"],
+        response_model=AgentNodeSetResult,
         tags=tags,
     )
     router.add_api_route(

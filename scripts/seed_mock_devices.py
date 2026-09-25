@@ -8,7 +8,7 @@ Creates (idempotently):
   - for each mock device: asset -> logical node -> node instance
     -> management connection -> credentials -> collection agent link
     -> telemetry agent link
-  - writes COLLECTION_AGENT_ID and TELEMETRY_AGENT_ID back to .env
+  - writes COLLECTION_AGENT_NAME and TELEMETRY_AGENT_NAME back to .env
 
 Config via env: ACEX_API_URL, ACEX_CLIENT_ID, ACEX_CLIENT_SECRET,
 ACEX_ISSUER_URL (matches the agent services in docker-compose.yml).
@@ -84,7 +84,7 @@ def main():
         "name", "default",
         {"name": "default", "description": "Default dev collection agent", "interval_seconds": 60},
     )
-    patch_env("COLLECTION_AGENT_ID", str(coll_agent.id))
+    patch_env("COLLECTION_AGENT_NAME", coll_agent.name)
 
     # ── SSH credential ────────────────────────────────────────────────────────
     print("\n[credentials]")
@@ -116,7 +116,7 @@ def main():
             "snmpv2c_credential_id": snmp_cred.id,
         },
     )
-    patch_env("TELEMETRY_AGENT_ID", str(telem_agent.id))
+    patch_env("TELEMETRY_AGENT_NAME", telem_agent.name)
 
     # ── Devices ───────────────────────────────────────────────────────────────
     for spec in MOCK_DEVICES:
