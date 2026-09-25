@@ -18,7 +18,7 @@ COPY agents/collection-agent/ /app/
 
 # Adjust paths for container context and install everything
 RUN sed -i 's|../../client|/deps/client|' pyproject.toml && \
-    pip install /deps/devkit && \
-    poetry install --no-interaction
+    poetry install --no-interaction && \
+    pip install /deps/devkit
 
 ENTRYPOINT ["acex-collection-agent"]
