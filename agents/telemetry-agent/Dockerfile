@@ -13,7 +13,7 @@ COPY agents/telemetry-agent/ /app/
 
 # Adjust paths for container context
 RUN sed -i 's|../../client|/deps/client|' pyproject.toml && \
-    pip install /deps/devkit && \
-    poetry install --no-interaction
+    poetry install --no-interaction && \
+    pip install /deps/devkit
 
 ENTRYPOINT ["acex-telemetry-agent"]
