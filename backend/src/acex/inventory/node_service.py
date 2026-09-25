@@ -1,5 +1,5 @@
 import inspect
-from datetime import datetime
+from datetime import UTC, datetime
 
 from acex.models import (
     ManagementConnection,
@@ -225,7 +225,7 @@ class NodeService:
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, logical_node: Node):
-        logical_node.updated_at = datetime.utcnow()
+        logical_node.updated_at = datetime.now(UTC)
         # status and logical_node_id affect telemetry rule matching.
         with self.inventory.telemetry_agent_manager.bumping_revisions_for_nodes([int(id)]):
             result = await self._call_method(self.adapter.update, id, logical_node)
