@@ -1,9 +1,10 @@
 import builtins
-from datetime import datetime
+import logging
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from acex.models.asset import Asset
 from acex.models.logical_node import LogicalNode
-from acex.models.management_connections import ManagementConnection
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
 from acex.observability.agents.models import (
@@ -13,9 +14,12 @@ from acex.observability.agents.models import (
     TelemetryAgentNodeLink,
 )
 from acex.observability.capability import TelemetryCapability
+from acex.observability.components.base import TelemetryComponent
+from acex.observability.registry import AgentComponents
 from acex_devkit.models.agent_manifest import AckResult
 from acex_devkit.models.telemetry_agent import (
     InfluxDBVersion,
+    NodeCoverage,
     TelemetryAgentAck,
     TelemetryAgentCreate,
     TelemetryAgentMatchRuleCreate,
@@ -24,8 +28,32 @@ from acex_devkit.models.telemetry_agent import (
     TelemetryAgentUpdate,
 )
 from fastapi import HTTPException
+from sqlmodel import delete, select
+
+logger = logging.getLogger("acex.observability.agents")
 
 REDACTED = "«redacted»"
+
+
+@dataclass
+class _AgentScope:
+    explicit: list[int]
+    rules: list[TelemetryAgentMatchRule]
+    rule_matched: set[int]
+
+    @property
+    def resolved(self) -> list[int]:
+        return sorted(set(self.explicit) | self.rule_matched)
+
+    def source(self, node_id: int) -> str:
+        in_explicit = node_id in self.explicit
+        in_rules = node_id in self.rule_matched
+        return "both" if in_explicit and in_rules else "explicit" if in_explicit else "rule"
+
+
+def _utc_now_naive() -> str:
+    # Naive UTC ISO string (no offset) — the frontend appends "Z" when parsing.
+    return datetime.now(UTC).replace(tzinfo=None).isoformat()
 
 
 def _mask(value: str | None, reveal: bool) -> str | None:
@@ -51,17 +79,14 @@ class TelemetryAgentManager:
         """
         session = next(self.db.get_session())
         try:
-            affected: set[int] = {
-                row[0]
-                for row in (
-                    session.query(TelemetryAgentNodeLink.telemetry_agent_id)
-                    .filter(TelemetryAgentNodeLink.node_id == node_id)
-                    .all()
-                )
-            }
+            affected: set[int] = set(
+                session.exec(
+                    select(TelemetryAgentNodeLink.telemetry_agent_id).where(TelemetryAgentNodeLink.node_id == node_id)
+                ).all()
+            )
 
             rules_by_agent: dict[int, list[TelemetryAgentMatchRule]] = {}
-            for r in session.query(TelemetryAgentMatchRule).all():
+            for r in session.exec(select(TelemetryAgentMatchRule)).all():
                 rules_by_agent.setdefault(r.telemetry_agent_id, []).append(r)
             for agent_id, agent_rules in rules_by_agent.items():
                 if agent_id in affected:
@@ -85,25 +110,22 @@ class TelemetryAgentManager:
 
         matched_ids = set()
         for rule in rules:
-            query = session.query(Node.id)
+            query = select(Node.id)
 
             # Join LogicalNode for site/role/region filtering
             needs_ln = any([rule.site, rule.role, rule.region])
             if needs_ln:
                 query = query.join(LogicalNode, Node.logical_node_id == LogicalNode.id)
                 if rule.site:
-                    query = query.filter(LogicalNode.site.ilike(f"{rule.site}%"))
+                    query = query.where(LogicalNode.site.ilike(f"{rule.site}%"))
                 if rule.role:
-                    query = query.filter(LogicalNode.role.ilike(f"{rule.role}%"))
+                    query = query.where(LogicalNode.role.ilike(f"{rule.role}%"))
                 if rule.region:
-                    site_names = [
-                        row[0]
-                        for row in session.query(SiteRegionAssignment.site_name)
-                        .filter(SiteRegionAssignment.region_name == rule.region)
-                        .all()
-                    ]
+                    site_names = session.exec(
+                        select(SiteRegionAssignment.site_name).where(SiteRegionAssignment.region_name == rule.region)
+                    ).all()
                     if site_names:
-                        query = query.filter(LogicalNode.site.in_(site_names))
+                        query = query.where(LogicalNode.site.in_(site_names))
                     else:
                         continue
 
@@ -112,35 +134,73 @@ class TelemetryAgentManager:
             if needs_asset:
                 query = query.join(Asset, Node.asset_ref_id == Asset.id)
                 if rule.vendor:
-                    query = query.filter(Asset.vendor.ilike(f"{rule.vendor}%"))
+                    query = query.where(Asset.vendor.ilike(f"{rule.vendor}%"))
                 if rule.os:
-                    query = query.filter(Asset.os.ilike(f"{rule.os}%"))
+                    query = query.where(Asset.os.ilike(f"{rule.os}%"))
 
             # Status filter directly on Node
             if rule.status:
-                query = query.filter(Node.status == rule.status)
+                query = query.where(Node.status == rule.status)
 
-            ids = {row[0] for row in query.all()}
-            matched_ids |= ids
+            matched_ids |= set(session.exec(query).all())
 
         return matched_ids
 
-    def _get_agent_response(self, session, agent: TelemetryAgent) -> TelemetryAgentResponse:
-        node_links = (
-            session.query(TelemetryAgentNodeLink).filter(TelemetryAgentNodeLink.telemetry_agent_id == agent.id).all()
-        )
-        cap_links = (
-            session.query(TelemetryAgentCapabilityLink)
-            .filter(TelemetryAgentCapabilityLink.telemetry_agent_id == agent.id)
-            .all()
-        )
-        rules = (
-            session.query(TelemetryAgentMatchRule).filter(TelemetryAgentMatchRule.telemetry_agent_id == agent.id).all()
+    def _agent_capabilities(self, session, agent_id: int) -> list[TelemetryCapability]:
+        return list(
+            session.exec(
+                select(TelemetryAgentCapabilityLink.capability).where(
+                    TelemetryAgentCapabilityLink.telemetry_agent_id == agent_id
+                )
+            ).all()
         )
 
-        explicit_node_ids = [link.node_id for link in node_links]
-        rule_matched_ids = self._resolve_rule_nodes(session, rules)
-        resolved = sorted(set(explicit_node_ids) | rule_matched_ids)
+    def _explicit_node_ids(self, session, agent_id: int) -> list[int]:
+        return list(
+            session.exec(
+                select(TelemetryAgentNodeLink.node_id).where(TelemetryAgentNodeLink.telemetry_agent_id == agent_id)
+            ).all()
+        )
+
+    def _agent_rules(self, session, agent_id: int) -> list[TelemetryAgentMatchRule]:
+        return list(
+            session.exec(
+                select(TelemetryAgentMatchRule).where(TelemetryAgentMatchRule.telemetry_agent_id == agent_id)
+            ).all()
+        )
+
+    def _agent_scope(self, session, agent_id: int) -> _AgentScope:
+        """Single source of truth for which nodes an agent covers:
+        explicit links ∪ rule matches. Used by both the API response and
+        config rendering so `resolved_nodes` always equals the rendered scope.
+        """
+        explicit = self._explicit_node_ids(session, agent_id)
+        rules = self._agent_rules(session, agent_id)
+        return _AgentScope(explicit, rules, self._resolve_rule_nodes(session, rules))
+
+    def _node_hostnames(self, session, node_ids: list[int]) -> dict[int, str]:
+        if not node_ids:
+            return {}
+        rows = session.exec(
+            select(Node.id, LogicalNode.hostname)
+            .join(LogicalNode, Node.logical_node_id == LogicalNode.id)
+            .where(Node.id.in_(node_ids))
+        ).all()
+        return dict(rows)
+
+    def _agent_components(self, node_ids: list[int], capabilities: list[TelemetryCapability]) -> AgentComponents:
+        if self.telemetry_registry is None:
+            return AgentComponents()
+        return self.telemetry_registry.for_telegraf_agent(node_ids=node_ids, capabilities=capabilities)
+
+    def _get_agent_response(
+        self, session, agent: TelemetryAgent, scope: _AgentScope | None = None
+    ) -> TelemetryAgentResponse:
+        capabilities = self._agent_capabilities(session, agent.id)
+        scope = scope or self._agent_scope(session, agent.id)
+        explicit_node_ids = scope.explicit
+        rules = scope.rules
+        resolved = scope.resolved
 
         return TelemetryAgentResponse(
             id=agent.id,
@@ -157,7 +217,7 @@ class TelemetryAgentManager:
             snmpv3_sec_name=agent.snmpv3_sec_name,
             snmpv2c_credential_id=agent.snmpv2c_credential_id,
             snmpv3_credential_id=agent.snmpv3_credential_id,
-            capabilities=[link.capability for link in cap_links],
+            capabilities=capabilities,
             nodes=explicit_node_ids,
             rules=[
                 TelemetryAgentMatchRuleResponse(
@@ -198,20 +258,20 @@ class TelemetryAgentManager:
     ) -> list[TelemetryAgentResponse]:
         session = next(self.db.get_session())
         try:
-            query = session.query(TelemetryAgent)
+            query = select(TelemetryAgent)
 
             if name is not None:
-                query = query.filter(TelemetryAgent.name.ilike(f"{name}%"))
+                query = query.where(TelemetryAgent.name.ilike(f"{name}%"))
 
             if capability is not None:
-                query = query.join(TelemetryAgentCapabilityLink).filter(
+                query = query.join(TelemetryAgentCapabilityLink).where(
                     TelemetryAgentCapabilityLink.capability == capability
                 )
 
             if node_id is not None:
-                query = query.join(TelemetryAgentNodeLink).filter(TelemetryAgentNodeLink.node_id == node_id)
+                query = query.join(TelemetryAgentNodeLink).where(TelemetryAgentNodeLink.node_id == node_id)
 
-            agents = query.all()
+            agents = session.exec(query).all()
             return [self._get_agent_response(session, agent) for agent in agents]
         finally:
             session.close()
@@ -222,9 +282,25 @@ class TelemetryAgentManager:
             agent = session.get(TelemetryAgent, id)
             if not agent:
                 raise HTTPException(status_code=404, detail="TelemetryAgent not found")
-            return self._get_agent_response(session, agent)
+            scope = self._agent_scope(session, id)
+            response = self._get_agent_response(session, agent, scope)
+            hostnames = self._node_hostnames(session, scope.resolved)
         finally:
             session.close()
+
+        # Running providers is too costly for listings, so only single-agent
+        # reads report per-node, per-capability render coverage.
+        coverage = self._agent_components(scope.resolved, response.capabilities).coverage(scope.resolved)
+        response.node_coverage = [
+            NodeCoverage(
+                node_id=node_id,
+                hostname=hostnames.get(node_id),
+                source=scope.source(node_id),
+                capabilities=coverage[node_id],
+            )
+            for node_id in scope.resolved
+        ]
+        return response
 
     def update(self, id: int, payload: TelemetryAgentUpdate) -> TelemetryAgentResponse:
         session = next(self.db.get_session())
@@ -252,9 +328,9 @@ class TelemetryAgentManager:
                     setattr(agent, field, value)
 
             if payload.capabilities is not None:
-                session.query(TelemetryAgentCapabilityLink).filter(
-                    TelemetryAgentCapabilityLink.telemetry_agent_id == id
-                ).delete()
+                session.exec(
+                    delete(TelemetryAgentCapabilityLink).where(TelemetryAgentCapabilityLink.telemetry_agent_id == id)
+                )
                 for cap in payload.capabilities:
                     link = TelemetryAgentCapabilityLink(telemetry_agent_id=id, capability=cap)
                     session.add(link)
@@ -273,11 +349,11 @@ class TelemetryAgentManager:
             if not agent:
                 raise HTTPException(status_code=404, detail="TelemetryAgent not found")
 
-            session.query(TelemetryAgentCapabilityLink).filter(
-                TelemetryAgentCapabilityLink.telemetry_agent_id == id
-            ).delete()
-            session.query(TelemetryAgentNodeLink).filter(TelemetryAgentNodeLink.telemetry_agent_id == id).delete()
-            session.query(TelemetryAgentMatchRule).filter(TelemetryAgentMatchRule.telemetry_agent_id == id).delete()
+            session.exec(
+                delete(TelemetryAgentCapabilityLink).where(TelemetryAgentCapabilityLink.telemetry_agent_id == id)
+            )
+            session.exec(delete(TelemetryAgentNodeLink).where(TelemetryAgentNodeLink.telemetry_agent_id == id))
+            session.exec(delete(TelemetryAgentMatchRule).where(TelemetryAgentMatchRule.telemetry_agent_id == id))
 
             session.delete(agent)
             session.commit()
@@ -297,14 +373,12 @@ class TelemetryAgentManager:
             if not node:
                 raise HTTPException(status_code=404, detail="Node not found")
 
-            existing = (
-                session.query(TelemetryAgentNodeLink)
-                .filter(
+            existing = session.exec(
+                select(TelemetryAgentNodeLink).where(
                     TelemetryAgentNodeLink.telemetry_agent_id == id,
                     TelemetryAgentNodeLink.node_id == node_id,
                 )
-                .first()
-            )
+            ).first()
             if existing:
                 raise HTTPException(status_code=409, detail="Node already assigned to this telemetry agent")
 
@@ -318,14 +392,12 @@ class TelemetryAgentManager:
     def remove_node(self, id: int, node_id: int) -> None:
         session = next(self.db.get_session())
         try:
-            link = (
-                session.query(TelemetryAgentNodeLink)
-                .filter(
+            link = session.exec(
+                select(TelemetryAgentNodeLink).where(
                     TelemetryAgentNodeLink.telemetry_agent_id == id,
                     TelemetryAgentNodeLink.node_id == node_id,
                 )
-                .first()
-            )
+            ).first()
             if not link:
                 raise HTTPException(status_code=404, detail="Node not assigned to this telemetry agent")
 
@@ -370,14 +442,12 @@ class TelemetryAgentManager:
     def remove_rule(self, id: int, rule_id: int) -> None:
         session = next(self.db.get_session())
         try:
-            rule = (
-                session.query(TelemetryAgentMatchRule)
-                .filter(
+            rule = session.exec(
+                select(TelemetryAgentMatchRule).where(
                     TelemetryAgentMatchRule.id == rule_id,
                     TelemetryAgentMatchRule.telemetry_agent_id == id,
                 )
-                .first()
-            )
+            ).first()
             if not rule:
                 raise HTTPException(status_code=404, detail="Rule not found")
 
@@ -396,7 +466,7 @@ class TelemetryAgentManager:
             if not agent:
                 raise HTTPException(status_code=404, detail="TelemetryAgent not found")
             agent.acked_revision = payload.config_revision
-            agent.acked_at = datetime.utcnow().isoformat()
+            agent.acked_at = _utc_now_naive()
             session.commit()
             return AckResult(
                 id=agent.id,
@@ -417,52 +487,44 @@ class TelemetryAgentManager:
         to get a working config; this default-masked view is for humans
         (e.g. the frontend's "View config" link).
         """
+        # 1. Read the agent's intent; the session is closed before providers
+        #    run, since they (and credential lookups) open their own.
         session = next(self.db.get_session())
         try:
             agent = session.get(TelemetryAgent, id)
             if not agent:
                 raise HTTPException(status_code=404, detail="TelemetryAgent not found")
+            capabilities = self._agent_capabilities(session, id)
+            node_ids = self._agent_scope(session, id).resolved
+        finally:
+            session.close()
 
-            cap_links = (
-                session.query(TelemetryAgentCapabilityLink)
-                .filter(TelemetryAgentCapabilityLink.telemetry_agent_id == id)
-                .all()
-            )
-            capabilities = [link.capability for link in cap_links]
-
-            node_links = (
-                session.query(TelemetryAgentNodeLink).filter(TelemetryAgentNodeLink.telemetry_agent_id == id).all()
-            )
-            explicit_ids = {link.node_id for link in node_links}
-
-            rules = (
-                session.query(TelemetryAgentMatchRule).filter(TelemetryAgentMatchRule.telemetry_agent_id == id).all()
-            )
-            rule_ids = self._resolve_rule_nodes(session, rules)
-
-            all_node_ids = sorted(explicit_ids | rule_ids)
-
-            nodes = session.query(Node).filter(Node.id.in_(all_node_ids)).all() if all_node_ids else []
-
-            mgmt_connections = (
-                (session.query(ManagementConnection).filter(ManagementConnection.node_id.in_(all_node_ids)).all())
-                if all_node_ids
-                else []
+        # 2. Build components scoped to the agent's nodes and capabilities.
+        scoped = self._agent_components(node_ids, capabilities)
+        for s in scoped.skipped:
+            logger.warning(
+                "telemetry agent %s: node %s not rendered for %s (%s)%s",
+                id,
+                s.node_id,
+                s.capability or "unknown capability",
+                s.reason,
+                f": {s.detail}" if s.detail else "",
             )
 
-            node_ip_map = {}
-            for conn in mgmt_connections:
-                if conn.node_id not in node_ip_map or conn.primary:
-                    node_ip_map[conn.node_id] = conn.target_ip
+        # 3. Render. Agent-level errors (e.g. a misconfigured trap credential) still raise.
+        config = self._render_telegraf_config(agent, capabilities, scoped.components, reveal_secrets)
 
-            ln_ids = [n.logical_node_id for n in nodes]
-            logical_nodes = (session.query(LogicalNode).filter(LogicalNode.id.in_(ln_ids)).all()) if ln_ids else []
-            ln_map = {ln.id: ln.hostname for ln in logical_nodes}
+        # 4. Record the poll only once a valid config has been produced.
+        self._touch_last_config_poll(id)
+        return config
 
-            agent.last_config_poll = datetime.utcnow().isoformat()
-            session.commit()
-
-            return self._render_telegraf_config(agent, capabilities, nodes, node_ip_map, ln_map, reveal_secrets)
+    def _touch_last_config_poll(self, id: int) -> None:
+        session = next(self.db.get_session())
+        try:
+            agent = session.get(TelemetryAgent, id)
+            if agent:
+                agent.last_config_poll = _utc_now_naive()
+                session.commit()
         finally:
             session.close()
 
@@ -470,11 +532,15 @@ class TelemetryAgentManager:
         self,
         agent: TelemetryAgent,
         capabilities: builtins.list[TelemetryCapability],
-        nodes: builtins.list[Node],
-        node_ip_map: dict,
-        ln_map: dict,
+        components: builtins.list[TelemetryComponent],
         reveal_secrets: bool = False,
     ) -> str:
+        from acex.observability.renderers import (
+            render_inputs,
+            render_snmp_trap_input,
+            render_syslog_input,
+        )
+
         lines = []
 
         lines.append("# Telegraf configuration")
@@ -486,24 +552,12 @@ class TelemetryAgentManager:
         lines.append('  flush_interval = "10s"')
         lines.append("")
 
-        if self.telemetry_registry is not None:
-            from acex.observability.renderers import render_inputs
-
-            agent_node_ids = {n.id for n in nodes}
-            components = self.telemetry_registry.for_telegraf_agent(
-                node_ids=agent_node_ids,
-                capabilities=set(capabilities),
-            )
-            inputs_toml = render_inputs(components)
-            if inputs_toml.strip():
-                lines.append(inputs_toml)
+        inputs_toml = render_inputs(components)
+        if inputs_toml.strip():
+            lines.append(inputs_toml)
 
         # Service inputs — agent-scoped listeners, not registry-driven.
         cap_set = set(capabilities)
-        from acex.observability.renderers import (
-            render_snmp_trap_input,
-            render_syslog_input,
-        )
 
         if TelemetryCapability.snmp_trap in cap_set:
             version = agent.snmp_version.value if agent.snmp_version else "2c"
