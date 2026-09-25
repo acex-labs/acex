@@ -34,3 +34,22 @@ class AgentConfigResponse(BaseModel):
     """Rendered config text (TOML) for a telemetry agent."""
 
     config: str
+
+
+class AgentNodeSet(BaseModel):
+    """Declarative explicit-node membership for an agent (PUT …/nodes).
+
+    `node_ids` replaces the agent's explicit node links; an empty list removes
+    all. Rule-matched nodes are unaffected. When `expected_revision` is given
+    and differs from the agent's current `config_revision`, the request is
+    rejected with 409 so concurrent edits don't silently overwrite each other.
+    """
+
+    node_ids: list[int]
+    expected_revision: int | None = None
+
+
+class AgentNodeSetResult(BaseModel):
+    added: list[int] = []
+    removed: list[int] = []
+    config_revision: int

@@ -17,7 +17,8 @@ from acex.models.logical_node import LogicalNode
 from acex.models.management_connections import ManagementConnection
 from acex.models.node import AssetRefType, Node
 from acex.models.regions import SiteRegionAssignment
-from acex_devkit.models.agent_manifest import AckResult
+from acex.utils.agent_node_links import set_agent_nodes
+from acex_devkit.models.agent_manifest import AckResult, AgentNodeSet, AgentNodeSetResult
 from fastapi import HTTPException
 from sqlalchemy import delete
 from sqlmodel import select
@@ -236,6 +237,22 @@ class CollectionAgentManager:
             session.delete(link)
             self._bump_revision(session, id)
             session.commit()
+        finally:
+            session.close()
+
+    def set_nodes(self, id: int, payload: AgentNodeSet) -> AgentNodeSetResult:
+        """Declaratively set the agent's explicit nodes (see `AgentNodeSet`)."""
+        session = next(self.db.get_session())
+        try:
+            return set_agent_nodes(
+                session,
+                agent_model=CollectionAgent,
+                link_model=CollectionAgentNodeLink,
+                agent_fk="collection_agent_id",
+                agent_id=id,
+                node_ids=payload.node_ids,
+                expected_revision=payload.expected_revision,
+            )
         finally:
             session.close()
 

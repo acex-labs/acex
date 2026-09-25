@@ -1,4 +1,4 @@
-from acex_devkit.models.agent_manifest import AckResult
+from acex_devkit.models.agent_manifest import AckResult, AgentNodeSet, AgentNodeSetResult
 from acex_devkit.models.telemetry_agent import (
     TelemetryAgentAck,
     TelemetryAgentCreate,
@@ -18,6 +18,7 @@ from acex_client.resources.base import (
     DeleteMixin,
     GetMixin,
     ListMixin,
+    NameLookupMixin,
     PaginatedResult,
     Resource,
     UpdateMixin,
@@ -85,6 +86,7 @@ class ObservabilityAgents(
     Resource,
     GetMixin,
     ListMixin,
+    NameLookupMixin,
     CreateMixin,
     UpdateMixin,
     DeleteMixin,
@@ -107,6 +109,11 @@ class ObservabilityAgents(
 
     @action("DELETE", "{id}/nodes/{node_id}")
     def remove_node(self, id: int, node_id: int) -> None: ...
+
+    @action("PUT", "{id}/nodes")
+    def set_nodes(self, id: int, payload: AgentNodeSet) -> AgentNodeSetResult:
+        """Replace the explicit node set (declarative); [] removes all."""
+        ...
 
     @action("POST", "{id}/ack")
     def ack(self, id: int, payload: TelemetryAgentAck) -> AckResult: ...

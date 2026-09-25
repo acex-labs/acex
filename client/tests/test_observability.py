@@ -144,3 +144,44 @@ def test_grafana_dashboards(observability):
 
     dash = observability.grafana.dashboard(uid="abc")
     assert dash["title"] == "Overview"
+
+
+@respx.mock
+def test_agent_set_nodes_action(observability):
+    import json
+
+    from acex_devkit.models.agent_manifest import AgentNodeSet
+
+    route = respx.put("http://test/api/v1/observability/agents/3/nodes").mock(
+        return_value=Response(200, json={"added": [5], "removed": [1], "config_revision": 8})
+    )
+    result = observability.agents.set_nodes(id=3, payload=AgentNodeSet(node_ids=[5], expected_revision=7))
+    assert json.loads(route.calls.last.request.content) == {"node_ids": [5], "expected_revision": 7}
+    assert (result.added, result.removed, result.config_revision) == ([5], [1], 8)
+
+
+def _agent_item(id, name):
+    return {"id": id, "name": name, "capabilities": [], "nodes": [], "rules": [], "resolved_nodes": []}
+
+
+@respx.mock
+def test_agent_get_id_by_name_requires_exact_match(observability):
+    # Server filter is a prefix match: "edge" also returns "edge-2".
+    respx.get("http://test/api/v1/observability/agents").mock(
+        return_value=Response(200, json=[_agent_item(4, "edge-2"), _agent_item(7, "edge")])
+    )
+    assert observability.agents.get_id_by_name("edge") == 7
+
+
+@respx.mock
+def test_agent_get_id_by_name_not_found_and_ambiguous(observability):
+    respx.get("http://test/api/v1/observability/agents").mock(
+        side_effect=[
+            Response(200, json=[_agent_item(4, "edge-2")]),
+            Response(200, json=[_agent_item(1, "edge"), _agent_item(2, "edge")]),
+        ]
+    )
+    with pytest.raises(LookupError, match="no item named 'edge'"):
+        observability.agents.get_id_by_name("edge")
+    with pytest.raises(LookupError, match=r"2 items named 'edge' \(ids 1, 2\)"):
+        observability.agents.get_id_by_name("edge")

@@ -322,3 +322,19 @@ def test_logical_node_configuration(inventory):
     config = inventory.logical_nodes.configuration(id=5)
     assert config.hostname == "R1"
     assert config.regions == ["eu"]
+
+
+@respx.mock
+def test_collection_agent_get_id_by_name(inventory):
+    respx.get("http://test/api/v1/inventory/collection_agents").mock(
+        return_value=Response(
+            200,
+            json={
+                "items": [{"id": 3, "name": "site-a-collector"}, {"id": 5, "name": "site-a"}],
+                "total": 2,
+                "limit": 1000,
+                "offset": 0,
+            },
+        )
+    )
+    assert inventory.collection_agents.get_id_by_name("site-a") == 5
