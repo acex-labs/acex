@@ -1,7 +1,7 @@
 import base64
 import difflib
 import hashlib
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from acex.models import DeviceConfig, DeviceConfigResponse, StoredDeviceConfig
@@ -90,7 +90,7 @@ class DeviceConfigManager:
         is `asc | desc`. Time-based sort runs in SQL; node-attribute sort
         runs in Python over the limited result.
         """
-        until_value = until or datetime.utcnow()
+        until_value = until or datetime.now(UTC)
         sort_order_norm = "asc" if str(sort_order).lower() == "asc" else "desc"
 
         session = next(self.db.get_session())
