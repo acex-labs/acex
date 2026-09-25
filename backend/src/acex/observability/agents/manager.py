@@ -1,5 +1,7 @@
 import builtins
 import logging
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -72,16 +74,18 @@ class TelemetryAgentManager:
         if agent:
             agent.config_revision = (agent.config_revision or 0) + 1
 
-    def bump_revisions_for_node(self, node_id: int) -> None:
-        """Bump config_revision on every agent that covers `node_id`, via
-        explicit link or matching rule. Call AFTER node create and BEFORE
-        node delete — rule resolution joins on Node/LogicalNode/Asset.
-        """
+    def agents_covering_nodes(self, node_ids: Iterable[int]) -> set[int]:
+        """IDs of agents covering any of `node_ids`, via explicit link or
+        matching rule. Rule resolution joins on Node/LogicalNode/Asset, so
+        the result reflects the current DB state."""
+        wanted = set(node_ids)
+        if not wanted:
+            return set()
         session = next(self.db.get_session())
         try:
             affected: set[int] = set(
                 session.exec(
-                    select(TelemetryAgentNodeLink.telemetry_agent_id).where(TelemetryAgentNodeLink.node_id == node_id)
+                    select(TelemetryAgentNodeLink.telemetry_agent_id).where(TelemetryAgentNodeLink.node_id.in_(wanted))
                 ).all()
             )
 
@@ -91,17 +95,39 @@ class TelemetryAgentManager:
             for agent_id, agent_rules in rules_by_agent.items():
                 if agent_id in affected:
                     continue
-                if node_id in self._resolve_rule_nodes(session, agent_rules):
+                if wanted & self._resolve_rule_nodes(session, agent_rules):
                     affected.add(agent_id)
+            return affected
+        finally:
+            session.close()
 
-            if not affected:
-                return
-
-            for agent_id in affected:
+    def bump_revisions(self, agent_ids: Iterable[int]) -> None:
+        agent_ids = set(agent_ids)
+        if not agent_ids:
+            return
+        session = next(self.db.get_session())
+        try:
+            for agent_id in agent_ids:
                 self._bump_revision(session, agent_id)
             session.commit()
         finally:
             session.close()
+
+    def bump_revisions_for_node(self, node_id: int) -> None:
+        """Bump config_revision on every agent that covers `node_id`. Call
+        AFTER node create and BEFORE node delete."""
+        self.bump_revisions(self.agents_covering_nodes([node_id]))
+
+    @contextmanager
+    def bumping_revisions_for_nodes(self, node_ids: Iterable[int]) -> Iterator[None]:
+        """Wrap a change to node attributes that rules match on (site, role,
+        status, …). Agents covering the nodes before *or* after the change are
+        bumped — so an agent that loses a node learns about it too. Nothing is
+        bumped if the wrapped block raises."""
+        node_ids = set(node_ids)
+        before = self.agents_covering_nodes(node_ids)
+        yield
+        self.bump_revisions(before | self.agents_covering_nodes(node_ids))
 
     def _resolve_rule_nodes(self, session, rules: list[TelemetryAgentMatchRule]) -> set[int]:
         """Resolve node IDs matching any of the given rules."""
@@ -552,9 +578,11 @@ class TelemetryAgentManager:
         lines.append('  flush_interval = "10s"')
         lines.append("")
 
+        has_inputs = False
         inputs_toml = render_inputs(components)
         if inputs_toml.strip():
             lines.append(inputs_toml)
+            has_inputs = True
 
         # Service inputs — agent-scoped listeners, not registry-driven.
         cap_set = set(capabilities)
@@ -594,10 +622,19 @@ class TelemetryAgentManager:
                     **v3,
                 )
             )
+            has_inputs = True
 
         if TelemetryCapability.syslog_rfc5424 in cap_set:
             port = agent.syslog_port or 514
             lines.append(render_syslog_input(server=f"udp://:{port}"))
+            has_inputs = True
+
+        # Telegraf refuses to start without any input. An agent whose nodes are
+        # all skipped (e.g. no management IPs yet) and that has no listeners
+        # would otherwise crash-loop; fall back to Telegraf's own metrics.
+        if not has_inputs:
+            lines.append("[[inputs.internal]]")
+            lines.append("")
 
         # Backend-default outputs (set in app.py via set_influxdb / add_influxdb),
         # applied to every agent.

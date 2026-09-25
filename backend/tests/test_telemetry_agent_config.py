@@ -274,3 +274,128 @@ def test_legacy_list_provider_is_scoped_by_target_node(db):
     config = TelemetryAgentManager(db, telemetry_registry=registry).get_config(agent_id)
     assert 'node = "legacy-mine"' in config
     assert 'node = "legacy-other"' not in config
+
+
+# --- Telegraf input fallback ---
+
+
+@pytest.mark.parametrize(
+    "node_kwargs, capabilities, expect_internal",
+    [
+        (None, ["icmp", "snmp"], True),  # agent with no nodes yet
+        ({"ip": None}, ["icmp", "snmp"], True),  # all nodes skipped
+        ({"ip": "10.0.0.1"}, ["icmp"], False),  # node input rendered
+        (None, ["snmp_trap"], False),  # trap listener is an input
+        (None, ["syslog_rfc5424"], False),  # syslog listener is an input
+        (None, [], True),  # no capabilities at all
+    ],
+)
+def test_internal_input_fallback_when_config_has_no_inputs(db, node_kwargs, capabilities, expect_internal):
+    node_ids = [_add_node(db, hostname="r1", **node_kwargs)] if node_kwargs is not None else []
+    agent_id = _add_agent(db, node_ids=node_ids, capabilities=capabilities)
+
+    config = _manager(db).get_config(agent_id)
+    assert ("[[inputs.internal]]" in config) is expect_internal
+    assert "[[inputs." in config  # Telegraf never gets an input-less config
+
+
+# --- config_revision bumps on node attribute changes ---
+
+
+def _revision(db, agent_id: int) -> int:
+    with Session(db.engine) as s:
+        return s.get(TelemetryAgent, agent_id).config_revision
+
+
+def _services(db):
+    import asyncio
+    from types import SimpleNamespace
+
+    from acex.inventory.logical_node_service import LogicalNodeService
+    from acex.inventory.node_service import NodeService
+    from acex.plugins.adaptors.logical_node_adapter import LogicalNodeAdapter
+    from acex.plugins.adaptors.node_adapter import NodeAdapter
+    from acex.plugins.integrations.database import DatabasePlugin
+
+    tam = _manager(db)
+    ln_service = LogicalNodeService(
+        LogicalNodeAdapter(DatabasePlugin(db, LogicalNode)),
+        config_compiler=None,
+        integrations=None,
+        db_manager=db,
+        telemetry_agent_manager=tam,
+    )
+    node_service = NodeService(NodeAdapter(DatabasePlugin(db, Node)), SimpleNamespace(telemetry_agent_manager=tam))
+    return tam, ln_service, node_service, asyncio.run
+
+
+def test_site_change_bumps_agents_gaining_and_losing_the_node(db):
+    from acex_devkit.models.telemetry_agent import TelemetryAgentMatchRuleCreate
+
+    nid = _add_node(db, hostname="r1")  # site "sto1"
+    tam, ln_service, _, run = _services(db)
+    sto = _add_agent(db, node_ids=[], capabilities=["icmp"])
+    got = _add_agent(db, node_ids=[], capabilities=["icmp"])
+    unrelated = _add_agent(db, node_ids=[], capabilities=["icmp"])
+    tam.add_rule(sto, TelemetryAgentMatchRuleCreate(site="sto"))
+    tam.add_rule(got, TelemetryAgentMatchRuleCreate(site="got"))
+    tam.add_rule(unrelated, TelemetryAgentMatchRuleCreate(site="mal"))
+    before = {a: _revision(db, a) for a in (sto, got, unrelated)}
+
+    with Session(db.engine) as s:
+        ln_id = s.get(Node, nid).logical_node_id
+    run(ln_service.update(str(ln_id), LogicalNode(site="got1")))
+
+    assert _revision(db, sto) == before[sto] + 1  # lost the node
+    assert _revision(db, got) == before[got] + 1  # gained the node
+    assert _revision(db, unrelated) == before[unrelated]
+    with Session(db.engine) as s:
+        ln = s.get(LogicalNode, ln_id)
+        assert (ln.site, ln.hostname) == ("got1", "r1")  # partial update kept hostname
+    assert tam.get(got).resolved_nodes == [nid]
+
+
+def test_role_change_bumps_explicitly_linked_agent(db):
+    nid = _add_node(db, hostname="r1")
+    tam, ln_service, _, run = _services(db)
+    agent_id = _add_agent(db, node_ids=[nid], capabilities=["icmp"])
+    before = _revision(db, agent_id)
+
+    with Session(db.engine) as s:
+        ln_id = s.get(Node, nid).logical_node_id
+    run(ln_service.update(str(ln_id), LogicalNode(role="access")))
+
+    assert _revision(db, agent_id) == before + 1
+
+
+def test_node_status_change_bumps_status_rule_agent(db):
+    from acex_devkit.models.telemetry_agent import TelemetryAgentMatchRuleCreate
+
+    nid = _add_node(db, hostname="r1")  # status "planned"
+    tam, _, node_service, run = _services(db)
+    agent_id = _add_agent(db, node_ids=[], capabilities=["icmp"])
+    tam.add_rule(agent_id, TelemetryAgentMatchRuleCreate(status="active"))
+    before = _revision(db, agent_id)
+
+    run(node_service.update(str(nid), Node(status="active")))
+
+    assert _revision(db, agent_id) == before + 1
+    assert tam.get(agent_id).resolved_nodes == [nid]
+
+
+def test_failed_update_does_not_bump(db):
+    nid = _add_node(db, hostname="r1")
+    tam, ln_service, _, run = _services(db)
+    agent_id = _add_agent(db, node_ids=[nid], capabilities=["icmp"])
+    before = _revision(db, agent_id)
+
+    def boom(*_):
+        raise RuntimeError("plugin down")
+
+    ln_service.adapter.update = boom
+    with Session(db.engine) as s:
+        ln_id = s.get(Node, nid).logical_node_id
+    with pytest.raises(RuntimeError):
+        run(ln_service.update(str(ln_id), LogicalNode(site="got1")))
+
+    assert _revision(db, agent_id) == before

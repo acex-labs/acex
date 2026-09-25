@@ -226,7 +226,9 @@ class NodeService:
 
     async def update(self, id: str, logical_node: Node):
         logical_node.updated_at = datetime.utcnow()
-        result = await self._call_method(self.adapter.update, id, logical_node)
+        # status and logical_node_id affect telemetry rule matching.
+        with self.inventory.telemetry_agent_manager.bumping_revisions_for_nodes([int(id)]):
+            result = await self._call_method(self.adapter.update, id, logical_node)
         return result
 
     async def delete(self, id: str):
