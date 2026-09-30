@@ -19,7 +19,8 @@ def _node_row(item: Any) -> dict:
         "regions": item.regions,
         "vendor": item.vendor,
         "os": item.os,
-        "status": str(item.status) if item.status else None,
+        "admin_status": str(item.admin_status) if item.admin_status else None,
+        "provision_status": str(item.provision_status) if item.provision_status else None,
     }
 
 
@@ -33,7 +34,8 @@ def register(mcp: FastMCP) -> None:
         role: str | None = None,
         vendor: str | None = None,
         os: str | None = None,
-        status: str | None = None,
+        admin_status: str | None = None,
+        provision_status: str | None = None,
         limit: int = 50,
     ) -> dict:
         """Find network nodes, optionally filtered. Start here.
@@ -50,11 +52,15 @@ def register(mcp: FastMCP) -> None:
             role: Function, e.g. "core", "access".
             vendor: Hardware vendor, e.g. "cisco".
             os: Device OS, e.g. "ios".
-            status: One of "planned", "init", "active", "decommissioned".
+            admin_status: Operator intent, one of "planned", "active", "decommissioned".
+            provision_status: Provisioning lifecycle, one of "unprovisioned",
+                "adopted" (brownfield), "pending", "bootstrapping", "provisioning",
+                "provisioned", "failed".
             limit: Maximum rows to return.
 
         Returns `{"nodes": [...], "total": n, "returned": m}`. Each row carries
-        node_id, hostname, site, role, regions, vendor, os and status. It does
+        node_id, hostname, site, role, regions, vendor, os, admin_status and
+        provision_status. It does
         NOT carry configuration — use get_desired_config, get_observed_config or
         get_config_drift once you have a node_id.
 
@@ -70,7 +76,8 @@ def register(mcp: FastMCP) -> None:
             role=role,
             vendor=vendor,
             os=os,
-            status=status,
+            admin_status=admin_status,
+            provision_status=provision_status,
             doing="searching for nodes",
         )
         return {
@@ -131,7 +138,8 @@ def register(mcp: FastMCP) -> None:
             "role": logical.role,
             "sequence": logical.sequence,
             "regions": node.regions,
-            "status": str(node.status) if node.status else None,
+            "admin_status": str(node.admin_status) if node.admin_status else None,
+            "provision_status": str(node.provision_status) if node.provision_status else None,
             "hardware": hardware,
             "logical_node_id": node.logical_node_id,
             "asset_ref_id": node.asset_ref_id,

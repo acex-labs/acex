@@ -57,7 +57,7 @@ def _fetch_node_instance(sdk, identifier: str):
             typer.echo(f"Multiple nodes match '{identifier}':")
             from acex_cli.output import display_list
 
-            display_list(result, columns=["id", "hostname", "site", "status"], title="")
+            display_list(result, columns=["id", "hostname", "site", "admin_status", "provision_status"], title="")
             raise typer.Exit(1)
         node = sdk.node_instances.get(result.items[0].id)
     if not node:
@@ -84,7 +84,7 @@ def _resolve_node_quick(sdk, identifier: str):
         typer.echo(f"Multiple nodes match '{identifier}':")
         from acex_cli.output import display_list
 
-        display_list(result, columns=["id", "hostname", "site", "status"], title="")
+        display_list(result, columns=["id", "hostname", "site", "admin_status", "provision_status"], title="")
         raise typer.Exit(1)
     return result.items[0]
 
@@ -205,7 +205,14 @@ def list_cmd(
     hostname: str | None = typer.Option(None, help="Filter by hostname (prefix match)"),
     logical_node_id: int | None = typer.Option(None, help="Filter by logical node ID"),
     asset_ref_id: int | None = typer.Option(None, help="Filter by asset ref ID"),
-    status: str | None = typer.Option(None, help="Filter by status (planned, init, active, decommissioned)"),
+    admin_status: str | None = typer.Option(None, help="Filter by admin status (planned, active, decommissioned)"),
+    provision_status: str | None = typer.Option(
+        None,
+        help=(
+            "Filter by provision status "
+            "(unprovisioned, adopted, pending, bootstrapping, provisioning, provisioned, failed)"
+        ),
+    ),
     # Pagination
     limit: int = typer.Option(100, "--limit", "-l", help="Max items to return"),
     offset: int = typer.Option(0, "--offset", help="Items to skip"),
@@ -221,13 +228,16 @@ def list_cmd(
         hostname=hostname,
         logical_node_id=logical_node_id,
         asset_ref_id=asset_ref_id,
-        status=status,
+        admin_status=admin_status,
+        provision_status=provision_status,
     )
     result = sdk.node_instances.query(limit=limit, offset=offset, **filters)
     display_list(
         result,
         format=format,
-        columns=columns.split(",") if columns else ["id", "hostname", "site", "status", "vendor", "os", "ned_id"],
+        columns=columns.split(",")
+        if columns
+        else ["id", "hostname", "site", "admin_status", "provision_status", "vendor", "os", "ned_id"],
         no_header=no_header,
         model=NodeListItem,
         title="Node Instances",
@@ -641,7 +651,8 @@ def _flatten_node(node, node_id: str = None) -> dict:
         "hostname": logical_node.get("hostname"),
         "site": logical_node.get("site"),
         "role": logical_node.get("role"),
-        "status": data.get("status"),
+        "admin_status": data.get("admin_status"),
+        "provision_status": data.get("provision_status"),
         "vendor": asset.get("vendor"),
         "os": asset.get("os"),
         "os_version": asset.get("os_version"),
@@ -673,7 +684,7 @@ def _resolve_node(sdk, identifier: str):
         typer.echo(f"Multiple nodes match hostname '{identifier}':")
         from acex_cli.output import display_list
 
-        display_list(result, columns=["id", "hostname", "site", "status"], title="")
+        display_list(result, columns=["id", "hostname", "site", "admin_status", "provision_status"], title="")
         typer.echo("Use the ID to specify which node.")
         raise typer.Exit(1)
 
@@ -693,7 +704,7 @@ def _resolve_node_id(sdk, identifier: str) -> str:
         typer.echo(f"Multiple nodes match hostname '{identifier}':")
         from acex_cli.output import display_list
 
-        display_list(result, columns=["id", "hostname", "site", "status"], title="")
+        display_list(result, columns=["id", "hostname", "site", "admin_status", "provision_status"], title="")
         typer.echo("Use the ID to specify which node.")
         raise typer.Exit(1)
     typer.echo(f"Node '{identifier}' not found.")
