@@ -118,10 +118,11 @@ from .management_connection import (
 from .ned import Ned
 from .node_response import (
     AssetRefType,
+    NodeAdminStatus,
     NodeCreate,
     NodeListItem,
+    NodeProvisionStatus,
     NodeResponse,
-    NodeStatus,
     NodeUpdate,
 )
 from .pagination import PaginatedResponse
@@ -170,7 +171,8 @@ __all__ = [
     "NodeListItem",
     "NodeUpdate",
     "AssetRefType",
-    "NodeStatus",
+    "NodeAdminStatus",
+    "NodeProvisionStatus",
     "CredentialBase",
     "CredentialFieldBase",
     "CredentialFieldResponse",

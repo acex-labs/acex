@@ -24,7 +24,7 @@ def main():
 
         # Bound sub-resource via LiveInstance
         node = client.inventory.node_instances.get(1)
-        print(f"node: hostname={node.hostname} status={node.status}")
+        print(f"node: hostname={node.hostname} admin={node.admin_status} provision={node.provision_status}")
 
         # Action on a CollectionAgent
         agents = client.inventory.collection_agents.query(enabled=True)

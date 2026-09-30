@@ -14,7 +14,7 @@ from .device_config import DeviceConfig, DeviceConfigResponse, StoredDeviceConfi
 from .lldp_neighbor import LldpNeighbor
 from .logical_node import LogicalNode, LogicalNodeConfigResponse, LogicalNodeListResponse, LogicalNodeResponse
 from .management_connections import ManagementConnection, ManagementConnectionBase, ManagementConnectionResponse
-from .node import Node, NodeListResponse, NodeResponse, NodeStatus
+from .node import Node, NodeAdminStatus, NodeListResponse, NodeProvisionStatus, NodeResponse
 from .pagination import PaginatedResponse
 from .regions import Region, RegionResponse, SiteRegionAssignment
 from .sites import Site, SiteResponse
@@ -80,7 +80,8 @@ __all__ = [
     "Node",
     "NodeListResponse",
     "NodeResponse",
-    "NodeStatus",
+    "NodeAdminStatus",
+    "NodeProvisionStatus",
     "PaginatedResponse",
     "Region",
     "RegionResponse",

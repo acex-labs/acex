@@ -166,8 +166,10 @@ class TelemetryAgentManager:
                     query = query.where(Asset.os.ilike(f"{rule.os}%"))
 
             # Status filter directly on Node
-            if rule.status:
-                query = query.where(Node.status == rule.status)
+            if rule.admin_status:
+                query = query.where(Node.admin_status == rule.admin_status)
+            if rule.provision_status:
+                query = query.where(Node.provision_status == rule.provision_status)
 
             matched_ids |= set(session.exec(query).all())
 
@@ -252,7 +254,8 @@ class TelemetryAgentManager:
                     site=r.site,
                     vendor=r.vendor,
                     os=r.os,
-                    status=r.status,
+                    admin_status=r.admin_status,
+                    provision_status=r.provision_status,
                     role=r.role,
                 )
                 for r in rules
@@ -467,7 +470,8 @@ class TelemetryAgentManager:
                 site=payload.site,
                 vendor=payload.vendor,
                 os=payload.os,
-                status=payload.status,
+                admin_status=payload.admin_status,
+                provision_status=payload.provision_status,
                 role=payload.role,
             )
             session.add(rule)
@@ -479,7 +483,8 @@ class TelemetryAgentManager:
                 site=rule.site,
                 vendor=rule.vendor,
                 os=rule.os,
-                status=rule.status,
+                admin_status=rule.admin_status,
+                provision_status=rule.provision_status,
                 role=rule.role,
             )
         finally:

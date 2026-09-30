@@ -9,7 +9,7 @@ from acex.models import (
     NodeResponse,
     PaginatedResponse,
 )
-from acex.models.node import NodeStatus
+from acex.models.node import NodeAdminStatus, NodeProvisionStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -116,7 +116,8 @@ class NodeService:
         vendor: str = None,
         os: str = None,
         role: str = None,
-        status: NodeStatus | None = None,
+        admin_status: NodeAdminStatus | None = None,
+        provision_status: NodeProvisionStatus | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> PaginatedResponse[NodeListResponse]:
@@ -128,7 +129,8 @@ class NodeService:
                 "logical_node.role": role,
                 "logical_node_id": logical_node_id,
                 "asset_ref_id": asset_ref_id,
-                "status": status,
+                "admin_status": admin_status,
+                "provision_status": provision_status,
             }.items()
             if v is not None
         }
@@ -226,7 +228,7 @@ class NodeService:
 
     async def update(self, id: str, logical_node: Node):
         logical_node.updated_at = datetime.now(UTC)
-        # status and logical_node_id affect telemetry rule matching.
+        # admin_status, provision_status and logical_node_id affect telemetry rule matching.
         with self.inventory.telemetry_agent_manager.bumping_revisions_for_nodes([int(id)]):
             result = await self._call_method(self.adapter.update, id, logical_node)
         return result

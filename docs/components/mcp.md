@@ -54,7 +54,7 @@ The server listens on port 8000 by default.
 | `list_assets` | List physical hardware (filter by vendor, OS, model, serial, assigned status) |
 | `list_logical_nodes` | List config templates (filter by role, site, sequence, hostname, assigned) |
 | `get_specific_logical_node` | Full desired config for one logical node |
-| `list_node_instances` | List deployed node instances (filter by site, hostname, status, etc.) |
+| `list_node_instances` | List deployed node instances (filter by site, hostname, admin/provision status, etc.) |
 | `get_node_instance` | A node instance with its vendor-specific compiled config |
 | `get_node_instance_config` | Latest observed (running) config for a node instance |
 
