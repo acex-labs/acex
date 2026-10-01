@@ -31,6 +31,10 @@ theme:
     - content.code.copy
     - content.action.edit
 
+plugins:
+  - search
+  - glightbox
+
 markdown_extensions:
   - admonition
   - pymdownx.details
