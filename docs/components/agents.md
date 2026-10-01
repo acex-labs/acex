@@ -8,20 +8,45 @@ ACE-X uses three long-running agents to bridge the backend to the outside world.
 
 ```mermaid
 sequenceDiagram
+    autonumber
     participant CA as Collection Agent
     participant BE as Backend API
     participant DEV as Network Device
 
-    loop Every 60 s (or on revision change)
-        CA->>BE: GET manifest (node list + config_revision)
-        BE-->>CA: Targets + credential IDs
-        CA->>BE: GET credentials (decrypted)
-        CA->>DEV: SSH — show running-config
-        DEV-->>CA: Raw config
-        CA->>BE: POST observed config (parsed)
-        CA->>DEV: SSH — show lldp/cdp neighbors
-        CA->>BE: POST topology neighbors
-        CA->>BE: ACK manifest revision
+    loop Every 60 seconds or when the manifest revision changes
+        CA->>BE: Request manifest
+        activate BE
+        BE-->>CA: Return targets, credential IDs, and revision
+        deactivate BE
+
+        Note over CA,BE: Collect the configuration for each assigned target
+        CA->>BE: Request decrypted credentials
+        activate BE
+        BE-->>CA: Return credentials
+        deactivate BE
+
+        CA->>DEV: Connect via SSH and request running configuration
+        activate DEV
+        DEV-->>CA: Return raw configuration
+        deactivate DEV
+
+        CA->>BE: Submit parsed observed configuration
+        activate BE
+        BE-->>CA: Confirm configuration received
+        deactivate BE
+
+        Note over CA,DEV: Discover the device's direct neighbors
+        CA->>DEV: Request LLDP/CDP neighbor data
+        activate DEV
+        DEV-->>CA: Return neighbor data
+        deactivate DEV
+
+        CA->>BE: Submit discovered topology neighbors
+        activate BE
+        BE-->>CA: Confirm topology received
+        deactivate BE
+
+        CA->>BE: Acknowledge manifest revision
     end
 ```
 
