@@ -1,31 +1,37 @@
-.mermaid svg {
+.mermaid {
   cursor: zoom-in;
-  transition: opacity 0.15s;
 }
 
-.mermaid-overlay {
+.mermaid-backdrop {
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 9998;
   background: rgba(0, 0, 0, 0.85);
   cursor: zoom-out;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
 }
 
-.mermaid-overlay.active {
-  display: flex;
+.mermaid-backdrop.active {
+  display: block;
 }
 
-.mermaid-overlay svg {
-  max-width: 95vw;
-  max-height: 90vh;
-  width: auto;
+.mermaid.mermaid-zoomed {
+  position: fixed !important;
+  inset: 2rem !important;
+  z-index: 9999 !important;
+  background: var(--md-default-bg-color, #fff) !important;
+  border-radius: 6px !important;
+  padding: 2rem !important;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5) !important;
+  overflow: auto !important;
+  cursor: zoom-out !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.mermaid.mermaid-zoomed svg {
+  max-width: 100%;
   height: auto;
-  background: var(--md-default-bg-color, #fff);
-  border-radius: 6px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
 }
