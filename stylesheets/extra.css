@@ -1,0 +1,31 @@
+.mermaid svg {
+  cursor: zoom-in;
+  transition: opacity 0.15s;
+}
+
+.mermaid-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.85);
+  cursor: zoom-out;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.mermaid-overlay.active {
+  display: flex;
+}
+
+.mermaid-overlay svg {
+  max-width: 95vw;
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  background: var(--md-default-bg-color, #fff);
+  border-radius: 6px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
