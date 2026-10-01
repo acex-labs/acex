@@ -1,26 +1,35 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const overlay = document.createElement("div");
-  overlay.className = "mermaid-overlay";
-  document.body.appendChild(overlay);
+  const backdrop = document.createElement("div");
+  backdrop.className = "mermaid-backdrop";
+  document.body.appendChild(backdrop);
 
-  overlay.addEventListener("click", () => overlay.classList.remove("active"));
+  function close() {
+    const zoomed = document.querySelector(".mermaid.mermaid-zoomed");
+    if (zoomed) zoomed.classList.remove("mermaid-zoomed");
+    backdrop.classList.remove("active");
+  }
+
+  backdrop.addEventListener("click", close);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") overlay.classList.remove("active");
+    if (e.key === "Escape") close();
   });
 
   function attachZoom() {
-    document.querySelectorAll(".mermaid svg").forEach((svg) => {
-      if (svg.dataset.zoomAttached) return;
-      svg.dataset.zoomAttached = "1";
-      svg.addEventListener("click", () => {
-        overlay.innerHTML = "";
-        overlay.appendChild(svg.cloneNode(true));
-        overlay.classList.add("active");
+    document.querySelectorAll(".mermaid").forEach((el) => {
+      if (el.dataset.zoomAttached) return;
+      el.dataset.zoomAttached = "1";
+      el.style.cursor = "zoom-in";
+      el.addEventListener("click", () => {
+        if (el.classList.contains("mermaid-zoomed")) {
+          close();
+        } else {
+          el.classList.add("mermaid-zoomed");
+          backdrop.classList.add("active");
+        }
       });
     });
   }
 
-  // Mermaid renders asynchronously — observe for SVG insertion
   const observer = new MutationObserver(attachZoom);
   observer.observe(document.body, { childList: true, subtree: true });
   attachZoom();
