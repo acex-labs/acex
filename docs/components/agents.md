@@ -77,11 +77,21 @@ ACEX_ISSUER_URL=http://keycloak:8180/realms/acex
 
 ```mermaid
 flowchart LR
-    BE[Backend API] -->|render Telegraf config| TA[Telemetry Agent]
-    TA -->|write telegraf.conf| TG[Telegraf process]
-    TG -->|SNMP poll| DEV[Network Devices]
-    DEV -->|SNMP response| TG
-    TG -->|write metrics| IDB[(InfluxDB)]
+    BE["Backend API"] -->|"renders config"| TA["Telemetry Agent"]
+    TA -->|"writes telegraf.conf"| TG["Telegraf"]
+    TG -->|"polls via SNMP"| DEV["Network Devices"]
+    DEV -->|"returns metrics"| TG
+    TG -->|"stores metrics"| IDB[("InfluxDB")]
+
+    classDef service fill:#eef2ff,stroke:#818cf8,color:#1e1b4b
+    classDef agent fill:#f0fdfa,stroke:#2dd4bf,color:#134e4a
+    classDef device fill:#fff7ed,stroke:#fb923c,color:#7c2d12
+    classDef database fill:#f5f3ff,stroke:#a78bfa,color:#4c1d95
+
+    class BE service
+    class TA,TG agent
+    class DEV device
+    class IDB database
 ```
 
 The telemetry agent:
