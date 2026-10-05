@@ -43,7 +43,15 @@ def configure(
     verify_ssl: bool = True,
 ) -> None:
     """Override OIDC settings at runtime (called from AutomationEngine.create_app)."""
-    global OIDC_ISSUER_URL, OIDC_AUDIENCE, _JWKS_TTL, _VERIFY_SSL, _jwks, _jwks_fetched_at, _jwks_last_attempt, _oidc_discovery
+    global \
+        OIDC_ISSUER_URL, \
+        OIDC_AUDIENCE, \
+        _JWKS_TTL, \
+        _VERIFY_SSL, \
+        _jwks, \
+        _jwks_fetched_at, \
+        _jwks_last_attempt, \
+        _oidc_discovery
     OIDC_ISSUER_URL = issuer_url
     OIDC_AUDIENCE = audience
     _JWKS_TTL = jwks_ttl
@@ -158,9 +166,7 @@ def _claims_error(exc: JWTError) -> HTTPException:
 
 def _idp_unavailable(request: Request, exc: Exception) -> HTTPException:
     """503 when the IdP can't be reached (cold start, outage, stale JWKS cap hit)."""
-    logger.error(
-        f"Cannot validate token — identity provider unavailable ({request.method} {request.url.path}): {exc}"
-    )
+    logger.error(f"Cannot validate token — identity provider unavailable ({request.method} {request.url.path}): {exc}")
     return HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="Identity provider unavailable",
@@ -174,8 +180,7 @@ def get_current_user(
     # Public by design: the frontend reads this before it has a token, and the
     # container healthcheck polls it. Kept reachable however auth is configured.
     if request.url.path in _PUBLIC_PATHS or any(
-        request.url.path == prefix or request.url.path.startswith(f"{prefix}/")
-        for prefix in _PUBLIC_PATH_PREFIXES
+        request.url.path == prefix or request.url.path.startswith(f"{prefix}/") for prefix in _PUBLIC_PATH_PREFIXES
     ):
         return {}
 
@@ -263,9 +268,7 @@ def require_scopes(*required: str):
         Depends(require_scopes("nodes:read", "nodes:write"))
     """
 
-    def dep(
-        request: Request, user: dict = Depends(get_current_user)
-    ) -> dict:  # noqa: B008
+    def dep(request: Request, user: dict = Depends(get_current_user)) -> dict:  # noqa: B008
         if OIDC_ISSUER_URL is None:
             return user  # auth disabled — allow everything
         granted = set(str(user.get("scope", "")).split())

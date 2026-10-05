@@ -28,9 +28,9 @@ print("*** ZTP: done ***")
 """
     return content
 
-CONFIG_GENERATORS = {
-    "cisco_iosxe": render_cisco_iosxe
-}
+
+CONFIG_GENERATORS = {"cisco_iosxe": render_cisco_iosxe}
+
 
 async def get_ztp_config(
     hostname: str,
@@ -42,7 +42,7 @@ async def get_ztp_config(
     generator = CONFIG_GENERATORS.get(os_type)
     if generator is None:
         raise HTTPException(status_code=404, detail="Unsupported os type")
-    
+
     # Generera innehåll dynamiskt
     content = generator(hostname, domain_name, username, password)
 
@@ -52,8 +52,10 @@ async def get_ztp_config(
         headers={"Content-Disposition": "attachment; filename=ztp.py"},
     )
 
+
 def list_os_types():
     return list(CONFIG_GENERATORS.keys())
+
 
 def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/ztp")
