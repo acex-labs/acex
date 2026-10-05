@@ -1,5 +1,6 @@
 import inspect
 from datetime import UTC, datetime
+from typing import Literal
 
 from acex.models import (
     ManagementConnection,
@@ -17,6 +18,12 @@ from sqlalchemy import select
 
 class NodeService:
     """Service layer för Node business logik."""
+
+    SORTABLE_COLUMNS = {
+        "id": "id",
+        "hostname": "logical_node.hostname",
+        "site": "logical_node.site",
+    }
 
     def __init__(self, adapter, inventory):
         self.adapter = adapter
@@ -120,6 +127,8 @@ class NodeService:
         provision_status: NodeProvisionStatus | None = None,
         limit: int = 100,
         offset: int = 0,
+        sort: str | None = None,
+        order: Literal["asc", "desc"] = "asc",
     ) -> PaginatedResponse[NodeListResponse]:
 
         query_filters = {
@@ -167,8 +176,23 @@ class NodeService:
                 )
             ]
 
+        sort_column = None
+        if sort is not None:
+            sort_column = self.SORTABLE_COLUMNS.get(sort)
+            if sort_column is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid sort field '{sort}'. Valid: {sorted(self.SORTABLE_COLUMNS)}",
+                )
+
         result = await self._call_method(
-            self.adapter.query, filters=query_filters, extra_filters=extra_filters, limit=limit, offset=offset
+            self.adapter.query,
+            filters=query_filters,
+            extra_filters=extra_filters,
+            limit=limit,
+            offset=offset,
+            sort=sort_column,
+            order=order,
         )
 
         # Bulk-fetch unique assets and clusters to avoid N+1

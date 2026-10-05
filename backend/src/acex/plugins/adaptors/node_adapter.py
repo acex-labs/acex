@@ -13,7 +13,15 @@ class NodeAdapter(AdapterBase):
         if hasattr(self.plugin, "get"):
             return self.plugin.get(id)
 
-    def query(self, filters: dict = None, extra_filters: list = None, limit: int = 100, offset: int = 0) -> list[Node]:
+    def query(
+        self,
+        filters: dict = None,
+        extra_filters: list = None,
+        limit: int = 100,
+        offset: int = 0,
+        sort: str | None = None,
+        order: str = "asc",
+    ) -> list[Node]:
         if hasattr(self.plugin, "query"):
             return self.plugin.query(
                 filters,
@@ -21,6 +29,8 @@ class NodeAdapter(AdapterBase):
                 extra_filters=extra_filters,
                 limit=limit,
                 offset=offset,
+                sort=sort,
+                order=order,
             )
 
     def update(self, id: str, node: Node):
