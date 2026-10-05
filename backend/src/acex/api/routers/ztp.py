@@ -1,6 +1,6 @@
+from acex.constants import BASE_URL
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
-from acex.constants import BASE_URL
 
 
 def render_cisco_iosxe(hostname, domain_name, username, password):
