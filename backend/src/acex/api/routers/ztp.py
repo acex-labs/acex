@@ -56,10 +56,6 @@ def list_os_types():
 def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/ztp")
     tags = ["Ztp"]
-    router.add_api_route(
-        "", list_os_types, methods=["GET"], tags=tags, response_model=list[str]
-    )
-    router.add_api_route(
-        "/init_config/{os_type}/ztp.py", get_ztp_config, methods=["GET"], tags=tags
-    )
+    router.add_api_route("", list_os_types, methods=["GET"], tags=tags, response_model=list[str])
+    router.add_api_route("/init_config/{os_type}/ztp.py", get_ztp_config, methods=["GET"], tags=tags)
     return router
