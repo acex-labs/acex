@@ -11,9 +11,9 @@ print("*** ZTP: applying base configuration ***")
 
 cli.configurep(
     [
-        f"hostname acex-ztp-init-device",
-        f"ip domain name example.com",
-        f"username cisco privilege 15 secret 0 Cisco123",
+        "hostname acex-ztp-init-device",
+        "ip domain name example.com",
+        "username cisco privilege 15 secret 0 Cisco123",
         "crypto key generate rsa modulus 2048",
         "ip ssh version 2",
         "line vty 0 15",
@@ -56,6 +56,10 @@ def list_os_types():
 def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/ztp")
     tags = ["Ztp"]
-    router.add_api_route("", list_os_types, methods=["GET"], tags=tags, response_model=list[str])
-    router.add_api_route("/init_config/{os_type}/ztp.py", get_ztp_config, methods=["GET"], tags=tags)
+    router.add_api_route(
+        "", list_os_types, methods=["GET"], tags=tags, response_model=list[str]
+    )
+    router.add_api_route(
+        "/init_config/{os_type}/ztp.py", get_ztp_config, methods=["GET"], tags=tags
+    )
     return router
