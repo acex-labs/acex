@@ -10,6 +10,7 @@ from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 
 _PUBLIC_PATHS = {"/api/v1/auth/config"}
+_PUBLIC_PATH_PREFIXES = ("/api/v1/ztp",)
 
 logger = logging.getLogger("acex.auth")
 
@@ -169,7 +170,9 @@ def get_current_user(
 ) -> dict:
     # Public by design: the frontend reads this before it has a token, and the
     # container healthcheck polls it. Kept reachable however auth is configured.
-    if request.url.path in _PUBLIC_PATHS:
+    if request.url.path in _PUBLIC_PATHS or any(
+        request.url.path == prefix or request.url.path.startswith(f"{prefix}/") for prefix in _PUBLIC_PATH_PREFIXES
+    ):
         return {}
 
     if OIDC_ISSUER_URL is None:
