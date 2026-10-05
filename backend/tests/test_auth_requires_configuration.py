@@ -23,8 +23,10 @@ def _isolated_env(tmp_path, monkeypatch):
     monkeypatch.delenv("OIDC_ISSUER_URL", raising=False)
     # auth.py reads the issuer at import time; clear what earlier tests left.
     from acex.api import auth
+    from acex.api.routers import neds
 
     monkeypatch.setattr(auth, "OIDC_ISSUER_URL", None)
+    monkeypatch.setattr(neds.nm, "list_drivers", lambda: [])
     yield
 
 
