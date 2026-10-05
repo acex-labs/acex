@@ -1,16 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from acex.constants import BASE_URL
 
 
-async def get_ztp_config(
-    hostname: str,
-    domain_name: str,
-    username: str = "admin",
-    password: str = "Cisco123",
-    device_type: str = "switch",
-):
-    # Generera innehåll dynamiskt
+def render_cisco_iosxe(hostname, domain_name, username, password):
     content = f"""#!/usr/bin/env python
 import cli
 
@@ -33,6 +26,25 @@ cli.configurep(
 cli.executep("copy running-config startup-config")
 print("*** ZTP: done ***")
 """
+    return content
+
+CONFIG_GENERATORS = {
+    "cisco_iosxe": render_cisco_iosxe
+}
+
+async def get_ztp_config(
+    hostname: str,
+    domain_name: str,
+    os_type: str,
+    username: str,
+    password: str,
+):
+    generator = CONFIG_GENERATORS.get(os_type)
+    if generator is None:
+        raise HTTPException(status_code=404, detail="Unsupported os type")
+    
+    # Generera innehåll dynamiskt
+    content = generator(hostname, domain_name, username, password)
 
     return Response(
         content=content,
@@ -40,8 +52,12 @@ print("*** ZTP: done ***")
         headers={"Content-Disposition": "attachment; filename=ztp.py"},
     )
 
+def list_os_types():
+    return list(CONFIG_GENERATORS.keys())
 
 def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/ztp")
-    router.add_api_route("/init_config/switch/ztp.py", get_ztp_config, methods=["GET"])
+    tags = ["Ztp"]
+    router.add_api_route("", list_os_types, methods=["GET"], tags=tags, response_model=list[str])
+    router.add_api_route("/init_config/{os_type}/ztp.py", get_ztp_config, methods=["GET"], tags=tags)
     return router

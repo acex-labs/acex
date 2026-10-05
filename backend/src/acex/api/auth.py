@@ -10,6 +10,7 @@ from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 
 _PUBLIC_PATHS = {"/api/v1/auth/config"}
+_PUBLIC_PATH_PREFIXES = ("/api/v1/ztp",)
 
 logger = logging.getLogger("acex.auth")
 
@@ -35,17 +36,14 @@ def set_dev_mode(enabled: bool) -> None:
     _DEV_MODE = enabled
 
 
-def configure(issuer_url: str, audience: str = "acex", jwks_ttl: int = 3600, verify_ssl: bool = True) -> None:
+def configure(
+    issuer_url: str,
+    audience: str = "acex",
+    jwks_ttl: int = 3600,
+    verify_ssl: bool = True,
+) -> None:
     """Override OIDC settings at runtime (called from AutomationEngine.create_app)."""
-    global \
-        OIDC_ISSUER_URL, \
-        OIDC_AUDIENCE, \
-        _JWKS_TTL, \
-        _VERIFY_SSL, \
-        _jwks, \
-        _jwks_fetched_at, \
-        _jwks_last_attempt, \
-        _oidc_discovery
+    global OIDC_ISSUER_URL, OIDC_AUDIENCE, _JWKS_TTL, _VERIFY_SSL, _jwks, _jwks_fetched_at, _jwks_last_attempt, _oidc_discovery
     OIDC_ISSUER_URL = issuer_url
     OIDC_AUDIENCE = audience
     _JWKS_TTL = jwks_ttl
@@ -70,7 +68,11 @@ def _get_discovery() -> dict | None:
         return _oidc_discovery
     if not OIDC_ISSUER_URL:
         return None
-    resp = _requests.get(f"{OIDC_ISSUER_URL}/.well-known/openid-configuration", timeout=10, verify=_VERIFY_SSL)
+    resp = _requests.get(
+        f"{OIDC_ISSUER_URL}/.well-known/openid-configuration",
+        timeout=10,
+        verify=_VERIFY_SSL,
+    )
     resp.raise_for_status()
     _oidc_discovery = resp.json()
     return _oidc_discovery
@@ -156,7 +158,9 @@ def _claims_error(exc: JWTError) -> HTTPException:
 
 def _idp_unavailable(request: Request, exc: Exception) -> HTTPException:
     """503 when the IdP can't be reached (cold start, outage, stale JWKS cap hit)."""
-    logger.error(f"Cannot validate token — identity provider unavailable ({request.method} {request.url.path}): {exc}")
+    logger.error(
+        f"Cannot validate token — identity provider unavailable ({request.method} {request.url.path}): {exc}"
+    )
     return HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="Identity provider unavailable",
@@ -169,7 +173,10 @@ def get_current_user(
 ) -> dict:
     # Public by design: the frontend reads this before it has a token, and the
     # container healthcheck polls it. Kept reachable however auth is configured.
-    if request.url.path in _PUBLIC_PATHS:
+    if request.url.path in _PUBLIC_PATHS or any(
+        request.url.path == prefix or request.url.path.startswith(f"{prefix}/")
+        for prefix in _PUBLIC_PATH_PREFIXES
+    ):
         return {}
 
     if OIDC_ISSUER_URL is None:
@@ -256,7 +263,9 @@ def require_scopes(*required: str):
         Depends(require_scopes("nodes:read", "nodes:write"))
     """
 
-    def dep(request: Request, user: dict = Depends(get_current_user)) -> dict:  # noqa: B008
+    def dep(
+        request: Request, user: dict = Depends(get_current_user)
+    ) -> dict:  # noqa: B008
         if OIDC_ISSUER_URL is None:
             return user  # auth disabled — allow everything
         granted = set(str(user.get("scope", "")).split())
