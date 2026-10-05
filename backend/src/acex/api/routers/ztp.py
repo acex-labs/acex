@@ -3,17 +3,17 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
 
-def render_cisco_iosxe(hostname, domain_name, username, password):
-    content = f"""#!/usr/bin/env python
+def render_cisco_iosxe():
+    content = """#!/usr/bin/env python
 import cli
 
 print("*** ZTP: applying base configuration ***")
 
 cli.configurep(
     [
-        f"hostname {hostname}",
-        f"ip domain name {domain_name}",
-        f"username {username} privilege 15 secret 0 {password}",
+        f"hostname acex-ztp-init-device",
+        f"ip domain name example.com",
+        f"username cisco privilege 15 secret 0 Cisco123",
         "crypto key generate rsa modulus 2048",
         "ip ssh version 2",
         "line vty 0 15",
@@ -33,18 +33,14 @@ CONFIG_GENERATORS = {"cisco_iosxe": render_cisco_iosxe}
 
 
 async def get_ztp_config(
-    hostname: str,
-    domain_name: str,
     os_type: str,
-    username: str,
-    password: str,
 ):
     generator = CONFIG_GENERATORS.get(os_type)
     if generator is None:
         raise HTTPException(status_code=404, detail="Unsupported os type")
 
     # Generera innehåll dynamiskt
-    content = generator(hostname, domain_name, username, password)
+    content = generator()
 
     return Response(
         content=content,
