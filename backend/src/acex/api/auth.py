@@ -36,12 +36,7 @@ def set_dev_mode(enabled: bool) -> None:
     _DEV_MODE = enabled
 
 
-def configure(
-    issuer_url: str,
-    audience: str = "acex",
-    jwks_ttl: int = 3600,
-    verify_ssl: bool = True,
-) -> None:
+def configure(issuer_url: str, audience: str = "acex", jwks_ttl: int = 3600, verify_ssl: bool = True) -> None:
     """Override OIDC settings at runtime (called from AutomationEngine.create_app)."""
     global \
         OIDC_ISSUER_URL, \
@@ -76,11 +71,7 @@ def _get_discovery() -> dict | None:
         return _oidc_discovery
     if not OIDC_ISSUER_URL:
         return None
-    resp = _requests.get(
-        f"{OIDC_ISSUER_URL}/.well-known/openid-configuration",
-        timeout=10,
-        verify=_VERIFY_SSL,
-    )
+    resp = _requests.get(f"{OIDC_ISSUER_URL}/.well-known/openid-configuration", timeout=10, verify=_VERIFY_SSL)
     resp.raise_for_status()
     _oidc_discovery = resp.json()
     return _oidc_discovery
