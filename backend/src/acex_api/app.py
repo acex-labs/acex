@@ -1,10 +1,13 @@
 """Assembles and serves the ACE-X API."""
 
+import logging.config
+
 import uvicorn
 from acex import AutomationEngine
 from acex.database import Connection
 
 from .config import Settings, UnsafeConfiguration
+from .logging_config import LOGGING_CONFIG
 
 
 def create_engine(settings: Settings | None = None) -> AutomationEngine:
@@ -68,6 +71,7 @@ def _announce(settings: Settings) -> None:
 
 def run(settings: Settings | None = None):
     """Serve the API with uvicorn. Entry point for both ways of starting."""
+    logging.config.dictConfig(LOGGING_CONFIG)
     settings = settings or Settings()
     settings.check()
     _announce(settings)
@@ -81,9 +85,15 @@ def run(settings: Settings | None = None):
             host=settings.host,
             port=settings.port,
             reload=True,
+            log_config=LOGGING_CONFIG,
         )
     else:
-        uvicorn.run(create_app(settings), host=settings.host, port=settings.port)
+        uvicorn.run(
+            create_app(settings),
+            host=settings.host,
+            port=settings.port,
+            log_config=LOGGING_CONFIG,
+        )
 
 
 def main(argv: list[str] | None = None) -> None:
