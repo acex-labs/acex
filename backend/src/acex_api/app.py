@@ -5,7 +5,7 @@ import logging.config
 import uvicorn
 from acex import AutomationEngine
 from acex.settings import Settings, UnsafeConfiguration
-from .logging_config import LOGGING_CONFIG
+from .logging_config import build_logging_config
 
 
 def create_engine(settings: Settings | None = None) -> AutomationEngine:
@@ -41,11 +41,12 @@ def _announce(settings: Settings) -> None:
 
 def run(settings: Settings | None = None):
     """Serve the API with uvicorn. Entry point for both ways of starting."""
-    logging.config.dictConfig(LOGGING_CONFIG)
     settings = settings or Settings()
     # Checked here as well as in create_app() so that a refused start fails
     # before uvicorn, and the reloader, are started.
     settings.check()
+    log_config = build_logging_config(dev=settings.dev)
+    logging.config.dictConfig(log_config)
     _announce(settings)
 
     server = settings.server
@@ -65,13 +66,13 @@ def run(settings: Settings | None = None):
             **serve,
             factory=True,
             reload=True,
-            log_config=LOGGING_CONFIG,
+            log_config=log_config,
         )
     else:
         uvicorn.run(
             create_app(settings),
             **serve,
-            log_config=LOGGING_CONFIG,
+            log_config=log_config,
         )
 
 
