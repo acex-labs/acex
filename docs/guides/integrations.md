@@ -41,7 +41,7 @@ ACEX_VAULT_ROLE_ID=...
 ACEX_VAULT_SECRET_ID=...
 ```
 
-If Vault is not configured, credentials are stored encrypted in PostgreSQL using a symmetric key (`ACEX_ENCRYPTION_KEY`).
+If Vault is not configured, credentials are stored encrypted in PostgreSQL using a symmetric key (`ACEX_CREDENTIALS_ENCRYPTION_KEY`).
 
 ## Keycloak
 
@@ -110,11 +110,11 @@ When a user submits a bug report via the web UI, ACE-X can create an Azure DevOp
 
 ```bash
 # Azure DevOps
-ADO_SERVICE_PAT=...
-ADO_ORG=my-org
-ADO_PROJECT=my-project
-ADO_BUGFIX_FEATURE_ID=123
+ACEX_BUG_REPORT_ADO_SERVICE_PAT=...
+ACEX_BUG_REPORT_ADO_ORG=my-org
+ACEX_BUG_REPORT_ADO_PROJECT=my-project
+ACEX_BUG_REPORT_ADO_FEATURE_ID=123
 
 # Slack
-SLACK_BUG_REPORT_WEBHOOK=https://hooks.slack.com/...
+ACEX_BUG_REPORT_SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 ```

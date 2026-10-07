@@ -13,6 +13,7 @@ logger = logging.getLogger("acex.api.bug_reports")
 
 def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/bug-reports", tags=["Bug Reports"])
+    targets = automation_engine.settings.bug_report
 
     @router.post("", response_model=BugReportResponse, status_code=status.HTTP_202_ACCEPTED)
     async def submit_bug_report(
@@ -30,19 +31,19 @@ def create_router(automation_engine):
         dispatched_to: list[str] = []
 
         try:
-            if await _slack.dispatch(payload, reporter_id, reporter_email):
+            if await _slack.dispatch(payload, reporter_id, reporter_email, targets.slack):
                 dispatched_to.append("slack")
         except Exception:
             logger.warning("Slack dispatch failed", exc_info=True)
 
         try:
-            if await _ado.dispatch(payload, reporter_id, reporter_email):
+            if await _ado.dispatch(payload, reporter_id, reporter_email, targets.ado):
                 dispatched_to.append("ado")
         except Exception:
             logger.warning("ADO dispatch failed", exc_info=True)
 
         try:
-            if await _file.dispatch(payload, reporter_id, reporter_email):
+            if await _file.dispatch(payload, reporter_id, reporter_email, targets.file):
                 dispatched_to.append("file")
         except Exception:
             logger.warning("File dispatch failed", exc_info=True)

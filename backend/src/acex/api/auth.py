@@ -81,7 +81,7 @@ def _get_discovery() -> dict | None:
 def _fetch_jwks() -> dict:
     discovery = _get_discovery()
     if discovery is None:
-        raise RuntimeError("OIDC_ISSUER_URL not set")
+        raise RuntimeError("ACEX_OIDC_ISSUER_URL not set")
     resp = _requests.get(discovery["jwks_uri"], timeout=10, verify=_VERIFY_SSL)
     resp.raise_for_status()
     return resp.json()

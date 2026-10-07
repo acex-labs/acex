@@ -77,8 +77,8 @@ def main(argv: list[str] | None = None) -> None:
         help="run in development mode: allows running without auth, answers any "
         "origin and reloads on source changes. Never use it where others can reach it.",
     )
-    parser.add_argument("--host", help="address to bind (default: $ACEX_HOST or 0.0.0.0)")
-    parser.add_argument("--port", type=int, help="port to bind (default: $ACEX_PORT or 8080)")
+    parser.add_argument("--host", help="address to bind (default: $ACEX_SERVER_HOST or 0.0.0.0)")
+    parser.add_argument("--port", type=int, help="port to bind (default: $ACEX_SERVER_PORT or 8080)")
     reload_group = parser.add_mutually_exclusive_group()
     reload_group.add_argument(
         "--reload", dest="reload", action="store_true", default=None, help="restart on source changes"

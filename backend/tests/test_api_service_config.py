@@ -12,6 +12,7 @@ from acex.settings import (
     InfluxDBOutput,
     InfluxDBSettings,
     OidcSettings,
+    Section,
     Settings,
     UnsafeConfiguration,
 )
@@ -23,14 +24,14 @@ ISSUER = "https://keycloak.example/realms/acex"
 def clean_env(monkeypatch):
     for name in (
         "ACEX_DEV",
-        "ACEX_RELOAD",
+        "ACEX_SERVER_RELOAD",
         "ACEX_CORS_ALLOWED_ORIGINS",
-        "OIDC_ISSUER_URL",
-        "OIDC_AUDIENCE",
-        "DB_HOST",
-        "DB_NAME",
+        "ACEX_OIDC_ISSUER_URL",
+        "ACEX_OIDC_AUDIENCE",
+        "ACEX_DB_HOST",
+        "ACEX_DB_NAME",
         "ACEX_DB__HOST",
-        "ACEX_ENCRYPTION_KEY",
+        "ACEX_CREDENTIALS_ENCRYPTION_KEY",
         "ACEX_CREDENTIALS__ENCRYPTION_KEY",
         "ACEX_INFLUXDB_URL",
         "ACEX_INFLUXDB_TOKEN",
@@ -41,11 +42,11 @@ def clean_env(monkeypatch):
 
 class TestProductionGuards:
     def should_refuse_to_start_without_an_oidc_issuer(self):
-        with pytest.raises(UnsafeConfiguration, match="OIDC_ISSUER_URL"):
+        with pytest.raises(UnsafeConfiguration, match="ACEX_OIDC_ISSUER_URL"):
             Settings().check()
 
     def should_refuse_a_wildcard_origin(self, monkeypatch):
-        monkeypatch.setenv("OIDC_ISSUER_URL", ISSUER)
+        monkeypatch.setenv("ACEX_OIDC_ISSUER_URL", ISSUER)
         monkeypatch.setenv("ACEX_CORS_ALLOWED_ORIGINS", "*")
         with pytest.raises(UnsafeConfiguration, match="credentials"):
             Settings().check()
@@ -54,18 +55,18 @@ class TestProductionGuards:
         monkeypatch.setenv("ACEX_CORS_ALLOWED_ORIGINS", "*")
         with pytest.raises(UnsafeConfiguration) as exc:
             Settings().check()
-        assert "OIDC_ISSUER_URL" in str(exc.value)
+        assert "ACEX_OIDC_ISSUER_URL" in str(exc.value)
         assert "wildcard" in str(exc.value)
 
     def should_start_with_auth_and_no_cross_origin_trust(self, monkeypatch):
-        monkeypatch.setenv("OIDC_ISSUER_URL", ISSUER)
+        monkeypatch.setenv("ACEX_OIDC_ISSUER_URL", ISSUER)
         settings = Settings()
         settings.check()
         assert settings.authenticated
         assert settings.cors.allowed_origins == []
 
     def should_start_with_named_origins(self, monkeypatch):
-        monkeypatch.setenv("OIDC_ISSUER_URL", ISSUER)
+        monkeypatch.setenv("ACEX_OIDC_ISSUER_URL", ISSUER)
         monkeypatch.setenv("ACEX_CORS_ALLOWED_ORIGINS", "https://a.example, https://b.example")
         settings = Settings()
         settings.check()
@@ -95,13 +96,13 @@ class TestDevMode:
 
     def should_keep_auth_when_an_issuer_is_configured(self, monkeypatch):
         monkeypatch.setenv("ACEX_DEV", "1")
-        monkeypatch.setenv("OIDC_ISSUER_URL", ISSUER)
+        monkeypatch.setenv("ACEX_OIDC_ISSUER_URL", ISSUER)
         assert Settings().authenticated
 
     def should_reload_by_default_but_yield_to_an_explicit_setting(self, monkeypatch):
         monkeypatch.setenv("ACEX_DEV", "1")
         assert Settings().server.reload is True
-        monkeypatch.setenv("ACEX_RELOAD", "false")
+        monkeypatch.setenv("ACEX_SERVER_RELOAD", "false")
         assert Settings().server.reload is False
 
     def should_apply_the_same_conveniences_when_set_in_code(self):
@@ -124,21 +125,21 @@ class TestResolutionOrder:
     """Code, then environment, then default — for whole settings and for single sections."""
 
     def should_let_code_win_over_env(self, monkeypatch):
-        monkeypatch.setenv("DB_HOST", "from-env")
+        monkeypatch.setenv("ACEX_DB_HOST", "from-env")
         assert Settings(db=DatabaseSettings(host="from-code")).db.host == "from-code"
 
     def should_fill_a_section_given_as_a_dict_from_env(self, monkeypatch):
-        monkeypatch.setenv("OIDC_AUDIENCE", "from-env")
+        monkeypatch.setenv("ACEX_OIDC_AUDIENCE", "from-env")
         settings = Settings(oidc={"issuer_url": ISSUER})
         assert settings.oidc.issuer_url == ISSUER
         assert settings.oidc.audience == "from-env"
 
     def should_fill_a_section_given_as_an_instance_from_env(self, monkeypatch):
-        monkeypatch.setenv("OIDC_AUDIENCE", "from-env")
+        monkeypatch.setenv("ACEX_OIDC_AUDIENCE", "from-env")
         assert Settings(oidc=OidcSettings(issuer_url=ISSUER)).oidc.audience == "from-env"
 
     def should_fill_untouched_sections_from_env(self, monkeypatch):
-        monkeypatch.setenv("DB_NAME", "from-env")
+        monkeypatch.setenv("ACEX_DB_NAME", "from-env")
         assert Settings(dev=True).db.name == "from-env"
 
     def should_fall_back_to_defaults(self):
@@ -161,8 +162,20 @@ class TestOneNamePerSetting:
         assert Settings().credentials.encryption_key is None
 
     def should_read_the_declared_name(self, monkeypatch):
-        monkeypatch.setenv("ACEX_ENCRYPTION_KEY", "k")
+        monkeypatch.setenv("ACEX_CREDENTIALS_ENCRYPTION_KEY", "k")
         assert Settings().credentials.encryption_key.get_secret_value() == "k"
+
+    def should_name_every_section_after_its_path(self):
+        # settings.credentials.vault.addr must be ACEX_CREDENTIALS_VAULT_ADDR, so a
+        # section's declared name has to match where it is mounted.
+        def walk(cls, path):
+            for field, info in cls.model_fields.items():
+                if isinstance(info.annotation, type) and issubclass(info.annotation, Section):
+                    yield (*path, field), info.annotation
+                    yield from walk(info.annotation, (*path, field))
+
+        for path, section in walk(Settings, ()):
+            assert section.model_config["env_prefix"] == f"ACEX_{'_'.join(path).upper()}_", section
 
 
 class TestInfluxDB:

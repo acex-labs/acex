@@ -2,12 +2,12 @@
 
 from typing import Annotated, Any
 
-from acex.settings.base import Section
+from acex.settings.section import Section
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import NoDecode
 
 
-class DatabaseSettings(Section, env_prefix="DB_"):
+class DatabaseSettings(Section, name="db"):
     """Database the engine persists to. Migrations run on startup."""
 
     backend: str = "postgresql"
@@ -18,7 +18,7 @@ class DatabaseSettings(Section, env_prefix="DB_"):
     port: int = 5432
 
 
-class ServerSettings(Section, env_prefix="ACEX_"):
+class ServerSettings(Section, name="server"):
     """Where the API is served when started through `acex-api`."""
 
     host: str = "0.0.0.0"
@@ -27,7 +27,7 @@ class ServerSettings(Section, env_prefix="ACEX_"):
     reload: bool = False
 
 
-class OidcSettings(Section, env_prefix="OIDC_"):
+class OidcSettings(Section, name="oidc"):
     """OIDC provider that issues the bearer tokens the API accepts.
 
     Without an issuer every endpoint is open, so it is required outside dev mode.
@@ -41,7 +41,7 @@ class OidcSettings(Section, env_prefix="OIDC_"):
 
 # An explicitly empty ACEX_CORS_ALLOWED_ORIGINS means "no origins", so here
 # empty values are not ignored.
-class CorsSettings(Section, env_prefix="ACEX_CORS_", env_ignore_empty=False):
+class CorsSettings(Section, name="cors", env_ignore_empty=False):
     """Browser origins allowed to make cross-origin calls.
 
     Empty by default: no CORS headers are sent at all, so a browser will only
@@ -62,7 +62,7 @@ class CorsSettings(Section, env_prefix="ACEX_CORS_", env_ignore_empty=False):
         return value
 
 
-class VaultSettings(Section, env_prefix="VAULT_"):
+class VaultSettings(Section, name="credentials.vault"):
     """HashiCorp Vault for credential storage.
 
     Used when an address and either a token or an AppRole (role + secret id)
@@ -80,9 +80,8 @@ class VaultSettings(Section, env_prefix="VAULT_"):
         return bool(self.addr and (self.token or (self.role_id and self.secret_id)))
 
 
-class CredentialSettings(Section, env_prefix="ACEX_"):
+class CredentialSettings(Section, name="credentials"):
     """Encryption of stored device credentials."""
 
     encryption_key: SecretStr | None = None
-    #: Read from VAULT_*, not ACEX_VAULT__*: Vault's own variable names.
     vault: VaultSettings = Field(default_factory=VaultSettings)

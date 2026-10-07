@@ -39,7 +39,7 @@ ae.add_configmap_dir("config_maps")
 # AI OPS
 # Named providers + per-task failover chains. The frontend lists providers and
 # models via GET /ai_ops/providers and can override the model per request.
-# Everything below can also be configured via ACEX_AI_* env vars
+# Everything below can also be configured via ACEX_AI_OPS_* env vars
 # (see docs/examples/ai_ops.md).
 ae.ai_ops(
     enabled=True,
@@ -72,7 +72,7 @@ ae.ai_ops(
 ae.add_cors_allowed_origin("*")
 
 # Encryption key for device credentials
-# ae.set_encryption_key(os.getenv("ACEX_ENCRYPTION_KEY", ""))
+# ae.set_encryption_key(os.getenv("ACEX_CREDENTIALS_ENCRYPTION_KEY", ""))
 ae.set_encryption_key("9VfRDg1KSH4U6-Kv5dG7e59f1iKeGEQHWUAKPnZO4hk=")
 
 # Create the api app!
