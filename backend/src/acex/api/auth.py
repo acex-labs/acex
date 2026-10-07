@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 import time
 
@@ -16,17 +15,19 @@ logger = logging.getLogger("acex.auth")
 
 _UNSAFE_LOG_CHARS = re.compile(r"[^\w.@:+-]")
 
-OIDC_ISSUER_URL = os.getenv("OIDC_ISSUER_URL")
-OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "acex")
-_JWKS_TTL = int(os.getenv("OIDC_JWKS_TTL", "3600"))
+# Set from Settings.oidc by configure() when the app is built; never read from
+# the environment here, so there is one source for them.
+OIDC_ISSUER_URL: str | None = None
+OIDC_AUDIENCE = "acex"
+_JWKS_TTL = 3600
 _JWKS_RETRY_BACKOFF = 30  # seconds between failed JWKS refresh attempts
 _JWKS_MAX_STALE = 24 * 3600  # refuse to serve cached JWKS older than this
-_VERIFY_SSL = os.getenv("OIDC_VERIFY_SSL", "true").lower() != "false"
+_VERIFY_SSL = True
 
 #: Serving an API with no OIDC issuer configured means serving it to anyone.
 #: That is only ever acceptable while developing locally, so it has to be asked
-#: for: AutomationEngine(dev_mode=True). Otherwise such a deployment is treated
-#: as misconfigured and refuses to answer rather than answering unauthenticated.
+#: for: Settings(dev=True). Otherwise such a deployment is treated as
+#: misconfigured and refuses to answer rather than answering unauthenticated.
 _DEV_MODE = False
 
 
@@ -36,8 +37,8 @@ def set_dev_mode(enabled: bool) -> None:
     _DEV_MODE = enabled
 
 
-def configure(issuer_url: str, audience: str = "acex", jwks_ttl: int = 3600, verify_ssl: bool = True) -> None:
-    """Override OIDC settings at runtime (called from AutomationEngine.create_app)."""
+def configure(issuer_url: str | None, audience: str = "acex", jwks_ttl: int = 3600, verify_ssl: bool = True) -> None:
+    """Set OIDC settings (called from AutomationEngine.create_app)."""
     global \
         OIDC_ISSUER_URL, \
         OIDC_AUDIENCE, \
@@ -80,7 +81,7 @@ def _get_discovery() -> dict | None:
 def _fetch_jwks() -> dict:
     discovery = _get_discovery()
     if discovery is None:
-        raise RuntimeError("OIDC_ISSUER_URL not set")
+        raise RuntimeError("ACEX_OIDC_ISSUER_URL not set")
     resp = _requests.get(discovery["jwks_uri"], timeout=10, verify=_VERIFY_SSL)
     resp.raise_for_status()
     return resp.json()
@@ -180,7 +181,7 @@ def get_current_user(
             return {}
         logger.error(
             f"Refusing ({request.method} {request.url.path}): no OIDC issuer is configured, so no "
-            "request can be authenticated. Configure OIDC, or pass dev_mode=True to run open."
+            "request can be authenticated. Configure OIDC, or enable dev mode to run open."
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime
 
 from acex.models.bug_report import BugReportCreate
+from acex.settings import FileBugReportSettings
 
 logger = logging.getLogger("acex.bug_report.file")
 
@@ -39,13 +40,12 @@ async def dispatch(
     payload: BugReportCreate,
     reporter_id: str,
     reporter_email: str | None,
-    *,
-    report_dir: str | None = None,
+    settings: FileBugReportSettings,
 ) -> bool:
     """Write a bug report as a JSON file. Returns True if written, False if not configured."""
-    directory = report_dir or os.getenv("BUG_REPORT_FILE_DIR")
-    if not directory:
+    if not settings.configured:
         return False
+    directory = settings.dir
 
     os.makedirs(directory, exist_ok=True)
 

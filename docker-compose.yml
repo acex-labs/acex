@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: ace
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${ACEX_DB_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
@@ -70,7 +70,7 @@ services:
     cap_add:
       - IPC_LOCK
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-acex-vault-token}
+      VAULT_DEV_ROOT_TOKEN_ID: ${ACEX_CREDENTIALS_VAULT_TOKEN:-acex-vault-token}
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
     ports:
       - "8200:8200"
@@ -85,15 +85,15 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ace
-      DB_USER: postgres
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      ACEX_ENCRYPTION_KEY: ${ACEX_ENCRYPTION_KEY:-L50Zqr1VmsqTpbByFqXHJx1PIrp3ICZRGDf8Bo7pRh4=}
-      OIDC_ISSUER_URL: http://keycloak:8180/realms/acex
-      OIDC_AUDIENCE: acex
-      OIDC_VERIFY_SSL: "false"
+      ACEX_DB_HOST: postgres
+      ACEX_DB_PORT: 5432
+      ACEX_DB_NAME: ace
+      ACEX_DB_USER: postgres
+      ACEX_DB_PASSWORD: ${ACEX_DB_PASSWORD:-postgres}
+      ACEX_CREDENTIALS_ENCRYPTION_KEY: ${ACEX_CREDENTIALS_ENCRYPTION_KEY:-L50Zqr1VmsqTpbByFqXHJx1PIrp3ICZRGDf8Bo7pRh4=}
+      ACEX_OIDC_ISSUER_URL: http://keycloak:8180/realms/acex
+      ACEX_OIDC_AUDIENCE: acex
+      ACEX_OIDC_VERIFY_SSL: "false"
       # The frontend is served from another origin and calls this API from the
       # browser, so it has to be named here. Nothing else is trusted.
       ACEX_CORS_ALLOWED_ORIGINS: ${ACEX_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
@@ -101,15 +101,15 @@ services:
       # redirects (trailing-slash fallbacks etc.) keep the https scheme.
       # Without this, httpx/requests strip Authorization on https->http redirects -> 401.
       FORWARDED_ALLOW_IPS: "*"
-      VAULT_ADDR: http://vault:8200
-      VAULT_TOKEN: ${VAULT_TOKEN:-acex-vault-token}
-      ACEX_AI_MCP_SERVER_URL: http://mcp-server:8000/mcp
-      SLACK_BUG_REPORT_WEBHOOK: ${SLACK_BUG_REPORT_WEBHOOK:-}
-      ADO_SERVICE_PAT: ${ADO_SERVICE_PAT:-}
-      ADO_ORG: ${ADO_ORG:-}
-      ADO_PROJECT: ${ADO_PROJECT:-}
-      ADO_BUGFIX_FEATURE_ID: ${ADO_BUGFIX_FEATURE_ID:-}
-      BUG_REPORT_FILE_DIR: /data/bug-reports
+      ACEX_CREDENTIALS_VAULT_ADDR: http://vault:8200
+      ACEX_CREDENTIALS_VAULT_TOKEN: ${ACEX_CREDENTIALS_VAULT_TOKEN:-acex-vault-token}
+      ACEX_AI_OPS_MCP_SERVER_URL: http://mcp-server:8000/mcp
+      ACEX_BUG_REPORT_SLACK_WEBHOOK_URL: ${ACEX_BUG_REPORT_SLACK_WEBHOOK_URL:-}
+      ACEX_BUG_REPORT_ADO_SERVICE_PAT: ${ACEX_BUG_REPORT_ADO_SERVICE_PAT:-}
+      ACEX_BUG_REPORT_ADO_ORG: ${ACEX_BUG_REPORT_ADO_ORG:-}
+      ACEX_BUG_REPORT_ADO_PROJECT: ${ACEX_BUG_REPORT_ADO_PROJECT:-}
+      ACEX_BUG_REPORT_ADO_FEATURE_ID: ${ACEX_BUG_REPORT_ADO_FEATURE_ID:-}
+      ACEX_BUG_REPORT_FILE_DIR: /data/bug-reports
     volumes:
       - bug_reports_data:/data/bug-reports
     healthcheck:

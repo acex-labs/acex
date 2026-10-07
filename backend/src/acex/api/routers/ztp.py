@@ -11,9 +11,9 @@ print("*** ZTP: applying base configuration ***")
 
 cli.configurep(
     [
-        f"hostname acex-ztp-init-device",
-        f"ip domain name example.com",
-        f"username cisco privilege 15 secret 0 Cisco123",
+        "hostname acex-ztp-init-device",
+        "ip domain name example.com",
+        "username cisco privilege 15 secret 0 Cisco123",
         "crypto key generate rsa modulus 2048",
         "ip ssh version 2",
         "line vty 0 15",
