@@ -81,8 +81,10 @@ class DatabasePlugin(IntegrationPluginBase):
                 for f in extra_filters:
                     query = query.filter(f)
             total = query.count()
-            if sort:
-                if "." in sort:
+            if sort is not None:
+                if not isinstance(sort, str):
+                    sort_col = sort
+                elif "." in sort:
                     rel_name, col_name = sort.split(".", 1)
                     rel_prop = getattr(self.table, rel_name).property
                     related_table = rel_prop.mapper.class_
@@ -95,7 +97,7 @@ class DatabasePlugin(IntegrationPluginBase):
                 query = query.order_by(sort_col.desc() if order == "desc" else sort_col.asc())
                 # tiebreaker for stable pagination
                 pk_col = getattr(self.table, "id", None)
-                if pk_col is not None and sort != "id":
+                if pk_col is not None and not (isinstance(sort, str) and sort == "id"):
                     query = query.order_by(pk_col)
             items = query.offset(offset).limit(limit).all()
             return {"items": items, "total": total}

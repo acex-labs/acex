@@ -13,7 +13,8 @@ from acex.models import (
 from acex.models.node import NodeAdminStatus, NodeProvisionStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import case, cast, select
+from sqlalchemy.dialects.postgresql import INET
 
 
 class NodeService:
@@ -23,6 +24,10 @@ class NodeService:
         "id": "id",
         "hostname": "logical_node.hostname",
         "site": "logical_node.site",
+        "role": "logical_node.role",
+        "admin_status": "admin_status",
+        "provision_status": "provision_status",
+        "ip": "ip",
     }
 
     def __init__(self, adapter, inventory):
@@ -178,12 +183,34 @@ class NodeService:
 
         sort_column = None
         if sort is not None:
-            sort_column = self.SORTABLE_COLUMNS.get(sort)
-            if sort_column is None:
+            if sort not in self.SORTABLE_COLUMNS:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid sort field '{sort}'. Valid: {sorted(self.SORTABLE_COLUMNS)}",
                 )
+            if sort == "ip":
+                # Order by the primary management connection's IP, numerically.
+                # Non-IP values (hostnames, blanks) and nodes without a
+                # connection sort last via NULL.
+                sort_column = (
+                    select(
+                        case(
+                            (
+                                ManagementConnection.target_ip.op("~")(
+    r"^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
+),
+                                cast(ManagementConnection.target_ip, INET),
+                            ),
+                            else_=None,
+                        )
+                    )
+                    .where(ManagementConnection.node_id == Node.id)
+                    .order_by(ManagementConnection.primary.desc(), ManagementConnection.id)
+                    .limit(1)
+                    .scalar_subquery()
+                )
+            else:
+                sort_column = self.SORTABLE_COLUMNS[sort]
 
         result = await self._call_method(
             self.adapter.query,
