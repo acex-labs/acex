@@ -640,7 +640,7 @@ class AIOpsManager:
                 "function": {
                     "name": t.name,
                     "description": t.description or "",
-                    "parameters": t.inputSchema or {"type": "object", "properties": {}},
+                    "parameters": t.input_schema or {"type": "object", "properties": {}},
                 },
             }
             for t in tool_list

@@ -5,7 +5,7 @@ import acex.inventory.inventory  # noqa: F401  — registers all SQLModel tables
 import pytest
 from acex.models.logical_node import LogicalNode
 from acex.models.management_connections import ManagementConnection
-from acex.models.node import Node
+from acex.models.node import Node, NodeAdminStatus
 from acex.observability.agents.manager import TelemetryAgentManager
 from acex.observability.agents.models import (
     TelemetryAgent,
@@ -381,13 +381,13 @@ def test_role_change_bumps_explicitly_linked_agent(db):
 def test_node_status_change_bumps_status_rule_agent(db):
     from acex_devkit.models.telemetry_agent import TelemetryAgentMatchRuleCreate
 
-    nid = _add_node(db, hostname="r1")  # status "planned"
+    nid = _add_node(db, hostname="r1")  # admin_status "planned"
     tam, _, node_service, run = _services(db)
     agent_id = _add_agent(db, node_ids=[], capabilities=["icmp"])
-    tam.add_rule(agent_id, TelemetryAgentMatchRuleCreate(status="active"))
+    tam.add_rule(agent_id, TelemetryAgentMatchRuleCreate(admin_status="active"))
     before = _revision(db, agent_id)
 
-    run(node_service.update(str(nid), Node(status="active")))
+    run(node_service.update(str(nid), Node(admin_status=NodeAdminStatus.active)))
 
     assert _revision(db, agent_id) == before + 1
     assert tam.get(agent_id).resolved_nodes == [nid]

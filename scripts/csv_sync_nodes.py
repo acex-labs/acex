@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from acex_client import Acex
 from acex_client.auth import ClientCredentialsAuth, NullAuthProvider
 
-_VALID_STATUSES = {"planned", "init", "active", "decommissioned"}
+_VALID_STATUSES = {"planned", "active", "decommissioned"}
 _VALID_CONNECTION_TYPES = {"ssh", "telnet"}
 
 
@@ -111,7 +111,7 @@ class SyncLogger:
 
     def decommissioned(self, subject: str, dry_run: bool = False) -> None:
         prefix = "[dry-run] " if dry_run else ""
-        print(f"  ~     {prefix}{subject}: node_instance.status → 'decommissioned'")
+        print(f"  ~     {prefix}{subject}: node_instance.admin_status → 'decommissioned'")
 
     def summary(self, created: int, updated: int, skipped: int, errors: int, decommissioned: int = 0) -> None:
         parts = [f"created: {created}", f"updated: {updated}", f"skipped: {skipped}", f"errors: {errors}"]
@@ -192,9 +192,9 @@ class NodeSyncer:
     def _sync_node_instance(self, hostname: str, asset, ln_id: int, status: str) -> tuple:
         if ln_id in self.existing_node_instances:
             ni = self.existing_node_instances[ln_id]
-            if ni.status != status:
-                self.client.inventory.node_instances.update(id=ni.id, status=status)
-                self.log.changed(hostname, "node_instance.status", ni.status, status)
+            if ni.admin_status != status:
+                self.client.inventory.node_instances.update(id=ni.id, admin_status=status)
+                self.log.changed(hostname, "node_instance.admin_status", ni.admin_status, status)
                 return ni, True
             return ni, False
         try:
@@ -202,7 +202,9 @@ class NodeSyncer:
                 asset_ref_id=asset.id,
                 asset_ref_type="asset",
                 logical_node_id=ln_id,
-                status=status,
+                admin_status=status,
+                # Imported devices that are already in service are brownfield.
+                provision_status="adopted" if status == "active" else "unprovisioned",
             )
         except ValidationError:
             # Backend create succeeds but response lacks nested asset/logical_node;
@@ -241,13 +243,13 @@ class NodeSyncer:
             ni = self.existing_node_instances.get(ln.id)
             if ni is None:
                 continue
-            if ni.status == "decommissioned":
+            if ni.admin_status == "decommissioned":
                 continue
             if dry_run:
                 self.log.decommissioned(hostname, dry_run=True)
             else:
                 try:
-                    self.client.inventory.node_instances.update(id=ni.id, status="decommissioned")
+                    self.client.inventory.node_instances.update(id=ni.id, admin_status="decommissioned")
                     self.log.decommissioned(hostname)
                 except Exception as e:
                     self.log.error(hostname, "decommission", e)

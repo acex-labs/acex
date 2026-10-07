@@ -69,8 +69,10 @@ class CollectionAgentManager:
                 if rule.os:
                     statement = statement.where(Asset.os.ilike(f"{rule.os}%"))
 
-            if rule.status:
-                statement = statement.where(Node.status == rule.status)
+            if rule.admin_status:
+                statement = statement.where(Node.admin_status == rule.admin_status)
+            if rule.provision_status:
+                statement = statement.where(Node.provision_status == rule.provision_status)
 
             matched_ids |= set(session.exec(statement).all())
 
@@ -106,7 +108,8 @@ class CollectionAgentManager:
                     site=r.site,
                     vendor=r.vendor,
                     os=r.os,
-                    status=r.status,
+                    admin_status=r.admin_status,
+                    provision_status=r.provision_status,
                     role=r.role,
                 )
                 for r in rules
@@ -271,7 +274,8 @@ class CollectionAgentManager:
                 site=payload.site,
                 vendor=payload.vendor,
                 os=payload.os,
-                status=payload.status,
+                admin_status=payload.admin_status,
+                provision_status=payload.provision_status,
                 role=payload.role,
             )
             session.add(rule)
@@ -284,7 +288,8 @@ class CollectionAgentManager:
                 site=rule.site,
                 vendor=rule.vendor,
                 os=rule.os,
-                status=rule.status,
+                admin_status=rule.admin_status,
+                provision_status=rule.provision_status,
                 role=rule.role,
             )
         finally:

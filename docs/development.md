@@ -154,55 +154,50 @@ poetry run pytest
 
 ## Branch Naming
 
-Alla branches måste följa formatet `<prefix>/<description>` (Conventional Commits-stil):
+All branches must follow the format `<prefix>/<description>` (Conventional Commits style):
 
-- **Tillåtna prefix:** `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `hotfix`, `ci`, `perf`, `build`
-  (observera: `feature` är inte tillåtet — använd `feat`)
-- **Description:** gemener, siffror och bindestreck (kebab-case)
+- **Allowed prefixes:** `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `hotfix`, `ci`, `perf`, `build`
+  (note: `feature` is not allowed — use `feat`)
+- **Description:** lowercase letters, digits, and hyphens (kebab-case)
 
-Exempel: `feat/add-ntp-support`, `fix/static-route-nil-check`, `hotfix/1.2.1-crash-on-boot`
+Examples: `feat/add-ntp-support`, `fix/static-route-nil-check`, `hotfix/1.2.1-crash-on-boot`
 
-Undantag: `main`, `stage` och `dependabot/*` valideras inte.
+Exceptions: `main`, `stage`, and `dependabot/*` are not validated.
 
-Standarden enforcas på tre nivåer:
+The standard is enforced at three levels:
 
-1. **Lokalt** — en pre-commit-hook (`post-checkout`) varnar direkt när du checkar ut en branch med ogiltigt namn. Aktivera med:
+1. **Locally** — a pre-commit hook (`post-checkout`) warns immediately when you check out a branch with an invalid name. Enable with:
    ```bash
    pre-commit install --hook-type post-checkout
    ```
-2. **CI** — jobbet `Branch name policy` i `.github/workflows/ci.yml` failar PR:s från ogiltigt namngivna branches.
-3. **GitHub ruleset** (manuellt steg, kräver admin) — blockera skapande av felaktiga branches redan på servern:
-   - Gå till **Settings → Rules → Rulesets → New ruleset → New branch ruleset**
+2. **CI** — the `Branch name policy` job in `.github/workflows/ci.yml` fails PRs from invalidly named branches.
+3. **GitHub ruleset** (manual step, requires admin) — block creation of invalid branches on the server:
+   - Go to **Settings → Rules → Rulesets → New ruleset → New branch ruleset**
    - **Enforcement status:** Active
-   - **Targets:** Add target → Include all branches (eller exkludera `main`/`stage`)
-   - Under **Branch rules**, aktivera **Restrict branch names** och lägg till mönstren:
+   - **Targets:** Add target → Include all branches (or exclude `main`/`stage`)
+   - Under **Branch rules**, enable **Restrict branch names** and add the patterns:
      - `feat/*`, `fix/*`, `chore/*`, `docs/*`, `refactor/*`, `test/*`, `hotfix/*`, `ci/*`, `perf/*`, `build/*`
-     - samt `main` och `stage` (och ev. `dependabot/**`) om du inkluderade alla branches
-   - Spara rulesetet.
+     - plus `main` and `stage` (and optionally `dependabot/**`) if you included all branches
+   - Save the ruleset.
 
-Valideringsskriptet som används av både hooken och CI ligger i `scripts/check_branch_name.sh` och kan köras manuellt:
+The validation script used by both the hook and CI lives in `scripts/check_branch_name.sh` and can be run manually:
 
 ```bash
-scripts/check_branch_name.sh              # validera nuvarande branch
-scripts/check_branch_name.sh fix/my-fix   # validera ett givet namn
+scripts/check_branch_name.sh              # validate the current branch
+scripts/check_branch_name.sh fix/my-fix   # validate a given name
 ```
 
-## Env-filer och hemligheter
+## Env Files and Secrets
 
-Filer som `.env`, `.env.<variant>` och `*.env` kan innehålla hemligheter och
-versioneras aldrig. De matchas av `.gitignore`, och en pre-commit-hook
-(`scripts/check_no_env_files.sh`) blockerar commits som innehåller dem.
-Templates med platshållarvärden checkas in som `*.env.example`.
+Files such as `.env`, `.env.<variant>`, and `*.env` may contain secrets and are never versioned. They are matched by `.gitignore`, and a pre-commit hook (`scripts/check_no_env_files.sh`) blocks commits that include them. Templates with placeholder values are checked in as `*.env.example`.
 
-OBS: `.gitignore` påverkar inte redan trackade filer. Avtracka en FIL som
-redan finns i git (behåll den lokalt) med:
+Note: `.gitignore` does not affect already-tracked files. To untrack a file that is already in git (while keeping it locally):
 
 ```bash
 git rm --cached backend/.env
 ```
 
-Om en hemlighet råkat hamna i historien måste den roteras/ogiltigförklaras —
-git-scrub tar inte bort den från gamla clones.
+If a secret has accidentally ended up in history it must be rotated/invalidated — git-scrub does not remove it from old clones.
 
 ## Building for Distribution
 

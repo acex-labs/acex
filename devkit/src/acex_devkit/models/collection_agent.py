@@ -15,7 +15,8 @@ class CollectionAgentMatchRuleBase(BaseModel):
     site: str | None = None
     vendor: str | None = None
     os: str | None = None
-    status: str | None = None
+    admin_status: str | None = None
+    provision_status: str | None = None
     role: str | None = None
 
 

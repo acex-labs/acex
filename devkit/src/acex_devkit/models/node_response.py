@@ -18,18 +18,32 @@ class AssetRefType(StrEnum):
     asset_cluster = "asset_cluster"
 
 
-class NodeStatus(StrEnum):
+class NodeAdminStatus(StrEnum):
+    """Operator intent for the node."""
+
     planned = "planned"
-    init = "init"
     active = "active"
     decommissioned = "decommissioned"
+
+
+class NodeProvisionStatus(StrEnum):
+    """Where the node's device is in the provisioning lifecycle. Set by the provisioning flow, not by operators."""
+
+    unprovisioned = "unprovisioned"  # never provisioned by ACEX
+    adopted = "adopted"  # brownfield: already running when brought under management
+    pending = "pending"  # ZTP armed, waiting for the device to show up
+    bootstrapping = "bootstrapping"  # bootstrap config fetched, waiting for SSH reachability
+    provisioning = "provisioning"  # full config being pushed and verified
+    provisioned = "provisioned"  # provisioned by ACEX and verified
+    failed = "failed"
 
 
 class NodeBase(BaseModel):
     asset_ref_id: int
     asset_ref_type: AssetRefType | None = None
     logical_node_id: int
-    status: NodeStatus | None = None
+    admin_status: NodeAdminStatus | None = None
+    provision_status: NodeProvisionStatus | None = None
 
 
 class NodeListItem(PersistedResponse, NodeBase):
@@ -53,7 +67,8 @@ class NodeUpdate(BaseModel):
     asset_ref_id: int | None = None
     asset_ref_type: AssetRefType | None = None
     logical_node_id: int | None = None
-    status: NodeStatus | None = None
+    admin_status: NodeAdminStatus | None = None
+    provision_status: NodeProvisionStatus | None = None
 
 
 class NodeResponse(PersistedResponse, NodeBase):
@@ -67,7 +82,8 @@ class NodeResponse(PersistedResponse, NodeBase):
 __all__ = [
     "LogicalNodeResponse",
     "AssetRefType",
-    "NodeStatus",
+    "NodeAdminStatus",
+    "NodeProvisionStatus",
     "NodeBase",
     "NodeListItem",
     "NodeResponse",

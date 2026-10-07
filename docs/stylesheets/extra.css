@@ -1,0 +1,37 @@
+.mermaid {
+  cursor: zoom-in;
+}
+
+.mermaid-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(0, 0, 0, 0.85);
+  cursor: zoom-out;
+}
+
+.mermaid-backdrop.active {
+  display: block;
+}
+
+.mermaid.mermaid-zoomed {
+  position: fixed !important;
+  inset: 2rem !important;
+  z-index: 9999 !important;
+  background: var(--md-default-bg-color, #fff) !important;
+  border-radius: 6px !important;
+  padding: 2rem !important;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5) !important;
+  overflow: auto !important;
+  cursor: zoom-out !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.mermaid.mermaid-zoomed svg {
+  max-width: 100%;
+  height: auto;
+}
