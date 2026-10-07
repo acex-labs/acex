@@ -44,7 +44,7 @@ class Connection:
             pw = quote_plus(password or "")
             default_port = 5432 if backend == "postgresql" else 3306
             port = port or default_port
-            driver = backend
+            driver = "postgresql+psycopg2"
             if backend == "mysql":
                 driver = "mysql+pymysql"
 
