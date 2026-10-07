@@ -12,6 +12,7 @@ from acex.settings import (
     InfluxDBOutput,
     InfluxDBSettings,
     OidcSettings,
+    RabbitMQSettings,
     Section,
     Settings,
     UnsafeConfiguration,
@@ -36,6 +37,11 @@ def clean_env(monkeypatch):
         "ACEX_INFLUXDB_URL",
         "ACEX_INFLUXDB_TOKEN",
         "ACEX_INFLUXDB_EXTRA_OUTPUTS",
+        "ACEX_RABBITMQ_HOST",
+        "ACEX_RABBITMQ_PORT",
+        "ACEX_RABBITMQ_VHOST",
+        "ACEX_RABBITMQ_USER",
+        "ACEX_RABBITMQ_PASSWORD",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -206,3 +212,25 @@ class TestInfluxDB:
         [output] = Settings().influxdb.redacted()["default"]
         assert "token" not in output
         assert output["token_set"] is True
+
+
+class TestRabbitMQ:
+    def should_be_unconfigured_without_a_host(self):
+        assert not Settings().rabbitmq.configured
+
+    def should_build_the_url_from_env(self, monkeypatch):
+        monkeypatch.setenv("ACEX_RABBITMQ_HOST", "rabbitmq")
+        monkeypatch.setenv("ACEX_RABBITMQ_USER", "acex")
+        monkeypatch.setenv("ACEX_RABBITMQ_PASSWORD", "pw")
+        rabbitmq = Settings().rabbitmq
+        assert rabbitmq.configured
+        assert rabbitmq.url == "amqp://acex:pw@rabbitmq:5672/%2F"
+
+    def should_quote_characters_that_would_break_the_url(self):
+        rabbitmq = RabbitMQSettings(host="rabbitmq", user="acex", password="p@ss/w:rd%", vhost="acex")
+        assert rabbitmq.url == "amqp://acex:p%40ss%2Fw%3Ard%25@rabbitmq:5672/acex"
+
+    def should_not_show_the_password(self, monkeypatch):
+        monkeypatch.setenv("ACEX_RABBITMQ_HOST", "rabbitmq")
+        monkeypatch.setenv("ACEX_RABBITMQ_PASSWORD", "pw")
+        assert "pw" not in repr(Settings().rabbitmq)

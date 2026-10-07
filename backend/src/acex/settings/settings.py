@@ -9,6 +9,7 @@ from acex.settings.sections import (
     CredentialSettings,
     DatabaseSettings,
     OidcSettings,
+    RabbitMQSettings,
     ServerSettings,
 )
 from pydantic import Field, model_validator
@@ -32,6 +33,7 @@ class Settings(Section):
     influxdb: InfluxDBSettings = Field(default_factory=InfluxDBSettings)
     ai_ops: AIOpsSettings = Field(default_factory=AIOpsSettings)
     bug_report: BugReportSettings = Field(default_factory=BugReportSettings)
+    rabbitmq: RabbitMQSettings = Field(default_factory=RabbitMQSettings)
 
     @model_validator(mode="after")
     def _dev_conveniences(self) -> "Settings":

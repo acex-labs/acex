@@ -31,6 +31,7 @@ httpx = ">=0.28.0"
 acex-devkit = { path = "../devkit", develop = true }
 alembic = ">=1.19.1"
 pydantic-settings = ">=2.7.0"
+celery = ">=5.5.0"
 
 [tool.poetry.scripts]
 acex-api = "acex_api.server:main"
