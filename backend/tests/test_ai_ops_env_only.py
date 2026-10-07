@@ -5,18 +5,18 @@ import os
 import pytest
 from acex.automation_engine.automationengine import AutomationEngine
 from acex.database import Connection
+from acex.settings import Settings
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
 ENV_MINIMAL = {
-    "ACEX_AI_PROVIDERS": "groq,local",
-    "ACEX_AI_PROVIDER_GROQ_BASEURL": "http://g",
-    "ACEX_AI_PROVIDER_GROQ_API_KEY": "gk",
-    "ACEX_AI_PROVIDER_LOCAL_BASEURL": "http://l",
-    "ACEX_AI_PROVIDER_LOCAL_API_KEY": "lk",
-    "ACEX_AI_PROVIDER_LOCAL_STATIC_MODELS": "qwen3:32b",
-    "ACEX_AI_CHAIN_DEFAULT": "groq/Kimi-K3, local/qwen3:32b",
-    "ACEX_AI_CHAIN_ANALYSIS": "groq/deepseek-r1",
+    "ACEX_AI_PROVIDERS__GROQ__BASE_URL": "http://g",
+    "ACEX_AI_PROVIDERS__GROQ__API_KEY": "gk",
+    "ACEX_AI_PROVIDERS__LOCAL__BASE_URL": "http://l",
+    "ACEX_AI_PROVIDERS__LOCAL__API_KEY": "lk",
+    "ACEX_AI_PROVIDERS__LOCAL__STATIC_MODELS": "qwen3:32b",
+    "ACEX_AI_CHAINS__DEFAULT": "groq/Kimi-K3, local/qwen3:32b",
+    "ACEX_AI_CHAINS__ANALYSIS": "groq/deepseek-r1",
     "ACEX_AI_MCP_SERVER_URL": "http://localhost:8000/mcp",
 }
 
@@ -24,7 +24,7 @@ ENV_MINIMAL = {
 def _engine():
     # dev_mode: these tests exercise AI ops routing, not auth, and an engine
     # without an OIDC issuer otherwise refuses to answer requests.
-    return AutomationEngine(db_connection=Connection(), dev_mode=True)
+    return AutomationEngine(db_connection=Connection(), settings=Settings(dev=True))
 
 
 @pytest.fixture(autouse=True)
@@ -85,19 +85,18 @@ class TestEnvOnlyConfiguration:
         assert _ai_ops_routes(app) == []
 
     def test_partial_env_raises_clear_error(self, monkeypatch):
-        """ACEX_AI_PROVIDERS set but no chain -> fail at startup with an actionable message."""
-        monkeypatch.setenv("ACEX_AI_PROVIDERS", "groq")
-        monkeypatch.setenv("ACEX_AI_PROVIDER_GROQ_BASEURL", "http://g")
-        monkeypatch.setenv("ACEX_AI_PROVIDER_GROQ_API_KEY", "gk")
-        with pytest.raises(ValueError, match="ACEX_AI_CHAIN_DEFAULT"):
+        """Providers set but no default chain -> fail at startup with an actionable message."""
+        monkeypatch.setenv("ACEX_AI_PROVIDERS__GROQ__BASE_URL", "http://g")
+        monkeypatch.setenv("ACEX_AI_PROVIDERS__GROQ__API_KEY", "gk")
+        with pytest.raises(ValueError, match="ACEX_AI_CHAINS__DEFAULT"):
             _engine().create_app()
 
     def test_code_config_wins_over_env(self, monkeypatch):
         """An explicit ai_ops() call overrides whatever env vars say."""
         for key, value in {
             **ENV_MINIMAL,
-            "ACEX_AI_CHAIN_DEFAULT": "groq/wrong-env-model",
-            "ACEX_AI_CHAIN_ANALYSIS": "groq/wrong-env-model",
+            "ACEX_AI_CHAINS__DEFAULT": "groq/wrong-env-model",
+            "ACEX_AI_CHAINS__ANALYSIS": "groq/wrong-env-model",
         }.items():
             monkeypatch.setenv(key, value)
 

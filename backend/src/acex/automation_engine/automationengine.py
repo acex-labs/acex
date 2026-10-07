@@ -1,10 +1,15 @@
-import os
+import warnings
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from acex.database import Connection
     from acex.plugins.integrations import IntegrationPluginBase, IntegrationPluginFactoryBase
+    from acex.settings import Settings
     from fastapi import FastAPI
+
+
+def _deprecated(old: str, new: str) -> None:
+    warnings.warn(f"{old} is deprecated; {new}.", DeprecationWarning, stacklevel=3)
 
 
 class AutomationEngine:
@@ -15,25 +20,47 @@ class AutomationEngine:
         logical_nodes_plugin: "IntegrationPluginBase|None" = None,
         sites_plugin: "IntegrationPluginBase|None" = None,
         contacts_plugin: "IntegrationPluginBase|None" = None,
-        dev_mode: bool = False,
+        dev_mode: bool | None = None,
+        settings: "Settings|None" = None,
     ):
         """Build the engine.
 
-        `dev_mode` relaxes protections that only make sense to drop while
-        developing locally — most importantly it lets the API serve requests
-        with no authentication configured, which is otherwise refused. Never
-        enable it for a deployment anyone else can reach.
+        `settings` holds every plain value the engine runs with (see
+        acex.settings). Left out, it is read from the environment. Plugins
+        are code rather than values, so they are passed here or registered
+        with add_integration().
+
+        `db_connection` overrides `settings.db` with a ready-made Connection.
+        `dev_mode` is deprecated in favour of `Settings(dev=True)`.
         """
         # Lazy imports - only load when AutomationEngine is instantiated
         from acex.api.api import Api
         from acex.automation_engine.integrations import Integrations
         from acex.compilers import ConfigCompiler
-        from acex.database import DatabaseManager
+        from acex.database import Connection, DatabaseManager
         from acex.device_configs import DeviceConfigManager
         from acex.inventory import Inventory
         from acex.management_connections import ManagementConnectionManager
-        from acex.observability.settings import InfluxDBSettings
         from acex.plugins import PluginManager
+        from acex.settings import Settings
+
+        if dev_mode is not None:
+            _deprecated("AutomationEngine(dev_mode=...)", "pass settings=Settings(dev=...) instead")
+            if settings is not None:
+                raise TypeError("Pass dev mode in settings, not both settings= and dev_mode=")
+            settings = Settings(dev=dev_mode)
+        self.settings = settings if settings is not None else Settings()
+
+        if db_connection is None:
+            db = self.settings.db
+            db_connection = Connection(
+                backend=db.backend,
+                dbname=db.name,
+                user=db.user,
+                password=db.password.get_secret_value(),
+                host=db.host,
+                port=db.port,
+            )
 
         self.api = Api()
         self.plugin_manager = PluginManager()
@@ -41,14 +68,7 @@ class AutomationEngine:
         self.db = DatabaseManager(db_connection)
         self.config_compiler = ConfigCompiler(self.db)
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
-        self.dev_mode = dev_mode
-        self.cors_settings_default = True
-        self.cors_allowed_origins = []
-        self.oidc_issuer_url: str | None = None
-        self.oidc_audience: str = "acex"
-        self.oidc_jwks_ttl: int = 3600
-        self.oidc_verify_ssl: bool = True
-        self.influxdb_settings = InfluxDBSettings.from_env()
+        self.influxdb_settings = self.settings.influxdb
 
         # create plugin instances.
         if assets_plugin is not None:
@@ -83,12 +103,14 @@ class AutomationEngine:
 
         self.lldp_neighbor_manager = LldpNeighborManager(self.db)
 
-        # Create CredentialManager
-        self._encryption_key = None
-        self._vault_client = None
-        self.credential_manager = None  # initialized in set_encryption_key() or lazily
+        # Built in create_app() from settings.credentials
+        self.credential_manager = None
 
         self._run_migrations()
+
+    @property
+    def dev_mode(self) -> bool:
+        return self.settings.dev
 
     def _run_migrations(self):
         """
@@ -96,263 +118,47 @@ class AutomationEngine:
         """
         self.db.upgrade()
 
-    def _ensure_credential_manager(self):
-        """Lazily initialize CredentialManager from env var if not set via set_encryption_key()."""
-        if self._vault_client is None:
-            vault_addr = os.environ.get("VAULT_ADDR")
-            vault_token = os.environ.get("VAULT_TOKEN")
-            vault_role_id = os.environ.get("VAULT_ROLE_ID")
-            vault_secret_id = os.environ.get("VAULT_SECRET_ID")
-            if vault_addr and (vault_token or (vault_role_id and vault_secret_id)):
-                self.set_vault(
-                    url=vault_addr,
-                    token=vault_token,
-                    role_id=vault_role_id,
-                    secret_id=vault_secret_id,
-                )
-
-        if self.credential_manager is None:
-            from acex.credentials.credential_manager import CredentialManager
-
-            self.credential_manager = CredentialManager(self.db, self._encryption_key, vault_client=self._vault_client)
-        elif self._vault_client and not self.credential_manager._vault:
-            self.credential_manager._vault = self._vault_client
-
-    def set_encryption_key(self, key: str):
-        """Set the encryption key for credential storage. Call before create_app()."""
-        import logging
-
-        logging.getLogger("acex").warning(
-            "Encryption key set via code — do NOT use this in production. "
-            "Use the ACEX_ENCRYPTION_KEY environment variable instead."
-        )
+    def _build_credential_manager(self):
         from acex.credentials.credential_manager import CredentialManager
 
-        self._encryption_key = key
-        self.credential_manager = CredentialManager(self.db, key)
+        creds = self.settings.credentials
+        vault_client = None
+        if creds.vault.configured:
+            from acex.credentials.vault_client import VaultClient
 
-    def set_vault(self, url: str, token: str = None, role_id: str = None, secret_id: str = None, verify: bool = True):
-        """Configure HashiCorp Vault for credential storage. Call before create_app()."""
-        from acex.credentials.vault_client import VaultClient
-
-        self._vault_client = VaultClient(url=url, token=token, role_id=role_id, secret_id=secret_id, verify=verify)
-
-    def _auto_configure_ai_ops_from_env(self):
-        """Enable AI Ops automatically when ACEX_AI_* env vars are set.
-
-        Lets deployments configure providers and failover chains entirely
-        via the environment, without calling ai_ops() in app.py. An explicit
-        ai_ops() call wins over env vars (guarded by the hasattr check in
-        create_app, which runs after all configuration calls).
-
-        Unset ACEX_AI_PROVIDERS (or leave it empty) to disable.
-        """
-        import os
-
-        from acex.ai_ops.config import AIOpsSettings
-
-        if not os.environ.get("ACEX_AI_PROVIDERS"):
-            return
-
-        settings = AIOpsSettings.from_env()
-        if settings is None:
-            raise ValueError(
-                "ACEX_AI_PROVIDERS is set but no valid AI Ops configuration could be built. "
-                "Set ACEX_AI_PROVIDER_<NAME>_BASEURL and _API_KEY for each provider and "
-                "at least one chain, e.g. ACEX_AI_CHAIN_DEFAULT (see docs/examples/ai_ops.md)"
+            vault = creds.vault
+            vault_client = VaultClient(
+                url=vault.addr,
+                token=vault.token.get_secret_value() if vault.token else None,
+                role_id=vault.role_id,
+                secret_id=vault.secret_id.get_secret_value() if vault.secret_id else None,
+                verify=vault.verify,
             )
-
-        from acex.ai_ops import AIOpsManager
-
-        self.ai_ops_manager = AIOpsManager(settings=settings)
+        key = creds.encryption_key.get_secret_value() if creds.encryption_key else None
+        self.credential_manager = CredentialManager(self.db, key, vault_client=vault_client)
 
     def create_app(self) -> "FastAPI":
         """
         This is the method that creates the full API.
+
+        Refuses (UnsafeConfiguration) to build an app that would be exposed
+        without auth or trust every origin, unless settings.dev is set.
         """
-        self._ensure_credential_manager()
+        self.settings.check()
+        self._build_credential_manager()
         self.inventory.telemetry_registry.credential_manager = self.credential_manager
-        if not hasattr(self, "ai_ops_manager"):
-            self._auto_configure_ai_ops_from_env()
+        if not hasattr(self, "ai_ops_manager") and self.settings.ai_ops.enabled:
+            from acex.ai_ops import AIOpsManager
+
+            self.ai_ops_manager = AIOpsManager(settings=self.settings.ai_ops)
         return self.api.create_app(self)
 
-    def ai_ops(
-        self,
-        enabled: bool = False,
-        providers: list[dict] = None,
-        chains: dict[str, list[str]] = None,
-        mcp_server_url: str = None,
-    ):
-        """Configure AI operations: named providers + per-task failover chains.
-
-        Two ways to configure:
-
-        1. In code — pass `providers` and `chains`::
-
-            ae.ai_ops(
-                enabled=True,
-                providers=[
-                    {"name": "groq", "base_url": ..., "api_key": ...},
-                    {"name": "local", "base_url": ..., "api_key": ...,
-                     "static_models": ["qwen3:32b"]},
-                ],
-                chains={
-                    "default":  ["groq/moonshotai/Kimi-K3", "local/qwen3:32b"],
-                    "analysis": ["groq/deepseek-r1"],
-                },
-                mcp_server_url="http://localhost:8000/mcp",
-            )
-
-        2. Env vars — ACEX_AI_* (see acex.ai_ops.config and docs/examples/ai_ops.md).
-           Used when `providers` is not given. In fact, calling this method is
-           optional: if ACEX_AI_PROVIDERS is set, create_app() enables AI Ops
-           automatically.
-
-        A "default" chain is required; tasks without their own chain inherit it.
-        `mcp_server_url` in code wins over ACEX_AI_MCP_SERVER_URL.
-        """
-        if not enabled:
-            return None
-
-        # Lazy import - only load when AI ops is actually enabled
-        import os
-
-        from acex.ai_ops import AIOpsManager
-        from acex.ai_ops.config import AIChainLevel, AIOpsSettings, AIProvider
-
-        env_mcp_server_url = os.environ.get("ACEX_AI_MCP_SERVER_URL")
-
-        if providers is not None:
-            provider_map = {}
-            for p in providers:
-                missing = [k for k in ("base_url", "api_key") if not p.get(k)]
-                if missing:
-                    raise ValueError(
-                        f"AI provider '{p.get('name', '?')}' is missing {', '.join(missing)} "
-                        f"(check your env vars — os.getenv() returned None)"
-                    )
-                provider_map[p["name"]] = AIProvider(**p)
-            chain_map = {
-                task: [AIChainLevel(**(lvl if isinstance(lvl, dict) else _parse_level(lvl))) for lvl in levels]
-                for task, levels in (chains or {}).items()
-            }
-            # Explicit argument wins over ACEX_AI_MCP_SERVER_URL
-            settings = AIOpsSettings(
-                providers=provider_map,
-                chains=chain_map,
-                mcp_server_url=mcp_server_url or env_mcp_server_url,
-            )
-        else:
-            # Env vars
-            settings = AIOpsSettings.from_env()
-            if settings and mcp_server_url:
-                settings.mcp_server_url = mcp_server_url
-
-        if settings is None or not settings.providers or not settings.chains.get("default"):
-            raise ValueError(
-                "AI Ops is enabled, but no valid provider/chain configuration was found. "
-                "Pass providers= and chains= to ae.ai_ops(), or set ACEX_AI_* env vars "
-                "(see docs/examples/ai_ops.md)."
-            )
-
-        self.ai_ops_manager = AIOpsManager(settings=settings)
+    # ------------------------------------------------------------------
+    # Code-level configuration: things only an integrator's app.py can express
+    # ------------------------------------------------------------------
 
     def add_configmap_dir(self, dir_path: str):
         self.config_compiler.add_config_map_path(dir_path)
-
-    def set_oidc(self, issuer_url: str, audience: str = "acex", jwks_ttl: int = 3600, verify_ssl: bool = True):
-        """Configure OIDC/JWT authentication. Call before create_app()."""
-        self.oidc_issuer_url = issuer_url
-        self.oidc_audience = audience
-        self.oidc_jwks_ttl = jwks_ttl
-        self.oidc_verify_ssl = verify_ssl
-
-    def add_cors_allowed_origin(self, origin: str):
-        self.cors_settings_default = False
-        self.cors_allowed_origins.append(origin)
-
-    def set_influxdb(
-        self,
-        url: str,
-        version: str = "v3",
-        token: str = None,
-        organization: str = None,
-        bucket: str = None,
-        database: str = None,
-        username: str = None,
-        password: str = None,
-        content_encoding: str = None,
-    ):
-        """
-        Replace the backend-default InfluxDB outputs with a single one.
-
-        Backend defaults are applied to every TelemetryAgent. Use
-        `add_influxdb(...)` to append additional defaults (e.g. primary +
-        replica).
-        """
-        from acex.observability.settings import DEFAULT_GROUP
-
-        self.influxdb_settings.groups[DEFAULT_GROUP] = [
-            self._make_influxdb_output(
-                url=url,
-                version=version,
-                token=token,
-                organization=organization,
-                bucket=bucket,
-                database=database,
-                username=username,
-                password=password,
-                content_encoding=content_encoding,
-            )
-        ]
-
-    def add_influxdb(
-        self,
-        url: str,
-        version: str = "v3",
-        token: str = None,
-        organization: str = None,
-        bucket: str = None,
-        database: str = None,
-        username: str = None,
-        password: str = None,
-        content_encoding: str = None,
-    ):
-        """Append one more backend-default InfluxDB output."""
-        from acex.observability.settings import DEFAULT_GROUP
-
-        self.influxdb_settings.groups.setdefault(DEFAULT_GROUP, []).append(
-            self._make_influxdb_output(
-                url=url,
-                version=version,
-                token=token,
-                organization=organization,
-                bucket=bucket,
-                database=database,
-                username=username,
-                password=password,
-                content_encoding=content_encoding,
-            )
-        )
-
-    @staticmethod
-    def _make_influxdb_output(
-        url, version, token, organization, bucket, database, username, password, content_encoding
-    ):
-        from acex.observability.settings import InfluxDBOutput
-        from acex_devkit.models.telemetry_agent import InfluxDBVersion
-
-        return InfluxDBOutput(
-            version=InfluxDBVersion(version),
-            url=url,
-            token=token,
-            organization=organization,
-            bucket=bucket,
-            database=database,
-            username=username,
-            password=password,
-            content_encoding=content_encoding,
-        )
 
     def register_datasource_plugin(self, name: str, plugin_factory: "IntegrationPluginFactoryBase"):
         self.plugin_manager.register_generic_plugin(name, plugin_factory)
@@ -364,8 +170,104 @@ class AutomationEngine:
         print(f"Adding integration {name} with plugin: {integration}")
         self.plugin_manager.register_generic_plugin(name, integration)
 
+    # ------------------------------------------------------------------
+    # Deprecated setters. Each value now lives in Settings; these write into
+    # self.settings so existing app.py files keep working for a release.
+    # ------------------------------------------------------------------
 
-def _parse_level(value: str) -> dict:
-    """'provider/model' -> {'provider': ..., 'model': ...}"""
-    provider, model = value.split("/", 1)
-    return {"provider": provider, "model": model}
+    def set_encryption_key(self, key: str):
+        """Deprecated: use Settings(credentials={"encryption_key": ...}) or ACEX_ENCRYPTION_KEY."""
+        from pydantic import SecretStr
+
+        _deprecated("set_encryption_key()", 'use Settings(credentials={"encryption_key": ...}) or ACEX_ENCRYPTION_KEY')
+        self.settings.credentials.encryption_key = SecretStr(key)
+
+    def set_vault(self, url: str, token: str = None, role_id: str = None, secret_id: str = None, verify: bool = True):
+        """Deprecated: use Settings(credentials={"vault": {...}}) or VAULT_*."""
+        from acex.settings import VaultSettings
+
+        _deprecated("set_vault()", 'use Settings(credentials={"vault": {...}}) or VAULT_* env vars')
+        self.settings.credentials.vault = VaultSettings(
+            addr=url, token=token, role_id=role_id, secret_id=secret_id, verify=verify
+        )
+
+    def set_oidc(self, issuer_url: str, audience: str = "acex", jwks_ttl: int = 3600, verify_ssl: bool = True):
+        """Deprecated: use Settings(oidc={...}) or OIDC_*."""
+        from acex.settings import OidcSettings
+
+        _deprecated("set_oidc()", "use Settings(oidc={...}) or OIDC_* env vars")
+        self.settings.oidc = OidcSettings(
+            issuer_url=issuer_url, audience=audience, jwks_ttl=jwks_ttl, verify_ssl=verify_ssl
+        )
+
+    def add_cors_allowed_origin(self, origin: str):
+        """Deprecated: use Settings(cors={"allowed_origins": [...]}) or ACEX_CORS_ALLOWED_ORIGINS."""
+        _deprecated(
+            "add_cors_allowed_origin()",
+            'use Settings(cors={"allowed_origins": [...]}) or ACEX_CORS_ALLOWED_ORIGINS',
+        )
+        cors = self.settings.cors
+        # The first explicit origin replaces a dev-mode "*" default.
+        origins = cors.allowed_origins if "allowed_origins" in cors.model_fields_set else []
+        cors.allowed_origins = [*origins, origin]
+
+    def ai_ops(
+        self,
+        enabled: bool = False,
+        providers: list[dict] = None,
+        chains: dict[str, list[str]] = None,
+        mcp_server_url: str = None,
+    ):
+        """Deprecated: use Settings(ai_ops=AIOpsSettings(...)) or ACEX_AI_* env vars."""
+        from acex.ai_ops import AIOpsManager
+        from acex.settings import AIOpsSettings
+
+        _deprecated("ai_ops()", "use Settings(ai_ops=AIOpsSettings(...)) or ACEX_AI_* env vars")
+        if not enabled:
+            return None
+
+        given = {
+            "providers": {p["name"]: p for p in providers} if providers is not None else None,
+            "chains": chains,
+            "mcp_server_url": mcp_server_url,
+        }
+        settings = AIOpsSettings(**{key: value for key, value in given.items() if value is not None})
+        if not settings.enabled:
+            raise ValueError(
+                "AI Ops is enabled, but no provider is configured. Pass providers= and chains= "
+                "to ae.ai_ops(), or set ACEX_AI_* env vars (see docs/examples/ai_ops.md)."
+            )
+        self.settings.ai_ops = settings
+        self.ai_ops_manager = AIOpsManager(settings=settings)
+
+    def set_influxdb(self, url: str, version: str = "v3", **output):
+        """Deprecated: use Settings(influxdb=InfluxDBSettings(...)) or ACEX_INFLUXDB_*.
+
+        Replace the backend-default InfluxDB outputs with a single one. Takes
+        the fields of InfluxDBOutput (token, organization, bucket, ...).
+        """
+        _deprecated("set_influxdb()", "use Settings(influxdb=InfluxDBSettings(...)) or ACEX_INFLUXDB_* env vars")
+        self._set_primary_influxdb(url=url, version=version, **output)
+        self.influxdb_settings.extra_outputs = []
+
+    def add_influxdb(self, url: str, version: str = "v3", **output):
+        """Deprecated: use Settings(influxdb=InfluxDBSettings(extra_outputs=[...])).
+
+        Append one more backend-default InfluxDB output.
+        """
+        from acex.settings import InfluxDBOutput
+
+        _deprecated("add_influxdb()", "use Settings(influxdb=InfluxDBSettings(extra_outputs=[...]))")
+        if self.influxdb_settings.primary_output is None:
+            self._set_primary_influxdb(url=url, version=version, **output)
+        else:
+            self.influxdb_settings.extra_outputs.append(InfluxDBOutput(url=url, version=version, **output))
+
+    def _set_primary_influxdb(self, **output):
+        from acex.settings import InfluxDBOutput
+
+        # Validated as a whole output first, so a bad value is rejected
+        # before anything is changed.
+        primary = InfluxDBOutput(**output)
+        for name, value in primary.model_dump().items():
+            setattr(self.influxdb_settings, name, value)
