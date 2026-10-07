@@ -50,19 +50,19 @@ between the levels:
 
 ```bash
 # Providers, one block per name:
-ACEX_AI_PROVIDERS__GROQ__BASE_URL=https://api.groq.com/openai/v1
-ACEX_AI_PROVIDERS__GROQ__API_KEY=gsk_...
-ACEX_AI_PROVIDERS__LOCAL__BASE_URL=http://localhost:11434/v1
-ACEX_AI_PROVIDERS__LOCAL__API_KEY=ollama
-ACEX_AI_PROVIDERS__LOCAL__STATIC_MODELS=qwen3:32b,llama3.3   # optional, if no /models endpoint
-ACEX_AI_PROVIDERS__LOCAL__MODEL_META={"qwen3:32b": {"supports_tools": true, "context_window": 32768}}  # optional JSON
+ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL=https://api.groq.com/openai/v1
+ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY=gsk_...
+ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL=http://localhost:11434/v1
+ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY=ollama
+ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS=qwen3:32b,llama3.3   # optional, if no /models endpoint
+ACEX_AI_OPS_PROVIDERS__LOCAL__MODEL_META={"qwen3:32b": {"supports_tools": true, "context_window": 32768}}  # optional JSON
 
 # Chains (comma-separated provider/model levels, in failover order):
-ACEX_AI_CHAINS__DEFAULT="groq/moonshotai/Kimi-K3, local/qwen3:32b"
-ACEX_AI_CHAINS__ANALYSIS="groq/deepseek-r1"
+ACEX_AI_OPS_CHAINS__DEFAULT="groq/moonshotai/Kimi-K3, local/qwen3:32b"
+ACEX_AI_OPS_CHAINS__ANALYSIS="groq/deepseek-r1"
 
 # MCP tool server:
-ACEX_AI_MCP_SERVER_URL=http://localhost:8000/mcp
+ACEX_AI_OPS_MCP_SERVER_URL=http://localhost:8000/mcp
 ```
 
 Provider names from the environment are lower-cased (`GROQ` → `groq`).

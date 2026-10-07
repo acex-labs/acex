@@ -9,9 +9,9 @@ from acex.ai_ops.config import AIChainLevel, AIOpsSettings, AIProvider
 
 @pytest.fixture(autouse=True)
 def _no_ai_env(monkeypatch):
-    """AIOpsSettings reads ACEX_AI_* on construction; start every test from none."""
+    """AIOpsSettings reads ACEX_AI_OPS_* on construction; start every test from none."""
     for key in list(os.environ):
-        if key.startswith("ACEX_AI_"):
+        if key.startswith("ACEX_AI_OPS_"):
             monkeypatch.delenv(key)
 
 
@@ -59,10 +59,10 @@ class TestFromEnv:
 
     def test_single_provider_minimal(self):
         env = {
-            "ACEX_AI_PROVIDERS__GROQ__BASE_URL": "http://groq",
-            "ACEX_AI_PROVIDERS__GROQ__API_KEY": "gsk_x",
-            "ACEX_AI_CHAINS__DEFAULT": "groq/moonshotai/Kimi-K3",
-            "ACEX_AI_MCP_SERVER_URL": "http://mcp:8000/mcp",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL": "http://groq",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY": "gsk_x",
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "groq/moonshotai/Kimi-K3",
+            "ACEX_AI_OPS_MCP_SERVER_URL": "http://mcp:8000/mcp",
         }
         with patch.dict(os.environ, env, clear=True):
             s = AIOpsSettings()
@@ -75,13 +75,13 @@ class TestFromEnv:
 
     def test_named_providers_and_chains(self):
         env = {
-            "ACEX_AI_PROVIDERS__GROQ__BASE_URL": "http://g",
-            "ACEX_AI_PROVIDERS__GROQ__API_KEY": "gk",
-            "ACEX_AI_PROVIDERS__LOCAL__BASE_URL": "http://l",
-            "ACEX_AI_PROVIDERS__LOCAL__API_KEY": "lk",
-            "ACEX_AI_PROVIDERS__LOCAL__STATIC_MODELS": "qwen3:32b, llama3",
-            "ACEX_AI_CHAINS__DEFAULT": "groq/Kimi-K3, local/qwen3:32b",
-            "ACEX_AI_CHAINS__ANALYSIS": "groq/deepseek-r1",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL": "http://g",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY": "gk",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL": "http://l",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY": "lk",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS": "qwen3:32b, llama3",
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "groq/Kimi-K3, local/qwen3:32b",
+            "ACEX_AI_OPS_CHAINS__ANALYSIS": "groq/deepseek-r1",
         }
         with patch.dict(os.environ, env, clear=True):
             s = AIOpsSettings()
@@ -94,19 +94,19 @@ class TestFromEnv:
 
     def test_static_models_as_json(self):
         env = {
-            "ACEX_AI_PROVIDERS__LOCAL__BASE_URL": "http://l",
-            "ACEX_AI_PROVIDERS__LOCAL__API_KEY": "lk",
-            "ACEX_AI_PROVIDERS__LOCAL__STATIC_MODELS": '["qwen3:32b", "llama3"]',
-            "ACEX_AI_CHAINS__DEFAULT": "local/qwen3:32b",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL": "http://l",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY": "lk",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS": '["qwen3:32b", "llama3"]',
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "local/qwen3:32b",
         }
         with patch.dict(os.environ, env, clear=True):
             assert AIOpsSettings().providers["local"].static_models == ["qwen3:32b", "llama3"]
 
     def test_chain_referencing_unknown_provider_raises(self):
         env = {
-            "ACEX_AI_PROVIDERS__GROQ__BASE_URL": "http://g",
-            "ACEX_AI_PROVIDERS__GROQ__API_KEY": "k",
-            "ACEX_AI_CHAINS__DEFAULT": "ghost/model",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL": "http://g",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY": "k",
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "ghost/model",
         }
         with patch.dict(os.environ, env, clear=True):
             with pytest.raises(ValueError, match="unknown provider"):
@@ -114,9 +114,9 @@ class TestFromEnv:
 
     def test_invalid_chain_level_format_raises(self):
         env = {
-            "ACEX_AI_PROVIDERS__GROQ__BASE_URL": "http://g",
-            "ACEX_AI_PROVIDERS__GROQ__API_KEY": "k",
-            "ACEX_AI_CHAINS__DEFAULT": "just-a-model",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL": "http://g",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY": "k",
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "just-a-model",
         }
         with patch.dict(os.environ, env, clear=True):
             with pytest.raises(ValueError, match="provider/model"):
@@ -124,10 +124,12 @@ class TestFromEnv:
 
     def test_model_meta_from_env(self):
         env = {
-            "ACEX_AI_PROVIDERS__LOCAL__BASE_URL": "http://l",
-            "ACEX_AI_PROVIDERS__LOCAL__API_KEY": "k",
-            "ACEX_AI_PROVIDERS__LOCAL__MODEL_META": '{"qwen3:32b": {"supports_tools": true, "context_window": 32768}}',
-            "ACEX_AI_CHAINS__DEFAULT": "local/qwen3:32b",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL": "http://l",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY": "k",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__MODEL_META": (
+                '{"qwen3:32b": {"supports_tools": true, "context_window": 32768}}'
+            ),
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "local/qwen3:32b",
         }
         with patch.dict(os.environ, env, clear=True):
             s = AIOpsSettings()
@@ -137,24 +139,24 @@ class TestFromEnv:
 
     def test_providers_without_default_chain_raise(self):
         env = {
-            "ACEX_AI_PROVIDERS__GROQ__BASE_URL": "http://g",
-            "ACEX_AI_PROVIDERS__GROQ__API_KEY": "k",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL": "http://g",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY": "k",
         }
         with patch.dict(os.environ, env, clear=True):
-            with pytest.raises(ValueError, match="ACEX_AI_CHAINS__DEFAULT"):
+            with pytest.raises(ValueError, match="ACEX_AI_OPS_CHAINS__DEFAULT"):
                 AIOpsSettings()
 
     def test_provider_without_credentials_raises(self):
         env = {
-            "ACEX_AI_PROVIDERS__GROQ__BASE_URL": "http://g",
-            "ACEX_AI_CHAINS__DEFAULT": "groq/m",
+            "ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL": "http://g",
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "groq/m",
         }
         with patch.dict(os.environ, env, clear=True):
             with pytest.raises(ValueError, match="api_key"):
                 AIOpsSettings()
 
     def test_code_fills_in_from_env(self):
-        env = {"ACEX_AI_MCP_SERVER_URL": "http://mcp:8000/mcp"}
+        env = {"ACEX_AI_OPS_MCP_SERVER_URL": "http://mcp:8000/mcp"}
         with patch.dict(os.environ, env, clear=True):
             s = AIOpsSettings(
                 providers={"groq": {"base_url": "http://g", "api_key": "k"}},
@@ -164,6 +166,6 @@ class TestFromEnv:
         assert s.providers["groq"].name == "groq"
 
     def test_the_old_provider_list_fails_with_a_pointer_to_the_new_layout(self):
-        with patch.dict(os.environ, {"ACEX_AI_PROVIDERS": "groq,local"}, clear=True):
-            with pytest.raises(ValueError, match="ACEX_AI_PROVIDERS__<KEY>__<FIELD>"):
+        with patch.dict(os.environ, {"ACEX_AI_OPS_PROVIDERS": "groq,local"}, clear=True):
+            with pytest.raises(ValueError, match="ACEX_AI_OPS_PROVIDERS__<KEY>__<FIELD>"):
                 AIOpsSettings()

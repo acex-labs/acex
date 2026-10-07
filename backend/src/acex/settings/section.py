@@ -22,7 +22,7 @@ class _Unparsable(ValueError):
 class _OwnFieldsEnvSource(EnvSettingsSource):
     """Environment source that leaves nested sections to their own prefix.
 
-    Without it a parent would also accept e.g. ACEX_DB__HOST for DB_HOST, and
+    Without it a parent would also accept e.g. ACEX_DB__HOST for ACEX_DB_HOST, and
     every setting would have two names. It also names the variable, and how
     to write it, when a value cannot be parsed.
     """
@@ -53,20 +53,25 @@ class _OwnFieldsEnvSource(EnvSettingsSource):
 class Section(BaseSettings):
     """A group of settings that share an environment prefix.
 
-    Declare a section by subclassing with its prefix; every field is then
-    settable both in code and from the environment, with nothing else to write:
+    Declare a section by subclassing with its name: its path under `Settings`,
+    dotted when nested. Every field is then settable both in code and from the
+    environment as ACEX_<NAME>_<FIELD>, with nothing else to write:
 
-        class OidcSettings(Section, env_prefix="OIDC_"):
+        class OidcSettings(Section, name="oidc"):
             #: OIDC provider that issues the bearer tokens the API accepts.
             issuer_url: str | None = None
 
         OidcSettings(issuer_url="https://...")   # in code
-        OIDC_ISSUER_URL=https://...              # in the environment
+        ACEX_OIDC_ISSUER_URL=https://...         # in the environment
+
+    The variable therefore spells out where the value lives in code:
+    `settings.credentials.vault.addr` is ACEX_CREDENTIALS_VAULT_ADDR. The
+    root `Settings` has no name, so its own fields are ACEX_<FIELD>.
 
     A value given in code wins over the environment, which wins over the
     default. Nested models and dicts are reached with "__" between the levels
-    (ACEX_AI_PROVIDERS__GROQ__BASE_URL); lists and dicts can also be given as
-    JSON. A dict given in both places is merged key by key, code winning per
+    (ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL); lists and dicts can also be given
+    as JSON. A dict given in both places is merged key by key, code winning per
     key. Empty environment values count as unset. Unknown fields are
     rejected, so a misspelt setting fails loudly instead of being ignored.
 
@@ -75,10 +80,16 @@ class Section(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
+        env_prefix="ACEX_",
         env_ignore_empty=True,
         env_nested_delimiter="__",
         extra="forbid",
     )
+
+    def __init_subclass__(cls, name: str | None = None, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if name is not None:
+            cls.model_config = {**cls.model_config, "env_prefix": f"ACEX_{name.replace('.', '_').upper()}_"}
 
     @classmethod
     def settings_customise_sources(

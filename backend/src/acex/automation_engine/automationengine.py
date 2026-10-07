@@ -176,10 +176,13 @@ class AutomationEngine:
     # ------------------------------------------------------------------
 
     def set_encryption_key(self, key: str):
-        """Deprecated: use Settings(credentials={"encryption_key": ...}) or ACEX_ENCRYPTION_KEY."""
+        """Deprecated: use Settings(credentials={"encryption_key": ...}) or ACEX_CREDENTIALS_ENCRYPTION_KEY."""
         from pydantic import SecretStr
 
-        _deprecated("set_encryption_key()", 'use Settings(credentials={"encryption_key": ...}) or ACEX_ENCRYPTION_KEY')
+        _deprecated(
+            "set_encryption_key()",
+            'use Settings(credentials={"encryption_key": ...}) or ACEX_CREDENTIALS_ENCRYPTION_KEY',
+        )
         self.settings.credentials.encryption_key = SecretStr(key)
 
     def set_vault(self, url: str, token: str = None, role_id: str = None, secret_id: str = None, verify: bool = True):
@@ -218,11 +221,11 @@ class AutomationEngine:
         chains: dict[str, list[str]] = None,
         mcp_server_url: str = None,
     ):
-        """Deprecated: use Settings(ai_ops=AIOpsSettings(...)) or ACEX_AI_* env vars."""
+        """Deprecated: use Settings(ai_ops=AIOpsSettings(...)) or ACEX_AI_OPS_* env vars."""
         from acex.ai_ops import AIOpsManager
         from acex.settings import AIOpsSettings
 
-        _deprecated("ai_ops()", "use Settings(ai_ops=AIOpsSettings(...)) or ACEX_AI_* env vars")
+        _deprecated("ai_ops()", "use Settings(ai_ops=AIOpsSettings(...)) or ACEX_AI_OPS_* env vars")
         if not enabled:
             return None
 
@@ -235,7 +238,7 @@ class AutomationEngine:
         if not settings.enabled:
             raise ValueError(
                 "AI Ops is enabled, but no provider is configured. Pass providers= and chains= "
-                "to ae.ai_ops(), or set ACEX_AI_* env vars (see docs/examples/ai_ops.md)."
+                "to ae.ai_ops(), or set ACEX_AI_OPS_* env vars (see docs/examples/ai_ops.md)."
             )
         self.settings.ai_ops = settings
         self.ai_ops_manager = AIOpsManager(settings=settings)

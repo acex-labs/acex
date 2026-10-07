@@ -52,13 +52,13 @@ ae.add_cors_allowed_origin("*")
 
 # # OIDC authentication
 ae.set_oidc(
-    issuer_url=os.getenv("OIDC_ISSUER_URL", "https://keycloak.auto.ngninfra.net/realms/acex"),
-    audience=os.getenv("OIDC_AUDIENCE", "acex"),
+    issuer_url=os.getenv("ACEX_OIDC_ISSUER_URL", "https://keycloak.auto.ngninfra.net/realms/acex"),
+    audience=os.getenv("ACEX_OIDC_AUDIENCE", "acex"),
     verify_ssl=False,
 )
 
 # Encryption key for device credentials
-# ae.set_encryption_key(os.getenv("ACEX_ENCRYPTION_KEY", ""))
+# ae.set_encryption_key(os.getenv("ACEX_CREDENTIALS_ENCRYPTION_KEY", ""))
 ae.set_encryption_key("9VfRDg1KSH4U6-Kv5dG7e59f1iKeGEQHWUAKPnZO4hk=")
 
 # Create the api app!

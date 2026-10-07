@@ -8,20 +8,20 @@
 
 In the environment, providers and chains are keyed by name:
 
-  ACEX_AI_PROVIDERS__GROQ__BASE_URL=https://api.groq.com/openai/v1
-  ACEX_AI_PROVIDERS__GROQ__API_KEY=gsk_...
-  ACEX_AI_PROVIDERS__LOCAL__STATIC_MODELS=qwen3:32b,llama3.3
-  ACEX_AI_PROVIDERS__LOCAL__MODEL_META={"qwen3:32b": {"supports_tools": true}}
-  ACEX_AI_CHAINS__DEFAULT=groq/moonshotai/Kimi-K3,local/qwen3:32b
-  ACEX_AI_CHAINS__ANALYSIS=groq/deepseek-r1
-  ACEX_AI_MCP_SERVER_URL=http://localhost:8000/mcp
+  ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL=https://api.groq.com/openai/v1
+  ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY=gsk_...
+  ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS=qwen3:32b,llama3.3
+  ACEX_AI_OPS_PROVIDERS__LOCAL__MODEL_META={"qwen3:32b": {"supports_tools": true}}
+  ACEX_AI_OPS_CHAINS__DEFAULT=groq/moonshotai/Kimi-K3,local/qwen3:32b
+  ACEX_AI_OPS_CHAINS__ANALYSIS=groq/deepseek-r1
+  ACEX_AI_OPS_MCP_SERVER_URL=http://localhost:8000/mcp
 
 AI Ops is on as soon as a provider is configured, and off when none is.
 """
 
 from typing import Any
 
-from acex.settings.base import Section
+from acex.settings.section import Section
 from pydantic import BaseModel, field_validator, model_validator
 
 #: Tasks with dedicated chains. Any other task name inherits "default".
@@ -87,7 +87,7 @@ def _parse_level(value: Any) -> Any:
     return {"provider": provider.strip(), "model": model.strip()}
 
 
-class AIOpsSettings(Section, env_prefix="ACEX_AI_"):
+class AIOpsSettings(Section, name="ai_ops"):
     """Providers + per-task failover chains."""
 
     providers: dict[str, AIProvider] = {}
@@ -114,7 +114,7 @@ class AIOpsSettings(Section, env_prefix="ACEX_AI_"):
             return self
         if not self.chains.get("default"):
             raise ValueError(
-                "AI Ops has providers but no default chain. Set ACEX_AI_CHAINS__DEFAULT "
+                "AI Ops has providers but no default chain. Set ACEX_AI_OPS_CHAINS__DEFAULT "
                 "(e.g. groq/some-model) or pass chains={'default': [...]} (see docs/examples/ai_ops.md)."
             )
         for task, levels in self.chains.items():

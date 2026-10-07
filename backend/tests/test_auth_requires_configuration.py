@@ -2,7 +2,7 @@
 
 Serving unauthenticated is legitimate while developing, so it is available —
 but only by asking for it with Settings(dev=True). A deployment that simply
-lost its OIDC_ISSUER_URL is misconfigured, not public: the engine refuses to
+lost its ACEX_OIDC_ISSUER_URL is misconfigured, not public: the engine refuses to
 build the app, and auth refuses requests should one be built anyway.
 """
 
@@ -23,8 +23,8 @@ ISSUER = "https://keycloak.example/realms/acex"
 def _isolated_env(tmp_path, monkeypatch):
     """Fresh env + writable cwd (the sqlite db is created there)."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("ACEX_ENCRYPTION_KEY", Fernet.generate_key().decode())
-    for name in ("OIDC_ISSUER_URL", "ACEX_DEV", "ACEX_CORS_ALLOWED_ORIGINS"):
+    monkeypatch.setenv("ACEX_CREDENTIALS_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    for name in ("ACEX_OIDC_ISSUER_URL", "ACEX_DEV", "ACEX_CORS_ALLOWED_ORIGINS"):
         monkeypatch.delenv(name, raising=False)
     yield
     auth.configure(None)
@@ -37,7 +37,7 @@ def _engine(**settings):
 
 class TestWithoutDevMode:
     def should_refuse_to_build_the_app(self):
-        with pytest.raises(UnsafeConfiguration, match="OIDC_ISSUER_URL"):
+        with pytest.raises(UnsafeConfiguration, match="ACEX_OIDC_ISSUER_URL"):
             _engine().create_app()
 
     def should_refuse_a_wildcard_origin_however_the_engine_is_configured(self):

@@ -1,7 +1,7 @@
-import os
 from logging.config import fileConfig
 
 from acex.database import Connection
+from acex.settings import DatabaseSettings
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
@@ -25,11 +25,11 @@ def resolve_url() -> str:
     """Database URL for CLI runs, in order of precedence:
 
     1. `alembic -x url=postgresql://...` on the command line.
-    2. The same DB_* environment variables the app itself reads (see
-       `acex.__main__.create_app`), so the CLI hits the same database as the
+    2. `DatabaseSettings`, i.e. the same ACEX_DB_* environment variables the app
+       itself reads, so the CLI hits the same database as the
        running backend without anyone editing alembic.ini. The default is
        localhost, which is what you want on a dev machine; docker-compose sets
-       DB_HOST=postgres so it resolves to the service there.
+       ACEX_DB_HOST=postgres so it resolves to the service there.
     3. alembic.ini's `sqlalchemy.url`, as a last resort.
 
     App-initiated migrations never reach this function: they pass a live engine
@@ -39,13 +39,14 @@ def resolve_url() -> str:
         return url
 
     try:
+        db = DatabaseSettings()
         return Connection(
-            backend="postgresql",
-            dbname=os.getenv("DB_NAME", "ace"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", ""),
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", "5432")),
+            backend=db.backend,
+            dbname=db.name,
+            user=db.user,
+            password=db.password.get_secret_value(),
+            host=db.host,
+            port=db.port,
         ).url
     except ValueError:
         return config.get_main_option("sqlalchemy.url")

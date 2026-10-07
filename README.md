@@ -345,7 +345,7 @@ acex node connect r1
 
 A curated, read-only tool surface over inventory, configuration and topology, with token pass-through auth. Point Claude Code, Claude Desktop or any MCP client at it and ask about the network in plain language.
 
-**AI Ops** — Built into the backend. Named providers with ordered failover chains, configurable in `app.py` or entirely through `ACEX_AI_*` environment variables. The assistant can *suggest* opening a page in the UI; the user always clicks. It never navigates on its own.
+**AI Ops** — Built into the backend. Named providers with ordered failover chains, configurable in `app.py` or entirely through `ACEX_AI_OPS_*` environment variables. The assistant can *suggest* opening a page in the UI; the user always clicks. It never navigates on its own.
 
 ---
 
@@ -473,7 +473,7 @@ acex-api          # or: python -m acex_api
 ```
 
 Migrations run on startup. The service refuses to start unauthenticated or with
-a wildcard CORS origin — set `OIDC_ISSUER_URL`, and name any cross-origin caller
+a wildcard CORS origin — set `ACEX_OIDC_ISSUER_URL`, and name any cross-origin caller
 in `ACEX_CORS_ALLOWED_ORIGINS` (comma-separated; empty means same-origin only).
 
 For local work, `task api` runs it against the compose database in dev mode:

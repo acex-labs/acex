@@ -1,6 +1,6 @@
 """Backend-default InfluxDB outputs applied to every TelemetryAgent's telegraf config."""
 
-from acex.settings.base import Section
+from acex.settings.section import Section
 from acex_devkit.models.telemetry_agent import InfluxDBVersion
 from pydantic import BaseModel
 
@@ -24,7 +24,7 @@ class InfluxDBOutput(BaseModel):
     content_encoding: str | None = None
 
 
-class InfluxDBSettings(Section, env_prefix="ACEX_INFLUXDB_"):
+class InfluxDBSettings(Section, name="influxdb"):
     """Backend-default InfluxDB outputs.
 
     The fields describe the primary output (ACEX_INFLUXDB_URL, _TOKEN, ...) and
