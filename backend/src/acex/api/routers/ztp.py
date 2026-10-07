@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from acex.constants import BASE_URL
 from fastapi import APIRouter, HTTPException, Request
@@ -9,9 +9,7 @@ logger = logging.getLogger("acex.api.ztp")
 # No root logging config in the app; without this, INFO is dropped.
 if not logger.handlers:
     _handler = logging.StreamHandler()
-    _handler.setFormatter(
-        logging.Formatter("%(levelname)s:     %(name)s - %(message)s")
-    )
+    _handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s - %(message)s"))
     logger.addHandler(_handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False
@@ -48,7 +46,7 @@ CONFIG_GENERATORS = {"cisco_iosxe": render_cisco_iosxe}
 
 def collect_request_metadata(request: Request, os_type: str) -> dict:
     return {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "os_type": os_type,
         "client_ip": request.client.host if request.client else None,
         "client_port": request.client.port if request.client else None,
@@ -88,10 +86,6 @@ def list_os_types():
 def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/ztp")
     tags = ["Ztp"]
-    router.add_api_route(
-        "", list_os_types, methods=["GET"], tags=tags, response_model=list[str]
-    )
-    router.add_api_route(
-        "/init_config/{os_type}/ztp.py", get_ztp_config, methods=["GET"], tags=tags
-    )
+    router.add_api_route("", list_os_types, methods=["GET"], tags=tags, response_model=list[str])
+    router.add_api_route("/init_config/{os_type}/ztp.py", get_ztp_config, methods=["GET"], tags=tags)
     return router
