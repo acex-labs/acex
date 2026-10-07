@@ -1,6 +1,18 @@
+import logging
+from datetime import UTC, datetime
+
 from acex.constants import BASE_URL
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
+
+logger = logging.getLogger("acex.api.ztp")
+# No root logging config in the app; without this, INFO is dropped.
+if not logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s - %(message)s"))
+    logger.addHandler(_handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
 
 
 def render_cisco_iosxe():
@@ -32,9 +44,27 @@ print("*** ZTP: done ***")
 CONFIG_GENERATORS = {"cisco_iosxe": render_cisco_iosxe}
 
 
+def collect_request_metadata(request: Request, os_type: str) -> dict:
+    return {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "os_type": os_type,
+        "client_ip": request.client.host if request.client else None,
+        "client_port": request.client.port if request.client else None,
+        "x_forwarded_for": request.headers.get("x-forwarded-for"),
+        "x_real_ip": request.headers.get("x-real-ip"),
+        "user_agent": request.headers.get("user-agent"),
+        "query_params": dict(request.query_params),
+        "headers": dict(request.headers),
+    }
+
+
 async def get_ztp_config(
     os_type: str,
+    request: Request,
 ):
+    metadata = collect_request_metadata(request, os_type)
+    logger.info("ZTP script requested: %s", metadata)
+
     generator = CONFIG_GENERATORS.get(os_type)
     if generator is None:
         raise HTTPException(status_code=404, detail="Unsupported os type")
