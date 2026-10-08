@@ -9,6 +9,10 @@ ROUTES: dict[str, str] = {
 
 QUEUES: tuple[str, ...] = tuple(dict.fromkeys(ROUTES.values()))
 
+#: How every queue is declared: durable classic queues, no arguments. Workers
+#: are told this and must declare them the same way.
+QUEUE_DURABLE = True
+
 
 class UnroutedJobType(LookupError):
     pass

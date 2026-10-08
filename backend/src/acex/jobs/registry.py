@@ -45,7 +45,10 @@ class JobTypeRegistry:
         try:
             return self._types[name]
         except KeyError:
-            raise UnknownJobType(f"Unknown job type {name!r}.") from None
+            raise UnknownJobType(f"Unknown job type {name!r}; known: {', '.join(sorted(self._types))}.") from None
+
+    def __iter__(self):
+        return iter(sorted(self._types.values(), key=lambda job_type: job_type.name))
 
 
 #: The job types the backend can create.

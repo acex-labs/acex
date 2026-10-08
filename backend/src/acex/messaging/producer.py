@@ -1,4 +1,4 @@
-from acex.messaging.routing import QUEUES, queue_for
+from acex.messaging.routing import QUEUE_DURABLE, QUEUES, queue_for
 from acex.settings import RabbitMQSettings
 from celery import Celery
 from kombu import Queue
@@ -42,7 +42,7 @@ class JobProducer:
             # Every publish names its queue (see queue_for), so Celery's default
             # "celery" queue is never declared or used. It must still be
             # resolvable, though, so missing queues are left to Celery to fill in.
-            task_queues=[Queue(name, durable=True) for name in QUEUES],
+            task_queues=[Queue(name, durable=QUEUE_DURABLE) for name in QUEUES],
             # Fail a publish quickly instead of holding up the request that made it.
             broker_transport_options={"confirm_publish": True},
             task_publish_retry_policy={"max_retries": 2, "interval_start": 0, "interval_step": 0.5, "interval_max": 1},

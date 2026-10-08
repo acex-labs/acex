@@ -27,6 +27,10 @@ class AcexPermissionError(AcexHTTPError):
     """Permission denied (HTTP 403)."""
 
 
+class AcexConflictError(AcexHTTPError):
+    """The request does not fit the resource's current state (HTTP 409)."""
+
+
 class AcexValidationError(AcexHTTPError):
     """Backend rejected the request payload (HTTP 422)."""
 
@@ -53,6 +57,7 @@ __all__ = [
     "AcexNotFoundError",
     "AcexAuthError",
     "AcexPermissionError",
+    "AcexConflictError",
     "AcexValidationError",
     "AcexServerError",
     "AcexTimeoutError",

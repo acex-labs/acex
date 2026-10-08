@@ -8,6 +8,7 @@ import pytest
 from acex.api import auth
 from acex.api.routers.workers import create_router
 from acex.jobs import JobManager, JobType, JobTypeRegistry
+from acex.settings import RabbitMQSettings
 from acex_devkit.models.job import JobSubjectType
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -56,11 +57,12 @@ def _registry() -> JobTypeRegistry:
 class _Api:
     """The router on a fresh database, with the caller's identity switchable."""
 
-    def __init__(self):
+    def __init__(self, rabbitmq: RabbitMQSettings | None = None):
         self.jobs = JobManager(_Db(), _Producer(), _registry())
         self.caller = {"azp": "worker-a"}
+        settings = SimpleNamespace(rabbitmq=rabbitmq or RabbitMQSettings())
         app = FastAPI()
-        app.include_router(create_router(SimpleNamespace(jobs=self.jobs)))
+        app.include_router(create_router(SimpleNamespace(jobs=self.jobs, settings=settings)))
         app.dependency_overrides[auth.get_current_user] = lambda: self.caller
         self.client = TestClient(app)
 
@@ -225,3 +227,49 @@ class TestFinish:
 
         api.patch(job_id, state="running")
         assert api.as_worker("worker-b").patch(job_id, state="failed", error="x").status_code == 409
+
+
+class TestConnect:
+    BROKER = RabbitMQSettings(host="rabbitmq", port=5672, vhost="acex", user="acex", password="s3cr/et")
+
+    def should_hand_out_the_broker_and_the_queues_for_its_job_types(self):
+        api = _Api(rabbitmq=self.BROKER)
+
+        response = api.client.post(
+            "/api/v1/workers/connect", json={"job_types": ["acex.ztp.discover", "acex.ztp.ping"]}
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "broker": {"host": "rabbitmq", "port": 5672, "vhost": "acex", "user": "acex", "password": "s3cr/et"},
+            "queues": [{"name": "acex.ztp", "durable": True}],
+        }
+
+    def should_refuse_a_job_type_the_backend_does_not_create(self):
+        # Routed to acex.ztp, but no such job type is registered: a worker with
+        # a handler for it would never be sent a job.
+        response = _Api(rabbitmq=self.BROKER).client.post(
+            "/api/v1/workers/connect", json={"job_types": ["acex.ztp.provision"]}
+        )
+        assert response.status_code == 422
+        assert "acex.ztp.discover" in response.json()["detail"]  # names the ones that exist
+
+    def should_refuse_no_job_types(self):
+        response = _Api(rabbitmq=self.BROKER).client.post("/api/v1/workers/connect", json={"job_types": []})
+        assert response.status_code == 422
+
+    def should_answer_503_without_a_broker(self):
+        response = _Api().client.post("/api/v1/workers/connect", json={"job_types": ["acex.ztp.discover"]})
+        assert response.status_code == 503
+
+
+class TestJobTypes:
+    def should_list_every_job_type_and_its_queue(self, api):
+        assert api.client.get("/api/v1/workers/job_types").json() == [
+            {"name": "acex.ztp.discover", "queue": "acex.ztp"},
+            {"name": "acex.ztp.ping", "queue": "acex.ztp"},
+        ]
+
+    def should_need_no_broker(self, api):
+        # Nothing about the broker is handed out, so it answers either way.
+        assert api.client.get("/api/v1/workers/job_types").status_code == 200
