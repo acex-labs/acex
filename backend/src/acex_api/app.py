@@ -43,18 +43,20 @@ def run(settings: Settings | None = None):
     _announce(settings)
 
     server = settings.server
+    serve = {
+        "host": server.host,
+        "port": server.port,
+        # Behind a trusted proxy, request.client is the address it forwarded
+        # for (X-Forwarded-For), not the proxy's own.
+        "proxy_headers": True,
+        "forwarded_allow_ips": server.forwarded_allow_ips,
+    }
     if server.reload:
         # The reloader re-imports in a subprocess, so hand it a factory to call
         # there instead of an app built here. ACEX_DEV carries dev mode across.
-        uvicorn.run(
-            "acex_api.app:create_app",
-            factory=True,
-            host=server.host,
-            port=server.port,
-            reload=True,
-        )
+        uvicorn.run("acex_api.app:create_app", factory=True, reload=True, **serve)
     else:
-        uvicorn.run(create_app(settings), host=server.host, port=server.port)
+        uvicorn.run(create_app(settings), **serve)
 
 
 def main(argv: list[str] | None = None) -> None:

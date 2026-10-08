@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from acex_devkit.models.base import PersistedResponse
 
@@ -49,3 +50,39 @@ class JobResponse(PersistedResponse, JobBase):
     #: On a batch's parent: how many of its jobs are in each state. The
     #: parent's own state is derived from these.
     children: dict[JobState, int] | None = None
+
+
+class JobSummary(PersistedResponse):
+    """A job in a listing. Its data, result and error are fetched one job at a time."""
+
+    type: str
+    state: JobState
+    parent_id: int | None = None
+    subject_type: JobSubjectType | None = None
+    subject_id: int | None = None
+    attempts: int
+    claimed_by: str | None = None
+    created_at: datetime
+    finished_at: datetime | None = None
+    children: dict[JobState, int] | None = None
+
+
+class JobUpdate(BaseModel):
+    """What a worker reports on a job it runs: that it has claimed it, or how it ended."""
+
+    #: running claims the job; succeeded and failed finish it.
+    state: Literal[JobState.running, JobState.succeeded, JobState.failed]
+    #: With succeeded, for job types that give a result.
+    result: dict | None = None
+    #: With failed: why.
+    error: str | None = None
+
+    @model_validator(mode="after")
+    def _fits_state(self) -> "JobUpdate":
+        if self.result is not None and self.state != JobState.succeeded:
+            raise ValueError("a result is only reported with state succeeded")
+        if self.state == JobState.failed and not self.error:
+            raise ValueError("state failed needs an error")
+        if self.error is not None and self.state != JobState.failed:
+            raise ValueError("an error is only reported with state failed")
+        return self

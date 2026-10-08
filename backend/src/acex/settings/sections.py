@@ -26,6 +26,11 @@ class ServerSettings(Section, name="server"):
     port: int = 8080
     #: Restart on source changes. Dev mode turns this on unless told otherwise.
     reload: bool = False
+    #: Proxies whose X-Forwarded-For is trusted for the client's address: a
+    #: comma-separated list of addresses or networks, or "*". Unset trusts
+    #: only localhost. "*" is safe only when nothing but the proxy can reach
+    #: the API, since anyone else could then claim any address.
+    forwarded_allow_ips: str | None = None
 
 
 class OidcSettings(Section, name="oidc"):

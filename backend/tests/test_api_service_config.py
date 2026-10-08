@@ -26,6 +26,7 @@ def clean_env(monkeypatch):
     for name in (
         "ACEX_DEV",
         "ACEX_SERVER_RELOAD",
+        "ACEX_SERVER_FORWARDED_ALLOW_IPS",
         "ACEX_CORS_ALLOWED_ORIGINS",
         "ACEX_OIDC_ISSUER_URL",
         "ACEX_OIDC_AUDIENCE",
@@ -234,3 +235,29 @@ class TestRabbitMQ:
         monkeypatch.setenv("ACEX_RABBITMQ_HOST", "rabbitmq")
         monkeypatch.setenv("ACEX_RABBITMQ_PASSWORD", "pw")
         assert "pw" not in repr(Settings().rabbitmq)
+
+
+class TestProxyHeaders:
+    """Behind the Kubernetes ingress, a ZTP device's address only reaches the
+    API through X-Forwarded-For, and only from a proxy that is trusted."""
+
+    def should_trust_only_localhost_unless_told(self):
+        assert Settings().server.forwarded_allow_ips is None
+
+    def should_take_the_trusted_proxies_from_env(self, monkeypatch):
+        monkeypatch.setenv("ACEX_SERVER_FORWARDED_ALLOW_IPS", "10.244.0.0/16")
+        assert Settings().server.forwarded_allow_ips == "10.244.0.0/16"
+
+    @pytest.mark.parametrize("reload", [False, True])
+    def should_hand_them_to_uvicorn(self, monkeypatch, reload):
+        import acex_api.app
+
+        served = {}
+        monkeypatch.setattr(acex_api.app, "create_app", lambda settings: "app")
+        monkeypatch.setattr(acex_api.app.uvicorn, "run", lambda app, **kwargs: served.update(kwargs))
+        settings = Settings(dev=True, server={"forwarded_allow_ips": "*", "reload": reload})
+
+        acex_api.app.run(settings)
+
+        assert served["proxy_headers"] is True
+        assert served["forwarded_allow_ips"] == "*"

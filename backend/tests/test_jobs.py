@@ -8,6 +8,7 @@ from acex.jobs import JobManager, JobPublishError, JobType, JobTypeRegistry, Unk
 from acex.messaging import JobProducer, MessagingNotConfigured, UnroutedJobType, queue_for
 from acex.models.job import Job, JobState, JobSubjectType
 from acex.settings import RabbitMQSettings
+from kombu.transport.memory import Channel
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -88,12 +89,19 @@ class TestProducer:
         [queue] = JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues
         assert (queue.name, queue.durable, queue.queue_arguments) == ("acex.ztp", True, None)
 
-    def should_send_the_job_id_to_its_queue(self, monkeypatch):
-        sent = []
+    def should_send_the_job_id_to_its_queue(self):
+        # Through Celery's whole publish path, on kombu's in-memory broker.
+        Channel.queues.clear()
         producer = JobProducer(RabbitMQSettings(host="rabbitmq"))
-        monkeypatch.setattr(producer._app, "send_task", lambda name, **kwargs: sent.append((name, kwargs)))
+        producer._app.conf.broker_url = "memory://"
+
         producer.publish("acex.ztp.discover", 42)
-        assert sent == [("acex.ztp.discover", {"args": [42], "task_id": "42", "queue": "acex.ztp"})]
+
+        assert sorted(Channel.queues) == ["acex.ztp"]  # Celery's default queue is never declared
+        with producer._app.connection_for_read() as conn:
+            message = conn.SimpleQueue("acex.ztp").get(timeout=1)
+        assert (message.headers["task"], message.headers["id"]) == ("acex.ztp.discover", "42")
+        assert message.decode()[0] == [42]
 
 
 class TestRegistry:
