@@ -12,6 +12,7 @@ packages = [
     { include = "acex", from = "src" },
     { include = "acex_api", from = "src" }
 ]
+include = ["src/acex/CHANGELOG.md", "src/acex/changelog.json"]
 
 [tool.poetry.dependencies]
 python = "^3.13"

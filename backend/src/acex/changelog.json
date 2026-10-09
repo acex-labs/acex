@@ -1,0 +1,225 @@
+{
+  "releases": [
+    {
+      "version": "6.26.0",
+      "date": "2026-10-05",
+      "entries": [
+        {
+          "title": "Remove 'f' in cli config as it affects the ztp process on switch",
+          "description": null,
+          "group": "Other",
+          "breaking": false,
+          "pr": 299,
+          "commit": "6d19bab",
+          "pr_url": "https://github.com/acex-labs/acex/pull/299",
+          "commit_url": "https://github.com/acex-labs/acex/commit/6d19bab7e4af26bb75e30f76c384fb235589b159"
+        }
+      ]
+    },
+    {
+      "version": "6.25.0",
+      "date": "2026-10-05",
+      "entries": [
+        {
+          "title": "Hard code the inital ztp config",
+          "description": null,
+          "group": "Other",
+          "breaking": false,
+          "pr": 298,
+          "commit": "804c976",
+          "pr_url": "https://github.com/acex-labs/acex/pull/298",
+          "commit_url": "https://github.com/acex-labs/acex/commit/804c976e6fba1723dea99081c43413b46cfe496c"
+        }
+      ]
+    },
+    {
+      "version": "6.24.0",
+      "date": "2026-10-05",
+      "entries": [
+        {
+          "title": "Translate development.md branch naming and secrets sections to English",
+          "description": "Two sections in docs/development.md were written in Swedish, making the\npublic documentation inconsistent. Translated \"Branch Naming\" and\n\"Env-filer och hemligheter\" (now \"Env Files and Secrets\") to English.",
+          "group": "Documentation",
+          "breaking": false,
+          "pr": null,
+          "commit": "920acb6",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/920acb6c6bc23eb859f935300111e5e3ba6193f2"
+        },
+        {
+          "title": "Add glightbox plugin for clickable image lightbox",
+          "description": null,
+          "group": "Documentation",
+          "breaking": false,
+          "pr": null,
+          "commit": "b9ac648",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/b9ac64832897df5b89bd35b12ffc8f898644d721"
+        },
+        {
+          "title": "Add click-to-zoom for mermaid diagrams",
+          "description": null,
+          "group": "Documentation",
+          "breaking": false,
+          "pr": null,
+          "commit": "b3aa673",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/b3aa6735b7c17fe129abac1fa4c897cc4c507866"
+        },
+        {
+          "title": "Fix mermaid zoom to expand diagram in-place",
+          "description": null,
+          "group": "Documentation",
+          "breaking": false,
+          "pr": null,
+          "commit": "4592a19",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/4592a195698d867c2738e4234670ed2a1531e1c7"
+        },
+        {
+          "title": "Feat/ztp backend",
+          "description": "This will be used in testing and then later on in preperation for bigger ZTP rollout. Design and flows will change when we hace decisions on hand.",
+          "group": "Other",
+          "breaking": false,
+          "pr": 297,
+          "commit": "e65996b",
+          "pr_url": "https://github.com/acex-labs/acex/pull/297",
+          "commit_url": "https://github.com/acex-labs/acex/commit/e65996bde53560bcadc688ca4341220c608530f1"
+        }
+      ]
+    },
+    {
+      "version": "6.23.0",
+      "date": "2026-09-30",
+      "entries": [
+        {
+          "title": "Fix/telemetry agent config flow",
+          "description": null,
+          "group": "Other",
+          "breaking": false,
+          "pr": 287,
+          "commit": "2ea996f",
+          "pr_url": "https://github.com/acex-labs/acex/pull/287",
+          "commit_url": "https://github.com/acex-labs/acex/commit/2ea996fabddd39f2e30c01e88ed91c475417025c"
+        },
+        {
+          "title": "Install devkit after poetry to ensure local version wins",
+          "description": "poetry resolves acex-devkit from PyPI (2.8.0) as a transitive dep when\ninstalling acex-client, overwriting the pip install of /deps/devkit.\nMoving pip install /deps/devkit to after poetry install ensures the\nlocal source (2.9.0 with AgentNodeSet) is what ends up installed.",
+          "group": "Fixed",
+          "breaking": false,
+          "pr": 290,
+          "commit": "73cbbb2",
+          "pr_url": "https://github.com/acex-labs/acex/pull/290",
+          "commit_url": "https://github.com/acex-labs/acex/commit/73cbbb24279c701101c999fa29f70fa5c872e5cc"
+        },
+        {
+          "title": "Split node status into admin_status and provision_status",
+          "description": "Node.status is replaced by two fields:\n\n- admin_status: operator intent (planned | active | decommissioned).\n  The old \"init\" value is dropped in favour of provision_status.\n- provision_status: where the device is in the provisioning lifecycle\n  (unprovisioned | adopted | pending | bootstrapping | provisioning |\n  provisioned | failed). Set by the provisioning flow; \"adopted\" marks\n  brownfield devices brought under management.\n\nTelemetry and collection agent match rules get the same two fields.\nMCP tools, CLI, client example and csv_sync_nodes are updated; the CSV\nimport marks active devices as adopted.\n\nMigration c7d2e9f1a3b4 maps existing data: active -> adopted, others ->\nunprovisioned, init -> planned.",
+          "group": "Added",
+          "breaking": true,
+          "pr": 292,
+          "commit": "a268351",
+          "pr_url": "https://github.com/acex-labs/acex/pull/292",
+          "commit_url": "https://github.com/acex-labs/acex/commit/a268351b4b59605c712e5c2a1795c90060684265"
+        }
+      ]
+    },
+    {
+      "version": "6.22.0",
+      "date": "2026-09-25",
+      "entries": [
+        {
+          "title": "Added node_coverage to telemetry agent response",
+          "description": null,
+          "group": "Added",
+          "breaking": false,
+          "pr": null,
+          "commit": "8962075",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/89620755f79ec106c4cb5ba2ba8d2ebe032dd130"
+        },
+        {
+          "title": "Added node_coverage to telemetry agent response in devkit",
+          "description": null,
+          "group": "Added",
+          "breaking": false,
+          "pr": null,
+          "commit": "59db240",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/59db2400b17cf9e7c0802776d5a965992e56f2f1"
+        },
+        {
+          "title": "Fallback when no nodes are selected",
+          "description": null,
+          "group": "Fixed",
+          "breaking": false,
+          "pr": null,
+          "commit": "cf06705",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/cf067054f4c0dec8bba92754138b1d668560fdf2"
+        },
+        {
+          "title": "NodeService.update test with correct timestamp",
+          "description": null,
+          "group": "Fixed",
+          "breaking": false,
+          "pr": null,
+          "commit": "788a45b",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/788a45ba115c7c79afa3e253bdfe262f259c368c"
+        },
+        {
+          "title": "Telemetry agent news",
+          "description": null,
+          "group": "Added",
+          "breaking": false,
+          "pr": null,
+          "commit": "86d1b74",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/86d1b749385380a8b6ed843eed6badb4e45f486e"
+        }
+      ]
+    },
+    {
+      "version": "6.21.0",
+      "date": "2026-09-25",
+      "entries": [
+        {
+          "title": "Ruff format ado.py",
+          "description": null,
+          "group": "Fixed",
+          "breaking": false,
+          "pr": null,
+          "commit": "52cca78",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/52cca78933701b3b3cad5941d463856a6fc3a36c"
+        },
+        {
+          "title": "Ruff format slack.py",
+          "description": null,
+          "group": "Fixed",
+          "breaking": false,
+          "pr": null,
+          "commit": "284620e",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/284620e03a5141c59480e1ed4ee19453fce6e47a"
+        },
+        {
+          "title": "Failsafe telemetry agent rendering",
+          "description": null,
+          "group": "Added",
+          "breaking": false,
+          "pr": null,
+          "commit": "cef063b",
+          "pr_url": null,
+          "commit_url": "https://github.com/acex-labs/acex/commit/cef063b61f70f898de0d0982021d70f635d45507"
+        }
+      ]
+    },
+    {
+      "version": "6.20.0",
+      "date": "2026-09-22",
+      "entries": []
+    }
+  ]
+}
