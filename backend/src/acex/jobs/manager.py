@@ -7,7 +7,7 @@ from acex.models.job import Job, JobResponse, JobState, JobSubjectType
 from acex_devkit.models.job import JobSummary, JobUpdate
 from acex_devkit.models.pagination import PaginatedResponse
 from pydantic import BaseModel
-from sqlalchemy import update
+from sqlalchemy import delete, update
 from sqlalchemy.orm import aliased
 from sqlmodel import func, select
 
@@ -183,6 +183,120 @@ class JobManager:
         finally:
             session.close()
 
+    def requeue(self, job_id: int) -> JobResponse:
+        """Put the job on its queue again, under the same id.
+
+        A failed or cancelled job is queued again, keeping its attempts. A
+        queued job only gets another message, for one that was lost: of two
+        messages, the first claim wins and the other is skipped. Running and
+        succeeded jobs, and batch parents, raise JobConflict.
+        """
+        if not self.producer.configured:
+            raise MessagingNotConfigured("RabbitMQ is not configured; set ACEX_RABBITMQ_HOST to run jobs.")
+        session = next(self.db.get_session())
+        try:
+            job = session.get(Job, job_id)
+            if job is None:
+                raise JobNotFound(f"No job {job_id}.")
+            if self._children_by_parent(session, [job.id]):
+                raise JobConflict(self._response(session, job), "Requeue a batch's jobs one by one.")
+            # Conditional, like a claim: of two requeues at once, only one resets the job.
+            session.execute(
+                update(Job)
+                .where(Job.id == job.id, Job.state.in_([JobState.failed, JobState.cancelled]))
+                .values(
+                    state=JobState.queued,
+                    claimed_by=None,
+                    cancelled_by=None,
+                    result=None,
+                    error=None,
+                    started_at=None,
+                    finished_at=None,
+                )
+            )
+            session.commit()
+            session.refresh(job)
+            if job.state != JobState.queued:
+                raise JobConflict(self._response(session, job), f"Job {job.id} is {job.state}; it cannot be requeued.")
+            if not self._publish(session, job):
+                raise JobPublishError(JobResponse.model_validate(job))
+            return self._response(session, job)
+        finally:
+            session.close()
+
+    def cancel(self, job_id: int, *, cancelled_by: str) -> JobResponse:
+        """Stop a queued or running job, or every such job of a batch; the job stays as a record.
+
+        A message still on its queue is skipped at its claim, and a worker
+        still running the job gets 409 when it reports. Raises JobConflict
+        when there is nothing left to cancel.
+        """
+        session = next(self.db.get_session())
+        try:
+            job = session.get(Job, job_id)
+            if job is None:
+                raise JobNotFound(f"No job {job_id}.")
+            is_batch = bool(self._children_by_parent(session, [job.id]))
+            # Conditional, so a job that finishes meanwhile keeps its outcome.
+            cancelled = session.execute(
+                update(Job)
+                .where(
+                    Job.parent_id == job.id if is_batch else Job.id == job.id,
+                    Job.state.in_([JobState.queued, JobState.running]),
+                )
+                .values(state=JobState.cancelled, cancelled_by=cancelled_by, finished_at=datetime.now(UTC))
+            )
+            session.commit()
+            session.refresh(job)
+            if not cancelled.rowcount:
+                response = self._response(session, job)
+                raise JobConflict(response, f"Job {job.id} is {response.state}; there is nothing to cancel.")
+            return self._response(session, job)
+        finally:
+            session.close()
+
+    def delete(self, job_id: int) -> None:
+        """Delete a job in any state, or a batch with all its jobs.
+
+        A message still on its queue, or a worker still running the job, gets
+        404 on its next report and skips the job. Discoveries a job recorded
+        are kept, without their job.
+        """
+        session = next(self.db.get_session())
+        try:
+            # Children explicitly: SQLite enforces no ON DELETE CASCADE by default.
+            session.execute(delete(Job).where(Job.parent_id == job_id))
+            if session.execute(delete(Job).where(Job.id == job_id)).rowcount != 1:
+                session.rollback()
+                raise JobNotFound(f"No job {job_id}.")
+            session.commit()
+        finally:
+            session.close()
+
+    def purge(self, state: JobState | None = None) -> int:
+        """Delete every job, or every job in `state`, and return how many were deleted.
+
+        With a state, jobs inside batches go too, and a batch's parent goes
+        once it has no jobs left; a parent's own state is never set.
+        """
+        session = next(self.db.get_session())
+        try:
+            if state is None:
+                deleted = session.execute(delete(Job)).rowcount
+            else:
+                child = aliased(Job)
+                has_children = select(child.id).where(child.parent_id == Job.id).exists()
+                parents = session.exec(
+                    select(Job.parent_id).where(Job.state == state, Job.parent_id.is_not(None)).distinct()
+                ).all()
+                deleted = session.execute(delete(Job).where(Job.state == state, ~has_children)).rowcount
+                if parents:
+                    deleted += session.execute(delete(Job).where(Job.id.in_(parents), ~has_children)).rowcount
+            session.commit()
+            return deleted
+        finally:
+            session.close()
+
     def _spec(self, job_type: str) -> JobType:
         spec = self.job_types.get(job_type)
         # Checked before anything is saved, so an unconfigured broker leaves no
@@ -245,13 +359,20 @@ class JobManager:
     def _finish(self, session, job: Job, report: JobUpdate, worker: str) -> None:
         if job.state == report.state and job.claimed_by == worker:
             return
-        result = self._valid_result(job.type, report.result) if report.state == JobState.succeeded else None
+        spec = self.job_types.get(job.type)
+        result = self._valid_result(spec, report.result) if report.state == JobState.succeeded else None
         finished = session.execute(
             update(Job)
             .where(Job.id == job.id, Job.state == JobState.running, Job.claimed_by == worker)
             .values(state=report.state, result=result, error=report.error, finished_at=datetime.now(UTC))
         )
-        session.commit()
+        try:
+            if finished.rowcount == 1 and report.state == JobState.succeeded and spec.on_succeeded is not None:
+                spec.on_succeeded(session, job, spec.result.model_validate(result) if result is not None else None)
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
         if finished.rowcount != 1:
             session.refresh(job)
             if job.state == JobState.running:
@@ -260,14 +381,13 @@ class JobManager:
                 reason = f"Job {job.id} is {job.state}, not running."
             raise JobConflict(self._response(session, job), reason)
 
-    def _valid_result(self, job_type: str, result: dict | None) -> dict | None:
-        spec = self.job_types.get(job_type)
+    def _valid_result(self, spec: JobType, result: dict | None) -> dict | None:
         if spec.result is None:
             if result is not None:
-                raise InvalidJobResult(f"Job type {job_type} gives no result.")
+                raise InvalidJobResult(f"Job type {spec.name} gives no result.")
             return None
         if result is None:
-            raise InvalidJobResult(f"Job type {job_type} needs a result.")
+            raise InvalidJobResult(f"Job type {spec.name} needs a result.")
         return spec.result.model_validate(result).model_dump(mode="json")
 
     def _children_by_parent(self, session, job_ids: list[int]) -> dict[int, Counter]:

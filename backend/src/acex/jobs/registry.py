@@ -1,4 +1,6 @@
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from acex.messaging import queue_for
 from acex_devkit.models.job import JobSubjectType
@@ -18,6 +20,9 @@ class JobType:
     #: The subject type and the field of `data` holding its id.
     subject: tuple[JobSubjectType, str] | None = None
     max_attempts: int = 3
+    #: Called as (session, job, result) when a worker reports success, in the
+    #: same transaction: if it raises, the report is not applied.
+    on_succeeded: Callable[[Any, Any, BaseModel | None], None] | None = None
 
 
 class UnknownJobType(LookupError):

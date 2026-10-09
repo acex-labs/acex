@@ -45,6 +45,7 @@ class AutomationEngine:
         from acex.messaging import JobProducer
         from acex.plugins import PluginManager
         from acex.settings import Settings
+        from acex.ztp import ZtpCallManager, ZtpDiscoveryManager
 
         if dev_mode is not None:
             _deprecated("AutomationEngine(dev_mode=...)", "pass settings=Settings(dev=...) instead")
@@ -73,6 +74,8 @@ class AutomationEngine:
         self.influxdb_settings = self.settings.influxdb
         # Nothing connects to RabbitMQ until the first job is published.
         self.jobs = JobManager(self.db, JobProducer(self.settings.rabbitmq))
+        self.ztp_discoveries = ZtpDiscoveryManager(self.db)
+        self.ztp_calls = ZtpCallManager(self.db, self.jobs)
 
         # create plugin instances.
         if assets_plugin is not None:

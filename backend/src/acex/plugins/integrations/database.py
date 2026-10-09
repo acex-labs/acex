@@ -1,3 +1,5 @@
+from enum import Enum
+
 from acex.database import DatabaseManager
 from pydantic import BaseModel
 
@@ -63,6 +65,8 @@ class DatabasePlugin(IntegrationPluginBase):
                         col = getattr(related_table, col_name)
                         if isinstance(value, list):
                             query = query.filter(col.in_(value))
+                        elif isinstance(value, Enum):
+                            query = query.filter(col == value)
                         elif isinstance(value, str):
                             query = query.filter(col.ilike(f"%{value}%"))
                         else:
@@ -71,6 +75,8 @@ class DatabasePlugin(IntegrationPluginBase):
                         col = getattr(self.table, key)
                         if isinstance(value, list):
                             query = query.filter(col.in_(value))
+                        elif isinstance(value, Enum):
+                            query = query.filter(col == value)
                         elif isinstance(value, str):
                             query = query.filter(col.ilike(f"%{value}%"))
                         else:

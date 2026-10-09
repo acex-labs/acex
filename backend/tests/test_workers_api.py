@@ -32,8 +32,11 @@ class _Db:
 class _Producer:
     configured = True
 
+    def __init__(self):
+        self.published: list[int] = []
+
     def publish(self, job_type: str, job_id: int) -> None:
-        pass
+        self.published.append(job_id)
 
 
 class _NodeData(BaseModel):
@@ -227,6 +230,208 @@ class TestFinish:
 
         api.patch(job_id, state="running")
         assert api.as_worker("worker-b").patch(job_id, state="failed", error="x").status_code == 409
+
+
+class TestRequeue:
+    def requeue(self, api, job_id: int):
+        return api.client.post(f"{JOBS}/{job_id}/requeue")
+
+    def failed(self, api) -> int:
+        job_id = api.job()
+        api.patch(job_id, state="running")
+        api.patch(job_id, state="failed", error="SSH never came up")
+        return job_id
+
+    def should_queue_a_failed_job_again_under_its_id(self, api):
+        job_id = self.failed(api)
+
+        response = self.requeue(api, job_id)
+
+        assert response.status_code == 200
+        job = response.json()
+        assert (job["id"], job["state"], job["attempts"]) == (job_id, "queued", 1)
+        assert (job["claimed_by"], job["error"], job["started_at"], job["finished_at"]) == (None, None, None, None)
+        assert api.jobs.producer.published == [job_id, job_id]
+
+    def should_let_any_worker_claim_it_again(self, api):
+        job_id = self.failed(api)
+        self.requeue(api, job_id)
+
+        job = api.as_worker("worker-b").patch(job_id, state="running").json()
+
+        assert (job["claimed_by"], job["attempts"]) == ("worker-b", 2)
+
+    def should_send_a_queued_job_again(self, api):
+        job_id = api.job()
+
+        assert self.requeue(api, job_id).json()["state"] == "queued"
+        assert api.jobs.producer.published == [job_id, job_id]
+
+    def should_refuse_a_running_or_succeeded_job(self, api):
+        job_id = api.job()
+        api.patch(job_id, state="running")
+        assert self.requeue(api, job_id).status_code == 409
+
+        api.patch(job_id, state="succeeded")
+        response = self.requeue(api, job_id)
+        assert response.status_code == 409
+        assert response.json()["detail"]["job"]["state"] == "succeeded"
+        assert api.jobs.producer.published == [job_id]
+
+    def should_refuse_a_batch_parent(self, api):
+        parent = api.jobs.enqueue_batch("acex.ztp.discover", [{"node_id": 1}], created_by="alice")
+        assert self.requeue(api, parent.id).status_code == 409
+
+    def should_answer_404_for_an_unknown_job(self, api):
+        assert self.requeue(api, 999).status_code == 404
+
+    def should_answer_503_without_a_broker(self, api):
+        job_id = self.failed(api)
+        api.jobs.producer.configured = False
+
+        assert self.requeue(api, job_id).status_code == 503
+        assert api.client.get(f"{JOBS}/{job_id}").json()["state"] == "failed"
+
+
+class TestCancel:
+    def cancel(self, api, job_id: int):
+        return api.client.post(f"{JOBS}/{job_id}/cancel")
+
+    def should_cancel_a_queued_job_and_skip_its_message(self, api):
+        api.caller = {"sub": "alice", "azp": "frontend"}
+        job_id = api.job()
+
+        job = self.cancel(api, job_id).json()
+
+        assert (job["state"], job["cancelled_by"]) == ("cancelled", "alice")
+        assert job["finished_at"] is not None
+        assert api.as_worker("worker-a").patch(job_id, state="running").status_code == 409
+
+    def should_cancel_a_running_job_and_refuse_its_report(self, api):
+        job_id = api.job()
+        api.patch(job_id, state="running")
+
+        assert self.cancel(api, job_id).json()["state"] == "cancelled"
+        assert api.patch(job_id, state="succeeded").status_code == 409
+        assert api.client.get(f"{JOBS}/{job_id}").json()["state"] == "cancelled"
+
+    def should_refuse_a_finished_job(self, api):
+        job_id = api.job()
+        api.patch(job_id, state="running")
+        api.patch(job_id, state="succeeded")
+
+        assert self.cancel(api, job_id).status_code == 409
+
+    def should_cancel_a_batch_s_unfinished_jobs_only(self, api):
+        parent = api.jobs.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="alice")
+        first = api.client.get(JOBS, params={"parent_id": parent.id}).json()["items"][0]["id"]
+        api.patch(first, state="running")
+        api.patch(first, state="succeeded")
+
+        job = self.cancel(api, parent.id).json()
+
+        assert job["children"]["succeeded"] == 1
+        assert job["children"]["cancelled"] == 1
+        assert self.cancel(api, parent.id).status_code == 409
+
+    def should_be_undone_by_a_requeue(self, api):
+        job_id = api.job()
+        self.cancel(api, job_id)
+
+        job = api.client.post(f"{JOBS}/{job_id}/requeue").json()
+
+        assert (job["state"], job["cancelled_by"], job["finished_at"]) == ("queued", None, None)
+
+    def should_answer_404_for_an_unknown_job(self, api):
+        assert self.cancel(api, 999).status_code == 404
+
+
+class TestDelete:
+    def finish(self, api, job_id: int, state: str = "succeeded") -> int:
+        api.patch(job_id, state="running")
+        api.patch(job_id, state=state, **({"error": "x"} if state == "failed" else {}))
+        return job_id
+
+    def should_delete_a_finished_job(self, api):
+        job_id = self.finish(api, api.job())
+
+        assert api.client.delete(f"{JOBS}/{job_id}").status_code == 204
+        assert api.client.get(f"{JOBS}/{job_id}").status_code == 404
+
+    def should_delete_a_queued_job(self, api):
+        job_id = api.job()
+
+        assert api.client.delete(f"{JOBS}/{job_id}").status_code == 204
+        assert api.patch(job_id, state="running").status_code == 404  # its message is skipped
+
+    def should_delete_a_running_job(self, api):
+        job_id = api.job()
+        api.patch(job_id, state="running")
+
+        assert api.client.delete(f"{JOBS}/{job_id}").status_code == 204
+        assert api.patch(job_id, state="succeeded").status_code == 404
+
+    def should_delete_a_finished_batch_with_its_jobs(self, api):
+        parent = api.jobs.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="alice")
+        children = [job["id"] for job in api.client.get(JOBS, params={"parent_id": parent.id}).json()["items"]]
+        self.finish(api, children[0])
+        self.finish(api, children[1], "failed")
+
+        assert api.client.delete(f"{JOBS}/{parent.id}").status_code == 204
+        assert api.client.get(JOBS, params={"parent_id": parent.id}).json()["total"] == 0
+        assert api.client.get(f"{JOBS}/{parent.id}").status_code == 404
+
+    def should_delete_a_batch_with_jobs_still_to_run(self, api):
+        parent = api.jobs.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="alice")
+        first = api.client.get(JOBS, params={"parent_id": parent.id}).json()["items"][0]["id"]
+        self.finish(api, first)
+
+        assert api.client.delete(f"{JOBS}/{parent.id}").status_code == 204
+        assert api.client.get(JOBS, params={"parent_id": parent.id}).json()["total"] == 0
+
+    def should_delete_one_job_of_a_batch(self, api):
+        parent = api.jobs.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="alice")
+        first = api.client.get(JOBS, params={"parent_id": parent.id}).json()["items"][0]["id"]
+
+        assert api.client.delete(f"{JOBS}/{first}").status_code == 204
+        assert api.client.get(f"{JOBS}/{parent.id}").json()["children"]["queued"] == 1
+
+    def should_answer_404_for_an_unknown_job(self, api):
+        assert api.client.delete(f"{JOBS}/999").status_code == 404
+
+
+class TestPurge:
+    def fail(self, api, job_id: int) -> int:
+        api.patch(job_id, state="running")
+        api.patch(job_id, state="failed", error="x")
+        return job_id
+
+    def should_delete_every_job(self, api):
+        api.job()
+        api.jobs.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="alice")
+
+        assert api.client.delete(JOBS).json() == {"deleted": 4}
+        assert api.client.get(JOBS).json()["total"] == 0
+
+    def should_delete_only_jobs_in_a_state(self, api):
+        failed = self.fail(api, api.job())
+        queued = api.job()
+
+        assert api.client.delete(JOBS, params={"state": "failed"}).json() == {"deleted": 1}
+        assert api.client.get(f"{JOBS}/{failed}").status_code == 404
+        assert api.client.get(f"{JOBS}/{queued}").status_code == 200
+
+    def should_drop_a_batch_once_its_jobs_are_gone(self, api):
+        whole = api.jobs.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="alice")
+        mixed = api.jobs.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (3, 4)], created_by="alice")
+        for batch in (whole, mixed):
+            children = api.client.get(JOBS, params={"parent_id": batch.id}).json()["items"]
+            for job in children if batch is whole else children[:1]:
+                self.fail(api, job["id"])
+
+        assert api.client.delete(JOBS, params={"state": "failed"}).json() == {"deleted": 4}
+        assert api.client.get(f"{JOBS}/{whole.id}").status_code == 404
+        assert api.client.get(f"{JOBS}/{mixed.id}").json()["children"]["queued"] == 1
 
 
 class TestConnect:

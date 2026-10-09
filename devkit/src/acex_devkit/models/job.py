@@ -41,6 +41,8 @@ class JobBase(BaseModel):
     #: The user's `sub`, or "system" for jobs the backend creates itself.
     created_by: str
     claimed_by: str | None = None
+    #: The `sub` of whoever cancelled the job.
+    cancelled_by: str | None = None
     created_at: datetime
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -65,6 +67,12 @@ class JobSummary(PersistedResponse):
     created_at: datetime
     finished_at: datetime | None = None
     children: dict[JobState, int] | None = None
+
+
+class JobPurge(BaseModel):
+    """How many jobs a purge deleted, batch parents included."""
+
+    deleted: int
 
 
 class JobUpdate(BaseModel):
