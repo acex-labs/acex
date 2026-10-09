@@ -1,0 +1,181 @@
+name: Dev images
+
+# Publishes development container images from the `dev` branch to the same
+# GHCR repositories as the release pipeline (ci.yml), under separate tags:
+#   ghcr.io/acex-labs/<image>:dev           moving tag, newest successful build
+#   ghcr.io/acex-labs/<image>:dev-<sha>     commit-specific, 7-character SHA
+# No `latest`, no version tag, no PyPI upload and no Git release happen here.
+#
+# Unlike the release build this workflow never runs switch_deps.sh: the
+# Dockerfiles install devkit, client, the drivers and the backend from the
+# checked-out source, so an image always runs the code of the commit it was
+# built from, even when no package version has been bumped.
+#
+# Each image is built and pushed independently. If one build fails, the other
+# images still get their `dev` and `dev-<sha>` tags while the failed image keeps
+# its previous tags. Deploy with `dev-<sha>` references and check this run's
+# summary when the set must come from one commit.
+
+on:
+  push:
+    branches: [dev]
+
+# A newer push cancels an older run, so a stale build can never move `dev`
+# backwards after a newer one has published.
+concurrency:
+  group: docker-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  validate:
+    name: Validate ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        component: [backend, client, devkit, mcp]
+        include:
+          - component: backend
+            working-dir: ./backend
+          - component: client
+            working-dir: ./client
+          - component: devkit
+            working-dir: ./devkit
+          - component: mcp
+            working-dir: ./mcp
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Run Ruff
+        uses: astral-sh/ruff-action@v4.1.0
+        with:
+          args: "check"
+          src: ${{ matrix.working-dir }}
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+
+      - name: Update lock file
+        working-directory: ${{ matrix.working-dir }}
+        run: poetry lock
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.working-dir }}
+        run: poetry install --no-interaction
+
+      - name: Run tests
+        working-directory: ${{ matrix.working-dir }}
+        run: |
+          # Same tolerance as ci.yml: exit code 5 means the package has no tests yet.
+          poetry run pytest || code=$?
+          code=${code:-0}
+          if [ "$code" -eq 5 ]; then
+            echo "No tests in ${{ matrix.component }} yet"
+            exit 0
+          fi
+          exit "$code"
+
+  build:
+    name: Build & Push ${{ matrix.image }}
+    needs: validate
+    runs-on: ubuntu-latest
+    # The trigger already limits this workflow to `dev`; the guard makes sure
+    # nothing is ever published if the trigger list is widened later.
+    if: github.ref == 'refs/heads/dev'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: acex-backend
+            dockerfile: ./backend/Dockerfile
+          - image: acex-collection-agent
+            dockerfile: ./agents/collection-agent/Dockerfile
+          - image: acex-telemetry-agent
+            dockerfile: ./agents/telemetry-agent/Dockerfile
+          - image: acex-grafana-sync-agent
+            dockerfile: ./agents/grafana-sync/Dockerfile
+          - image: acex-mcp
+            dockerfile: ./mcp/Dockerfile
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=dev
+            type=sha,prefix=dev-,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=dev-${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=dev-${{ matrix.image }}
+
+  summary:
+    name: Published images
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() && contains(fromJSON('["success", "failure"]'), needs.build.result)
+    steps:
+      - name: Report what the registry holds for this commit
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          OWNER: ${{ github.repository_owner }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          short="${GITHUB_SHA::7}"
+          echo "## Dev images for \`${short}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$BUILD_RESULT" != "success" ]; then
+            echo "> At least one image build failed. A failed image keeps its previous \`dev\` tag and has no \`dev-${short}\` tag." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "| Image | \`dev-${short}\` | Digest |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for image in acex-backend acex-collection-agent acex-telemetry-agent acex-grafana-sync-agent acex-mcp; do
+            # Same registry check as ci.yml's check-*-image jobs: ask GHCR whether the tag exists.
+            digest=$(curl -sI -o /dev/null -w '%header{docker-content-digest}' \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json" \
+              "https://ghcr.io/v2/${OWNER}/${image}/manifests/dev-${short}")
+            if [ -n "$digest" ]; then
+              echo "| \`ghcr.io/${OWNER}/${image}\` | published (also \`:dev\`) | \`${digest}\` |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| \`ghcr.io/${OWNER}/${image}\` | **not published** (build failed) | — |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done

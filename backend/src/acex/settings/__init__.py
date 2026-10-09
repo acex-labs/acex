@@ -35,6 +35,7 @@ from acex.settings.sections import (
     CredentialSettings,
     DatabaseSettings,
     OidcSettings,
+    RabbitMQSettings,
     ServerSettings,
     VaultSettings,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "InfluxDBOutput",
     "InfluxDBSettings",
     "OidcSettings",
+    "RabbitMQSettings",
     "Section",
     "ServerSettings",
     "Settings",

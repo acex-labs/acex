@@ -1,6 +1,7 @@
-"""Core sections: database, serving, auth, CORS and credential storage."""
+"""Core sections: database, serving, auth, CORS, credential storage and messaging."""
 
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from acex.settings.section import Section
 from pydantic import Field, SecretStr, field_validator
@@ -25,6 +26,11 @@ class ServerSettings(Section, name="server"):
     port: int = 8080
     #: Restart on source changes. Dev mode turns this on unless told otherwise.
     reload: bool = False
+    #: Proxies whose X-Forwarded-For is trusted for the client's address: a
+    #: comma-separated list of addresses or networks, or "*". Unset trusts
+    #: only localhost. "*" is safe only when nothing but the proxy can reach
+    #: the API, since anyone else could then claim any address.
+    forwarded_allow_ips: str | None = None
 
 
 class OidcSettings(Section, name="oidc"):
@@ -85,3 +91,34 @@ class CredentialSettings(Section, name="credentials"):
 
     encryption_key: SecretStr | None = None
     vault: VaultSettings = Field(default_factory=VaultSettings)
+
+
+class RabbitMQSettings(Section, name="rabbitmq"):
+    """RabbitMQ broker the backend publishes jobs to for workers to run.
+
+    Off until a host is set. Workers are handed the same connection. The queues
+    are declared in code, so the user needs configure, write and read
+    permissions on the vhost.
+    """
+
+    host: str | None = None
+    #: The AMQP port, not the management UI's 15672.
+    port: int = 5672
+    vhost: str = "/"
+    user: str | None = None
+    password: SecretStr | None = None
+
+    @property
+    def configured(self) -> bool:
+        return self.host is not None
+
+    @property
+    def url(self) -> str:
+        """The AMQP URL for client libraries, with every part quoted (a "/" vhost is %2F)."""
+        credentials = ""
+        if self.user is not None:
+            credentials = quote(self.user, safe="")
+            if self.password is not None:
+                credentials += ":" + quote(self.password.get_secret_value(), safe="")
+            credentials += "@"
+        return f"amqp://{credentials}{self.host}:{self.port}/{quote(self.vhost, safe='')}"

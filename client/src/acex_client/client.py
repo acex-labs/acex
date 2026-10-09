@@ -19,6 +19,7 @@ Namespaces:
     client.ai                — ask, analyze (SSE-streamed) or None if backend
                               does not mount ai_ops
     client.system            — auth_config, health_node, health_site
+    client.workers           — connect, job_types, jobs (query, get, claim, succeed, fail)
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from acex_client.resources.neds import Neds
 from acex_client.resources.observability import ObservabilityNamespace
 from acex_client.resources.operations import OperationsNamespace
 from acex_client.resources.system import SystemNamespace
+from acex_client.resources.workers import Workers
 
 
 class Acex:
@@ -62,6 +64,7 @@ class Acex:
         self.config_components = ConfigComponents(self.rest)
         self.neds = Neds(self.rest)
         self.system = SystemNamespace(self.rest)
+        self.workers = Workers(self.rest)
 
         # AI is optional — HEAD-probe /ai_ops/ai/ask/. If the backend doesn't
         # mount ai_ops, set self.ai to None so callers can `if client.ai:`.

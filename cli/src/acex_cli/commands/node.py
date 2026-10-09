@@ -210,7 +210,8 @@ def list_cmd(
         None,
         help=(
             "Filter by provision status "
-            "(unprovisioned, adopted, pending, bootstrapping, provisioning, provisioned, failed)"
+            "(unprovisioned, adopted, awaiting_device, awaiting_approval, "
+            "provisioning, provisioned, failed)"
         ),
     ),
     # Pagination

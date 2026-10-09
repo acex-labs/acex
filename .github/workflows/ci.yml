@@ -4,9 +4,10 @@ on:
   push:
     branches: [ main ]
   pull_request:
+    # Feature → dev (testar innan merge; docker-dev.yml publicerar dev-images efter merge)
     # Feature → stage (testar innan merge till stage)
     # Stage → main (testar + trigar release vid merge)
-    branches: [ main, stage ]
+    branches: [ main, stage, dev ]
 
 jobs:
   branch-name:
