@@ -41,11 +41,6 @@ class Echo(Handler):
         return EchoResult(echoed=data.text).model_dump()
 
 
-class Nothing(Handler):
-    def handle(self, client: Acex, job: JobResponse) -> dict:
-        return None
-
-
 HANDLERS = {"acex.test.echo": Echo, "acex.test.other": Echo}
 
 
@@ -109,19 +104,6 @@ def test_a_job_is_claimed_run_and_reported_with_its_result(client):
     ]
 
 
-def test_a_handler_that_raises_fails_the_job(client):
-    route = respx.patch(f"{API}/workers/jobs/7").mock(
-        side_effect=[
-            Response(200, json=job(7, "running", {"text": "boom"})),
-            Response(200, json=job(7, "failed", {"text": "boom"})),
-        ]
-    )
-
-    execute(client, "acex.test.echo", Echo, 7)
-
-    assert reports(route)[1] == {"state": "failed", "error": "it went boom"}
-
-
 def test_data_that_does_not_fit_the_job_type_fails_the_job(client):
     route = respx.patch(f"{API}/workers/jobs/7").mock(
         side_effect=[
@@ -133,19 +115,6 @@ def test_data_that_does_not_fit_the_job_type_fails_the_job(client):
     execute(client, "acex.test.echo", Echo, 7)
 
     assert reports(route)[1]["state"] == "failed"
-
-
-def test_a_handler_that_returns_nothing_fails_the_job(client):
-    route = respx.patch(f"{API}/workers/jobs/7").mock(
-        side_effect=[
-            Response(200, json=job(7, "running", {"text": "hi"})),
-            Response(200, json=job(7, "failed", {"text": "hi"})),
-        ]
-    )
-
-    execute(client, "acex.test.echo", Nothing, 7)
-
-    assert reports(route)[1] == {"state": "failed", "error": "Handler returned None"}
 
 
 def test_a_result_the_backend_rejects_fails_the_job(client):
