@@ -12,12 +12,12 @@ from acex_client.auth import AuthorizationCodeAuth, AuthProvider, create_auth_pr
 from acex_devkit.models.worker import WorkerConnection, WorkerConnectRequest
 
 from acex_worker.app import create_app
+from acex_worker.registry import HANDLERS
 
 log = logging.getLogger("acex_worker")
 
-#: The job types this worker has code for. It becomes the job type → handler
-#: registry, so the worker only ever asks for jobs it can run.
-JOB_TYPES = ["acex.ztp.discover"]
+#: The job types this worker has code for, so it only ever asks for jobs it can run.
+JOB_TYPES = list(HANDLERS)
 
 
 class StartupError(Exception):
@@ -38,17 +38,17 @@ def connect_client() -> Acex:
     return Acex.from_env(base_url, auth=_auth(f"{base_url.rstrip('/')}/api/v1"))
 
 
-def start() -> WorkerConnection:
-    """Log in and fetch the broker and queues that carry this worker's job types."""
-    with connect_client() as client:
-        return client.workers.connect(payload=WorkerConnectRequest(job_types=JOB_TYPES))
+def start(client: Acex) -> WorkerConnection:
+    """Fetch the broker and queues that carry this worker's job types."""
+    return client.workers.connect(payload=WorkerConnectRequest(job_types=JOB_TYPES))
 
 
 def run() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     log.info(f"Starting worker for job types: {', '.join(JOB_TYPES)}")
     try:
-        connection = start()
+        client = connect_client()
+        connection = start(client)
     except (StartupError, AcexError, httpx.HTTPError) as exc:
         log.error(f"Worker could not start: {exc}")
         sys.exit(1)
@@ -58,12 +58,13 @@ def run() -> None:
     for queue in connection.queues:
         log.info(f"Queue: {queue.name} (durable={queue.durable})")
 
-    app = create_app(connection, JOB_TYPES)
+    app = create_app(connection, client, HANDLERS)
     # Runs until stopped. -Q keeps Celery off its default "celery" queue.
     # Mingle and gossip are worker-to-worker chatter over the same transient
     # queues as remote control.
     queues = ",".join(queue.name for queue in connection.queues)
-    app.worker_main(["worker", "--loglevel=INFO", "-Q", queues, "--without-mingle", "--without-gossip"])
+    with client:
+        app.worker_main(["worker", "--loglevel=INFO", "-Q", queues, "--without-mingle", "--without-gossip"])
 
 
 if __name__ == "__main__":
