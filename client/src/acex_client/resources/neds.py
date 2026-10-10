@@ -83,6 +83,11 @@ class Neds(Resource, ActionMixin):
                 missing.append(ned)
         return missing
 
+    def installed_version(self, ned_id: str) -> str | None:
+        """Return the locally installed version of a NED, or None if it is not installed."""
+        installed = _local_drivers().get(ned_id)
+        return installed["version"] if installed else None
+
     def install(self, ned: Ned) -> bool:
         """Download a NED wheel from the backend and pip-install it into the
         current environment.

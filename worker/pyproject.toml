@@ -15,6 +15,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.13"
 acex-client = { path = "../client", develop = true }
+acex-devkit = { path = "../devkit", develop = true }
 celery = ">=5.5"
 
 [tool.poetry.scripts]

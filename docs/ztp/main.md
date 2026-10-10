@@ -144,6 +144,16 @@ Reviews live under `/api/v1/ztp_discoveries`, which requires a token. They are d
 
 Approving or rejecting a discovery that is already reviewed, or approving one whose node is not in `awaiting_approval`, answers 409.
 
+## Methods API
+
+The methods are code, but each has a row in `ztp_method` with what an administrator has chosen for it: the NED that discovery uses. The worker looks it up for the job's method; with no NED chosen, the discovery job fails. A NED the worker does not have yet is installed from the backend first. Like reviews, this requires a token and is not under `/api/v1/ztp`.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/ztp_methods` | Every method, with its chosen NED |
+| `GET` | `/ztp_methods/{method}` | One method |
+| `PUT` | `/ztp_methods/{method}` | Choose the NED (`{"ned": "..."}`, or `null` to clear); 422 if the NED is not installed in the backend |
+
 ## Open questions
 
 - A discovered serial with no matching claim: should it show up under unclaimed assets from the `ztp_discovery` row, and should claiming it create the asset? Either way the node still goes through `awaiting_approval`.

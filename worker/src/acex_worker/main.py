@@ -12,6 +12,7 @@ from acex_client.auth import AuthorizationCodeAuth, AuthProvider, create_auth_pr
 from acex_devkit.models.worker import WorkerConnection, WorkerConnectRequest
 
 from acex_worker.app import create_app
+from acex_worker.neds import sync_neds
 from acex_worker.registry import HANDLERS
 
 log = logging.getLogger("acex_worker")
@@ -49,6 +50,7 @@ def run() -> None:
     try:
         client = connect_client()
         connection = start(client)
+        sync_neds(client)
     except (StartupError, AcexError, httpx.HTTPError) as exc:
         log.error(f"Worker could not start: {exc}")
         sys.exit(1)

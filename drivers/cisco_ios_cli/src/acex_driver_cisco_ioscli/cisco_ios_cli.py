@@ -180,6 +180,18 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     parser_class = CiscoIOSCLIParser
     normalizer_class = CiscoIOSNormalizer
 
+    def discover(self, management_ip, username, password):
+        """
+        Used for discovery on bare asset
+        """
+        return {
+            "os": "cisco_iosxe",
+            "os_ver": "17.12.3a",
+            "serial": "FCZ2042X006",
+            "vendor": "cisco",
+            "model": "Catalyst 9300-48P",
+        }
+
     def render(self, configuration: ComposedConfiguration, asset):
         return self.renderer.render(configuration, asset)
 

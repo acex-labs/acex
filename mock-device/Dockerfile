@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir asyncssh
 
 WORKDIR /app
-COPY server.py .
+COPY server.py show_version.txt ./
 COPY snmpd.conf /etc/snmp/snmpd.conf
 COPY entrypoint.sh /entrypoint.sh
 

@@ -14,6 +14,44 @@ class ZtpMethod(StrEnum):
     cisco_iosxe_python = "cisco_iosxe_python"
 
 
+class ZtpMethodInfo(BaseModel):
+    """How a ZTP method is presented to an administrator."""
+
+    label: str
+    description: str
+
+
+#: One entry per ZtpMethod; add one with every new method.
+ZTP_METHOD_INFO: dict[ZtpMethod, ZtpMethodInfo] = {
+    ZtpMethod.cisco_iosxe_python: ZtpMethodInfo(
+        label="Cisco IOS XE — Python",
+        description="The device downloads ztp.py over HTTP and runs it in guestshell.",
+    ),
+}
+
+
+class ZtpMethodResponse(ZtpMethodInfo):
+    """A ZTP method, and what an administrator has chosen for it."""
+
+    method: ZtpMethod
+    #: The NED discovery uses for devices that bootstrap this way. None until one is chosen.
+    ned: str | None = None
+    #: The temporary login the bootstrap gives a device and discovery logs in with,
+    #: until onboarding rotates it. Not a secret: the bootstrap is public.
+    bootstrap_username: str | None = None
+    bootstrap_password: str | None = None
+    updated_by: str | None = None
+    updated_at: datetime | None = None
+
+
+class ZtpMethodUpdate(BaseModel):
+    """Change what is chosen for a ZTP method. Only the fields sent change; None clears one."""
+
+    ned: str | None = None
+    bootstrap_username: str | None = None
+    bootstrap_password: str | None = None
+
+
 class ZtpDiscoverData(BaseModel):
     """Data of an acex.ztp.discover job: a device that fetched its ZTP bootstrap."""
 

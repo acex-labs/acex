@@ -4,24 +4,19 @@ from acex.constants import BASE_URL
 from acex.jobs import ZTP_DISCOVER
 from acex.messaging import MessagingNotConfigured
 from acex_devkit.models.ztp import ZtpMethod
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 
 logger = logging.getLogger("acex.api.ztp")
 
 
-def render_cisco_iosxe():
-    content = """#!/usr/bin/env python
-import cli
-
-print("*** ZTP: applying base configuration ***")
-
-cli.configurep(
-    [
+def render_cisco_iosxe(username: str, password: str) -> str:
+    commands = [
         "hostname acex-ztp-init-device",
         "ip domain name example.com",
-        "username cisco privilege 15 secret 0 Cisco123",
+        # The temporary login discovery uses, until onboarding rotates it.
+        f"username {username} privilege 15 secret 0 {password}",
         "crypto key generate rsa modulus 2048",
         "ip ssh version 2",
         "line vty 0 15",
@@ -29,12 +24,21 @@ cli.configurep(
         "login local",
         "end",
     ]
+    # repr() quotes each command, so a login cannot break out of the script.
+    lines = "".join(f"        {command!r},\n" for command in commands)
+    return f"""#!/usr/bin/env python
+import cli
+
+print("*** ZTP: applying base configuration ***")
+
+cli.configurep(
+    [
+{lines}    ]
 )
 
 cli.executep("copy running-config startup-config")
 print("*** ZTP: done ***")
 """
-    return content
 
 
 CONFIG_GENERATORS = {"cisco_iosxe": render_cisco_iosxe}
@@ -65,21 +69,23 @@ def create_router(automation_engine):
     tags = ["Ztp"]
 
     async def get_ztp_config(request: Request):
-        # generator = CONFIG_GENERATORS.get(os_type)
-        # if generator is None:
-        #     raise HTTPException(status_code=404, detail="Unsupported os type")
-
-        generator = render_cisco_iosxe
-        # Generera innehåll dynamiskt
-        content = generator()
+        method = ZtpMethod.cisco_iosxe_python
+        # Database and broker calls are blocking, so they run off the event loop.
+        chosen = await run_in_threadpool(automation_engine.ztp_methods.get, method)
+        if not chosen.bootstrap_username or not chosen.bootstrap_password:
+            # Without a login discovery could never get in. The device retries
+            # ZTP, so it comes up once an administrator has set one.
+            logger.warning(f"ZTP: {request.client.host} fetched its {method} bootstrap, but no bootstrap login is set")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"No bootstrap login is set for ZTP method {method}",
+            )
+        content = render_cisco_iosxe(chosen.bootstrap_username, chosen.bootstrap_password)
 
         # The address the device fetched from. Behind a proxy this is only the
         # device's own address if uvicorn trusts the proxy's forwarded headers
-        # (FORWARDED_ALLOW_IPS). Database and broker calls are blocking, so they
-        # run off the event loop.
-        await run_in_threadpool(
-            _start_discovery, automation_engine.jobs, request.client.host, ZtpMethod.cisco_iosxe_python
-        )
+        # (FORWARDED_ALLOW_IPS).
+        await run_in_threadpool(_start_discovery, automation_engine.jobs, request.client.host, method)
 
         return Response(
             content=content,
