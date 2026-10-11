@@ -54,8 +54,8 @@ def register(mcp: FastMCP) -> None:
             os: Device OS, e.g. "ios".
             admin_status: Operator intent, one of "planned", "active", "decommissioned".
             provision_status: Provisioning lifecycle, one of "unprovisioned",
-                "adopted" (brownfield), "awaiting_device", "awaiting_approval",
-                "provisioning", "provisioned", "failed".
+                "adopted" (brownfield), "enrolled" (in ZTP), "provisioning",
+                "provisioned", "failed".
             limit: Maximum rows to return.
 
         Returns `{"nodes": [...], "total": n, "returned": m}`. Each row carries

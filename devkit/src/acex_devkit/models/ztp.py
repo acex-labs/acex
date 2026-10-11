@@ -4,7 +4,7 @@ from enum import StrEnum
 from pydantic import BaseModel, IPvAnyAddress
 
 from acex_devkit.models.base import PersistedResponse
-from acex_devkit.models.job import JobState
+from acex_devkit.models.job import JobResponse, JobState
 
 
 class ZtpMethod(StrEnum):
@@ -88,8 +88,13 @@ class ZtpConflictKind(StrEnum):
     serial_on_other_ip = "serial_on_other_ip"
     #: The same IP has reported another serial number.
     ip_with_other_serial = "ip_with_other_serial"
-    #: A reported fact differs from the claimed asset.
-    fact_mismatch = "fact_mismatch"
+    #: The serial belongs to a provisioned node: the device may have been reset.
+    serial_of_provisioned_node = "serial_of_provisioned_node"
+
+
+#: Conflicts that put the device's identity in doubt. A bulk approval skips a
+#: discovery with one; it can still be approved on its own.
+IDENTITY_CONFLICTS = frozenset({ZtpConflictKind.serial_on_other_ip, ZtpConflictKind.ip_with_other_serial})
 
 
 class ZtpConflict(BaseModel):
@@ -99,17 +104,53 @@ class ZtpConflict(BaseModel):
     message: str
     #: The other discovery involved, for the kinds that compare two.
     discovery_id: int | None = None
+    #: The node involved, for serial_of_provisioned_node.
+    node_id: int | None = None
 
 
-class ZtpExpected(BaseModel):
-    """What the claimed asset says the device should be."""
+class ZtpApprovalAction(StrEnum):
+    """What approving a discovery does to the asset with its serial number."""
 
-    asset_id: int
+    #: No asset has the serial; one is created from the reported facts.
+    create = "create"
+    #: The asset exists; the reported facts that differ are written to it.
+    update = "update"
+    #: The asset exists and already matches.
+    unchanged = "unchanged"
+    #: The discovery cannot be approved; `blocked_by` says why.
+    blocked = "blocked"
+
+
+class ZtpFactChange(BaseModel):
+    field: str
+    current: str | None = None
+    reported: str | None = None
+
+
+class ZtpProposedAsset(BaseModel):
+    """The asset as it will be once the discovery is approved."""
+
     serial_number: str
     vendor: str | None = None
     hardware_model: str | None = None
     os: str | None = None
     os_version: str | None = None
+    ned_id: str | None = None
+
+
+class ZtpApprovalProposal(BaseModel):
+    """What approving the discovery would do, computed by the same code that approves it."""
+
+    action: ZtpApprovalAction
+    #: The existing asset; None for create and for some blocked proposals.
+    asset_id: int | None = None
+    asset: ZtpProposedAsset | None = None
+    #: For update: the facts that will be written.
+    changes: list[ZtpFactChange] = []
+    blocked_by: list[str] = []
+    #: Identifies this exact proposal. Sent back on approve, so nothing is
+    #: written that differs from what the administrator saw.
+    hash: str
 
 
 class ZtpDiscoveryResponse(PersistedResponse, ZtpDiscoverResult):
@@ -117,16 +158,62 @@ class ZtpDiscoveryResponse(PersistedResponse, ZtpDiscoverResult):
 
     job_id: int | None = None
     source_ip: str
+    #: The asset the discovery was approved as; None until approved.
+    asset_id: int | None = None
+    #: The node the asset with this serial is bound to, if any. Approval never changes it.
     node_id: int | None = None
-    #: Hostname of the matched node's logical node.
+    #: Hostname of that node's logical node.
     node_hostname: str | None = None
     review_status: ZtpReviewStatus
     reviewed_by: str | None = None
     reviewed_at: datetime | None = None
     created_at: datetime
-    #: The claimed asset of the matched node; None when no node matched.
-    expected: ZtpExpected | None = None
     conflicts: list[ZtpConflict] = []
+    #: What approving would do; None once reviewed.
+    proposal: ZtpApprovalProposal | None = None
+
+
+class ZtpApproveRequest(BaseModel):
+    #: The hash of the proposal the administrator saw. Approval is refused if it
+    #: no longer matches. Leave out to approve whatever the proposal now is.
+    proposal_hash: str | None = None
+
+
+class ZtpBulkApproveItem(BaseModel):
+    discovery_id: int
+    proposal_hash: str | None = None
+
+
+class ZtpBulkApprove(BaseModel):
+    items: list[ZtpBulkApproveItem]
+    #: Work out what would happen without writing anything.
+    dry_run: bool = False
+
+
+class ZtpBulkReject(BaseModel):
+    discovery_ids: list[int]
+
+
+class ZtpBulkOutcome(StrEnum):
+    approved = "approved"
+    #: A dry run would approve it.
+    would_approve = "would_approve"
+    rejected = "rejected"
+    skipped = "skipped"
+
+
+class ZtpBulkItemResult(BaseModel):
+    discovery_id: int
+    outcome: ZtpBulkOutcome
+    #: Why it was skipped.
+    reason: str | None = None
+    proposal: ZtpApprovalProposal | None = None
+
+
+class ZtpBulkResult(BaseModel):
+    results: list[ZtpBulkItemResult]
+    #: Counts per proposal action (approve) and per outcome.
+    summary: dict[str, int]
 
 
 class ZtpCallStage(StrEnum):
@@ -171,3 +258,89 @@ class ZtpCall(BaseModel):
     last_seen: datetime
     #: Newest first.
     attempts: list[ZtpCallAttempt]
+
+
+class ZtpAssetReadiness(StrEnum):
+    """How far a node's device has come before provisioning, from the discoveries of its serial."""
+
+    #: No discovery of the serial, or only rejected ones.
+    unseen = "unseen"
+    #: The latest discovery waits for an administrator.
+    awaiting_review = "awaiting_review"
+    #: The latest discovery is approved: identity and address are trusted.
+    ready = "ready"
+
+
+class ZtpStage(StrEnum):
+    """Where a node stands in ZTP.
+
+    Before provisioning starts this comes from the asset's readiness; from then
+    on it is the node's provision_status.
+    """
+
+    awaiting_device = "awaiting_device"
+    awaiting_approval = "awaiting_approval"
+    ready = "ready"
+    provisioning = "provisioning"
+    provisioned = "provisioned"
+    failed = "failed"
+    adopted = "adopted"
+    unprovisioned = "unprovisioned"
+
+
+#: The stages a node is in the pipeline for.
+PIPELINE_STAGES = (
+    ZtpStage.awaiting_device,
+    ZtpStage.awaiting_approval,
+    ZtpStage.ready,
+    ZtpStage.provisioning,
+    ZtpStage.failed,
+)
+
+
+class ZtpNodeAsset(BaseModel):
+    id: int
+    serial_number: str
+    vendor: str | None = None
+    hardware_model: str | None = None
+    os: str | None = None
+    os_version: str | None = None
+    ned_id: str | None = None
+
+
+class ZtpPipelineNode(BaseModel):
+    """A node and where it stands in ZTP."""
+
+    node_id: int
+    hostname: str | None = None
+    site: str | None = None
+    admin_status: str
+    provision_status: str
+    #: The status the node had when it was enrolled; cancelling ZTP returns it there.
+    ztp_previous_status: str | None = None
+    stage: ZtpStage
+    #: Why a provisioning node is not getting anywhere: no job, or a job lost on its queue or its worker.
+    stalled: str | None = None
+    #: None when the node is bound to an asset cluster.
+    asset: ZtpNodeAsset | None = None
+    readiness: ZtpAssetReadiness | None = None
+    #: When the device was last discovered.
+    last_seen: datetime | None = None
+    #: The address of the approved discovery, which provisioning uses.
+    approved_ip: str | None = None
+
+
+class ZtpNodeDetail(ZtpPipelineNode):
+    #: Discoveries of the asset's serial, newest first.
+    discoveries: list[ZtpDiscoveryResponse] = []
+    #: Provisioning jobs of the node, newest first.
+    provision_jobs: list[JobResponse] = []
+
+
+class ZtpPipelineSummary(BaseModel):
+    #: Nodes per stage, every node counted once.
+    stages: dict[ZtpStage, int]
+    #: Approved assets not bound to any node: ready for a node to be assigned.
+    pool: int
+    #: Provisioning nodes that are not getting anywhere.
+    stalled: int = 0

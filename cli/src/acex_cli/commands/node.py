@@ -208,11 +208,7 @@ def list_cmd(
     admin_status: str | None = typer.Option(None, help="Filter by admin status (planned, active, decommissioned)"),
     provision_status: str | None = typer.Option(
         None,
-        help=(
-            "Filter by provision status "
-            "(unprovisioned, adopted, awaiting_device, awaiting_approval, "
-            "provisioning, provisioned, failed)"
-        ),
+        help=("Filter by provision status (unprovisioned, adopted, enrolled, provisioning, provisioned, failed)"),
     ),
     # Pagination
     limit: int = typer.Option(100, "--limit", "-l", help="Max items to return"),
