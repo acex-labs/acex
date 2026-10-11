@@ -10,6 +10,8 @@ are never touched here; provisioning is a step of its own.
 import logging
 from datetime import UTC, datetime
 
+from acex.models.management_connections import ManagementConnection
+from acex.models.node import Node
 from acex.models.ztp_discovery import ZtpDiscovery
 from acex.ztp.approval import ApprovalPlanner
 from acex.ztp.review_context import ReviewContext
@@ -184,12 +186,28 @@ class ZtpDiscoveryManager:
         ).all()
         for other in others:
             self._review(session, other, ZtpReviewStatus.rejected, reviewed_by, now)
+        node = ctx.node_of(discovery)
+        if node is not None:
+            self.learn_connection(session, node, discovery.source_ip)
         session.flush()
         logger.info(
             f"ZTP: {reviewed_by} approved discovery {discovery.id} from {discovery.source_ip}: "
             f"{proposal.action} asset {asset.id} ({discovery.serial_number})"
         )
         return discovery, proposal
+
+    @staticmethod
+    def learn_connection(session, node: Node, ip: str) -> None:
+        """Give the node a management connection to the IP its approved device was reached at.
+
+        Kept alongside the node's other connections; it is primary only if the node has none.
+        """
+        connections = session.exec(select(ManagementConnection).where(ManagementConnection.node_id == node.id)).all()
+        if any(c.target_ip == ip for c in connections):
+            return
+        primary = not any(c.primary for c in connections)
+        session.add(ManagementConnection(node_id=node.id, target_ip=ip, primary=primary))
+        logger.info(f"ZTP: node {node.id} gets management connection {ip} (primary={primary}) from its discovery")
 
     def _reject(self, session, discovery_id: int, reviewed_by: str) -> ZtpDiscovery:
         discovery = self._unreviewed(session, discovery_id)

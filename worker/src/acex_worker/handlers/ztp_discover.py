@@ -24,7 +24,7 @@ class NoBootstrapLogin(RuntimeError):
 
 
 class HandleZtpDiscovery(Handler):
-    def handle(self, client: Acex, job: JobResponse) -> dict:
+    def handle(self, client: Acex, job: JobResponse) -> ZtpDiscoverResult:
         data = ZtpDiscoverData.model_validate(job.data)
 
         # The administrator chooses the NED per method, on the ZTP settings page.
@@ -53,4 +53,4 @@ class HandleZtpDiscovery(Handler):
             os=discover_data.get("os"),
             os_version=discover_data.get("os_ver"),
         )
-        return result.model_dump()
+        return result

@@ -68,7 +68,9 @@ It reports the facts back to the backend, which stores them as a row in `ztp_dis
 
 An administrator reviews each discovery and decides whether to trust the device's identity. The worker logged in at the source IP, so the reported serial number and facts come from the device at that address; the administrator judges whether that IP is where the expected device should be.
 
-Approval is about identity only. It never changes a node and never pushes configuration.
+Approval is about identity only. It never changes a node's status and never pushes configuration.
+
+The IP the device was reached at is how ACE-X talks to it, so it becomes a management connection of the asset's node: when a discovery of an asset already bound to a node is approved, or when an asset with an approved discovery is claimed (enrolled). It is added beside any connections the node already has, as primary only if the node has none, and not again if the node already has one to that IP.
 
 - **Approve:** the asset with the reported serial number is created if none exists (vendor, hardware model, OS, OS version, and the NED chosen for the method), or updated with the hardware model, OS and OS version that differ. The discovery records the asset it was approved as, and other unreviewed discoveries of the same serial are rejected.
 - **Reject:** the discovery is marked rejected. Nothing else changes.
@@ -92,7 +94,7 @@ Many devices can be discovered and approved without being bound to a node. A bul
 
 ### 6. Provisioning
 
-To be defined. Full configuration is compiled, pushed over SSH and verified; the node ends in `provisioned` or `failed`.
+An administrator starts it on a `ready` node; approval never does. That queues an `acex.ztp.provision` job with the node id and moves the node to `provisioning`. What the worker does is still to be defined: full configuration is compiled, pushed over SSH and verified, and the node ends in `provisioned` or `failed`.
 
 ## Node provision status
 
@@ -168,6 +170,7 @@ Where each node stands in ZTP, and taking it in or out. An enrolled node's stage
 | `GET` | `/ztp_nodes/summary` | Every node counted once per stage, how many are `stalled`, and `pool`: approved assets bound to no node |
 | `GET` | `/ztp_nodes/{node_id}` | One node with its asset, readiness, the approved IP, the discoveries of its serial and its `acex.ztp.provision` jobs |
 | `POST` | `/ztp_nodes/{node_id}/enroll` | Take the node into ZTP; 409 if it is already in ZTP or bound to an asset cluster |
+| `POST` | `/ztp_nodes/{node_id}/provision` | Start provisioning a `ready` node: an `acex.ztp.provision` job (`{"node_id"}`) is queued on `acex.ztp` and the node is `provisioning`; 409 if it is not ready, 503/502 without a broker (the node stays ready) |
 | `POST` | `/ztp_nodes/{node_id}/cancel` | Take the node out of ZTP (see above); 409 if it is not in ZTP |
 | `POST` | `/ztp_nodes/{node_id}/reset` | Step a provisioning or failed node back to `enrolled`, cancelling any provisioning job |
 

@@ -192,6 +192,15 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
             "model": "Catalyst 9300-48P",
         }
 
+    def provision(
+        self, configuration: ComposedConfiguration, node_instance, connection: ManagementConnection, credentials
+    ):
+        asset = node_instance.asset
+        rendered = self.render(configuration, asset)
+        commands = [c.lstrip() for c in rendered.splitlines() if c.strip() and c.strip() != "!"]
+
+        return asyncio.run(self.transport.send_config(node_instance, connection, commands, **credentials))
+
     def render(self, configuration: ComposedConfiguration, asset):
         return self.renderer.render(configuration, asset)
 

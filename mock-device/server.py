@@ -93,8 +93,6 @@ def _handle(cmd: str) -> str:
         return PROMPT
     elif _is_show_version(cmd):
         return _show_version().rstrip("\n") + PROMPT
-    elif cmd == "show running-config":
-        return _load_config().rstrip("\n") + PROMPT
     elif "lldp neighbors" in cmd:
         return LLDP_EMPTY + PROMPT
     elif "cdp neighbors" in cmd:
@@ -103,7 +101,79 @@ def _handle(cmd: str) -> str:
         return PROMPT
 
 
+class CliSession:
+    """One SSH session's CLI mode: exec, global configuration, or a configuration submode.
+
+    What is entered in configuration mode is kept for the device's lifetime and
+    shows in `show running-config`, so a push can be checked afterwards.
+    """
+
+    #: Lines entered in configuration mode since the device started, shared by all sessions.
+    pushed: list[str] = []
+
+    #: Commands that enter a configuration submode, by their first word, and the submode's prompt.
+    SUBMODES = {"interface": "config-if", "line": "config-line", "router": "config-router", "vlan": "config-vlan"}
+
+    def __init__(self):
+        #: None in exec mode, otherwise the mode shown in the prompt, e.g. "config" or "config-if".
+        self.mode: str | None = None
+
+    @property
+    def prompt(self) -> str:
+        return f"\n{HOSTNAME}({self.mode})#" if self.mode else PROMPT
+
+    def handle(self, cmd: str) -> str:
+        line = cmd.strip()
+        if self.mode is None:
+            return self._exec(line, cmd)
+        return self._configure(line)
+
+    def _exec(self, line: str, cmd: str) -> str:
+        words = line.split()
+        if len(words) >= 1 and words[0].startswith("conf") and "configure".startswith(words[0]):
+            log.info(f"CMD: {line!r}")
+            self.mode = "config"
+            return "Enter configuration commands, one per line.  End with CNTL/Z." + self.prompt
+        if line in ("write memory", "wr", "copy running-config startup-config"):
+            log.info(f"CMD: {line!r}")
+            return "Building configuration...\n[OK]" + self.prompt
+        if line == "show running-config":
+            log.info(f"CMD: {line!r}")
+            return self.running_config().rstrip("\n") + self.prompt
+        return _handle(cmd)
+
+    def _configure(self, line: str) -> str:
+        if not line:
+            return self.prompt
+        if line == "end":
+            self.mode = None
+            return self.prompt
+        if line == "exit":
+            self.mode = None if self.mode == "config" else "config"
+            return self.prompt
+        log.info(f"CONFIG ({self.mode}): {line!r}")
+        submode = self.SUBMODES.get(line.split()[0])
+        if submode is not None:
+            self.mode = submode
+            self.pushed.append(line)
+        else:
+            # Lines arrive without their indentation; indent those entered in a submode.
+            self.pushed.append(f" {line}" if self.mode != "config" else line)
+        return self.prompt
+
+    @classmethod
+    def running_config(cls) -> str:
+        """The configuration file, with what has been entered since appended."""
+        base = _load_config().rstrip()
+        if not cls.pushed:
+            return base + "\n"
+        if base.endswith("end"):
+            base = base[: -len("end")].rstrip()
+        return "\n".join([base, "!", *cls.pushed, "!", "end"]) + "\n"
+
+
 async def handle_client(process: asyncssh.SSHServerProcess):
+    session = CliSession()
     process.stdout.write(PROMPT)
     await process.stdout.drain()
 
@@ -115,7 +185,7 @@ async def handle_client(process: asyncssh.SSHServerProcess):
                 if sep in buf:
                     line, buf = buf.split(sep, 1)
                     break
-            response = _handle(line)
+            response = session.handle(line)
             process.stdout.write(response)
             await process.stdout.drain()
 

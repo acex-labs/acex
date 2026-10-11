@@ -22,9 +22,12 @@ from acex_devkit.models.job import JobResponse, JobSubjectType
 from acex_devkit.models.pagination import PaginatedResponse
 from acex_devkit.models.ztp import (
     PIPELINE_STAGES,
+    ZtpDiscoverData,
+    ZtpMethod,
     ZtpNodeDetail,
     ZtpPipelineNode,
     ZtpPipelineSummary,
+    ZtpProvisionData,
     ZtpReviewStatus,
     ZtpStage,
 )
@@ -52,9 +55,10 @@ class ZtpNodeConflict(RuntimeError):
 
 
 class ZtpPipelineManager:
-    def __init__(self, db_manager, discoveries, settings: ZtpSettings | None = None):
+    def __init__(self, db_manager, discoveries, jobs, settings: ZtpSettings | None = None):
         self.db = db_manager
         self.discoveries = discoveries
+        self.jobs = jobs
         self.settings = settings or ZtpSettings()
 
     def list_nodes(
@@ -114,8 +118,26 @@ class ZtpPipelineManager:
                 raise ZtpNodeConflict(f"Node {node.id} is {node.provision_status}; it is already in ZTP.")
             node.ztp_previous_status = node.provision_status
             self._set_status(session, node, NodeProvisionStatus.enrolled)
+            approved = self._approved(session, node)
+            if approved is not None:
+                self.discoveries.learn_connection(session, node, approved.source_ip)
             session.commit()
             logger.info(f"ZTP: {by} enrolled node {node.id} (was {node.ztp_previous_status})")
+        return self.get(node_id)
+
+    def provision(self, node_id: int, *, by: str) -> ZtpNodeDetail:
+        """Start provisioning a ready node: queue its job, and the node is provisioning."""
+        with self._session() as session:
+            node = self._node(session, node_id, lock=True)
+            [row] = self._rows(session, [node])
+            if row.stage != ZtpStage.ready:
+                raise ZtpNodeConflict(f"Node {node.id} is {row.stage}; only a ready node can be provisioned.")
+            data = ZtpProvisionData(node_id=node.id, method=self._method(session, node))
+            # Raises MessagingNotConfigured or JobPublishError for the caller to answer; the node stays ready.
+            job = self.jobs.enqueue(ZTP_PROVISION, data, created_by=by)
+            self._set_status(session, node, NodeProvisionStatus.provisioning)
+            session.commit()
+            logger.info(f"ZTP: {by} started provisioning of node {node.id}; job {job.id} queued")
         return self.get(node_id)
 
     def cancel(self, node_id: int, *, by: str) -> ZtpNodeDetail:
@@ -180,6 +202,24 @@ class ZtpPipelineManager:
         if node is None:
             raise ZtpNodeNotFound(f"No node {node_id}.")
         return node
+
+    @staticmethod
+    def _approved(session, node: Node) -> ZtpDiscovery | None:
+        """The latest approved discovery of the node's asset."""
+        return session.exec(
+            select(ZtpDiscovery)
+            .where(ZtpDiscovery.asset_id == node.asset_ref_id, ZtpDiscovery.review_status == ZtpReviewStatus.approved)
+            .order_by(ZtpDiscovery.reviewed_at.desc(), ZtpDiscovery.id.desc())
+        ).first()
+
+    @classmethod
+    def _method(cls, session, node: Node) -> ZtpMethod:
+        """The ZTP method the node's device bootstrapped with, from the job that discovered it."""
+        approved = cls._approved(session, node)
+        job = session.get(Job, approved.job_id) if approved is not None and approved.job_id is not None else None
+        if job is None:
+            raise ZtpNodeConflict(f"Node {node.id} has no discovery job telling which ZTP method its device used.")
+        return ZtpDiscoverData.model_validate(job.data).method
 
     @staticmethod
     def _set_status(session, node: Node, status: NodeProvisionStatus) -> None:

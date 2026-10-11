@@ -61,6 +61,22 @@ class ZtpDiscoverData(BaseModel):
     method: ZtpMethod
 
 
+class ZtpProvisionData(BaseModel):
+    """Data of an acex.ztp.provision job: a node whose approved device gets its full configuration."""
+
+    node_id: int
+    #: The bootstrap method the device used. Decides which bootstrap login provisioning logs in with.
+    method: ZtpMethod
+
+
+class ZtpProvisionResult(BaseModel):
+    """Worker response from accessing the node
+    during provision"""
+
+    lines_sent: int
+    output: str
+
+
 class ZtpDiscoverResult(BaseModel):
     """Result of an acex.ztp.discover job: what the device says it is.
 

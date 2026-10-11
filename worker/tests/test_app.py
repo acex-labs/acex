@@ -34,11 +34,13 @@ class EchoResult(BaseModel):
 
 
 class Echo(Handler):
-    def handle(self, client: Acex, job: JobResponse) -> dict:
+    def handle(self, client: Acex, job: JobResponse) -> EchoResult | None:
         data = EchoData.model_validate(job.data)
         if data.text == "boom":
             raise RuntimeError("it went boom")
-        return EchoResult(echoed=data.text).model_dump()
+        if data.text == "quiet":
+            return None
+        return EchoResult(echoed=data.text)
 
 
 HANDLERS = {"acex.test.echo": Echo, "acex.test.other": Echo}
@@ -102,6 +104,19 @@ def test_a_job_is_claimed_run_and_reported_with_its_result(client):
         {"state": "running"},
         {"state": "succeeded", "result": {"echoed": "hi"}},
     ]
+
+
+def test_a_job_type_without_a_result_succeeds_without_one(client):
+    route = respx.patch(f"{API}/workers/jobs/7").mock(
+        side_effect=[
+            Response(200, json=job(7, "running", {"text": "quiet"})),
+            Response(200, json=job(7, "succeeded", {"text": "quiet"})),
+        ]
+    )
+
+    execute(client, "acex.test.echo", Echo, 7)
+
+    assert reports(route)[1] == {"state": "succeeded"}
 
 
 def test_data_that_does_not_fit_the_job_type_fails_the_job(client):

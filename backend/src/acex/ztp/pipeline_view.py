@@ -14,7 +14,7 @@ from acex_devkit.models.job import JobSubjectType
 from acex_devkit.models.ztp import ZtpAssetReadiness, ZtpNodeAsset, ZtpPipelineNode, ZtpReviewStatus, ZtpStage
 from sqlmodel import select
 
-#: The provisioning job type. Not registered yet: provisioning is the next step to be built.
+#: The provisioning job type, registered in acex.jobs.types.
 ZTP_PROVISION = "acex.ztp.provision"
 
 #: Job states in which a provisioning job is still on its way.

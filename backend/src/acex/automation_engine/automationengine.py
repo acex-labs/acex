@@ -77,7 +77,7 @@ class AutomationEngine:
         self.ztp_discoveries = ZtpDiscoveryManager(self.db)
         self.ztp_calls = ZtpCallManager(self.db, self.jobs)
         self.ztp_methods = ZtpMethodManager(self.db)
-        self.ztp_pipeline = ZtpPipelineManager(self.db, self.ztp_discoveries, self.settings.ztp)
+        self.ztp_pipeline = ZtpPipelineManager(self.db, self.ztp_discoveries, self.jobs, self.settings.ztp)
 
         # create plugin instances.
         if assets_plugin is not None:

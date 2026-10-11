@@ -1,5 +1,7 @@
 from acex.api import auth as _auth
 from acex.constants import BASE_URL
+from acex.jobs import JobPublishError
+from acex.messaging import MessagingNotConfigured
 from acex.ztp import ZtpNodeConflict, ZtpNodeNotFound
 from acex_devkit.models.pagination import PaginatedResponse
 from acex_devkit.models.ztp import ZtpNodeDetail, ZtpPipelineNode, ZtpPipelineSummary, ZtpStage
@@ -41,6 +43,14 @@ def create_router(automation_engine):
         """Take the node into ZTP. Its stage then follows its asset until provisioning starts."""
         return _act(lambda: pipeline.enroll(node_id, by=_actor(user)))
 
+    @router.post("/{node_id}/provision", response_model=ZtpNodeDetail)
+    def provision(node_id: int, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
+        """Start provisioning a ready node: a provisioning job is queued for a worker.
+
+        Without a broker the node stays ready: 503 if none is configured, 502 if it could not be reached.
+        """
+        return _act(lambda: pipeline.provision(node_id, by=_actor(user)))
+
     @router.post("/{node_id}/cancel", response_model=ZtpNodeDetail)
     def cancel(node_id: int, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Take the node out of ZTP, back to its status before it was enrolled.
@@ -61,5 +71,9 @@ def create_router(automation_engine):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
         except ZtpNodeConflict as exc:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        except MessagingNotConfigured as exc:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        except JobPublishError as exc:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
     return router

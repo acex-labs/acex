@@ -10,9 +10,11 @@ import pytest
 from acex.api.routers.ztp_nodes import create_router as nodes_router
 from acex.models import Node
 from acex.models.job import Job, JobState
+from acex.models.management_connections import ManagementConnection
 from acex.models.node import NodeProvisionStatus
+from acex.models.ztp_discovery import ZtpDiscovery
 from acex.ztp import ZtpDiscoveryManager, ZtpPipelineManager
-from sqlmodel import Session
+from sqlmodel import Session, select
 from test_ztp_review import _Ztp
 
 NODES = "/api/v1/ztp_nodes"
@@ -26,7 +28,7 @@ def ztp():
 
 @pytest.fixture
 def client(ztp):
-    pipeline = ZtpPipelineManager(ztp.db, ZtpDiscoveryManager(ztp.db))
+    pipeline = ZtpPipelineManager(ztp.db, ZtpDiscoveryManager(ztp.db), ztp.jobs)
     ztp.client.app.include_router(nodes_router(SimpleNamespace(ztp_pipeline=pipeline)))
     return ztp.client
 
@@ -137,6 +139,119 @@ class TestEnroll:
     def should_refuse_a_node_already_in_ztp(self, ztp, client):
         node_id = ztp.node(ztp.asset(), status=ENROLLED)
         assert client.post(f"{NODES}/{node_id}/enroll").status_code == 409
+
+
+def connections(ztp, node_id) -> list[tuple[str, bool]]:
+    with Session(ztp.db.engine) as session:
+        rows = session.exec(select(ManagementConnection).where(ManagementConnection.node_id == node_id)).all()
+        return sorted((c.target_ip, c.primary) for c in rows)
+
+
+def add_connection(ztp, node_id, ip, primary=True):
+    with Session(ztp.db.engine) as session:
+        session.add(ManagementConnection(node_id=node_id, target_ip=ip, primary=primary))
+        session.commit()
+
+
+class TestManagementConnection:
+    """The IP an approved device was reached at becomes a management connection of its node."""
+
+    def should_be_learnt_when_a_node_bound_to_the_asset_is_approved(self, ztp, client):
+        node_id = ztp.node(ztp.asset(), status=ENROLLED)
+        ztp.review(ztp.discover("10.0.0.5")["id"], "approve")
+        assert connections(ztp, node_id) == [("10.0.0.5", True)]
+
+    def should_be_learnt_when_an_approved_asset_is_claimed(self, ztp, client):
+        ztp.review(ztp.discover("10.0.0.5", serial="SN9")["id"], "approve")  # in the pool
+        with Session(ztp.db.engine) as session:
+            asset_id = session.exec(select(ZtpDiscovery.asset_id)).first()
+        node_id = ztp.node(asset_id)
+
+        client.post(f"{NODES}/{node_id}/enroll")
+
+        assert connections(ztp, node_id) == [("10.0.0.5", True)]
+
+    def should_be_added_beside_another_connection(self, ztp, client):
+        node_id = ztp.node(ztp.asset(), status=ENROLLED)
+        add_connection(ztp, node_id, "192.0.2.1")
+        ztp.review(ztp.discover("10.0.0.5")["id"], "approve")
+        assert connections(ztp, node_id) == [("10.0.0.5", False), ("192.0.2.1", True)]
+
+    def should_not_repeat_a_connection_the_node_has(self, ztp, client):
+        node_id = ztp.node(ztp.asset(), status=ENROLLED)
+        add_connection(ztp, node_id, "10.0.0.5", primary=False)
+        ztp.review(ztp.discover("10.0.0.5")["id"], "approve")
+        assert connections(ztp, node_id) == [("10.0.0.5", False)]
+
+    def should_wait_for_an_approved_discovery(self, ztp, client):
+        node_id = ztp.node(ztp.asset())
+        ztp.discover("10.0.0.5")
+        client.post(f"{NODES}/{node_id}/enroll")
+        assert connections(ztp, node_id) == []
+
+
+class _Broker:
+    """Records what is published, or fails as a broker that is unset or down."""
+
+    def __init__(self, configured=True, error=None):
+        self.configured = configured
+        self.error = error
+        self.published = []
+
+    def publish(self, job_type: str, job_id: int) -> None:
+        if self.error:
+            raise self.error
+        self.published.append((job_type, job_id))
+
+
+def ready_node(ztp) -> int:
+    node_id = ztp.node(ztp.asset(), status=ENROLLED)
+    ztp.review(ztp.discover("10.0.0.5")["id"], "approve")
+    return node_id
+
+
+class TestProvision:
+    def should_queue_a_job_and_start_provisioning(self, ztp, client):
+        node_id = ready_node(ztp)
+        ztp.jobs.producer = broker = _Broker()
+
+        detail = client.post(f"{NODES}/{node_id}/provision").json()
+
+        [job] = detail["provision_jobs"]
+        assert (detail["provision_status"], detail["stalled"]) == ("provisioning", None)
+        assert (job["state"], job["data"], job["created_by"]) == (
+            "queued",
+            {"node_id": node_id, "method": "cisco_iosxe_python"},
+            "alice",
+        )
+        assert broker.published == [("acex.ztp.provision", job["id"])]
+
+    def should_refuse_a_node_that_is_not_ready(self, ztp, client):
+        node_id = ztp.node(ztp.asset(), status=ENROLLED)
+        ztp.discover("10.0.0.5")
+        ztp.jobs.producer = broker = _Broker()
+
+        response = client.post(f"{NODES}/{node_id}/provision")
+
+        assert response.status_code == 409
+        assert "awaiting_approval" in response.json()["detail"]
+        assert broker.published == []
+
+    def should_refuse_a_node_already_provisioning(self, ztp, client):
+        node_id = ready_node(ztp)
+        client.post(f"{NODES}/{node_id}/provision")
+        assert client.post(f"{NODES}/{node_id}/provision").status_code == 409
+
+    @pytest.mark.parametrize(
+        ("broker", "code"), [(_Broker(configured=False), 503), (_Broker(error=ConnectionError("down")), 502)]
+    )
+    def should_leave_the_node_ready_without_a_broker(self, ztp, client, broker, code):
+        node_id = ready_node(ztp)
+        ztp.jobs.producer = broker
+
+        assert client.post(f"{NODES}/{node_id}/provision").status_code == code
+        detail = node(client, node_id)
+        assert (detail["provision_status"], detail["stage"]) == ("enrolled", "ready")
 
 
 class TestCancel:
