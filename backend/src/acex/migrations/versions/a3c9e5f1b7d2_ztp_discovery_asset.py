@@ -22,11 +22,10 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column("ztp_discovery", sa.Column("asset_id", sa.Integer(), nullable=True))
-    op.create_index(op.f("ix_ztp_discovery_asset_id"), "ztp_discovery", ["asset_id"], unique=False)
-    op.create_foreign_key(
-        "ztp_discovery_asset_id_fkey", "ztp_discovery", "asset", ["asset_id"], ["id"], ondelete="SET NULL"
-    )
+    with op.batch_alter_table("ztp_discovery") as batch:
+        batch.add_column(sa.Column("asset_id", sa.Integer(), nullable=True))
+        batch.create_index(op.f("ix_ztp_discovery_asset_id"), ["asset_id"], unique=False)
+        batch.create_foreign_key("ztp_discovery_asset_id_fkey", "asset", ["asset_id"], ["id"], ondelete="SET NULL")
     op.execute(
         sa.text(
             "UPDATE ztp_discovery SET asset_id = ("
@@ -35,16 +34,16 @@ def upgrade() -> None:
             ") WHERE review_status = 'approved'"
         )
     )
-    op.drop_index(op.f("ix_ztp_discovery_node_id"), table_name="ztp_discovery")
-    op.drop_column("ztp_discovery", "node_id")
+    with op.batch_alter_table("ztp_discovery") as batch:
+        batch.drop_index(op.f("ix_ztp_discovery_node_id"))
+        batch.drop_column("node_id")
 
 
 def downgrade() -> None:
-    op.add_column("ztp_discovery", sa.Column("node_id", sa.Integer(), nullable=True))
-    op.create_index(op.f("ix_ztp_discovery_node_id"), "ztp_discovery", ["node_id"], unique=False)
-    op.create_foreign_key(
-        "ztp_discovery_node_id_fkey", "ztp_discovery", "node", ["node_id"], ["id"], ondelete="SET NULL"
-    )
-    op.drop_constraint("ztp_discovery_asset_id_fkey", "ztp_discovery", type_="foreignkey")
-    op.drop_index(op.f("ix_ztp_discovery_asset_id"), table_name="ztp_discovery")
-    op.drop_column("ztp_discovery", "asset_id")
+    with op.batch_alter_table("ztp_discovery") as batch:
+        batch.add_column(sa.Column("node_id", sa.Integer(), nullable=True))
+        batch.create_index(op.f("ix_ztp_discovery_node_id"), ["node_id"], unique=False)
+        batch.create_foreign_key("ztp_discovery_node_id_fkey", "node", ["node_id"], ["id"], ondelete="SET NULL")
+        batch.drop_constraint("ztp_discovery_asset_id_fkey", type_="foreignkey")
+        batch.drop_index(op.f("ix_ztp_discovery_asset_id"))
+        batch.drop_column("asset_id")
