@@ -1,0 +1,70 @@
+name: Changelog
+
+# Keeps the generated changelog artifacts (backend/src/acex/CHANGELOG.md and
+# backend/src/acex/changelog.json) up to date on dev. Regenerates them from
+# git history after every merge and commits the result back, so nobody has
+# to run scripts/build_changelog.py by hand.
+#
+# The commit is pushed with GITHUB_TOKEN, which by design does NOT trigger
+# further workflow runs: no loops and no redundant dev-image rebuilds. The
+# trade-off: dev images pick up the new changelog on the next push to dev;
+# release images always include it via the dev -> main flow.
+
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: changelog-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write        # push the regenerated artifacts back to dev
+  pull-requests: read    # --enrich fetches PR bodies via the GitHub API
+
+jobs:
+  regenerate:
+    name: Regenerate changelog artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # git-cliff reads tags and commit history
+
+      - name: Install git-cliff
+        env:
+          GIT_CLIFF_VERSION: 2.10.1        # pin exact version
+          GIT_CLIFF_SHA256: 6abe8a3e112b266dd00abf9089a8052ddf7314f39e1c53e192edf0652abca4eb
+        run: |
+          curl -sSLf -o git-cliff.tar.gz \
+            "https://github.com/orhun/git-cliff/releases/download/v${GIT_CLIFF_VERSION}/git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${GIT_CLIFF_SHA256}  git-cliff.tar.gz" | sha256sum -c -
+          tar xzf git-cliff.tar.gz --strip-components=1 \
+            "git-cliff-${GIT_CLIFF_VERSION}/git-cliff"
+          sudo install git-cliff /usr/local/bin/
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Generate CHANGELOG.md
+        run: git cliff v6.20.0^..HEAD -o backend/src/acex/CHANGELOG.md
+
+      - name: Generate changelog.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/build_changelog.py --enrich
+
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet -- backend/src/acex/CHANGELOG.md backend/src/acex/changelog.json; then
+            echo "Changelog already up to date — nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/src/acex/CHANGELOG.md backend/src/acex/changelog.json
+          git commit -m "chore: regenerate changelog artifacts"
+          git push
