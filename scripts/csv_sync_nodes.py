@@ -6,9 +6,17 @@ from dataclasses import dataclass
 from pydantic import ValidationError
 
 from acex_client import Acex
-from acex_client.auth import ClientCredentialsAuth, NullAuthProvider
+from acex_client.auth import ClientCredentialsAuth
 
-_VALID_STATUSES = {"planned", "active", "decommissioned"}
+_VALID_ADMIN_STATUSES = {"planned", "active", "decommissioned"}
+_VALID_PROVISION_STATUSES = {
+    "unprovisioned",
+    "adopted",
+    "enrolled",
+    "provisioning",
+    "provisioned",
+    "failed",
+}
 _VALID_CONNECTION_TYPES = {"ssh", "telnet"}
 
 
@@ -24,7 +32,8 @@ class ColumnMap:
     os_version: str = "os_version"
     hardware_model: str = "hardware_model"
     ned_id: str = "ned_id"
-    status: str = "status"
+    admin_status: str = "admin_status"
+    provision_status: str = "provision_status"
     management_ip: str = "management_ip"
     connection_type: str = "connection_type"
 
@@ -42,12 +51,24 @@ def _int_or_none(value: str) -> int | None:
         return None
 
 
-def _validate_status(value: str | None) -> tuple[str, str | None]:
+def _validate_admin_status(value: str | None) -> tuple[str, str | None]:
     if not value:
         return "planned", None
     lower = value.lower()
-    if lower not in _VALID_STATUSES:
-        return "planned", f"unrecognized status '{value}' — using 'planned'"
+    if lower not in _VALID_ADMIN_STATUSES:
+        return "planned", f"unrecognized admin_status '{value}' — using 'planned'"
+    return lower, None
+
+
+def _validate_provision_status(value: str | None) -> tuple[str, str | None]:
+    if not value:
+        return "unprovisioned", None
+    lower = value.lower()
+    if lower not in _VALID_PROVISION_STATUSES:
+        return (
+            "unprovisioned",
+            f"unrecognized provision_status '{value}' — using 'unprovisioned'",
+        )
     return lower, None
 
 
@@ -79,8 +100,7 @@ def _build_site_map(
         return {
             key: name
             for row in reader
-            if (key := _str_or_none(row.get(sites_col_key, "")))
-            and (name := _str_or_none(row.get(sites_col_name, "")))
+            if (key := _str_or_none(row.get(sites_col_key, ""))) and (name := _str_or_none(row.get(sites_col_name, "")))
         }
 
 
@@ -113,8 +133,20 @@ class SyncLogger:
         prefix = "[dry-run] " if dry_run else ""
         print(f"  ~     {prefix}{subject}: node_instance.admin_status → 'decommissioned'")
 
-    def summary(self, created: int, updated: int, skipped: int, errors: int, decommissioned: int = 0) -> None:
-        parts = [f"created: {created}", f"updated: {updated}", f"skipped: {skipped}", f"errors: {errors}"]
+    def summary(
+        self,
+        created: int,
+        updated: int,
+        skipped: int,
+        errors: int,
+        decommissioned: int = 0,
+    ) -> None:
+        parts = [
+            f"created: {created}",
+            f"updated: {updated}",
+            f"skipped: {skipped}",
+            f"errors: {errors}",
+        ]
         if decommissioned:
             parts.append(f"decommissioned: {decommissioned}")
         print(f"\nDone — {', '.join(parts)}")
@@ -122,7 +154,13 @@ class SyncLogger:
 
 # Syncer
 class NodeSyncer:
-    def __init__(self, client, cols: ColumnMap, site_map: dict[str, str], log: SyncLogger | None = None):
+    def __init__(
+        self,
+        client,
+        cols: ColumnMap,
+        site_map: dict[str, str],
+        log: SyncLogger | None = None,
+    ):
         self.client = client
         self.cols = cols
         self.site_map = site_map
@@ -138,7 +176,9 @@ class NodeSyncer:
         self.existing_sites = {s.name for s in c.inventory.sites.query(limit=10000).items}
         self.existing_logical_nodes = {ln.hostname: ln for ln in c.inventory.logical_nodes.query(limit=10000).items}
         self.existing_assets = {a.serial_number: a for a in c.inventory.assets.query(limit=10000).items}
-        self.existing_node_instances = {ni.logical_node_id: ni for ni in c.inventory.node_instances.query(limit=10000).items}
+        self.existing_node_instances = {
+            ni.logical_node_id: ni for ni in c.inventory.node_instances.query(limit=10000).items
+        }
         self.existing_mgmt = {mc.node_id: mc for mc in c.inventory.management_connections.query(limit=10000).items}
         print(
             f"Found {len(self.existing_logical_nodes)} logical nodes, "
@@ -189,12 +229,16 @@ class NodeSyncer:
         self.log.created(hostname, f"asset {serial_number}")
         return asset, False
 
-    def _sync_node_instance(self, hostname: str, asset, ln_id: int, status: str) -> tuple:
+    def _sync_node_instance(self, hostname: str, asset, ln_id: int, admin_status: str, provision_status: str) -> tuple:
+        body = {"admin_status": admin_status, "provision_status": provision_status}
         if ln_id in self.existing_node_instances:
             ni = self.existing_node_instances[ln_id]
-            if ni.admin_status != status:
-                self.client.inventory.node_instances.update(id=ni.id, admin_status=status)
-                self.log.changed(hostname, "node_instance.admin_status", ni.admin_status, status)
+            changes = _diff(ni, body)
+            if changes:
+                self.client.inventory.node_instances.update(id=ni.id, **body)
+                for field, value in body.items():
+                    setattr(ni, field, value)
+                self.log.log_changes(hostname, "node_instance", changes)
                 return ni, True
             return ni, False
         try:
@@ -202,9 +246,7 @@ class NodeSyncer:
                 asset_ref_id=asset.id,
                 asset_ref_type="asset",
                 logical_node_id=ln_id,
-                admin_status=status,
-                # Imported devices that are already in service are brownfield.
-                provision_status="adopted" if status == "active" else "unprovisioned",
+                **body,
             )
         except ValidationError:
             # Backend create succeeds but response lacks nested asset/logical_node;
@@ -250,6 +292,7 @@ class NodeSyncer:
             else:
                 try:
                     self.client.inventory.node_instances.update(id=ni.id, admin_status="decommissioned")
+                    ni.admin_status = "decommissioned"
                     self.log.decommissioned(hostname)
                 except Exception as e:
                     self.log.error(hostname, "decommission", e)
@@ -260,9 +303,12 @@ class NodeSyncer:
     def sync_row(self, row: dict, hostname: str, serial_number: str) -> tuple[bool, bool, int]:
         cols = self.cols
         site = self._resolve_site(hostname, _str_or_none(row.get(cols.site, "")))
-        status, status_warn = _validate_status(_str_or_none(row.get(cols.status, "")))
-        if status_warn:
-            self.log.warn(hostname, status_warn)
+        admin_status, admin_warn = _validate_admin_status(_str_or_none(row.get(cols.admin_status, "")))
+        provision_status, provision_warn = _validate_provision_status(_str_or_none(row.get(cols.provision_status, "")))
+        if admin_warn:
+            self.log.warn(hostname, admin_warn)
+        if provision_warn:
+            self.log.warn(hostname, provision_warn)
         connection_type, ct_warn = _validate_connection_type(_str_or_none(row.get(cols.connection_type, "")))
         if ct_warn:
             self.log.warn(hostname, ct_warn)
@@ -285,7 +331,7 @@ class NodeSyncer:
         _, is_new, ln_changed = self._sync_logical_node(hostname, ln_body)
         asset, asset_changed = self._sync_asset(hostname, serial_number, asset_body)
         ln_id = self.existing_logical_nodes[hostname].id
-        ni, ni_changed = self._sync_node_instance(hostname, asset, ln_id, status)
+        ni, ni_changed = self._sync_node_instance(hostname, asset, ln_id, admin_status, provision_status)
 
         mgmt_changed = False
         if management_ip:
@@ -375,6 +421,7 @@ def sync_nodes(
     if errors:
         sys.exit(1)
 
+
 # Main function and CLI
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync nodes from a CSV file into ACEX")
@@ -385,17 +432,41 @@ def main() -> None:
     a = parser.add_argument_group("auth", "Service account credentials (skips browser login)")
     a.add_argument("--client-id", metavar="ID", help="OAuth2 client ID")
     a.add_argument("--client-secret", metavar="SECRET", help="OAuth2 client secret")
-    a.add_argument("--issuer-url", metavar="URL", help="Keycloak realm URL, e.g. https://kc.example.com/realms/myrealm")
-    parser.add_argument("--decommission-missing", action="store_true",
-                        help="Mark nodes in ACEX not present in the CSV as decommissioned")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Print what would be decommissioned without making any changes (requires --decommission-missing)")
+    a.add_argument(
+        "--issuer-url",
+        metavar="URL",
+        help="Keycloak realm URL, e.g. https://kc.example.com/realms/myrealm",
+    )
+    parser.add_argument(
+        "--decommission-missing",
+        action="store_true",
+        help="Mark nodes in ACEX not present in the CSV as decommissioned",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print what would be decommissioned without making any changes (requires --decommission-missing)",
+    )
 
     s = parser.add_argument_group("site join", "Resolve site name via a second CSV (optional)")
     s.add_argument("--sites-csv", metavar="PATH", help="Sites CSV used to resolve site names")
-    s.add_argument("--sites-delimiter", metavar="DELIM", help="Delimiter for sites CSV (default: same as --delimiter)")
-    s.add_argument("--sites-col-key", default="id", metavar="COL", help="Column in sites CSV to join on (default: id)")
-    s.add_argument("--sites-col-name", default="id", metavar="COL", help="Column in sites CSV that contains the ACEX site name (default: id)")
+    s.add_argument(
+        "--sites-delimiter",
+        metavar="DELIM",
+        help="Delimiter for sites CSV (default: same as --delimiter)",
+    )
+    s.add_argument(
+        "--sites-col-key",
+        default="id",
+        metavar="COL",
+        help="Column in sites CSV to join on (default: id)",
+    )
+    s.add_argument(
+        "--sites-col-name",
+        default="id",
+        metavar="COL",
+        help="Column in sites CSV that contains the ACEX site name (default: id)",
+    )
 
     g = parser.add_argument_group("column mapping", "Override CSV column names")
     g.add_argument("--col-hostname", default="hostname", metavar="COL")
@@ -408,7 +479,8 @@ def main() -> None:
     g.add_argument("--col-os-version", default="os_version", metavar="COL")
     g.add_argument("--col-hardware-model", default="hardware_model", metavar="COL")
     g.add_argument("--col-ned-id", default="ned_id", metavar="COL")
-    g.add_argument("--col-status", default="status", metavar="COL")
+    g.add_argument("--col-admin-status", default="admin_status", metavar="COL")
+    g.add_argument("--col-provision-status", default="provision_status", metavar="COL")
     g.add_argument("--col-management-ip", default="management_ip", metavar="COL")
     g.add_argument("--col-connection-type", default="connection_type", metavar="COL")
 
@@ -431,7 +503,8 @@ def main() -> None:
             os_version=args.col_os_version,
             hardware_model=args.col_hardware_model,
             ned_id=args.col_ned_id,
-            status=args.col_status,
+            admin_status=args.col_admin_status,
+            provision_status=args.col_provision_status,
             management_ip=args.col_management_ip,
             connection_type=args.col_connection_type,
         ),

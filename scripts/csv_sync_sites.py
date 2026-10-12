@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pycountry
 from acex_client import Acex
-from acex_client.auth import ClientCredentialsAuth, NullAuthProvider
+from acex_client.auth import ClientCredentialsAuth
 
 
 @dataclass
@@ -35,13 +35,26 @@ def _str_or_none(value: str) -> str | None:
 
 
 _CONTINENT_ALIASES: dict[str, str] = {
-    "AFRICA": "Africa", "AF": "Africa", "AFR": "Africa",
-    "ANTARCTICA": "Antarctica", "AN": "Antarctica", "ANT": "Antarctica",
-    "ASIA": "Asia", "AS": "Asia",
-    "EUROPE": "Europe", "EU": "Europe", "EUR": "Europe",
-    "NORTH AMERICA": "North America", "NA": "North America", "NAM": "North America",
-    "OCEANIA": "Oceania", "OC": "Oceania", "OCE": "Oceania",
-    "SOUTH AMERICA": "South America", "SA": "South America", "SAM": "South America",
+    "AFRICA": "Africa",
+    "AF": "Africa",
+    "AFR": "Africa",
+    "ANTARCTICA": "Antarctica",
+    "AN": "Antarctica",
+    "ANT": "Antarctica",
+    "ASIA": "Asia",
+    "AS": "Asia",
+    "EUROPE": "Europe",
+    "EU": "Europe",
+    "EUR": "Europe",
+    "NORTH AMERICA": "North America",
+    "NA": "North America",
+    "NAM": "North America",
+    "OCEANIA": "Oceania",
+    "OC": "Oceania",
+    "OCE": "Oceania",
+    "SOUTH AMERICA": "South America",
+    "SA": "South America",
+    "SAM": "South America",
 }
 
 
@@ -75,7 +88,15 @@ def _display_name(row: dict, cols: ColumnMap) -> str | None:
     return city or site_type or None
 
 
-_SYNCABLE_FIELDS = ("display_name", "address", "city", "country", "latitude", "longitude", "description")
+_SYNCABLE_FIELDS = (
+    "display_name",
+    "address",
+    "city",
+    "country",
+    "latitude",
+    "longitude",
+    "description",
+)
 
 
 def _site_body(row: dict, cols: ColumnMap) -> dict:
@@ -139,8 +160,7 @@ class SiteSyncer:
     def prefetch(self) -> None:
         self.existing_sites = {s.name: s for s in self.client.inventory.sites.query(limit=10000).items}
         self.existing_assignments = {
-            (a.region_name, a.site_name)
-            for a in self.client.inventory.region_assignments.query(limit=10000).items
+            (a.region_name, a.site_name) for a in self.client.inventory.region_assignments.query(limit=10000).items
         }
         print(f"Found {len(self.existing_sites)} existing sites in ACEX\n")
 
@@ -160,7 +180,10 @@ class SiteSyncer:
                 unrecognized.add(raw)
 
         for value in sorted(unrecognized):
-            self.log.warn(f"continent '{value}'", "unrecognized — skipping region and assignment for affected sites")
+            self.log.warn(
+                f"continent '{value}'",
+                "unrecognized — skipping region and assignment for affected sites",
+            )
 
         for continent in sorted(continents):
             if continent in existing:
@@ -300,18 +323,42 @@ def main() -> None:
     a = parser.add_argument_group("auth", "Service account credentials (skips browser login)")
     a.add_argument("--client-id", metavar="ID", help="OAuth2 client ID")
     a.add_argument("--client-secret", metavar="SECRET", help="OAuth2 client secret")
-    a.add_argument("--issuer-url", metavar="URL", help="Keycloak realm URL, e.g. https://kc.example.com/realms/myrealm")
+    a.add_argument(
+        "--issuer-url",
+        metavar="URL",
+        help="Keycloak realm URL, e.g. https://kc.example.com/realms/myrealm",
+    )
 
     g = parser.add_argument_group("column mapping", "Override CSV column names (defaults match Enet export)")
-    g.add_argument("--col-id", default="id", metavar="COL", help="Site identifier column (default: id)")
-    g.add_argument("--col-type", default="type", metavar="COL", help="Site type column, used in display name (default: type)")
+    g.add_argument(
+        "--col-id",
+        default="id",
+        metavar="COL",
+        help="Site identifier column (default: id)",
+    )
+    g.add_argument(
+        "--col-type",
+        default="type",
+        metavar="COL",
+        help="Site type column, used in display name (default: type)",
+    )
     g.add_argument("--col-address", default="address", metavar="COL")
     g.add_argument("--col-city", default="city", metavar="COL")
     g.add_argument("--col-country", default="country", metavar="COL")
     g.add_argument("--col-latitude", default="latitude", metavar="COL")
     g.add_argument("--col-longitude", default="longitude", metavar="COL")
-    g.add_argument("--col-description", default="description", metavar="COL", help="Description column (default: description)")
-    g.add_argument("--col-continent", default="continent", metavar="COL", help="Continent/region column (default: continent)")
+    g.add_argument(
+        "--col-description",
+        default="description",
+        metavar="COL",
+        help="Description column (default: description)",
+    )
+    g.add_argument(
+        "--col-continent",
+        default="continent",
+        metavar="COL",
+        help="Continent/region column (default: continent)",
+    )
 
     args = parser.parse_args()
 
@@ -328,7 +375,10 @@ def main() -> None:
     )
 
     sync_sites(
-        args.csv, args.base_url, args.delimiter, cols,
+        args.csv,
+        args.base_url,
+        args.delimiter,
+        cols,
         client_id=args.client_id,
         client_secret=args.client_secret,
         issuer_url=args.issuer_url,
