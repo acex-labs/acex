@@ -1,5 +1,6 @@
 """A device that fetches its ZTP bootstrap gets a discovery job, and gets its
-bootstrap whether or not that job could be queued."""
+bootstrap whether or not that job could be queued — as long as the method has
+a bootstrap login for discovery to use."""
 
 from types import SimpleNamespace
 
@@ -7,6 +8,8 @@ import pytest
 from acex.api.routers.ztp import create_router
 from acex.jobs import JobManager
 from acex.models.job import Job, JobState
+from acex.ztp import ZtpMethodManager
+from acex_devkit.models.ztp import ZtpMethod, ZtpMethodUpdate
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -43,9 +46,17 @@ def db():
     return _Db()
 
 
-def _fetch_bootstrap(db, producer):
+def _fetch_bootstrap(db, producer, login=("acex-ztp", "Temp123")):
+    methods = ZtpMethodManager(db, neds=set)
+    if login:
+        username, password = login
+        methods.update(
+            ZtpMethod.cisco_iosxe_python,
+            ZtpMethodUpdate(bootstrap_username=username, bootstrap_password=password),
+            updated_by="alice",
+        )
     app = FastAPI()
-    app.include_router(create_router(SimpleNamespace(jobs=JobManager(db, producer))))
+    app.include_router(create_router(SimpleNamespace(jobs=JobManager(db, producer), ztp_methods=methods)))
     return TestClient(app, client=(DEVICE_IP, 50000)).get(BOOTSTRAP)
 
 
@@ -79,3 +90,22 @@ class TestBootstrapFetch:
         assert response.status_code == 200
         [job] = _jobs(db)
         assert job.state == JobState.failed
+
+
+class TestBootstrapLogin:
+    def should_give_the_device_the_methods_login(self, db):
+        response = _fetch_bootstrap(db, _Producer())
+
+        assert "'username acex-ztp privilege 15 secret 0 Temp123'," in response.text
+
+    def should_keep_a_login_from_breaking_out_of_the_script(self, db):
+        response = _fetch_bootstrap(db, _Producer(), login=("acex", "x',\nimport os #"))
+
+        compile(response.text, "ztp.py", "exec")
+        assert "\nimport os" not in response.text
+
+    def should_refuse_the_bootstrap_without_a_login(self, db):
+        response = _fetch_bootstrap(db, _Producer(), login=None)
+
+        assert response.status_code == 503
+        assert _jobs(db) == []

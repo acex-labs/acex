@@ -1,9 +1,11 @@
 """Mock IOS XE SSH server — responds to Scrapli's command set with static configs."""
 
 import asyncio
+import hashlib
 import logging
 import os
 import pathlib
+import time
 
 import asyncssh
 
@@ -15,9 +17,21 @@ SSH_PORT = int(os.environ.get("SSH_PORT", "22"))
 USERNAME = os.environ.get("SSH_USERNAME", "admin")
 PASSWORD = os.environ.get("SSH_PASSWORD", "admin")
 
+# Derived from hostname so every mock container gets a stable, unique identity
+_HOST_HASH = hashlib.sha256(HOSTNAME.encode()).hexdigest().upper()
+
+OS_NAME = os.environ.get("MOCK_OS", "IOS XE")
+OS_VERSION = os.environ.get("MOCK_OS_VERSION", "17.09.04a")
+MODEL = os.environ.get("MOCK_MODEL", "C9300-48P")
+SERIAL = os.environ.get("MOCK_SERIAL", f"FOC{int(_HOST_HASH[:8], 16) % 10000:04d}{_HOST_HASH[8:12]}")
+BASE_MAC = "70:18:a7:" + ":".join(_HOST_HASH[i : i + 2].lower() for i in (12, 14)) + ":00"
+START_TIME = time.monotonic()
+
 CONFIG_DIR = pathlib.Path("/configs")
 CONFIG_FILE = CONFIG_DIR / f"{HOSTNAME}.txt"
 FALLBACK_CONFIG = CONFIG_DIR / "default.txt"
+
+SHOW_VERSION_TEMPLATE = (pathlib.Path(__file__).parent / "show_version.txt").read_text()
 
 
 def _load_config() -> str:
@@ -32,13 +46,53 @@ CDP_EMPTY = "% CDP is not enabled"
 PROMPT = f"\n{HOSTNAME}#"
 
 
+def _short_version(version: str) -> str:
+    """17.09.04a -> 17.9.4a, as printed on the IOS Software line."""
+    return ".".join(part.lstrip("0") or "0" for part in version.split("."))
+
+
+def _uptime() -> str:
+    remaining = int(time.monotonic() - START_TIME) // 60
+    parts = []
+    for unit, size in (("week", 7 * 24 * 60), ("day", 24 * 60), ("hour", 60), ("minute", 1)):
+        value, remaining = divmod(remaining, size)
+        if value:
+            parts.append(f"{value} {unit}{'s' if value != 1 else ''}")
+    return ", ".join(parts) or "0 minutes"
+
+
+def _show_version() -> str:
+    uptime = _uptime()
+    return SHOW_VERSION_TEMPLATE.format(
+        OS_NAME=OS_NAME,
+        OS_VERSION=OS_VERSION,
+        SHORT_VERSION=_short_version(OS_VERSION),
+        HOSTNAME=HOSTNAME,
+        UPTIME=uptime,
+        MODEL=MODEL,
+        SERIAL=SERIAL,
+        BASE_MAC=BASE_MAC,
+    )
+
+
+def _is_show_version(cmd: str) -> bool:
+    words = cmd.split()
+    return (
+        len(words) == 2
+        and len(words[0]) >= 2
+        and "show".startswith(words[0])
+        and len(words[1]) >= 3
+        and "version".startswith(words[1])
+    )
+
+
 def _handle(cmd: str) -> str:
     cmd = cmd.strip()
     log.info(f"CMD: {cmd!r}")
     if not cmd or cmd.startswith("terminal"):
         return PROMPT
-    elif cmd == "show running-config":
-        return _load_config().rstrip("\n") + PROMPT
+    elif _is_show_version(cmd):
+        return _show_version().rstrip("\n") + PROMPT
     elif "lldp neighbors" in cmd:
         return LLDP_EMPTY + PROMPT
     elif "cdp neighbors" in cmd:
@@ -47,7 +101,79 @@ def _handle(cmd: str) -> str:
         return PROMPT
 
 
+class CliSession:
+    """One SSH session's CLI mode: exec, global configuration, or a configuration submode.
+
+    What is entered in configuration mode is kept for the device's lifetime and
+    shows in `show running-config`, so a push can be checked afterwards.
+    """
+
+    #: Lines entered in configuration mode since the device started, shared by all sessions.
+    pushed: list[str] = []
+
+    #: Commands that enter a configuration submode, by their first word, and the submode's prompt.
+    SUBMODES = {"interface": "config-if", "line": "config-line", "router": "config-router", "vlan": "config-vlan"}
+
+    def __init__(self):
+        #: None in exec mode, otherwise the mode shown in the prompt, e.g. "config" or "config-if".
+        self.mode: str | None = None
+
+    @property
+    def prompt(self) -> str:
+        return f"\n{HOSTNAME}({self.mode})#" if self.mode else PROMPT
+
+    def handle(self, cmd: str) -> str:
+        line = cmd.strip()
+        if self.mode is None:
+            return self._exec(line, cmd)
+        return self._configure(line)
+
+    def _exec(self, line: str, cmd: str) -> str:
+        words = line.split()
+        if len(words) >= 1 and words[0].startswith("conf") and "configure".startswith(words[0]):
+            log.info(f"CMD: {line!r}")
+            self.mode = "config"
+            return "Enter configuration commands, one per line.  End with CNTL/Z." + self.prompt
+        if line in ("write memory", "wr", "copy running-config startup-config"):
+            log.info(f"CMD: {line!r}")
+            return "Building configuration...\n[OK]" + self.prompt
+        if line == "show running-config":
+            log.info(f"CMD: {line!r}")
+            return self.running_config().rstrip("\n") + self.prompt
+        return _handle(cmd)
+
+    def _configure(self, line: str) -> str:
+        if not line:
+            return self.prompt
+        if line == "end":
+            self.mode = None
+            return self.prompt
+        if line == "exit":
+            self.mode = None if self.mode == "config" else "config"
+            return self.prompt
+        log.info(f"CONFIG ({self.mode}): {line!r}")
+        submode = self.SUBMODES.get(line.split()[0])
+        if submode is not None:
+            self.mode = submode
+            self.pushed.append(line)
+        else:
+            # Lines arrive without their indentation; indent those entered in a submode.
+            self.pushed.append(f" {line}" if self.mode != "config" else line)
+        return self.prompt
+
+    @classmethod
+    def running_config(cls) -> str:
+        """The configuration file, with what has been entered since appended."""
+        base = _load_config().rstrip()
+        if not cls.pushed:
+            return base + "\n"
+        if base.endswith("end"):
+            base = base[: -len("end")].rstrip()
+        return "\n".join([base, "!", *cls.pushed, "!", "end"]) + "\n"
+
+
 async def handle_client(process: asyncssh.SSHServerProcess):
+    session = CliSession()
     process.stdout.write(PROMPT)
     await process.stdout.drain()
 
@@ -59,7 +185,7 @@ async def handle_client(process: asyncssh.SSHServerProcess):
                 if sep in buf:
                     line, buf = buf.split(sep, 1)
                     break
-            response = _handle(line)
+            response = session.handle(line)
             process.stdout.write(response)
             await process.stdout.drain()
 

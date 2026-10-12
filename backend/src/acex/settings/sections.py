@@ -122,3 +122,12 @@ class RabbitMQSettings(Section, name="rabbitmq"):
                 credentials += ":" + quote(self.password.get_secret_value(), safe="")
             credentials += "@"
         return f"amqp://{credentials}{self.host}:{self.port}/{quote(self.vhost, safe='')}"
+
+
+class ZtpSettings(Section, name="ztp"):
+    """Zero touch provisioning."""
+
+    #: A provisioning job queued longer than this is taken as lost: no worker picked it up.
+    provision_queue_timeout_minutes: int = 10
+    #: A provisioning job running longer than this is taken as lost: its worker stopped reporting.
+    provision_run_timeout_minutes: int = 30

@@ -6,7 +6,7 @@ import json
 
 import pytest
 import respx
-from acex_worker.main import JOB_TYPES, StartupError, start
+from acex_worker.main import JOB_TYPES, StartupError, connect_client, start
 from httpx import Response
 
 BASE = "http://test"
@@ -30,7 +30,7 @@ def test_start_asks_for_the_queues_of_its_job_types():
     respx.get(f"{API}/auth/config").mock(return_value=Response(200, json={"enabled": False}))
     route = respx.post(f"{API}/workers/connect").mock(return_value=Response(200, json=CONNECTION))
 
-    connection = start()
+    connection = start(connect_client())
 
     assert json.loads(route.calls[0].request.content) == {"job_types": JOB_TYPES}
     assert connection.broker.host == "rabbitmq"
@@ -49,7 +49,7 @@ def test_start_logs_in_with_client_credentials(monkeypatch):
     respx.post("http://idp/token").mock(return_value=Response(200, json={"access_token": "tok", "expires_in": 300}))
     route = respx.post(f"{API}/workers/connect").mock(return_value=Response(200, json=CONNECTION))
 
-    start()
+    start(connect_client())
 
     assert route.calls[0].request.headers["Authorization"] == "Bearer tok"
 
@@ -67,6 +67,6 @@ def test_start_refuses_browser_login_without_a_secret():
     connect = respx.post(f"{API}/workers/connect")
 
     with pytest.raises(StartupError, match="ACEX_CLIENT_SECRET"):
-        start()
+        start(connect_client())
 
     assert not connect.called

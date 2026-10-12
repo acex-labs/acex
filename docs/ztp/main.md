@@ -25,9 +25,9 @@ sequenceDiagram
     WK->>BE: Fetch job
     WK->>SW: Log in, collect facts
     WK->>BE: Report discovery
-    BE->>BE: Store ztp_discovery, match serial to a claimed node
-    AD->>BE: Review discovery, approve or reject
-    BE->>MQ: Provision (on approval)
+    BE->>BE: Store ztp_discovery (evidence)
+    AD->>BE: Approve identity: asset created or updated
+    AD->>BE: Provision node (separate step)
 ```
 
 ### ZTP methods
@@ -64,42 +64,56 @@ The message is published when the init config is fetched, before the device has 
 
 It reports the facts back to the backend, which stores them as a row in `ztp_discovery`. Discovery does not create or change assets or nodes; the row is evidence waiting for review. If the worker cannot log in or collect facts before the timeout, the job fails and no row is written.
 
-### 4. Matching
+### 4. Approval
 
-The backend looks for an asset with the reported serial number that is bound to a node in `awaiting_device`. If it finds one, it links the discovery to that node and moves the node to `awaiting_approval`.
+An administrator reviews each discovery and decides whether to trust the device's identity. The worker logged in at the source IP, so the reported serial number and facts come from the device at that address; the administrator judges whether that IP is where the expected device should be.
 
-### 5. Approval
+Approval is about identity only. It never changes a node's status and never pushes configuration.
 
-An administrator reviews the discovery before anything else happens. The review shows, side by side:
+The IP the device was reached at is how ACE-X talks to it, so it becomes a management connection of the asset's node: when a discovery of an asset already bound to a node is approved, or when an asset with an approved discovery is claimed (enrolled). It is added beside any connections the node already has, as primary only if the node has none, and not again if the node already has one to that IP.
 
-- the serial number the node expects (from its claimed asset) and the serial number the device reported
-- the source IP that fetched the init config
-- the reported hardware model, OS and OS version, compared with the asset
-- when the discovery happened, with a link to its job
-- conflicts: the same serial reported from more than one IP, the same IP previously reporting a different serial, or facts that do not match the asset
+- **Approve:** the asset with the reported serial number is created if none exists (vendor, hardware model, OS, OS version, and the NED chosen for the method), or updated with the hardware model, OS and OS version that differ. The discovery records the asset it was approved as, and other unreviewed discoveries of the same serial are rejected.
+- **Reject:** the discovery is marked rejected. Nothing else changes.
 
-Approval is always required. Claiming an asset never counts as approving it.
+What approval would do is shown before it happens. Every unreviewed discovery carries a `proposal`, computed by the same code that approves it:
 
-- **Approve:** the discovery is marked approved, its source IP becomes the node's management connection for provisioning, and the node moves to `provisioning`.
-- **Reject:** the discovery is marked rejected and the node goes back to `awaiting_device`, waiting for the right device to show up.
+| `action` | Meaning |
+|---|---|
+| `create` | No asset has the serial; `asset` is what will be created |
+| `update` | The asset exists; `changes` lists each field's current and reported value |
+| `unchanged` | The asset already matches |
+| `blocked` | It cannot be approved; `blocked_by` says why: an unknown vendor or OS, a missing fact, an OS version its scheme rejects, a vendor that differs from the asset's, or several assets with the serial |
+
+The proposal has a `hash`. Approve sends it back, and is refused if the proposal has changed since it was shown.
+
+Conflicts are shown alongside: the same serial reported from another IP, the same IP previously reporting another serial (both identity conflicts), and a serial that belongs to a provisioned node, which may have been reset.
+
+### 5. Bulk approval
+
+Many devices can be discovered and approved without being bound to a node. A bulk approval first runs as a dry run, which goes through exactly the same steps and rolls back, and answers per discovery with its proposal or the reason it would be skipped. Discoveries with a blocked proposal, an identity conflict or a changed proposal are skipped; one with an identity conflict can still be approved on its own.
 
 ### 6. Provisioning
 
-To be defined. Full configuration is compiled, pushed over SSH and verified; the node ends in `provisioned` or `failed`.
+An administrator starts it on a `ready` node; approval never does. That queues an `acex.ztp.provision` job with the node id and moves the node to `provisioning`. What the worker does is still to be defined: full configuration is compiled, pushed over SSH and verified, and the node ends in `provisioned` or `failed`.
 
 ## Node provision status
 
-`provision_status` on the node tracks where its device is in this flow. Steps that happen before ACE-X knows which node a device belongs to (init and discovery) are tracked on the job, not on the node.
+`provision_status` on the node says whether it is in ZTP and, once provisioning starts, how far it has come. Steps that happen before ACE-X knows which node a device belongs to (init and discovery) are tracked on the job and the discovery, not on the node.
 
 | Status | Kind | Meaning |
 |---|---|---|
-| `unprovisioned` | steady | Bound to an asset, no provisioning requested |
+| `unprovisioned` | steady | Bound to an asset, not in ZTP |
 | `adopted` | steady | Brownfield: already running when brought under management |
-| `awaiting_device` | in flight | Claimed; waiting for the device to be discovered |
-| `awaiting_approval` | in flight | A discovery matched this node; waiting for an administrator |
-| `provisioning` | in flight | Approved; full config being pushed and verified |
+| `enrolled` | in ZTP | Waiting for its device to be discovered, approved and provisioned |
+| `provisioning` | in ZTP | Full config being pushed and verified |
 | `provisioned` | steady | Provisioned by ACE-X and verified |
-| `failed` | stuck | Until retried or cancelled; the reason is on the job |
+| `failed` | in ZTP | Until retried or cancelled; the reason is on the job |
+
+Claiming an asset enrolls its node. A node can also be enrolled on its own, from `unprovisioned`, `adopted` or `provisioned` (to provision it again from scratch). The status it had is kept in `ztp_previous_status`.
+
+ZTP can always be cancelled. The node returns to `ztp_previous_status`, and any queued provisioning job is cancelled. If a provisioning job was running, the job is cancelled and the node is left `failed` instead, since a worker may have started configuring the device; cancelling again takes it out. A worker still running a cancelled job gets 409 when it reports, so it cannot move the node afterwards, though it may already have pushed configuration.
+
+A provisioning node is **stalled** when nothing is moving it forward: it has no provisioning job, its latest job is not queued or running, its job has been queued longer than `ACEX_ZTP_PROVISION_QUEUE_TIMEOUT_MINUTES` (default 10), or running longer than `ACEX_ZTP_PROVISION_RUN_TIMEOUT_MINUTES` (default 30). It can be stepped back to `enrolled` (usually ready again) or cancelled.
 
 ## The `ztp_discovery` table
 
@@ -113,7 +127,7 @@ One row per discovery the worker reports.
 | `method` | ZTP method used, e.g. `cisco-iosxe-python` |
 | `serial_number` | Serial number as reported by the device |
 | `vendor`, `hardware_model`, `os`, `os_version` | Facts collected by the worker |
-| `node_id` | Node it was matched to, if any |
+| `asset_id` | The asset it was approved as |
 | `review_status` | `unreviewed`, `approved` or `rejected` |
 | `reviewed_by`, `reviewed_at` | Who reviewed it and when |
 | `created_at` | When the discovery was reported |
@@ -137,12 +151,38 @@ Reviews live under `/api/v1/ztp_discoveries`, which requires a token. They are d
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/ztp_discoveries` | List discoveries, newest first. Filters: `review_status`, `node_id`, `serial_number`, `source_ip` |
-| `GET` | `/ztp_discoveries/{id}` | One discovery, with `expected` (the claimed asset) and `conflicts` |
-| `POST` | `/ztp_discoveries/{id}/approve` | Approve; other unreviewed discoveries for the same node are rejected |
-| `POST` | `/ztp_discoveries/{id}/reject` | Reject; the node goes back to `awaiting_device` unless another discovery awaits review |
+| `GET` | `/ztp_discoveries` | List discoveries, newest first, with `conflicts` and (unreviewed) `proposal`. Filters: `review_status`, `asset_id`, `serial_number`, `source_ip` |
+| `GET` | `/ztp_discoveries/{id}` | One discovery |
+| `POST` | `/ztp_discoveries/{id}/approve` | Approve as proposed. Body `{"proposal_hash": ...}`, optional; 409 if it no longer matches or the proposal is blocked |
+| `POST` | `/ztp_discoveries/{id}/reject` | Reject |
+| `POST` | `/ztp_discoveries/approve` | Bulk: `{"items": [{"discovery_id", "proposal_hash"}], "dry_run": bool}`; per-item `outcome` and a `summary` |
+| `POST` | `/ztp_discoveries/reject` | Bulk: `{"discovery_ids": [...]}` |
 
-Approving or rejecting a discovery that is already reviewed, or approving one whose node is not in `awaiting_approval`, answers 409.
+Reviewing a discovery that is already reviewed answers 409.
+
+## Pipeline API
+
+Where each node stands in ZTP, and taking it in or out. An enrolled node's stage comes from its asset: `awaiting_device` (no discovery of the serial, or only rejected ones), `awaiting_approval` (the latest discovery is unreviewed) or `ready` (the latest is approved). Otherwise the stage is the node's `provision_status`.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/ztp_nodes` | Nodes in ZTP, stalled and failed first. Filters: `stage` (any stage), `stalled` |
+| `GET` | `/ztp_nodes/summary` | Every node counted once per stage, how many are `stalled`, and `pool`: approved assets bound to no node |
+| `GET` | `/ztp_nodes/{node_id}` | One node with its asset, readiness, the approved IP, the discoveries of its serial and its `acex.ztp.provision` jobs |
+| `POST` | `/ztp_nodes/{node_id}/enroll` | Take the node into ZTP; 409 if it is already in ZTP or bound to an asset cluster |
+| `POST` | `/ztp_nodes/{node_id}/provision` | Start provisioning a `ready` node: an `acex.ztp.provision` job (`{"node_id"}`) is queued on `acex.ztp` and the node is `provisioning`; 409 if it is not ready, 503/502 without a broker (the node stays ready) |
+| `POST` | `/ztp_nodes/{node_id}/cancel` | Take the node out of ZTP (see above); 409 if it is not in ZTP |
+| `POST` | `/ztp_nodes/{node_id}/reset` | Step a provisioning or failed node back to `enrolled`, cancelling any provisioning job |
+
+## Methods API
+
+The methods are code, but each has a row in `ztp_method` with what an administrator has chosen for it: the NED that discovery uses. The worker looks it up for the job's method; with no NED chosen, the discovery job fails. A NED the worker does not have yet is installed from the backend first. Like reviews, this requires a token and is not under `/api/v1/ztp`.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/ztp_methods` | Every method, with its chosen NED |
+| `GET` | `/ztp_methods/{method}` | One method |
+| `PUT` | `/ztp_methods/{method}` | Choose the NED (`{"ned": "..."}`, or `null` to clear); 422 if the NED is not installed in the backend |
 
 ## Open questions
 

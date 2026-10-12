@@ -20,6 +20,7 @@ Namespaces:
                               does not mount ai_ops
     client.system            — auth_config, health_node, health_site
     client.workers           — connect, job_types, jobs (query, get, claim, succeed, fail)
+    client.ztp_methods       — query, get, update (the NED and bootstrap login of each ZTP method)
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from acex_client.resources.observability import ObservabilityNamespace
 from acex_client.resources.operations import OperationsNamespace
 from acex_client.resources.system import SystemNamespace
 from acex_client.resources.workers import Workers
+from acex_client.resources.ztp_methods import ZtpMethods
 
 
 class Acex:
@@ -65,6 +67,7 @@ class Acex:
         self.neds = Neds(self.rest)
         self.system = SystemNamespace(self.rest)
         self.workers = Workers(self.rest)
+        self.ztp_methods = ZtpMethods(self.rest)
 
         # AI is optional — HEAD-probe /ai_ops/ai/ask/. If the backend doesn't
         # mount ai_ops, set self.ai to None so callers can `if client.ai:`.

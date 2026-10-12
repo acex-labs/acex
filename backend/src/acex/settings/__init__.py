@@ -38,6 +38,7 @@ from acex.settings.sections import (
     RabbitMQSettings,
     ServerSettings,
     VaultSettings,
+    ZtpSettings,
 )
 from acex.settings.settings import Settings, UnsafeConfiguration
 
@@ -62,4 +63,5 @@ __all__ = [
     "SlackBugReportSettings",
     "UnsafeConfiguration",
     "VaultSettings",
+    "ZtpSettings",
 ]

@@ -1,41 +1,29 @@
-import os
-import zipfile
 from importlib.metadata import entry_points
 from pathlib import Path
 
-from acex.constants import NED_WHEEL_DIR  # , DEFAULT_DRIVERS
 from acex.plugins.neds.core import NetworkElementDriver
+
+from .wheels import built_wheels
 
 
 class NEDManager:
     def __init__(self):
-
-        self.driver_dir = Path.cwd() / NED_WHEEL_DIR
-        self.driver_dir.mkdir(parents=True, exist_ok=True)
         self.drivers: dict[str, list[NetworkElementDriver]] = {}
 
-        self._build_wheels()
-
-    def _driver_download_path(self, driver_name: str) -> NetworkElementDriver:
-        """Returnera sökvägen till .whl-filen för en installerad drivrutin."""
-        ned = self.drivers.get(driver_name)
-        if ned is None:
-            return None
-
-        version = ned.get("version")
-        package_name = ned.get("package_name")
-        pattern = f"{package_name.replace('-', '_')}-{version}-*.whl"
-        matches = list(self.driver_dir.glob(pattern))
-
-        if not matches:
-            return None
-        return str(matches[0])
+    def wheel_path(self, filename: str) -> Path | None:
+        """The wheel served under `filename`, if it is one the backend built."""
+        for path in built_wheels().values():
+            if path.name == filename:
+                return path
+        return None
 
     def _driver_filename(self, driver_name):
         """Returnera bara filnamnet på driverns whl"""
-        full_path = self._driver_download_path(driver_name)
-        filename = full_path.split("/")[-1]
-        return filename
+        ned = self.drivers.get(driver_name)
+        if ned is None:
+            return None
+        path = built_wheels().get(ned["package_name"])
+        return path.name if path else None
 
     def load_drivers(self):
         """Ladda externa drivrutiner via entry_points."""
@@ -56,46 +44,6 @@ class NEDManager:
         print("Installed neds:")
         for d in self.drivers:
             print(f" - {d}")
-
-    def _build_wheels(self):
-        """
-        Build wheels for all installed drivers and store in distribution folder
-        for client downloads.
-
-        Builds wheels for all installed drivers based on entry point "acex.neds",
-        creates a new zipped whl and places in the dist-dir for wheels to be
-        served via the API.
-        """
-        whl_dir = self.driver_dir
-        for ep in entry_points(group="acex.neds"):
-            dist = ep.dist
-            name = dist.metadata["Name"].replace("-", "_")
-            version = dist.version
-            tag = "py3-none-any"
-            wheel_name = f"{name}-{version}-{tag}.whl"
-            wheel_path = Path(whl_dir) / wheel_name
-
-            if os.path.exists(wheel_path):
-                ...
-            else:
-                with zipfile.ZipFile(wheel_path, "w") as z:
-                    root = dist.locate_file("")
-                    # Lägg till alla paketfiler
-                    for file in dist.files:
-                        src = root / file
-                        if src.is_file():
-                            print(file)
-                            z.write(src, file)
-                    # Lägg till .dist-info-mappen och dess innehåll
-                    dist_info_dirs = [f for f in dist.files if f.parts[-1].endswith(".dist-info")]
-                    for dist_info in dist_info_dirs:
-                        dist_info_path = root / dist_info
-                        if dist_info_path.is_dir():
-                            for dirpath, _dirnames, filenames in os.walk(dist_info_path):
-                                for filename in filenames:
-                                    file_path = Path(dirpath) / filename
-                                    arcname = file_path.relative_to(root)
-                                    z.write(file_path, arcname)
 
     def get_driver_instance(self, driver_name: str):
         """

@@ -8,8 +8,9 @@ from sqlmodel import Field, SQLModel
 class ZtpDiscovery(SQLModel, table=True):
     """Evidence from one ZTP discovery: the device at `source_ip` says it is `serial_number`.
 
-    Discovery never changes assets or nodes; an administrator approves or rejects
-    what is recorded here first.
+    Discovery never changes assets or nodes. Approving it trusts the device's
+    identity: the asset with its serial is created or updated. Nodes are never
+    touched; provisioning is a step of its own.
     """
 
     __tablename__ = "ztp_discovery"
@@ -26,9 +27,10 @@ class ZtpDiscovery(SQLModel, table=True):
     hardware_model: str | None = None
     os: str | None = None
     os_version: str | None = None
-    node_id: int | None = Field(
+    #: The asset the discovery was approved as.
+    asset_id: int | None = Field(
         default=None,
-        sa_column=Column(Integer, ForeignKey("node.id", ondelete="SET NULL"), nullable=True, index=True),
+        sa_column=Column(Integer, ForeignKey("asset.id", ondelete="SET NULL"), nullable=True, index=True),
     )
     # A plain string rather than a database enum, so a new review status needs no migration.
     review_status: ZtpReviewStatus = Field(

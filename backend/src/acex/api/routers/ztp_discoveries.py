@@ -2,8 +2,15 @@ from acex.api import auth as _auth
 from acex.constants import BASE_URL
 from acex.ztp import ReviewConflict, ZtpDiscoveryNotFound
 from acex_devkit.models.pagination import PaginatedResponse
-from acex_devkit.models.ztp import ZtpDiscoveryResponse, ZtpReviewStatus
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from acex_devkit.models.ztp import (
+    ZtpApproveRequest,
+    ZtpBulkApprove,
+    ZtpBulkReject,
+    ZtpBulkResult,
+    ZtpDiscoveryResponse,
+    ZtpReviewStatus,
+)
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 
 def _reviewer(user: dict) -> str:
@@ -20,7 +27,7 @@ def create_router(automation_engine):
     @router.get("", response_model=PaginatedResponse[ZtpDiscoveryResponse])
     def list_discoveries(
         review_status: ZtpReviewStatus | None = None,
-        node_id: int | None = None,
+        asset_id: int | None = None,
         serial_number: str | None = None,
         source_ip: str | None = None,
         limit: int = Query(default=100, ge=1, le=1000),
@@ -28,12 +35,24 @@ def create_router(automation_engine):
     ):
         return discoveries.list_discoveries(
             review_status=review_status,
-            node_id=node_id,
+            asset_id=asset_id,
             serial_number=serial_number,
             source_ip=source_ip,
             limit=limit,
             offset=offset,
         )
+
+    @router.post("/approve", response_model=ZtpBulkResult)
+    def approve_many(body: ZtpBulkApprove, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
+        """Approve many discoveries; each one that cannot be approved is skipped with a reason.
+
+        With `dry_run`, nothing is written and the answer says what would happen.
+        """
+        return discoveries.approve_many(body.items, reviewed_by=_reviewer(user), dry_run=body.dry_run)
+
+    @router.post("/reject", response_model=ZtpBulkResult)
+    def reject_many(body: ZtpBulkReject, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
+        return discoveries.reject_many(body.discovery_ids, reviewed_by=_reviewer(user))
 
     @router.get("/{discovery_id}", response_model=ZtpDiscoveryResponse)
     def get_discovery(discovery_id: int):
@@ -43,18 +62,26 @@ def create_router(automation_engine):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     @router.post("/{discovery_id}/approve", response_model=ZtpDiscoveryResponse)
-    def approve(discovery_id: int, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
-        """Trust what the device reported: its node moves to provisioning at the reported IP."""
-        return _review(discoveries.approve, discovery_id, user)
+    def approve(
+        discovery_id: int,
+        body: ZtpApproveRequest | None = Body(default=None),  # noqa: B008
+        user: dict = Depends(_auth.get_current_user),  # noqa: B008
+    ):
+        """Trust the device's identity: the asset with its serial is created or updated as proposed.
+
+        No node changes; provisioning is a step of its own.
+        """
+        proposal_hash = body.proposal_hash if body is not None else None
+        return _review(lambda **kw: discoveries.approve(discovery_id, proposal_hash=proposal_hash, **kw), user)
 
     @router.post("/{discovery_id}/reject", response_model=ZtpDiscoveryResponse)
     def reject(discovery_id: int, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
-        """Distrust what the device reported: its node goes back to waiting for its device."""
-        return _review(discoveries.reject, discovery_id, user)
+        """Distrust what the device reported. Nothing else changes."""
+        return _review(lambda **kw: discoveries.reject(discovery_id, **kw), user)
 
-    def _review(action, discovery_id: int, user: dict) -> ZtpDiscoveryResponse:
+    def _review(action, user: dict) -> ZtpDiscoveryResponse:
         try:
-            return action(discovery_id, reviewed_by=_reviewer(user))
+            return action(reviewed_by=_reviewer(user))
         except ZtpDiscoveryNotFound as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
         except ReviewConflict as exc:
