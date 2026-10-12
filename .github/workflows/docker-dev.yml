@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        component: [backend, client, devkit, mcp]
+        component: [backend, client, devkit, mcp, worker]
         include:
           - component: backend
             working-dir: ./backend
@@ -49,6 +49,8 @@ jobs:
             working-dir: ./devkit
           - component: mcp
             working-dir: ./mcp
+          - component: worker
+            working-dir: ./worker
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -110,6 +112,8 @@ jobs:
             dockerfile: ./agents/grafana-sync/Dockerfile
           - image: acex-mcp
             dockerfile: ./mcp/Dockerfile
+          - image: acex-worker
+            dockerfile: ./worker/Dockerfile
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -167,7 +171,7 @@ jobs:
           fi
           echo "| Image | \`dev-${short}\` | Digest |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          for image in acex-backend acex-collection-agent acex-telemetry-agent acex-grafana-sync-agent acex-mcp; do
+          for image in acex-backend acex-collection-agent acex-telemetry-agent acex-grafana-sync-agent acex-mcp acex-worker; do
             # Same registry check as ci.yml's check-*-image jobs: ask GHCR whether the tag exists.
             digest=$(curl -sI -o /dev/null -w '%header{docker-content-digest}' \
               -H "Authorization: Bearer ${GITHUB_TOKEN}" \
