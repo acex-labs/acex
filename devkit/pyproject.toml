@@ -24,6 +24,13 @@ sqlmodel = ">=0.0.27"
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
 
+[tool.poetry.plugins."acex.changelog"]
+acex-devkit = "acex_devkit"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX devkit"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
