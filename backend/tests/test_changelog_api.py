@@ -234,3 +234,55 @@ class TestEndpoints:
         assert product["components"][0] == {"id": "acex", "name": "ACEX backend", "source": "self"}
         assert "releases" in product and "coming" in product
         assert body["sections"][1]["releases"][0]["entries"][0]["title"] == "Branch office template v3"
+
+
+class TestBundledComponents:
+    """Agents, the worker and the command line run as their own services and are not installed in the backend;
+    the image build puts their compiled files in a directory the backend reads."""
+
+    @pytest.fixture
+    def bundled(self, tmp_path):
+        directory = tmp_path / "changelog_components"
+        write(
+            directory / "acex-worker.json",
+            "acex-worker",
+            "ACEX worker",
+            releases=[release("0.3.0", "2026-10-14", entry("Runs ZTP discovery jobs"))],
+        )
+        write(
+            directory / "acex-cli.json",
+            "acex-cli",
+            "ACEX CLI",
+            releases=[release("4.6.0", "2026-10-12", entry("Lists jobs", "added"))],
+        )
+        return directory
+
+    def should_list_them_in_the_product_section(self, own, bundled):
+        [product] = service(own, bundled_dir=bundled).changelog().sections
+
+        assert [(c.id, c.source) for c in product.components] == [
+            ("acex", "self"),
+            ("acex-cli", "bundled"),
+            ("acex-worker", "bundled"),
+        ]
+        assert {r.component for r in product.releases} == {"acex", "acex-cli", "acex-worker"}
+
+    def should_prefer_an_installed_package_over_a_bundled_copy(self, own, package, bundled):
+        write(bundled / "example.json", "example-acex-driver", "Stale copy", releases=[release("0.1.0", "2026-01-01")])
+
+        [product] = service(own, [package], bundled_dir=bundled).changelog().sections
+
+        by_id = {c.id: c for c in product.components}
+        assert (by_id["example-acex-driver"].name, by_id["example-acex-driver"].source) == ("Example driver", "package")
+
+    def should_skip_a_bundled_file_that_cannot_be_read(self, own, bundled, caplog):
+        (bundled / "broken.json").write_text("{not json", encoding="utf-8")
+
+        [product] = service(own, bundled_dir=bundled).changelog().sections
+
+        assert {c.id for c in product.components} == {"acex", "acex-cli", "acex-worker"}
+        assert "broken.json" in caplog.text
+
+    def should_be_fine_without_the_directory(self, own, tmp_path):
+        [product] = service(own, bundled_dir=tmp_path / "missing").changelog().sections
+        assert [c.id for c in product.components] == ["acex"]

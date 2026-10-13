@@ -39,6 +39,9 @@ class SourceKind(StrEnum):
     own = "self"
     #: A Python package installed in the backend process (an `acex.changelog` entry point).
     package = "package"
+    #: A component that runs as its own service (an agent, the worker, the command line), whose
+    #: compiled file was put into the backend image when it was built.
+    bundled = "bundled"
     #: A file in ACEX_CHANGELOG_EXTRA_DIR, put there by whoever runs this deployment.
     directory = "directory"
 

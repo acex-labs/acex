@@ -1,12 +1,16 @@
 """Where release notes come from, and how they are put together.
 
-Three sources, one schema:
+Four sources, one schema:
 
 - The backend's own `changelog.json`, compiled into the package at release.
 - Any installed package that declares an `acex.changelog` entry point whose
   value is the package holding its `changelog.json`. That is how a driver, a
   first-party or a third-party one, publishes its notes without the core team
   knowing about it.
+- Compiled files in the package's `changelog_components/` directory. The image
+  build puts them there for the components that run as their own service
+  (agents, the worker, the command line) and so are not installed in the
+  backend. An installed package wins over a bundled copy of the same component.
 - JSON files in ACEX_CHANGELOG_EXTRA_DIR, in the same format plus a `section`.
   They are for one deployment only and are shown apart from the product, so a
   customer's notes never end up in the open product and vice versa.
@@ -38,6 +42,7 @@ logger = logging.getLogger("acex.changelog")
 
 CHANGELOG_GROUP = "acex.changelog"
 FILE_NAME = "changelog.json"
+BUNDLED_DIR = "changelog_components"
 
 PRODUCT = SectionInfo(id="product", name="ACEX")
 
@@ -48,12 +53,14 @@ class ChangelogService:
         *,
         package: str = "acex",
         own_file: Path | None = None,
+        bundled_dir: Path | None = None,
         extra_dir: Path | None = None,
         entry_points: Callable[..., Iterable] = entry_points,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ):
         self.package = package
         self.own_file = own_file
+        self.bundled_dir = bundled_dir
         self.extra_dir = extra_dir
         self.entry_points = entry_points
         self.now = now
@@ -62,7 +69,7 @@ class ChangelogService:
     # --- sources -------------------------------------------------------------
 
     def packaged(self) -> list[tuple[ComponentChangelog, SourceKind]]:
-        """The backend's own file and every `acex.changelog` entry point.
+        """The backend's own file, every `acex.changelog` entry point and the bundled components.
 
         Read once: installed packages do not change while the backend runs.
         """
@@ -79,6 +86,11 @@ class ChangelogService:
                     )
                     continue
                 found.extend((c, SourceKind.package) for c in _read(path))
+            bundled = self.bundled_dir or _package_dir(self.package, BUNDLED_DIR)
+            if bundled is not None and bundled.is_dir():
+                known = {c.component for c, _ in found}
+                for path in sorted(bundled.glob("*.json")):
+                    found.extend((c, SourceKind.bundled) for c in _read(path) if c.component not in known)
             self._packaged = found
         return self._packaged
 
@@ -110,7 +122,7 @@ class ChangelogService:
                 logger.warning(f"changelog for '{changelog.component}' found twice; keeping the first")
                 continue
             seen.add(changelog.component)
-            section = PRODUCT if source in (SourceKind.own, SourceKind.package) else changelog.section
+            section = PRODUCT if source != SourceKind.directory else changelog.section
             sections.setdefault(section.id, (section, []))[1].append((changelog, source))
         ordered = sorted(sections.values(), key=lambda item: (item[0].id != PRODUCT.id, item[0].name.lower()))
         return ChangelogResponse(
@@ -127,6 +139,16 @@ def _package_file(package: str) -> Path | None:
         logger.warning(f"cannot look for {FILE_NAME} in package '{package}': {exc}")
         return None
     return Path(str(path)) if path.is_file() else None
+
+
+def _package_dir(package: str, name: str) -> Path | None:
+    """A directory inside an importable package, if there is one."""
+    try:
+        path = resources.files(package) / name
+    except Exception as exc:
+        logger.warning(f"cannot look for {name} in package '{package}': {exc}")
+        return None
+    return Path(str(path)) if path.is_dir() else None
 
 
 def _read(path: Path) -> list[ComponentChangelog]:

@@ -144,6 +144,22 @@ nothing but Python) or, with the backend installed, run
 `python -m acex.changelog.tool --repo . <command>`. Keep a `changelog.d/`
 next to your `pyproject.toml` and cut releases the same way.
 
+## Components that run as their own service
+
+The command line, the MCP server, the worker and the agents are not installed
+in the backend, so the backend cannot find them through an entry point. They
+keep their notes like any other package (a `changelog.d/` beside the
+`pyproject.toml`, compiled into `changelog.json` inside the package), and
+`backend/Dockerfile` copies each compiled file into
+`acex/changelog_components/` when the image is built. The backend reads that
+directory with the others and lists them under the product, with the source
+`bundled`. A component that is also installed in the backend wins over its
+bundled copy.
+
+A new component of this kind needs one `COPY` line in `backend/Dockerfile`.
+The notes of a bundled component describe the repository state the image was
+built from, which is the release the product ships.
+
 ## A project that is not a Python package
 
 The web interface lives in its own repository and ships its notes inside its
