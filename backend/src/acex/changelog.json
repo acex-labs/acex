@@ -4,6 +4,96 @@
   "name": "ACEX backend",
   "releases": [
     {
+      "version": "6.27.0",
+      "date": "2026-10-09",
+      "entries": [
+        {
+          "id": "02-ai-ops-providers-and-chains-are-configur",
+          "kind": "changed",
+          "title": "AI Ops providers and chains are configured with ACEX_AI_OPS_* variables",
+          "description": "`ACEX_AI_PROVIDERS`, `ACEX_AI_PROVIDER_<NAME>_BASEURL/_API_KEY/...`, `ACEX_AI_CHAIN_<TASK>` and `ACEX_AI_MCP_SERVER_URL` are replaced by `ACEX_AI_OPS_PROVIDERS__<NAME>__BASE_URL/__API_KEY/...`, `ACEX_AI_OPS_CHAINS__<TASK>` and `ACEX_AI_OPS_MCP_SERVER_URL`. AI Ops is now on whenever a provider is configured, and a default chain is then required.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-bug-report-destinations-use-new-acex-bug",
+          "kind": "changed",
+          "title": "Bug report destinations use new ACEX_BUG_REPORT_* variable names",
+          "description": "The Azure DevOps, Slack and file targets for bug reports are now `ACEX_BUG_REPORT_ADO_SERVICE_PAT/_ORG/_PROJECT/_FEATURE_ID`, `ACEX_BUG_REPORT_SLACK_WEBHOOK_URL` and `ACEX_BUG_REPORT_FILE_DIR`. They replace `ADO_*`, `SLACK_BUG_REPORT_WEBHOOK` and `BUG_REPORT_FILE_DIR`, which are no longer read, so bug reports go nowhere until you rename them.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-database-oidc-server-and-vault-settings-",
+          "kind": "changed",
+          "title": "Database, OIDC, server and Vault settings use new ACEX_ variable names",
+          "description": "`DB_*`, `OIDC_*`, `VAULT_*`, `ACEX_HOST`, `ACEX_PORT`, `ACEX_RELOAD` and `ACEX_ENCRYPTION_KEY` are now `ACEX_DB_*`, `ACEX_OIDC_*`, `ACEX_CREDENTIALS_VAULT_*`, `ACEX_SERVER_HOST/PORT/RELOAD` and `ACEX_CREDENTIALS_ENCRYPTION_KEY`. The old names are no longer read and have no aliases, so rename them in your deployment before upgrading.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-extra-influxdb-outputs-and-vault-certifi",
+          "kind": "added",
+          "title": "Extra InfluxDB outputs and Vault certificate checking can be set by environment",
+          "description": "`ACEX_INFLUXDB_EXTRA_OUTPUTS` takes a JSON list of further InfluxDB outputs next to the primary one, and `ACEX_CREDENTIALS_VAULT_VERIFY` sets whether Vault's certificate is verified. Both could previously only be set in `app.py`.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-the-backend-starts-again-on-fresh-instal",
+          "kind": "fixed",
+          "title": "The backend starts again on fresh installs that pulled SQLAlchemy 2.1",
+          "description": "A fresh install could pull SQLAlchemy 2.1, which expects a PostgreSQL driver that is not installed, so the API failed at startup with \"No module named 'psycopg'\". SQLAlchemy is now limited to 2.0.x.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#313",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-configuring-the-engine-through-setter-me",
+          "kind": "deprecated",
+          "title": "Configuring the engine through setter methods is deprecated; use Settings",
+          "description": "`AutomationEngine` now takes `settings=Settings(...)`. `dev_mode=`, `set_oidc()`, `set_vault()`, `set_encryption_key()`, `add_cors_allowed_origin()`, `ai_ops()` and `set_influxdb()` still work but emit a deprecation warning.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.26.0",
       "date": "2026-10-05",
       "entries": [
