@@ -81,6 +81,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        BUILD_ID: ${BUILD_ID:-}
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -130,6 +132,8 @@ services:
     build:
       context: ${FRONTEND_PATH:-../acex-frontend}
       dockerfile: Dockerfile
+      args:
+        BUILD_ID: ${BUILD_ID:-} 
     image: acex-frontend-local
     restart: unless-stopped
     ports:

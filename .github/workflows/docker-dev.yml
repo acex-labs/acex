@@ -104,6 +104,7 @@ jobs:
         include:
           - image: acex-backend
             dockerfile: ./backend/Dockerfile
+            build_args: BUILD_ID=${{ github.sha }}
           - image: acex-collection-agent
             dockerfile: ./agents/collection-agent/Dockerfile
           - image: acex-telemetry-agent
@@ -145,6 +146,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

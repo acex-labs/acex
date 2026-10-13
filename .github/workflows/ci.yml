@@ -1069,6 +1069,7 @@ jobs:
         with:
           context: .
           file: ./backend/Dockerfile
+          build-args: BUILD_ID=${{ github.sha }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
