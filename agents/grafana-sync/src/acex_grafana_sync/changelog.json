@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "component": "acex-grafana-sync",
+  "name": "ACEX Grafana sync",
+  "releases": [
+    {
+      "version": "0.2.0",
+      "date": "2026-08-27",
+      "entries": [
+        {
+          "id": "01-agent-starts-again-with-the-current-acex",
+          "kind": "fixed",
+          "title": "Agent starts again with the current ACEX client",
+          "description": "The agent crashed on start-up because it still used the old ACEX client interface. It now uses the updated client, so it starts and syncs normally. No settings changed; `ACEX_API_URL` is still the base URL of the ACEX API.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#240",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-05-05",
+      "entries": [
+        {
+          "id": "03-dashboards-removed-from-acex-are-deleted",
+          "kind": "added",
+          "title": "Dashboards removed from ACEX are deleted from the ACEX folder (on by default)",
+          "description": "With `PRUNE_DASHBOARDS` (default `true`), every dashboard in the target folder that ACEX no longer lists is deleted, including dashboards someone added there by hand. Dashboards outside the folder are never touched. Set `PRUNE_DASHBOARDS=false` to keep them.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#150",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-new-agent-keeps-a-grafana-instance-in-sy",
+          "kind": "added",
+          "title": "New agent keeps a Grafana instance in sync with ACEX",
+          "description": "`acex-grafana-sync` fetches the datasource and dashboard definitions that ACEX generates and pushes them to Grafana in a folder (default uid `acex`, title `ACEX`), which it creates if missing. It checks ACEX every poll cycle and only writes to Grafana when the definitions have changed or the previous attempt failed. Also available as a container image.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#150",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-settings-for-the-grafana-sync-agent",
+          "kind": "added",
+          "title": "Settings for the Grafana sync agent",
+          "description": "Required: `ACEX_API_URL`, `GRAFANA_URL`, and either `GRAFANA_TOKEN` or `GRAFANA_USER` with `GRAFANA_PASSWORD` (not both). Optional: `GRAFANA_FOLDER_UID`, `GRAFANA_FOLDER_TITLE`, `POLL_INTERVAL_SECONDS` (default 60), `PRUNE_DASHBOARDS`, `ACEX_VERIFY_SSL` and `GRAFANA_VERIFY_SSL` for TLS verification of each endpoint. The agent exits at start-up if required settings are missing; if Grafana or ACEX is unreachable it logs the error and retries on the next cycle.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#150",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-what-the-agent-creates-overwrites-and-le",
+          "kind": "added",
+          "title": "What the agent creates, overwrites and leaves alone in Grafana",
+          "description": "Datasources are created only if missing and never overwritten, so manual edits such as rotated credentials stay. Dashboards are overwritten on every change in ACEX, and a dashboard that already lives in a different folder is skipped with a warning. Edits made by hand to an ACEX dashboard are replaced the next time ACEX changes it.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#150",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": []
+}

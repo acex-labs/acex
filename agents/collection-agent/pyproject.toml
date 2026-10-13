@@ -19,6 +19,13 @@ pytest = "^8.0.0"
 [tool.poetry.scripts]
 acex-collection-agent = "acex_collection_agent.main:main"
 
+[tool.poetry.plugins."acex.changelog"]
+acex-collection-agent = "acex_collection_agent"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX collection agent"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

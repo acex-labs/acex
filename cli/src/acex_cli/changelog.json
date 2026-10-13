@@ -1,0 +1,476 @@
+{
+  "schema_version": 1,
+  "component": "acex-cli",
+  "name": "ACEX CLI",
+  "releases": [
+    {
+      "version": "4.5.1",
+      "date": "2026-09-02",
+      "entries": [
+        {
+          "id": "01-acex-node-config-diff-plan-f-compact-and",
+          "kind": "fixed",
+          "title": "`acex node config diff plan -f compact` and `-f flat` work with changes",
+          "description": "Both views used a field name that does not exist on the diff objects, so they should have stopped with a Python error whenever the diff was not empty. They now read the right field and list added, removed and changed components.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#207",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-acex-version-prints-a-version-again-but-",
+          "kind": "fixed",
+          "title": "`acex version` prints a version again, but it still says 0.2.0",
+          "description": "The command no longer fails on a missing output helper. The number it prints comes from a constant that was never updated, so it reports 0.2.0 whatever release is installed.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#207",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-management-connection-lookups-use-the-ap",
+          "kind": "fixed",
+          "title": "Management connection lookups use the API path without a trailing slash",
+          "description": "`acex node show` (management address, port and protocol), `acex node connect` and `acex node config diff apply` now request the node's management connection from the path without a trailing slash, matching the server change in this release. Against a server that expects the old path, these commands would fail to find the connection.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#251",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.5.0",
+      "date": "2026-04-22",
+      "entries": [
+        {
+          "id": "01-acex-node-connect-node-opens-an-ssh-sess",
+          "kind": "added",
+          "title": "`acex node connect NODE` opens an SSH session to the node",
+          "description": "Looks up the node's management connection and starts `ssh` to its address, replacing the `acex` process. It uses your local `ssh` and login name, and exits with status 1 if there is no connection, it is not SSH, or it has no address.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#126",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.4.1",
+      "date": "2026-04-22",
+      "entries": [
+        {
+          "id": "01-acex-node-show-also-shows-the-management",
+          "kind": "added",
+          "title": "`acex node show` also shows the management address, port and protocol",
+          "description": "The node details now include `mgmt_target_ip`, `mgmt_target_port` and `mgmt_protocol` from the node's first management connection. If the connection cannot be fetched, the command still prints the rest. The `id` field is filled in even when the API response leaves it out.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#122",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.3.1",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "01-acex-node-config-show-desired-no-longer-",
+          "kind": "fixed",
+          "title": "`acex node config show desired` no longer prints a debug timing line",
+          "description": "The \"[debug] sdk init: ...\" line that 4.3.0 printed after the output is gone, and `--render` no longer ends with a Python error.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#119",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.3.0",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "01-acex-logical-node-and-acex-ned-list-and-",
+          "kind": "added",
+          "title": "`acex logical-node` and `acex ned` list and show commands",
+          "description": "`acex logical-node list|show LOGICAL_NODE_ID` and `acex ned list|show NED_ID` print logical nodes and network element drivers. Command groups with underscores in their code name are typed with hyphens.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-acex-node-config-show-local-node-dir-dir",
+          "kind": "added",
+          "title": "`acex node config show local NODE --dir DIR` compiles config from local files",
+          "description": "Builds the configuration for a node from the config map files in a local directory, without publishing them, and shows it like `show desired` (`--render`, `--path`, `--format` work the same). It needs the `acex` backend package installed and reports which config maps were found and matched.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-filter-and-page-asset-list-node-list-and",
+          "kind": "added",
+          "title": "Filter and page `asset list`, `node list` and `logical-node list`",
+          "description": "`asset list` filters on `--vendor`, `--os`, `--hardware-model`, `--ned-id`, `--serial-number` and `--assigned`; `node list` on `--site`, `--hostname`, `--logical-node-id`, `--asset-ref-id` and `--status`; `logical-node list` on `--role`, `--site`, `--hostname`, `--sequence` and `--assigned`. All three return at most 100 rows unless `--limit` (`-l`) and `--offset` say otherwise, and the table shows \"Showing 1-100 of N\" when more exist.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-output-as-table-json-or-csv-with-format-",
+          "kind": "added",
+          "title": "Output as table, JSON or CSV with `--format`, `--columns` and `--no-header`",
+          "description": "All `list` and `show` commands for assets, nodes, logical nodes and NEDs take `--format` (`-f`) `table`, `json` or `csv`, plus `--columns` (`-c`) with a comma-separated list of columns. `list` commands also take `--no-header`, which makes the output easier to use in scripts.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-acex-node-config-show-desired-observed-g",
+          "kind": "changed",
+          "title": "`acex node config show desired|observed` give a section overview and `--path`",
+          "description": "Without `--render` they now print a table of configuration sections with component counts; `--path system.ntp` (or another section) drills in, and `--format json` dumps everything. `--render` prints the device configuration with line numbers and syntax highlighting.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "07-node-and-configuration-lookups-that-find",
+          "kind": "changed",
+          "title": "Node and configuration lookups that find nothing now exit with status 1",
+          "description": "`acex node show`, `config show observed`, `config diff plan` and `config diff apply` exit with status 1 for an unknown node or a missing configuration, with \"Node 'X' not found.\", \"No observed config found.\" or \"No desired configuration found.\". Earlier versions printed the message and exited with 0.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-node-commands-accept-a-hostname-as-well-",
+          "kind": "changed",
+          "title": "Node commands accept a hostname as well as an ID",
+          "description": "`acex node show`, `acex node config show ...` and `acex node config diff ...` take `NODE` as a numeric ID or a hostname. If several nodes share the hostname, they are listed and the command asks for the ID.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "09-the-could-not-connect-to-api-message-is-",
+          "kind": "changed",
+          "title": "The \"Could not connect to API\" message is no longer shown",
+          "description": "Commands no longer test the API address first, so an unreachable or untrusted server is no longer reported with that message. What appears instead comes from the client library, and its wording is not confirmed.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.3",
+      "date": "2026-03-18",
+      "entries": [
+        {
+          "id": "01-acex-node-config-diff-apply-node-id-push",
+          "kind": "added",
+          "title": "`acex node config diff apply NODE_ID` pushes the planned changes to a device",
+          "description": "It works out the difference between observed and desired configuration, prints the device commands in a box and asks \"Are you sure you want to apply the config above?\". On yes it sends them over the node's first management connection; on no it exits without changes (exit status 0).",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#72",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-acex-node-config-diff-plan-f-commands-pr",
+          "kind": "changed",
+          "title": "`acex node config diff plan -f commands` prints driver-rendered patch commands",
+          "description": "The `commands` format now asks the device driver to render the patch for the node, the same text that `diff apply` shows before asking for confirmation.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#72",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-acex-node-config-diff-plan-shows-changes",
+          "kind": "changed",
+          "title": "`acex node config diff plan` shows changes per component and attribute",
+          "description": "The `tree`, `compact`, `flat` and `summary` views now list added, removed and changed components, with before and after values per changed attribute; `flat` is a table of Type, Component, Attribute, Before and After. Output from earlier versions looked different, so scripts that parse it need to be checked.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#70",
+              "url": null
+            },
+            {
+              "label": "#81",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.0",
+      "date": "2026-02-13",
+      "entries": [
+        {
+          "id": "03-acex-node-config-diff-plan-node-id-shows",
+          "kind": "added",
+          "title": "`acex node config diff plan NODE_ID` shows what would change on a node",
+          "description": "Compares the latest observed configuration with the desired one. `--format` (`-f`) selects `tree` (default), `compact`, `flat`, `summary` or `json`; `--max-depth` (`-d`) and `--no-values` shorten the tree view. A `commands` format is also accepted, but is not listed in the help; it appears to print device commands.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#49",
+              "url": null
+            },
+            {
+              "label": "#52",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-acex-node-config-show-desired-node-id-pr",
+          "kind": "added",
+          "title": "`acex node config show desired NODE_ID` prints the desired configuration",
+          "description": "Prints the configuration defined for the node as JSON, or as device configuration text with `--render`. A `--path` option is accepted but has no effect yet.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#48",
+              "url": null
+            },
+            {
+              "label": "#49",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-acex-node-config-show-observed-node-id-p",
+          "kind": "added",
+          "title": "`acex node config show observed NODE_ID` prints the latest backed-up config",
+          "description": "Prints the last configuration read from the device as parsed JSON, or as device configuration text with `--render`. Prints \"No observed config found.\" when there is none.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#48",
+              "url": null
+            },
+            {
+              "label": "#49",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-acex-starts-again-after-the-start-up-fai",
+          "kind": "fixed",
+          "title": "`acex` starts again after the start-up failure in 0.2.5",
+          "description": "The undefined option type in the node commands is gone, so the `acex` command loads normally.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#47",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.5",
+      "date": "2026-02-10",
+      "entries": [
+        {
+          "id": "02-acex-node-config-observed-node-id-prints",
+          "kind": "added",
+          "title": "`acex node config observed NODE_ID` prints the latest backed-up configuration",
+          "description": "Prints the last configuration stored for a node, as device text by default or as JSON with `--format json` (`-f`), or a specific backup with `--hash`. In this release it cannot be used, because `acex` itself fails to start (see the next entry).",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#44",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-clear-message-when-the-acex-api-cannot-b",
+          "kind": "added",
+          "title": "Clear message when the ACEX API cannot be reached",
+          "description": "Before running a command, `acex` now contacts the API address of the active context. If the connection fails it prints \"Could not connect to API!\" plus the reason, and for a certificate problem \"Could not connect to API due to untrusted certificate!\"; it then stops with exit status 0, so scripts cannot detect the failure from the status.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#44",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.1",
+      "date": "2026-01-29",
+      "entries": [
+        {
+          "id": "03-placeholder-commands-acex-run-acex-list-",
+          "kind": "removed",
+          "title": "Placeholder commands `acex run`, `acex list` and `acex status` are gone",
+          "description": "These three commands did nothing but print a message and have been removed. Use `acex node list`, `acex asset list` and the `acex context` commands instead.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#35",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-choose-which-acex-api-to-talk-to-with-ac",
+          "kind": "added",
+          "title": "Choose which ACEX API to talk to with `acex context`",
+          "description": "`acex context add --name NAME --url URL` saves and activates an API address (`--no-verify-ssl` skips certificate checking). `acex context list`, `use NAME`, `show` and `verify-ssl true|false` manage saved contexts, which are kept in `~/.acex/.acex_cli_context.json`. Without an active context, node and asset commands report that none is selected.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#35",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-list-and-show-nodes-and-assets-with-acex",
+          "kind": "added",
+          "title": "List and show nodes and assets with `acex node` and `acex asset`",
+          "description": "`acex node list`, `acex node show NODE_ID`, `acex asset list` and `acex asset show ASSET_ID` fetch data from the ACEX API and print it as a table (one row per item, or a Field/Value table for `show`). An empty list prints \"No nodes found.\" or \"No assets found.\".",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#35",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-shell-completion-is-enabled-for-acex",
+          "kind": "changed",
+          "title": "Shell completion is enabled for `acex`",
+          "description": "The command now offers the standard `--install-completion` and `--show-completion` options. Running `acex` with no sub-command prints the help text.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#35",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2025-11-04",
+      "entries": [
+        {
+          "id": "01-first-acex-command-with-version-run-list",
+          "kind": "added",
+          "title": "First `acex` command with `version`, `run`, `list` and `status`",
+          "description": "The `acex` command exists, with `acex version`, `acex run FILE`, `acex list` and `acex status`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "83efd0b",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": []
+}
