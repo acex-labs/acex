@@ -1,7 +1,6 @@
-from importlib.metadata import version, distributions, entry_points
-
-import platform
 import os
+import platform
+from importlib.metadata import distributions, entry_points, version
 
 from acex.config_diff import DiffLogicalNode
 from acex.constants import BASE_URL
