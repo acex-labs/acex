@@ -235,6 +235,51 @@ class TestEndpoints:
         assert "releases" in product and "coming" in product
         assert body["sections"][1]["releases"][0]["entries"][0]["title"] == "Branch office template v3"
 
+    def should_compress_the_answer_for_a_client_that_accepts_it(self, api):
+        response = api.get("/api/v1/changelog", headers={"Accept-Encoding": "gzip"})
+
+        assert response.headers["content-encoding"] == "gzip"
+        assert response.headers["vary"] == "Accept-Encoding"
+        assert response.json()["sections"][0]["id"] == "product"  # the client decoded it
+
+    @pytest.mark.parametrize("accept", ["identity", "gzip;q=0", ""])
+    def should_not_compress_for_a_client_that_does_not_accept_it(self, api, accept):
+        response = api.get("/api/v1/changelog", headers={"Accept-Encoding": accept})
+
+        assert "content-encoding" not in response.headers
+        assert response.json()["sections"][0]["id"] == "product"
+
+    def should_answer_304_when_the_client_already_has_this_version(self, api):
+        first = api.get("/api/v1/changelog")
+        etag = first.headers["etag"]
+        assert first.headers["cache-control"] == "private, no-cache"
+
+        again = api.get("/api/v1/changelog", headers={"If-None-Match": etag})
+
+        assert again.status_code == 304
+        assert again.content == b""
+        assert again.headers["etag"] == etag
+
+    def should_keep_the_same_etag_while_the_notes_are_the_same(self, api):
+        # `generated_at` moves on every call and must not make every answer a new version.
+        assert api.get("/api/v1/changelog").headers["etag"] == api.get("/api/v1/changelog").headers["etag"]
+
+    def should_send_a_new_etag_and_the_new_notes_when_a_deployment_edits_its_file(self, api, tmp_path):
+        stale = api.get("/api/v1/changelog").headers["etag"]
+        write(
+            tmp_path / "extra" / "later.json",
+            "later",
+            "Later",
+            section={"id": "later", "name": "Later"},
+            releases=[release("1", "2026-10-19", entry("A newer note"))],
+        )
+
+        response = api.get("/api/v1/changelog", headers={"If-None-Match": stale})
+
+        assert response.status_code == 200
+        assert response.headers["etag"] != stale
+        assert [s["id"] for s in response.json()["sections"]] == ["product", "later", "example"]  # by name
+
 
 class TestBundledComponents:
     """Agents, the worker and the command line run as their own services and are not installed in the backend;
