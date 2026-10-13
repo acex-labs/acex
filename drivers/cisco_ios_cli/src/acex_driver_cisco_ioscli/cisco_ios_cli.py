@@ -181,7 +181,7 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     parser_class = CiscoIOSCLIParser
     normalizer_class = CiscoIOSNormalizer
 
-    async def discover(self, management_ip, username, password):
+    def discover(self, management_ip, username, password):
         def _find(pattern, text):
             m = re.search(pattern, text)
             return m.group(1) if m else None
@@ -193,15 +193,15 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
             target_ip=management_ip,
         )
         t = CiscoIOSTransport()
-        out = await t.execute(None, conn, ["show version"], username=username, password=password)
+        out = asyncio.run(t.execute(None, conn, ["show version"], username=username, password=password))
         os = "cisco_iosxe"
-        os_version = _find(r"Version (\S+)", out[0])
+        os_ver = _find(r"Version (\S+)", out[0])
         serial = _find(r"System Serial Number\s+:\s(\S+)", out[0])
         vendor = "cisco"
         model = _find(r"Model Number\s+:\s(\S+)", out[0])
         return {
             "os": os,
-            "os_version": os_version,
+            "os_ver": os_ver,
             "serial": serial,
             "vendor": vendor,
             "model": model,
