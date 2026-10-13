@@ -303,6 +303,10 @@ class TestCheck:
         changed = [("M", self.CODE), ("A", "drivers/example/changelog.d/a.md")]
         assert self.check(repo, component, changed).ok
 
+    def should_not_take_the_readme_of_the_directory_for_a_fragment(self, repo, component):
+        changed = [("M", self.CODE), ("A", "drivers/example/changelog.d/README.md")]
+        assert not self.check(repo, component, changed).ok
+
     def should_accept_an_internal_fragment(self, repo, component):
         write_fragment(component.fragments_dir / "a.md", kind="internal", title="Pinned scrapli")
         assert self.check(repo, component, [("M", self.CODE), ("A", "drivers/example/changelog.d/a.md")]).ok

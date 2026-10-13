@@ -555,7 +555,9 @@ def check(
                 continue
             inside = relative.relative_to(root) if root != Path(".") else relative
             if inside.parts[:1] == (FRAGMENT_DIR,) and inside.parts[1:2] != (COMING_DIR,):
-                added_fragment |= status.startswith("A")
+                # The README of the directory is not a change note.
+                if inside.suffix == ".md" and not inside.name.upper().startswith("README"):
+                    added_fragment |= status.startswith("A")
             elif not _is_exempt(inside, component.paths):
                 touched = True
         if touched and not added_fragment:
