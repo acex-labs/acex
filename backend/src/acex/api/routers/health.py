@@ -49,6 +49,7 @@ def create_router(automation_engine):
             "packages": dict(sorted(packages.items())),
             "drivers": sorted(drivers, key=lambda d: d["name"]),
         }
+
     router.add_api_route("/about", about, methods=["GET"], tags=tags)
 
     return router
