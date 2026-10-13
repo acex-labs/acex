@@ -14,7 +14,10 @@ cut (`release`), not typed by the author.
     Each ZTP method now has a driver setting under ZTP > Methods ...
 
 `release` moves the fragments into `<package>/changelog.json`, which the
-backend serves and aggregates (see acex.changelog.service). Planned work goes
+backend serves and aggregates (see acex.changelog.service). A component is
+found by a `changelog.d/` directory beside a `pyproject.toml` (a Python
+package) or a `package.json` (the web interface, which ships its compiled
+file inside its bundle). Planned work goes
 in `changelog.d/coming/` with the same front matter and is compiled on every
 `build`; a fragment that says `completes: <coming-id>` removes the item it
 delivers.
@@ -59,7 +62,11 @@ SKIPPED_DIRS = {"node_modules", "dist", "build", "site", "__pycache__"}
 _JARGON = re.compile(r"^(feat|fix|chore|docs|refactor|ci|test|perf|build|style)\s*[(/:!]", re.IGNORECASE)
 _FRONT_MATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---[ \t]*\r?\n?(.*)\Z", re.DOTALL)
 _SLUG = re.compile(r"[^a-z0-9]+")
-_PYPROJECT_VERSION = re.compile(r'^(version\s*=\s*")([^"]+)(")', re.MULTILINE)
+#: The line that holds a component's version, by the name of its manifest.
+_VERSION_LINE = {
+    "pyproject.toml": re.compile(r'^(version\s*=\s*")([^"]+)(")', re.MULTILINE),
+    "package.json": re.compile(r'^(\s*"version"\s*:\s*")([^"]+)(")', re.MULTILINE),
+}
 
 
 class FragmentError(ValueError):
@@ -68,13 +75,17 @@ class FragmentError(ValueError):
 
 @dataclass
 class Component:
-    """A package that keeps its own changelog: a `pyproject.toml` with a `changelog.d/` beside it."""
+    """A package that keeps its own changelog: a `changelog.d/` beside its `pyproject.toml` or `package.json`."""
 
     id: str
     name: str
     root: Path
     version: str
     output: Path
+    #: The file that holds the version.
+    manifest_name: str = "pyproject.toml"
+    #: Paths below `root` whose changes call for an entry. Empty: every path except the exempt ones.
+    paths: tuple[str, ...] = ()
 
     @property
     def fragments_dir(self) -> Path:
@@ -85,8 +96,8 @@ class Component:
         return self.fragments_dir / COMING_DIR
 
     @property
-    def pyproject(self) -> Path:
-        return self.root / "pyproject.toml"
+    def manifest(self) -> Path:
+        return self.root / self.manifest_name
 
 
 @dataclass
@@ -116,6 +127,8 @@ def discover(repo: Path) -> list[Component]:
         root = Path(dirpath)
         if (root / "pyproject.toml").exists():
             components.append(_from_pyproject(root))
+        elif (root / "package.json").exists():
+            components.append(_from_package_json(root))
     return sorted(components, key=lambda c: c.id)
 
 
@@ -136,6 +149,33 @@ def _from_pyproject(root: Path) -> Component:
         root=root,
         version=version,
         output=package_dir / OUTPUT_NAME,
+        paths=tuple(options.get("paths", ())),
+    )
+
+
+def _from_package_json(root: Path) -> Component:
+    """A JavaScript project. Its options sit under `acex.changelog` in `package.json`:
+
+    `name` (shown to users), `output` (the compiled file, relative to the project; it must
+    end up in the bundle) and `paths` (what changes call for an entry).
+    """
+    manifest = root / "package.json"
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise FragmentError(f"{manifest}: not valid JSON ({exc})") from exc
+    name, version = data.get("name"), data.get("version")
+    if not name or not version:
+        raise FragmentError(f"{manifest}: needs a name and a version")
+    options = data.get("acex", {}).get("changelog", {})
+    return Component(
+        id=name,
+        name=options.get("name") or name,
+        root=root,
+        version=version,
+        output=root / options.get("output", OUTPUT_NAME),
+        manifest_name="package.json",
+        paths=tuple(options.get("paths", ())),
     )
 
 
@@ -398,13 +438,27 @@ def bump(version: str, how: str, entries: list[dict]) -> str:
     raise FragmentError(f"Unknown bump '{how}'")
 
 
-def set_pyproject_version(component: Component, version: str) -> None:
-    text = component.pyproject.read_text(encoding="utf-8")
-    new_text, count = _PYPROJECT_VERSION.subn(lambda m: f"{m.group(1)}{version}{m.group(3)}", text, count=1)
+def set_version(component: Component, version: str) -> None:
+    """Write the version into the manifest (and, for a JavaScript project, into its lock file)."""
+    text = component.manifest.read_text(encoding="utf-8")
+    new_text, count = _VERSION_LINE[component.manifest_name].subn(
+        lambda m: f"{m.group(1)}{version}{m.group(3)}", text, count=1
+    )
     if count != 1:
-        raise FragmentError(f"{component.pyproject}: no 'version = \"...\"' line to update")
-    component.pyproject.write_text(new_text, encoding="utf-8")
+        raise FragmentError(f"{component.manifest}: no version line to update")
+    component.manifest.write_text(new_text, encoding="utf-8")
+    if component.manifest_name == "package.json":
+        _set_lock_version(component.root / "package-lock.json", component.version, version)
     component.version = version
+
+
+def _set_lock_version(lock: Path, old: str, new: str) -> None:
+    """npm repeats the project's own version in the lock file, twice at the top; keep them in step."""
+    if not lock.exists():
+        return
+    pattern = re.compile(rf'("version"\s*:\s*"){re.escape(old)}(")')
+    text = lock.read_text(encoding="utf-8")
+    lock.write_text(pattern.sub(lambda m: f"{m.group(1)}{new}{m.group(2)}", text, count=2), encoding="utf-8")
 
 
 def release(
@@ -416,8 +470,8 @@ def release(
 ) -> Report:
     """Stamp the pending fragments with a version and date, and move them into the compiled file.
 
-    The version comes from `pyproject.toml` (already bumped by the releaser),
-    from `--bump`, which bumps `pyproject.toml` too, or from `--version`.
+    The version comes from the manifest (already bumped by the releaser), from
+    `--bump`, which bumps the manifest too, or from `--version`.
     Nothing is typed into the entries themselves.
     """
     report = Report()
@@ -429,13 +483,13 @@ def release(
     data = read_compiled(component)
     if bump_how:
         version = bump(component.version, bump_how, entries)
-        set_pyproject_version(component, version)
-        report.notes.append(f"{component.pyproject}: version {version}")
+        set_version(component, version)
+        report.notes.append(f"{component.manifest}: version {version}")
     version = version or component.version
     if any(r.get("version") == version for r in data.get("releases", [])):
         report.errors.append(
             f"{component.id}: version {version} is already in {component.output}; bump the version first "
-            "(edit pyproject.toml or pass --bump)"
+            f"(edit {component.manifest_name} or pass --bump)"
         )
         return report
 
@@ -462,8 +516,13 @@ def release(
     return report
 
 
-def _is_exempt(relative: Path) -> bool:
-    return relative.parts[0] in EXEMPT_PATHS if relative.parts else True
+def _is_exempt(relative: Path, paths: tuple[str, ...] = ()) -> bool:
+    """A path that does not call for an entry. A component that lists its `paths` counts only those."""
+    if not relative.parts:
+        return True
+    if paths:
+        return not any(relative.parts[: len(Path(p).parts)] == Path(p).parts for p in paths)
+    return relative.parts[0] in EXEMPT_PATHS
 
 
 def check(
@@ -497,7 +556,7 @@ def check(
             inside = relative.relative_to(root) if root != Path(".") else relative
             if inside.parts[:1] == (FRAGMENT_DIR,) and inside.parts[1:2] != (COMING_DIR,):
                 added_fragment |= status.startswith("A")
-            elif not _is_exempt(inside):
+            elif not _is_exempt(inside, component.paths):
                 touched = True
         if touched and not added_fragment:
             report.errors.append(
@@ -516,21 +575,28 @@ def check(
                     f"{component.id}: version {component.version} is about to be published but "
                     f"{len(pending)} fragment(s) are not released. Run\n"
                     f"    python scripts/changelog.py release {component.id}\n"
-                    f"  (stamps the version in pyproject.toml; add --bump if that version is already out)."
+                    f"  (stamps the version in {component.manifest_name}; add --bump if that version is already out)."
                 )
     return report
 
 
 def git_versions_at(repo: Path, ref: str, components: list[Component]) -> dict[str, str]:
-    """Each component's version in `pyproject.toml` at `ref`; left out when the file is not there."""
+    """Each component's version in its manifest at `ref`; left out when the file is not there."""
     versions = {}
     for component in components:
-        path = component.pyproject.resolve().relative_to(repo.resolve()).as_posix()
+        path = component.manifest.resolve().relative_to(repo.resolve()).as_posix()
         result = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=repo, capture_output=True, text=True, check=False)
         if result.returncode != 0:
             continue
-        data = tomllib.loads(result.stdout)
-        version = data.get("tool", {}).get("poetry", {}).get("version") or data.get("project", {}).get("version")
+        try:
+            if component.manifest_name == "package.json":
+                version = json.loads(result.stdout).get("version")
+            else:
+                data = tomllib.loads(result.stdout)
+                poetry, project = data.get("tool", {}).get("poetry", {}), data.get("project", {})
+                version = poetry.get("version") or project.get("version")
+        except (json.JSONDecodeError, tomllib.TOMLDecodeError):
+            continue
         if version:
             versions[component.id] = version
     return versions
@@ -581,8 +647,8 @@ def _parser() -> argparse.ArgumentParser:
 
     release_cmd = commands.add_parser("release", help="stamp pending fragments with the version and date")
     release_cmd.add_argument("component")
-    release_cmd.add_argument("--version", default=None, help="override the version in pyproject.toml")
-    release_cmd.add_argument("--bump", choices=("major", "minor", "patch", "auto"), help="bump pyproject.toml first")
+    release_cmd.add_argument("--version", default=None, help="override the version in the manifest")
+    release_cmd.add_argument("--bump", choices=("major", "minor", "patch", "auto"), help="bump the manifest first")
     release_cmd.add_argument("--date", default=None, help="release date, YYYY-MM-DD (default: today)")
 
     check_cmd = commands.add_parser("check", help="pull request check: changed components have a fragment")

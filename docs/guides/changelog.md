@@ -144,6 +144,41 @@ nothing but Python) or, with the backend installed, run
 `python -m acex.changelog.tool --repo . <command>`. Keep a `changelog.d/`
 next to your `pyproject.toml` and cut releases the same way.
 
+## A project that is not a Python package
+
+The web interface lives in its own repository and ships its notes inside its
+JavaScript bundle. The tool treats a `package.json` with a `changelog.d/` beside
+it as a component, the same as a `pyproject.toml`. Options sit under
+`acex.changelog` in `package.json`:
+
+```json
+{
+  "name": "acex-frontend",
+  "version": "0.0.35",
+  "acex": {
+    "changelog": {
+      "name": "ACEX web interface",
+      "output": "src/changelog.json",
+      "paths": ["src", "public", "index.html", "Dockerfile"]
+    }
+  }
+}
+```
+
+- `name` is what Settings > What's new shows.
+- `output` is the compiled file. It must end up in the bundle; the page
+  imports it and adds it to the product section next to the backend's notes.
+- `paths` lists what changes call for an entry. Without it every file counts
+  except tests, READMEs and lock files, which is wrong for a project whose
+  root holds CI and tooling files too. A Python package can set `paths` under
+  `[tool.acex.changelog]` for the same reason.
+
+Copy `backend/src/acex/changelog/tool.py` to `scripts/changelog.py` in that
+repository and run it from the repository root. `release --bump patch` bumps
+`package.json` (and the project's own version in `package-lock.json`, when the
+lock file is in step), compiles the fragments under the new version and removes
+them.
+
 ## Notes that belong to one deployment
 
 Some notes must never be part of the product: a customer's configuration

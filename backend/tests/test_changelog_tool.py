@@ -192,7 +192,7 @@ class TestRelease:
         report = tool.release(component, bump_how="minor")
 
         assert report.ok, report.errors
-        assert 'version = "1.3.0"' in component.pyproject.read_text(encoding="utf-8")
+        assert 'version = "1.3.0"' in component.manifest.read_text(encoding="utf-8")
         versions = [r["version"] for r in json.loads(component.output.read_text(encoding="utf-8"))["releases"]]
         assert versions == ["1.3.0", "1.2.3"]
 
@@ -328,7 +328,7 @@ class TestCheck:
 
     def should_want_pending_fragments_released_before_a_new_version_ships(self, repo, component):
         write_fragment(component.fragments_dir / "a.md")
-        tool.set_pyproject_version(component, "1.3.0")
+        tool.set_version(component, "1.3.0")
 
         report = self.check(repo, component, [], release_ready=True, base_versions=self.ON_MAIN)
 
@@ -337,7 +337,7 @@ class TestCheck:
         assert self.check(repo, component, [], release_ready=True, base_versions=self.ON_MAIN).ok
 
     def should_allow_a_bump_without_notes(self, repo, component):
-        tool.set_pyproject_version(component, "1.3.0")
+        tool.set_version(component, "1.3.0")
         assert self.check(repo, component, [], release_ready=True, base_versions=self.ON_MAIN).ok
 
     def should_let_fragments_wait_while_the_version_is_the_published_one(self, repo, component):
@@ -389,7 +389,7 @@ class TestGitChanges:
         git(repo, "init", "-q", "-b", "main")
         git(repo, "add", ".")
         git(repo, "commit", "-q", "-m", "base")
-        tool.set_pyproject_version(component, "1.3.0")
+        tool.set_version(component, "1.3.0")
 
         assert tool.git_versions_at(repo, "main", [component]) == {"acex-driver-example": "1.2.3"}
         assert (
@@ -422,3 +422,122 @@ class TestCommandLine:
     def should_name_an_unknown_component(self, repo, capsys):
         assert tool.main(["release", "nope"], repo=repo) == 1
         assert "No component 'nope'" in capsys.readouterr().err
+
+
+PACKAGE_JSON = """{
+  "name": "example-ui",
+  "private": true,
+  "version": "0.4.2",
+  "acex": {
+    "changelog": {
+      "name": "Example web interface",
+      "output": "src/changelog.json",
+      "paths": ["src", "public", "index.html"]
+    }
+  }
+}
+"""
+
+PACKAGE_LOCK = """{
+  "name": "example-ui",
+  "version": "0.4.2",
+  "lockfileVersion": 3,
+  "packages": {
+    "": {
+      "name": "example-ui",
+      "version": "0.4.2"
+    },
+    "node_modules/left-pad": {
+      "version": "0.4.2"
+    }
+  }
+}
+"""
+
+
+@pytest.fixture
+def web(tmp_path):
+    (tmp_path / "changelog.d").mkdir()
+    (tmp_path / "package.json").write_text(PACKAGE_JSON, encoding="utf-8")
+    (tmp_path / "package-lock.json").write_text(PACKAGE_LOCK, encoding="utf-8")
+    # Installed dependencies are never scanned for components.
+    (tmp_path / "node_modules" / "dep" / "changelog.d").mkdir(parents=True)
+    (tmp_path / "node_modules" / "dep" / "package.json").write_text(PACKAGE_JSON, encoding="utf-8")
+    [component] = tool.discover(tmp_path)
+    return tmp_path, component
+
+
+class TestJavaScriptComponent:
+    def should_be_found_by_its_fragment_directory_beside_package_json(self, web):
+        repo, component = web
+        assert (component.id, component.name, component.version) == ("example-ui", "Example web interface", "0.4.2")
+        assert component.output == repo / "src" / "changelog.json"
+        assert component.manifest == repo / "package.json"
+
+    def should_name_itself_after_the_project_without_options(self, web):
+        repo, _ = web
+        (repo / "package.json").write_text('{"name": "example-ui", "version": "1.0.0"}', encoding="utf-8")
+        [component] = tool.discover(repo)
+        assert (component.name, component.output) == ("example-ui", repo / "changelog.json")
+
+    def should_refuse_a_package_json_without_a_version(self, web):
+        repo, _ = web
+        (repo / "package.json").write_text('{"name": "example-ui"}', encoding="utf-8")
+        with pytest.raises(tool.FragmentError, match="needs a name and a version"):
+            tool.discover(repo)
+
+    def should_release_into_the_file_the_project_names(self, web):
+        _, component = web
+        write_fragment(component.fragments_dir / "a.md", kind="added", title="Sites can be filtered by region")
+
+        report = tool.release(component, on=date(2026, 10, 20))
+
+        assert report.ok, report.errors
+        data = json.loads(component.output.read_text(encoding="utf-8"))
+        assert data["component"] == "example-ui"
+        assert (data["releases"][0]["version"], data["releases"][0]["date"]) == ("0.4.2", "2026-10-20")
+
+    def should_bump_package_json_and_keep_the_lock_file_in_step(self, web):
+        repo, component = web
+        write_fragment(component.fragments_dir / "a.md", kind="fixed", title="The table keeps its sort order")
+
+        report = tool.release(component, bump_how="patch")
+
+        assert report.ok, report.errors
+        assert '"version": "0.4.3"' in (repo / "package.json").read_text(encoding="utf-8")
+        lock = (repo / "package-lock.json").read_text(encoding="utf-8")
+        assert lock.count('"version": "0.4.3"') == 2
+        # A dependency that happens to have the same version is not the project's.
+        assert lock.count('"version": "0.4.2"') == 1
+        assert json.loads(lock)["packages"]["node_modules/left-pad"]["version"] == "0.4.2"
+
+    def should_want_an_entry_only_for_the_paths_it_lists(self, web):
+        repo, component = web
+        for path in ("src/pages/NodesPage.jsx", "public/logo.svg", "index.html"):
+            report = tool.check([component], [("M", path)], repo)
+            assert "example-ui: changed without a changelog entry" in report.errors[0], path
+        for path in ("package.json", "package-lock.json", ".github/workflows/ci.yml", "eslint.config.js", "README.md"):
+            assert tool.check([component], [("M", path)], repo).ok, path
+
+    def should_accept_a_new_fragment_for_a_listed_path(self, web):
+        repo, component = web
+        write_fragment(component.fragments_dir / "a.md")
+        assert tool.check([component], [("M", "src/App.jsx"), ("A", "changelog.d/a.md")], repo).ok
+
+    def should_read_the_version_the_target_branch_has(self, web):
+        repo, component = web
+        git(repo, "init", "-q", "-b", "main")
+        git(repo, "add", ".")
+        git(repo, "commit", "-q", "-m", "base")
+        tool.set_version(component, "0.5.0")
+
+        assert tool.git_versions_at(repo, "main", [component]) == {"example-ui": "0.4.2"}
+
+    def should_run_from_the_command_line(self, web, capsys):
+        repo, component = web
+        assert tool.main(["new", "example-ui", "--kind", "added", "--title", "Sites can be filtered"], repo=repo) == 0
+        assert tool.main(["list"], repo=repo) == 0
+        assert "example-ui 0.4.2 (.): 1 pending" in capsys.readouterr().out
+        assert tool.main(["release", "example-ui", "--bump", "minor", "--date", "2026-10-20"], repo=repo) == 0
+        data = json.loads(component.output.read_text(encoding="utf-8"))
+        assert data["releases"][0]["version"] == "0.5.0"
