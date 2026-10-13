@@ -1,0 +1,644 @@
+"""Changelog fragments: one small file per change, compiled into the package at release.
+
+A pull request adds a Markdown file with a short front matter block to the
+component's `changelog.d/` directory. Nobody edits a shared file, so parallel
+pull requests never conflict, and the version is stamped when the release is
+cut (`release`), not typed by the author.
+
+    changelog.d/20261013-ztp-driver-choice.md
+    ---
+    kind: added
+    title: Choose which driver a ZTP method uses
+    refs: #314
+    ---
+    Each ZTP method now has a driver setting under ZTP > Methods ...
+
+`release` moves the fragments into `<package>/changelog.json`, which the
+backend serves and aggregates (see acex.changelog.service). Planned work goes
+in `changelog.d/coming/` with the same front matter and is compiled on every
+`build`; a fragment that says `completes: <coming-id>` removes the item it
+delivers.
+
+This module is deliberately standalone (standard library only, no imports from
+the rest of `acex`), so `scripts/changelog.py` can run it from a bare checkout
+in CI, and a third-party driver repository can copy or run the single file.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import tomllib
+from dataclasses import dataclass, field
+from datetime import date
+from pathlib import Path
+
+SCHEMA_VERSION = 1
+FRAGMENT_DIR = "changelog.d"
+COMING_DIR = "coming"
+OUTPUT_NAME = "changelog.json"
+
+#: Kinds in the order they are shown. `internal` satisfies the pull request
+#: check without being published: for work users cannot notice.
+KINDS = ("security", "removed", "added", "changed", "fixed", "deprecated")
+INTERNAL = "internal"
+AUDIENCES = ("user", "admin", "developer")
+COMING_STATUSES = ("planned", "in_progress", "preview")
+TITLE_MAX = 80
+
+#: Paths inside a component that do not call for a changelog entry on their own.
+EXEMPT_PATHS = (FRAGMENT_DIR, "tests", "README.md", "README", "poetry.lock", "uv.lock")
+#: Directories never scanned for components.
+SKIPPED_DIRS = {"node_modules", "dist", "build", "site", "__pycache__"}
+
+# A title that is really a commit subject or branch name, like "Feat/ztp backend".
+_JARGON = re.compile(r"^(feat|fix|chore|docs|refactor|ci|test|perf|build|style)\s*[(/:!]", re.IGNORECASE)
+_FRONT_MATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---[ \t]*\r?\n?(.*)\Z", re.DOTALL)
+_SLUG = re.compile(r"[^a-z0-9]+")
+_PYPROJECT_VERSION = re.compile(r'^(version\s*=\s*")([^"]+)(")', re.MULTILINE)
+
+
+class FragmentError(ValueError):
+    """A fragment, coming item or compiled file that cannot be used, with the file named."""
+
+
+@dataclass
+class Component:
+    """A package that keeps its own changelog: a `pyproject.toml` with a `changelog.d/` beside it."""
+
+    id: str
+    name: str
+    root: Path
+    version: str
+    output: Path
+
+    @property
+    def fragments_dir(self) -> Path:
+        return self.root / FRAGMENT_DIR
+
+    @property
+    def coming_dir(self) -> Path:
+        return self.fragments_dir / COMING_DIR
+
+    @property
+    def pyproject(self) -> Path:
+        return self.root / "pyproject.toml"
+
+
+@dataclass
+class Report:
+    """What a command found: problems to fix, and notes worth printing."""
+
+    errors: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return not self.errors
+
+
+# ---------------------------------------------------------------------------
+# Discovery
+# ---------------------------------------------------------------------------
+
+
+def discover(repo: Path) -> list[Component]:
+    """Every component under `repo`, found by its `changelog.d/` directory."""
+    components = []
+    for dirpath, dirnames, _ in os.walk(repo):
+        dirnames[:] = sorted(d for d in dirnames if d not in SKIPPED_DIRS and not d.startswith("."))
+        if FRAGMENT_DIR not in dirnames:
+            continue
+        root = Path(dirpath)
+        if (root / "pyproject.toml").exists():
+            components.append(_from_pyproject(root))
+    return sorted(components, key=lambda c: c.id)
+
+
+def _from_pyproject(root: Path) -> Component:
+    data = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    poetry = data.get("tool", {}).get("poetry", {})
+    project = data.get("project", {})
+    dist_name = poetry.get("name") or project.get("name")
+    version = poetry.get("version") or project.get("version")
+    if not dist_name or not version:
+        raise FragmentError(f"{root / 'pyproject.toml'}: needs a package name and version")
+    packages = poetry.get("packages") or [{"include": dist_name.replace("-", "_"), "from": "src"}]
+    package_dir = root / packages[0].get("from", ".") / packages[0]["include"]
+    options = data.get("tool", {}).get("acex", {}).get("changelog", {})
+    return Component(
+        id=dist_name,
+        name=options.get("name") or dist_name,
+        root=root,
+        version=version,
+        output=package_dir / OUTPUT_NAME,
+    )
+
+
+def find(components: list[Component], ref: str) -> Component:
+    """A component by id or by the directory it lives in (relative to the repo)."""
+    for component in components:
+        if ref in (component.id, component.root.name) or Path(ref).resolve() == component.root.resolve():
+            return component
+    known = ", ".join(c.id for c in components) or "none found"
+    raise FragmentError(f"No component '{ref}' has a {FRAGMENT_DIR}/ directory (known: {known})")
+
+
+# ---------------------------------------------------------------------------
+# Fragments
+# ---------------------------------------------------------------------------
+
+
+def _unquote(value: str) -> str:
+    """Remove one pair of quotes that wraps the whole value; quotes inside it are text."""
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1].strip()
+    return value
+
+
+def parse_front_matter(path: Path) -> tuple[dict[str, str], str]:
+    """The `key: value` lines between the `---` markers, and the Markdown body after them."""
+    match = _FRONT_MATTER.match(path.read_text(encoding="utf-8"))
+    if match is None:
+        raise FragmentError(f"{path}: must start with a '---' front matter block (see changelog.d/README.md)")
+    meta: dict[str, str] = {}
+    for line in match.group(1).splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        key, sep, value = line.partition(":")
+        if not sep or not key.strip():
+            raise FragmentError(f"{path}: cannot read '{line.strip()}', expected 'key: value'")
+        meta[key.strip().lower()] = _unquote(value)
+    return meta, match.group(2).strip()
+
+
+def _refs(value: str) -> list[dict[str, str | None]]:
+    """`refs: #316, ADO-1234 https://dev.azure.com/...` -> labels with optional URLs."""
+    refs = []
+    for item in (part.strip() for part in value.split(",")):
+        if not item:
+            continue
+        label, _, url = item.partition(" ")
+        if label.startswith(("http://", "https://")) and not url:
+            label, url = label.rstrip("/").rsplit("/", 1)[-1], label
+        refs.append({"label": label, "url": url.strip() or None})
+    return refs
+
+
+def _flag(path: Path, meta: dict[str, str], key: str) -> bool:
+    value = meta.get(key, "false").lower()
+    if value not in ("true", "false", "yes", "no"):
+        raise FragmentError(f"{path}: '{key}' must be true or false, not '{meta[key]}'")
+    return value in ("true", "yes")
+
+
+def _title(path: Path, meta: dict[str, str]) -> str:
+    title = meta.get("title", "")
+    if not title:
+        raise FragmentError(f"{path}: 'title' is required: one line a network engineer understands")
+    if len(title) > TITLE_MAX:
+        raise FragmentError(f"{path}: title is {len(title)} characters, keep it under {TITLE_MAX}")
+    if _JARGON.match(title):
+        raise FragmentError(f"{path}: title '{title}' looks like a commit subject or branch name; describe the change")
+    return title
+
+
+def parse_fragment(path: Path) -> dict:
+    """One change as it will appear in the changelog. `kind: internal` is parsed but never published."""
+    meta, body = parse_front_matter(path)
+    kind = meta.get("kind", "")
+    if kind not in (*KINDS, INTERNAL):
+        raise FragmentError(f"{path}: 'kind' must be one of {', '.join(KINDS)} or {INTERNAL}, not '{kind}'")
+    audience = meta.get("audience", "user")
+    if audience not in AUDIENCES:
+        raise FragmentError(f"{path}: 'audience' must be one of {', '.join(AUDIENCES)}, not '{audience}'")
+    unknown = set(meta) - {"kind", "title", "audience", "breaking", "refs", "completes"}
+    if unknown:
+        raise FragmentError(f"{path}: unknown front matter field(s): {', '.join(sorted(unknown))}")
+    return {
+        "id": path.stem,
+        "kind": kind,
+        "title": _title(path, meta),
+        "description": body or None,
+        "breaking": _flag(path, meta, "breaking"),
+        "audience": audience,
+        "refs": _refs(meta.get("refs", "")),
+        "completes": meta.get("completes") or None,
+    }
+
+
+def parse_coming(path: Path) -> dict:
+    """One planned feature. Only what is worth telling users: no backlog dumps."""
+    meta, body = parse_front_matter(path)
+    status = meta.get("status", "planned")
+    if status not in COMING_STATUSES:
+        raise FragmentError(f"{path}: 'status' must be one of {', '.join(COMING_STATUSES)}, not '{status}'")
+    unknown = set(meta) - {"title", "status", "planned_version", "planned_date", "refs"}
+    if unknown:
+        raise FragmentError(f"{path}: unknown front matter field(s): {', '.join(sorted(unknown))}")
+    return {
+        "id": path.stem,
+        "title": _title(path, meta),
+        "description": body or None,
+        "status": status,
+        "planned_version": meta.get("planned_version") or None,
+        "planned_date": meta.get("planned_date") or None,
+        "refs": _refs(meta.get("refs", "")),
+    }
+
+
+def _fragment_files(directory: Path) -> list[Path]:
+    if not directory.is_dir():
+        return []
+    return sorted(p for p in directory.glob("*.md") if not p.name.upper().startswith("README"))
+
+
+def fragments(component: Component) -> list[dict]:
+    return [parse_fragment(path) for path in _fragment_files(component.fragments_dir)]
+
+
+def coming(component: Component) -> list[dict]:
+    return [parse_coming(path) for path in _fragment_files(component.coming_dir)]
+
+
+def published(entries: list[dict]) -> list[dict]:
+    """Entries as they are written to the compiled file: no internal ones, no tool-only fields."""
+    order = {kind: index for index, kind in enumerate(KINDS)}
+    kept = [dict(e) for e in entries if e["kind"] != INTERNAL]
+    for entry in kept:
+        entry.pop("completes", None)
+    return sorted(kept, key=lambda e: (not e["breaking"], order[e["kind"]], e["title"].lower()))
+
+
+# ---------------------------------------------------------------------------
+# Compiled file
+# ---------------------------------------------------------------------------
+
+
+def read_compiled(component: Component) -> dict:
+    """The component's compiled changelog, or an empty one if it has not been released with entries yet."""
+    if not component.output.exists():
+        return {"schema_version": SCHEMA_VERSION, "component": component.id, "name": component.name, "releases": []}
+    try:
+        data = json.loads(component.output.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise FragmentError(f"{component.output}: not valid JSON ({exc})") from exc
+    if data.get("component") != component.id:
+        raise FragmentError(f"{component.output}: belongs to '{data.get('component')}', not '{component.id}'")
+    return data
+
+
+def compiled(component: Component, *, include_unreleased: bool = False) -> dict:
+    """The compiled file as it should be: released entries kept, planned work refreshed."""
+    data = read_compiled(component)
+    releases = [r for r in data.get("releases", []) if r.get("version") is not None]
+    if include_unreleased:
+        pending = published(fragments(component))
+        if pending:
+            releases = [{"version": None, "date": None, "entries": pending}, *releases]
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "component": component.id,
+        "name": component.name,
+        "releases": releases,
+        "coming": coming(component),
+    }
+
+
+def _dump(data: dict) -> str:
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
+def write_compiled(component: Component, data: dict) -> bool:
+    """Write the file; True when its content changed."""
+    text = _dump(data)
+    if component.output.exists() and component.output.read_text(encoding="utf-8") == text:
+        return False
+    component.output.parent.mkdir(parents=True, exist_ok=True)
+    component.output.write_text(text, encoding="utf-8")
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+
+def slugify(text: str) -> str:
+    return _SLUG.sub("-", text.lower()).strip("-")[:40] or "change"
+
+
+def new_fragment(component: Component, *, kind: str, title: str, body: str = "", slug: str | None = None) -> Path:
+    """Create a fragment file for a change, named so that two authors never pick the same file."""
+    stem = f"{date.today():%Y%m%d}-{slug or slugify(title)}"
+    path = component.fragments_dir / f"{stem}.md"
+    if path.exists():
+        raise FragmentError(f"{path} already exists; pass --slug to name this one differently")
+    component.fragments_dir.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"---\nkind: {kind}\ntitle: {title}\n---\n{body.strip()}\n", encoding="utf-8")
+    parse_fragment(path)
+    return path
+
+
+def validate(components: list[Component]) -> Report:
+    """Every fragment, coming item and compiled file of every component parses."""
+    report = Report()
+    for component in components:
+        for reader in (fragments, coming, read_compiled):
+            try:
+                reader(component)
+            except FragmentError as exc:
+                report.errors.append(str(exc))
+    return report
+
+
+def build(components: list[Component], *, include_unreleased: bool = False, check: bool = False) -> Report:
+    """Regenerate every compiled file. With `check`, only report the ones that are out of date."""
+    report = Report()
+    for component in components:
+        try:
+            data = compiled(component, include_unreleased=include_unreleased)
+        except FragmentError as exc:
+            report.errors.append(str(exc))
+            continue
+        if check:
+            current = component.output.read_text(encoding="utf-8") if component.output.exists() else ""
+            if current != _dump(data):
+                report.errors.append(f"{component.output} is out of date: run `changelog.py build` and commit it")
+        elif write_compiled(component, data):
+            report.notes.append(f"wrote {component.output}")
+    return report
+
+
+def bump(version: str, how: str, entries: list[dict]) -> str:
+    """The next version: `auto` reads the entries (breaking -> major, new or changed -> minor, else patch)."""
+    parts = version.split(".")
+    if len(parts) != 3 or not all(p.isdigit() for p in parts):
+        raise FragmentError(f"Cannot bump '{version}': only plain MAJOR.MINOR.PATCH versions are bumped automatically")
+    major, minor, patch = (int(p) for p in parts)
+    if how == "auto":
+        kinds = {e["kind"] for e in entries}
+        if any(e["breaking"] for e in entries):
+            how = "major"
+        elif kinds & {"added", "changed", "removed", "deprecated"}:
+            how = "minor"
+        else:
+            how = "patch"
+    if how == "major":
+        return f"{major + 1}.0.0"
+    if how == "minor":
+        return f"{major}.{minor + 1}.0"
+    if how == "patch":
+        return f"{major}.{minor}.{patch + 1}"
+    raise FragmentError(f"Unknown bump '{how}'")
+
+
+def set_pyproject_version(component: Component, version: str) -> None:
+    text = component.pyproject.read_text(encoding="utf-8")
+    new_text, count = _PYPROJECT_VERSION.subn(lambda m: f"{m.group(1)}{version}{m.group(3)}", text, count=1)
+    if count != 1:
+        raise FragmentError(f"{component.pyproject}: no 'version = \"...\"' line to update")
+    component.pyproject.write_text(new_text, encoding="utf-8")
+    component.version = version
+
+
+def release(
+    component: Component,
+    *,
+    version: str | None = None,
+    bump_how: str | None = None,
+    on: date | None = None,
+) -> Report:
+    """Stamp the pending fragments with a version and date, and move them into the compiled file.
+
+    The version comes from `pyproject.toml` (already bumped by the releaser),
+    from `--bump`, which bumps `pyproject.toml` too, or from `--version`.
+    Nothing is typed into the entries themselves.
+    """
+    report = Report()
+    pending = fragments(component)
+    if not pending:
+        report.errors.append(f"{component.id}: nothing to release, {component.fragments_dir} has no fragments")
+        return report
+    entries = published(pending)
+    data = read_compiled(component)
+    if bump_how:
+        version = bump(component.version, bump_how, entries)
+        set_pyproject_version(component, version)
+        report.notes.append(f"{component.pyproject}: version {version}")
+    version = version or component.version
+    if any(r.get("version") == version for r in data.get("releases", [])):
+        report.errors.append(
+            f"{component.id}: version {version} is already in {component.output}; bump the version first "
+            "(edit pyproject.toml or pass --bump)"
+        )
+        return report
+
+    # A `completes` naming no planned item is fine: the item may have been removed by hand.
+    done = {e["completes"] for e in pending if e.get("completes")}
+    for item in coming(component):
+        if item["id"] in done:
+            (component.coming_dir / f"{item['id']}.md").unlink()
+            report.notes.append(f"removed planned item '{item['id']}', delivered in {version}")
+
+    releases = [r for r in data.get("releases", []) if r.get("version") is not None]
+    if entries:
+        releases.insert(0, {"version": version, "date": (on or date.today()).isoformat(), "entries": entries})
+    else:
+        report.notes.append(f"{component.id}: only internal fragments; {version} gets no entries")
+    data.update(component=component.id, name=component.name, releases=releases, coming=coming(component))
+    data["schema_version"] = SCHEMA_VERSION
+    write_compiled(component, data)
+    for path in _fragment_files(component.fragments_dir):
+        path.unlink()
+    report.notes.append(
+        f"{component.id} {version}: {len(entries)} entr{'y' if len(entries) == 1 else 'ies'} -> {component.output}"
+    )
+    return report
+
+
+def _is_exempt(relative: Path) -> bool:
+    return relative.parts[0] in EXEMPT_PATHS if relative.parts else True
+
+
+def check(
+    components: list[Component],
+    changed: list[tuple[str, str]],
+    repo: Path,
+    *,
+    release_ready: bool = False,
+    base_versions: dict[str, str] | None = None,
+) -> Report:
+    """A pull request that changes a component adds a fragment for it.
+
+    `changed` is `git diff --name-status` as (status, path) pairs. With
+    `release_ready` (pull requests into the release branch), a component whose
+    version differs from the target branch's (`base_versions`, what the
+    pipeline will publish) must have had its fragments released, so the
+    version being published carries its notes. A component unknown to the
+    target branch is about to be published for the first time.
+    """
+    report = validate(components)
+    for component in components:
+        try:
+            root = component.root.resolve().relative_to(repo.resolve())
+        except ValueError:
+            continue
+        touched = added_fragment = False
+        for status, path in changed:
+            relative = Path(path)
+            if root != Path(".") and not relative.is_relative_to(root):
+                continue
+            inside = relative.relative_to(root) if root != Path(".") else relative
+            if inside.parts[:1] == (FRAGMENT_DIR,) and inside.parts[1:2] != (COMING_DIR,):
+                added_fragment |= status.startswith("A")
+            elif not _is_exempt(inside):
+                touched = True
+        if touched and not added_fragment:
+            report.errors.append(
+                f"{component.id}: changed without a changelog entry. Add one with\n"
+                f'    python scripts/changelog.py new {component.id} --kind <{"|".join(KINDS)}> --title "..."\n'
+                f"  or `--kind {INTERNAL}` when users cannot notice the change."
+            )
+        if release_ready:
+            try:
+                pending = published(fragments(component))
+            except FragmentError:
+                continue  # already reported by validate()
+            publishing = component.version != (base_versions or {}).get(component.id)
+            if pending and publishing:
+                report.errors.append(
+                    f"{component.id}: version {component.version} is about to be published but "
+                    f"{len(pending)} fragment(s) are not released. Run\n"
+                    f"    python scripts/changelog.py release {component.id}\n"
+                    f"  (stamps the version in pyproject.toml; add --bump if that version is already out)."
+                )
+    return report
+
+
+def git_versions_at(repo: Path, ref: str, components: list[Component]) -> dict[str, str]:
+    """Each component's version in `pyproject.toml` at `ref`; left out when the file is not there."""
+    versions = {}
+    for component in components:
+        path = component.pyproject.resolve().relative_to(repo.resolve()).as_posix()
+        result = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=repo, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            continue
+        data = tomllib.loads(result.stdout)
+        version = data.get("tool", {}).get("poetry", {}).get("version") or data.get("project", {}).get("version")
+        if version:
+            versions[component.id] = version
+    return versions
+
+
+def git_changed(repo: Path, base: str) -> list[tuple[str, str]]:
+    """`git diff --name-status` from the merge base with `base`, as (status, path) pairs."""
+    result = subprocess.run(
+        ["git", "diff", "--name-status", "--no-renames", f"{base}...HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise FragmentError(f"git diff against '{base}' failed: {result.stderr.strip()}")
+    pairs = []
+    for line in result.stdout.splitlines():
+        status, _, path = line.partition("\t")
+        if path:
+            pairs.append((status, path))
+    return pairs
+
+
+# ---------------------------------------------------------------------------
+# Command line
+# ---------------------------------------------------------------------------
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="changelog.py", description=__doc__.split("\n\n")[0])
+    parser.add_argument("--repo", type=Path, default=None, help="repository root (default: the current directory)")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    new = commands.add_parser("new", help="create a fragment for a change")
+    new.add_argument("component", help="component id (package name) or its directory")
+    new.add_argument("--kind", required=True, choices=(*KINDS, INTERNAL))
+    new.add_argument("--title", required=True, help="one line, written for the people who use ACEX")
+    new.add_argument("--body", default="", help="longer description, Markdown")
+    new.add_argument("--slug", default=None, help="file name part (default: from the title)")
+
+    commands.add_parser("validate", help="check every fragment and compiled file")
+    commands.add_parser("list", help="show components and their pending fragments")
+
+    build_cmd = commands.add_parser("build", help="regenerate the compiled changelog.json files")
+    build_cmd.add_argument("--include-unreleased", action="store_true", help="add pending fragments as 'unreleased'")
+    build_cmd.add_argument("--check", action="store_true", help="fail if a compiled file is out of date")
+
+    release_cmd = commands.add_parser("release", help="stamp pending fragments with the version and date")
+    release_cmd.add_argument("component")
+    release_cmd.add_argument("--version", default=None, help="override the version in pyproject.toml")
+    release_cmd.add_argument("--bump", choices=("major", "minor", "patch", "auto"), help="bump pyproject.toml first")
+    release_cmd.add_argument("--date", default=None, help="release date, YYYY-MM-DD (default: today)")
+
+    check_cmd = commands.add_parser("check", help="pull request check: changed components have a fragment")
+    check_cmd.add_argument("--base", required=True, help="the branch the pull request targets, e.g. origin/dev")
+    check_cmd.add_argument("--release-ready", action="store_true", help="also require fragments to be released")
+    return parser
+
+
+def _print(report: Report) -> int:
+    for note in report.notes:
+        print(note)
+    for error in report.errors:
+        print(f"error: {error}", file=sys.stderr)
+    return 0 if report.ok else 1
+
+
+def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
+    args = _parser().parse_args(argv)
+    repo = (args.repo or repo or Path.cwd()).resolve()
+    try:
+        components = discover(repo)
+        if args.command == "new":
+            component = find(components, args.component)
+            path = new_fragment(component, kind=args.kind, title=args.title, body=args.body, slug=args.slug)
+            print(f"created {path.relative_to(repo)}; edit it, then commit it with your change")
+            return 0
+        if args.command == "list":
+            for component in components:
+                pending = fragments(component)
+                print(
+                    f"{component.id} {component.version} ({component.root.relative_to(repo)}): {len(pending)} pending"
+                )
+                for entry in pending:
+                    print(f"  [{entry['kind']}] {entry['title']}")
+            return 0
+        if args.command == "validate":
+            report = validate(components)
+            report.notes.append(f"{len(components)} component(s) checked")
+            return _print(report)
+        if args.command == "build":
+            return _print(build(components, include_unreleased=args.include_unreleased, check=args.check))
+        if args.command == "release":
+            on = date.fromisoformat(args.date) if args.date else None
+            component = find(components, args.component)
+            return _print(release(component, version=args.version, bump_how=args.bump, on=on))
+        if args.command == "check":
+            base_versions = git_versions_at(repo, args.base, components) if args.release_ready else None
+            changed = git_changed(repo, args.base)
+            return _print(
+                check(components, changed, repo, release_ready=args.release_ready, base_versions=base_versions)
+            )
+    except FragmentError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

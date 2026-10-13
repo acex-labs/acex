@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "component": "acex",
+  "name": "ACEX backend",
+  "releases": [],
+  "coming": [
+    {
+      "id": "agent-versions",
+      "title": "Agents and the worker report their versions",
+      "description": "Collection agents, telemetry agents, the Grafana sync agent and the worker\nwill report their version and the drivers they run to the backend, so that\nSettings > About can show them next to the backend and the web interface,\nalso when they run at another site.",
+      "status": "planned",
+      "planned_version": null,
+      "planned_date": null,
+      "refs": []
+    }
+  ]
+}
