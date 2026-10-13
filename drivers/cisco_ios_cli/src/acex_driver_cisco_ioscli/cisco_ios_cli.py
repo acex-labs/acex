@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from typing import Any
+import re
 
 from acex_devkit.configdiffer import Diff
 from acex_devkit.drivers import NetworkElementDriver, TransportBase
@@ -180,16 +181,31 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     parser_class = CiscoIOSCLIParser
     normalizer_class = CiscoIOSNormalizer
 
-    def discover(self, management_ip, username, password):
+    async def discover(self, management_ip, username, password):
+        def _find(pattern, text):
+            m = re.search(pattern, text)
+            return m.group(1) if m else None
         """
         Used for discovery on bare asset
         """
+        conn = ManagementConnection(
+            target_ip=management_ip,
+        )
+        t = CiscoIOSTransport()
+        out = await t.execute(
+            None, conn, ["show version"], username=username, password=password
+        )
+        os = "cisco_iosxe"
+        os_version = _find(r"Version (\S+)", out[0])
+        serial = _find(r"System Serial Number\s+:\s(\S+)", out[0])
+        vendor = "cisco"
+        model = _find(r"Model Number\s+:\s(\S+)", out[0])
         return {
-            "os": "cisco_iosxe",
-            "os_ver": "17.12.3a",
-            "serial": "FCZ2042X006",
-            "vendor": "cisco",
-            "model": "Catalyst 9300-48P",
+            "os": os,
+            "os_version": os_version,
+            "serial": serial,
+            "vendor": vendor,
+            "model": model,
         }
 
     def provision(
