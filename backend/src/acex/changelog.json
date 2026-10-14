@@ -4904,6 +4904,42 @@
       "status": "planned",
       "planned_version": null,
       "planned_date": null,
+      "components": [
+        "acex",
+        "acex-collection-agent",
+        "acex-telemetry-agent",
+        "acex-grafana-sync",
+        "acex-worker",
+        "acex-frontend"
+      ],
+      "refs": []
+    },
+    {
+      "id": "background-jobs",
+      "title": "Background jobs on separate workers",
+      "description": "Long-running work such as discovery and provisioning is handed to separate\nworkers through RabbitMQ, and the Activity > Jobs page lists the jobs and lets\nyou requeue or cancel them.",
+      "status": "in_progress",
+      "planned_version": null,
+      "planned_date": null,
+      "components": [
+        "acex",
+        "acex-worker",
+        "acex-frontend"
+      ],
+      "refs": []
+    },
+    {
+      "id": "ztp-discovery-and-provisioning",
+      "title": "ZTP discovery, approval and provisioning",
+      "description": "A device that fetches its bootstrap is discovered, what it reports is reviewed\nand approved, and its configuration is provisioned. The web interface follows\neach node through the stages.",
+      "status": "in_progress",
+      "planned_version": null,
+      "planned_date": null,
+      "components": [
+        "acex",
+        "acex-frontend",
+        "acex-driver-cisco-ioscli"
+      ],
       "refs": []
     }
   ],

@@ -78,6 +78,8 @@ class ChangelogRelease(BaseModel):
 
 
 class ComingStatus(StrEnum):
+    #: Weighed but not decided: shown so that people can see what is on the table.
+    considering = "considering"
     planned = "planned"
     in_progress = "in_progress"
     preview = "preview"
@@ -91,6 +93,8 @@ class ComingFeature(BaseModel):
     planned_version: str | None = None
     #: Free text on purpose: "2026-11", "Q1 2027" and a date are all honest answers.
     planned_date: str | None = None
+    #: The components the item touches, by id; an item usually spans several.
+    components: list[str] = []
     refs: list[Reference] = []
 
 

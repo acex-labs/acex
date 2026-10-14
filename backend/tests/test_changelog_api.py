@@ -431,3 +431,30 @@ class TestHighlights:
         own.write_text(json.dumps(data), encoding="utf-8")
 
         assert [h.title for h in service(own).changelog().highlights] == ["alpha", "Beta", "zulu", "Älg"]
+
+
+class TestRoadmap:
+    def should_pass_the_status_and_components_of_planned_work_through(self, tmp_path):
+        own = write(
+            tmp_path / "own.json",
+            "acex",
+            "ACEX backend",
+            coming=[
+                {
+                    "id": "ztp-juniper",
+                    "title": "ZTP for Juniper",
+                    "status": "considering",
+                    "components": ["acex", "acex-driver-juniper-junoscli"],
+                    "planned_date": "Q1 2027",
+                }
+            ],
+        )
+
+        [product] = service(own).changelog().sections
+
+        [item] = product.coming
+        assert (item.status, item.components, item.planned_date) == (
+            "considering",
+            ["acex", "acex-driver-juniper-junoscli"],
+            "Q1 2027",
+        )

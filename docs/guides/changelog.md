@@ -174,7 +174,7 @@ Users). A choice the person made before wins and is remembered in the
 browser. A component whose notes are all for another point of view is marked
 in the list and offers to show them.
 
-## Planned work
+## Planned work and the roadmap
 
 `changelog.d/coming/` holds what is worth telling users about before it
 ships, one file per item, in the same form:
@@ -184,15 +184,36 @@ ships, one file per item, in the same form:
 title: Agents and the worker report their versions
 status: planned
 planned_version: 6.30.0
+components: acex, acex-collection-agent, acex-worker
 ---
 Collection agents, telemetry agents and the worker will report their version
 to the backend, so Settings > About shows them.
 ```
 
-`status` is `planned`, `in_progress` or `preview`; `planned_version` and
-`planned_date` are optional and free text (`2026-11`, `Q1 2027`). Run
-`python scripts/changelog.py build` after editing and commit the compiled
-file. The product owner decides what goes here; a backlog is not a roadmap.
+- `status` is `considering` (weighed, not decided), `planned`, `in_progress`
+  or `preview`.
+- `planned_version` and `planned_date` are optional and free text (`2026-11`,
+  `Q1 2027`).
+- `components` names the components the item touches, by id. A feature is
+  rarely one package.
+- `refs` points at the ticket (`refs: ADO-1234 https://...`). Who asked for
+  something belongs in the tracker, not here: this repository is public.
+
+Settings > What's new shows all of it, from every product component, in one
+place under *Roadmap*: under way first, then preview, planned and
+considered. Run `python scripts/changelog.py build` after editing and commit
+the compiled file. The product owner decides what goes here; a backlog is not
+a roadmap.
+
+When an item ships it becomes a highlight. This retires the planned item and
+uses its title, text and components as the defaults:
+
+```bash
+python scripts/changelog.py highlight backend --completes agent-versions --date 2026-11-02
+```
+
+A fragment with `completes: <id>` retires an item too, at release, without
+making a highlight.
 
 ## Development images
 

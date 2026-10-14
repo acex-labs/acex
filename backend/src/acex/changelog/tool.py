@@ -52,7 +52,7 @@ OUTPUT_NAME = "changelog.json"
 KINDS = ("security", "removed", "added", "changed", "fixed", "deprecated")
 INTERNAL = "internal"
 AUDIENCES = ("user", "admin", "developer")
-COMING_STATUSES = ("planned", "in_progress", "preview")
+COMING_STATUSES = ("considering", "planned", "in_progress", "preview")
 TITLE_MAX = 80
 SUMMARY_MAX = 200
 HIGHLIGHT_MAX = 400
@@ -288,7 +288,7 @@ def parse_coming(path: Path) -> dict:
     status = meta.get("status", "planned")
     if status not in COMING_STATUSES:
         raise FragmentError(f"{path}: 'status' must be one of {', '.join(COMING_STATUSES)}, not '{status}'")
-    unknown = set(meta) - {"title", "status", "planned_version", "planned_date", "refs"}
+    unknown = set(meta) - {"title", "status", "planned_version", "planned_date", "components", "refs"}
     if unknown:
         raise FragmentError(f"{path}: unknown front matter field(s): {', '.join(sorted(unknown))}")
     return {
@@ -298,6 +298,7 @@ def parse_coming(path: Path) -> dict:
         "status": status,
         "planned_version": meta.get("planned_version") or None,
         "planned_date": meta.get("planned_date") or None,
+        "components": [c.strip() for c in meta.get("components", "").split(",") if c.strip()],
         "refs": _refs(meta.get("refs", "")),
     }
 
@@ -469,16 +470,29 @@ def new_fragment(component: Component, *, kind: str, title: str, body: str = "",
 def new_highlight(
     component: Component,
     *,
-    title: str,
+    title: str | None = None,
     body: str = "",
     on: date | None = None,
     components: str = "",
     slug: str | None = None,
+    completes: str | None = None,
 ) -> Path:
     """Create a highlight file and bring the compiled file up to date.
 
-    It stays: highlights are the product's history, and a release does not consume them.
+    It stays: highlights are the product's history, and a release does not consume them. With `completes`, the
+    planned item it delivers is retired, and its title, text and components are the defaults.
     """
+    planned = None
+    if completes:
+        planned = component.coming_dir / f"{completes}.md"
+        if not planned.exists():
+            raise FragmentError(f"no planned item '{completes}' in {component.coming_dir}")
+        item = parse_coming(planned)
+        title = title or item["title"]
+        body = body or item["description"] or ""
+        components = components or ", ".join(item["components"])
+    if not title:
+        raise FragmentError("a highlight needs a --title (or --completes, to take it from a planned item)")
     day = on or date.today()
     path = component.highlights_dir / f"{day:%Y%m%d}-{slugify(slug) if slug else slugify(title)}.md"
     if path.exists():
@@ -493,6 +507,8 @@ def new_highlight(
     except FragmentError:
         path.unlink()
         raise
+    if planned is not None:
+        planned.unlink()
     write_compiled(component, compiled(component))
     return path
 
@@ -784,7 +800,10 @@ def _parser() -> argparse.ArgumentParser:
 
     highlight = commands.add_parser("highlight", help="add a feature to the product's highlights")
     highlight.add_argument("component", help="the component that keeps the highlights, usually the backend")
-    highlight.add_argument("--title", required=True, help="the feature, in the words of the people who use ACEX")
+    highlight.add_argument("--title", default=None, help="the feature, in the words of the people who use ACEX")
+    highlight.add_argument(
+        "--completes", default=None, help="the id of the planned item this delivers; it is retired, and gives defaults"
+    )
     highlight.add_argument("--body", default="", help="one or two sentences, Markdown")
     highlight.add_argument("--date", default=None, help="when it arrived, YYYY-MM-DD (default: today)")
     highlight.add_argument(
@@ -839,6 +858,7 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
                 on=parse_day(args.date, "--date") if args.date else None,
                 components=args.components,
                 slug=args.slug,
+                completes=args.completes,
             )
             print(f"created {path.relative_to(repo)} and updated {component.output.relative_to(repo)}; commit both")
             return 0

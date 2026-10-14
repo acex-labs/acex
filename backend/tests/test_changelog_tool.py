@@ -286,6 +286,7 @@ class TestBuild:
                 "status": "in_progress",
                 "planned_version": "1.4.0",
                 "planned_date": None,
+                "components": [],
                 "refs": [],
             }
         ]
@@ -771,3 +772,70 @@ class TestHighlights:
         assert (component.coming_dir / "junos-ztp.md").exists()
         assert (component.fragments_dir / "a.md").exists()
         assert not component.output.exists()
+
+
+class TestRoadmap:
+    """Planned work at the level of the product: what is on the table, planned, under way or in preview."""
+
+    def should_take_the_status_of_something_that_is_only_being_considered(self, component):
+        write_coming(component.coming_dir / "a.md", status="considering", components="acex, acex-frontend")
+
+        [item] = tool.coming(component)
+
+        assert item["status"] == "considering"
+        assert item["components"] == ["acex", "acex-frontend"]
+
+    def should_refuse_a_status_it_does_not_know(self, component):
+        write_coming(component.coming_dir / "a.md", status="maybe")
+        with pytest.raises(tool.FragmentError, match="'status' must be one of considering, planned"):
+            tool.coming(component)
+
+    def should_retire_the_planned_item_a_highlight_delivers_and_take_its_words(self, repo, component):
+        write_coming(
+            component.coming_dir / "ztp.md",
+            title="ZTP for Juniper",
+            status="in_progress",
+            components="acex, acex-driver-juniper-junoscli",
+        )
+
+        argv = ["highlight", "example", "--completes", "ztp", "--date", "2026-10-09"]
+        assert tool.main(argv, repo=repo) == 0
+
+        [found] = tool.highlights(component)
+        assert found["title"] == "ZTP for Juniper"
+        assert [c["component"] for c in found["components"]] == ["acex", "acex-driver-juniper-junoscli"]
+        assert not (component.coming_dir / "ztp.md").exists()
+        data = json.loads(component.output.read_text(encoding="utf-8"))
+        assert data["coming"] == [] and [h["title"] for h in data["highlights"]] == ["ZTP for Juniper"]
+
+    def should_let_the_person_word_the_highlight_themselves(self, repo, component):
+        write_coming(component.coming_dir / "ztp.md", title="ZTP for Juniper")
+        argv = [
+            "highlight",
+            "example",
+            "--completes",
+            "ztp",
+            "--title",
+            "Juniper switches join ZTP",
+            "--date",
+            "2026-10-09",
+        ]
+        assert tool.main(argv, repo=repo) == 0
+        assert [h["title"] for h in tool.highlights(component)] == ["Juniper switches join ZTP"]
+
+    def should_not_retire_anything_for_a_planned_item_that_is_not_there(self, repo, component, capsys):
+        argv = ["highlight", "example", "--completes", "nope", "--date", "2026-10-09"]
+        assert tool.main(argv, repo=repo) == 1
+        assert "no planned item 'nope'" in capsys.readouterr().err
+        assert list(component.highlights_dir.glob("*.md")) == []
+
+    def should_keep_the_planned_item_when_the_highlight_is_rejected(self, repo, component):
+        write_coming(component.coming_dir / "ztp.md", title="ZTP for Juniper")
+        argv = ["highlight", "example", "--completes", "ztp", "--date", "2026-10-09", "--components", "acex, 6.1"]
+        assert tool.main(argv, repo=repo) == 1
+        assert (component.coming_dir / "ztp.md").exists()
+        assert list(component.highlights_dir.glob("*.md")) == []
+
+    def should_ask_for_a_title_when_there_is_nothing_to_take_it_from(self, repo, component, capsys):
+        assert tool.main(["highlight", "example", "--date", "2026-10-09"], repo=repo) == 1
+        assert "needs a --title" in capsys.readouterr().err
