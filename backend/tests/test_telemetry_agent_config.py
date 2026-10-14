@@ -320,6 +320,7 @@ def _revision(db, agent_id: int) -> int:
 def _services(db):
     import asyncio
     from types import SimpleNamespace
+    from unittest.mock import AsyncMock
 
     from acex.inventory.logical_node_service import LogicalNodeService
     from acex.inventory.node_service import NodeService
@@ -336,6 +337,8 @@ def _services(db):
         telemetry_agent_manager=tam,
     )
     node_service = NodeService(NodeAdapter(DatabasePlugin(db, Node)), SimpleNamespace(telemetry_agent_manager=tam))
+    # update() answers with get(), which reads assets and logical nodes this inventory does not have.
+    node_service.get = AsyncMock(return_value=None)
     return tam, ln_service, node_service, asyncio.run
 
 

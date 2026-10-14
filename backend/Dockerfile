@@ -19,4 +19,9 @@ RUN sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_cli/pyproje
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/backend/pyproject.toml && \
     pip install --no-cache-dir /deps/devkit /deps/client /deps/cisco_ios_cli /deps/juniper_junos_cli /deps/backend[vault]
 
+
+ARG BUILD_ID=""
+ENV ACEX_BUILD_ID=$BUILD_ID
+
+
 CMD ["python", "-m", "acex_api"]
