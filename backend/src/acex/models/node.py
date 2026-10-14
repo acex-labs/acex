@@ -27,6 +27,9 @@ class NodeBase(SQLModel):
 
 class Node(NodeBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
+    #: The provision_status the node had when it was enrolled in ZTP; it returns
+    #: to it if ZTP is cancelled. None while the node is not in ZTP.
+    ztp_previous_status: NodeProvisionStatus | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     updated_at: datetime | None = Field(default=None)
     logical_node: Optional["LogicalNode"] = Relationship(sa_relationship_kwargs={"lazy": "noload"})

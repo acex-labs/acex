@@ -182,7 +182,7 @@ class GrafanaAgent:
 
     def _fetch_json(self, url: str):
         # Strip the api_url prefix to produce a relative path for the authenticated client.
-        path = url[len(self.client.api_url):]
+        path = url[len(self.client.api_url) :]
         try:
             return self.client.rest.request("GET", path)
         except Exception as e:

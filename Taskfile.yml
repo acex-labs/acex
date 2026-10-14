@@ -61,9 +61,9 @@ tasks:
     cmds:
       - poetry install
       - >-
-        DB_HOST=localhost
-        DB_PASSWORD="${DB_PASSWORD:-postgres}"
-        ACEX_ENCRYPTION_KEY="${ACEX_ENCRYPTION_KEY:-L50Zqr1VmsqTpbByFqXHJx1PIrp3ICZRGDf8Bo7pRh4=}"
+        ACEX_DB_HOST=localhost
+        ACEX_DB_PASSWORD="${ACEX_DB_PASSWORD:-postgres}"
+        ACEX_CREDENTIALS_ENCRYPTION_KEY="${ACEX_CREDENTIALS_ENCRYPTION_KEY:-L50Zqr1VmsqTpbByFqXHJx1PIrp3ICZRGDf8Bo7pRh4=}"
         poetry run acex-api --dev {{.CLI_ARGS}}
 
   # ── MCP ───────────────────────────────────────────────────────────────────

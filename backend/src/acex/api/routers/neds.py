@@ -1,5 +1,3 @@
-import os
-
 from acex.constants import BASE_URL
 from acex.models.ned import Ned
 from acex.plugins.neds.manager import NEDManager
@@ -22,11 +20,12 @@ def get_ned(ned_id: str):
 
 
 def download_ned(filename: str):
-    full_path = f"{nm.driver_dir}/{filename}"
-    if not os.path.exists(full_path):
+    # Only wheels the backend built itself: the name never becomes a path.
+    path = nm.wheel_path(filename)
+    if path is None:
         raise HTTPException(status_code=404, detail="Driver not found")
 
-    return FileResponse(full_path, filename=filename)
+    return FileResponse(path, filename=filename)
 
 
 def create_router(automation_engine):

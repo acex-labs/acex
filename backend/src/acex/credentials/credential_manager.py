@@ -1,5 +1,4 @@
 import builtins
-import os
 from contextlib import contextmanager
 
 from acex.models.credential import (
@@ -26,12 +25,11 @@ from fastapi import HTTPException
 
 
 class CredentialManager:
-    def __init__(self, db_manager, encryption_key: str = None, vault_client=None):
+    def __init__(self, db_manager, encryption_key: str | None = None, vault_client=None):
         self.db = db_manager
-        key = encryption_key or os.environ.get("ACEX_ENCRYPTION_KEY")
-        if not key:
-            raise RuntimeError("Encryption key required: pass encryption_key or set ACEX_ENCRYPTION_KEY")
-        self._fernet = Fernet(key.encode() if isinstance(key, str) else key)
+        if not encryption_key:
+            raise RuntimeError("Encryption key required: set ACEX_CREDENTIALS_ENCRYPTION_KEY")
+        self._fernet = Fernet(encryption_key.encode() if isinstance(encryption_key, str) else encryption_key)
         self._vault = vault_client
 
     def _encrypt(self, plaintext: str) -> str:

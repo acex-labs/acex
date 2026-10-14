@@ -162,7 +162,7 @@ All branches must follow the format `<prefix>/<description>` (Conventional Commi
 
 Examples: `feat/add-ntp-support`, `fix/static-route-nil-check`, `hotfix/1.2.1-crash-on-boot`
 
-Exceptions: `main`, `stage`, and `dependabot/*` are not validated.
+Exceptions: `main`, `stage`, `dev`, and `dependabot/*` are not validated.
 
 The standard is enforced at three levels:
 
@@ -186,6 +186,21 @@ The validation script used by both the hook and CI lives in `scripts/check_branc
 scripts/check_branch_name.sh              # validate the current branch
 scripts/check_branch_name.sh fix/my-fix   # validate a given name
 ```
+
+## Development Images
+
+Every push to `dev` runs `.github/workflows/docker-dev.yml`, which publishes the backend, agent and MCP images to the same GHCR repositories as a release, under development tags:
+
+```
+ghcr.io/acex-labs/acex-backend:dev              # moving: newest successful dev build
+ghcr.io/acex-labs/acex-backend:dev-<short-sha>  # fixed: one commit
+```
+
+The same pattern applies to `acex-collection-agent`, `acex-telemetry-agent`, `acex-grafana-sync-agent` and `acex-mcp`. Development builds install devkit, client and the drivers from the checked-out source, so they always contain the code of the commit they were built from, even when no package version has been bumped. They never publish `latest`, upload to PyPI or create a release; that remains the `main` pipeline in `ci.yml`.
+
+The five images are built independently. If one build fails, the others still receive the new tags and the failed image keeps its previous `dev` tag, so `:dev` can temporarily mix commits. The run summary lists, per image, whether `dev-<short-sha>` was published and its digest.
+
+A `dev-<short-sha>` tag tells you which commit an image was built from, but tags are not immutable: a rebuild of the same commit (for example after a base image or dependency update) replaces it. When a deployment must be pinned to exactly one image, reference the digest from the run summary instead, e.g. `ghcr.io/acex-labs/acex-backend@sha256:…`.
 
 ## Env Files and Secrets
 
