@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from acex.models import LogicalNode
-from acex_devkit.models.management_connection import ManagementConnection
+from acex_devkit.models.management_connection import ManagementConnectionBase
 from acex_devkit.models.node_response import NodeListItem
 
 
@@ -21,16 +21,16 @@ class RendererBase(ABC):
 
 class TransportBase(ABC):
     @abstractmethod
-    def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
+    def get_config(self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs) -> str:
         """Fetch the full running configuration from a device."""
         pass
 
     @abstractmethod
-    def send_config(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> str:
+    def send_config(self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs) -> str:
         """Apply configuration commands to a device."""
         pass
 
-    def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
+    def execute(self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs) -> list[str]:
         """Run arbitrary commands. Opt-in per driver."""
         raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
 

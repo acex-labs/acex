@@ -8,7 +8,7 @@ from acex_devkit.configdiffer import Diff
 from acex_devkit.drivers import NetworkElementDriver, TransportBase
 from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_devkit.models.composed_configuration import ComposedConfiguration
-from acex_devkit.models.management_connection import ManagementConnection
+from acex_devkit.models.management_connection import ManagementConnectionBase
 from acex_devkit.models.node_response import NodeListItem
 from scrapli.driver.core import AsyncIOSXEDriver
 from scrapli.exceptions import ScrapliAuthenticationFailed, ScrapliTimeout
@@ -33,7 +33,7 @@ _session_conn: ContextVar[AsyncIOSXEDriver | None] = ContextVar("_session_conn",
 
 
 class CiscoIOSTransport(TransportBase):
-    async def _open_connection(self, connection: ManagementConnection, **kwargs) -> AsyncIOSXEDriver:
+    async def _open_connection(self, connection: ManagementConnectionBase, **kwargs) -> AsyncIOSXEDriver:
         username = kwargs.get("username")
         password = kwargs.get("password")
         if not username or not password:
@@ -61,7 +61,7 @@ class CiscoIOSTransport(TransportBase):
         return driver
 
     @asynccontextmanager
-    async def session(self, connection: ManagementConnection, **kwargs):
+    async def session(self, connection: ManagementConnectionBase, **kwargs):
         """Hold one SSH session open for the duration of the block."""
         conn = await self._open_connection(connection, **kwargs)
         token = _session_conn.set(conn)
@@ -75,7 +75,7 @@ class CiscoIOSTransport(TransportBase):
                 pass
 
     @asynccontextmanager
-    async def _conn(self, connection: ManagementConnection, **kwargs):
+    async def _conn(self, connection: ManagementConnectionBase, **kwargs):
         """Yield active session conn or open a one-shot, closing what we own."""
         conn = _session_conn.get()
         if conn is not None:
@@ -90,26 +90,26 @@ class CiscoIOSTransport(TransportBase):
             except Exception:
                 pass
 
-    async def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
+    async def get_config(self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs) -> str:
         async with self._conn(connection, **kwargs) as conn:
             response = await conn.send_command("show running-config", timeout_ops=120)
             return response.result
 
     async def send_config(
-        self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs
+        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
     ) -> str:
         async with self._conn(connection, **kwargs) as conn:
             response = await conn.send_configs(commands)
             return response.result
 
     async def execute(
-        self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs
+        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
     ) -> list[str]:
         async with self._conn(connection, **kwargs) as conn:
             responses = await conn.send_commands(commands, timeout_ops=120)
             return [r.result for r in responses]
 
-    async def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> list[dict]:
+    async def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs) -> list[dict]:
         async with self._conn(connection, **kwargs) as conn:
             neighbors = []
             try:
@@ -189,10 +189,8 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         """
         Used for discovery on bare asset
         """
-        conn = ManagementConnection(
+        conn = ManagementConnectionBase(
             target_ip=str(management_ip),
-            node_id=None,
-            id=None
         )
         t = CiscoIOSTransport()
         out = asyncio.run(t.execute(None, conn, ["show version"], username=username, password=password))
@@ -210,7 +208,7 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         }
 
     def provision(
-        self, configuration: ComposedConfiguration, node_instance, connection: ManagementConnection, credentials
+        self, configuration: ComposedConfiguration, node_instance, connection: ManagementConnectionBase, credentials
     ):
         asset = node_instance.asset
         rendered = self.render(configuration, asset)
@@ -228,7 +226,7 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         return self.renderer.render_patch(diff, node_instance)
 
     async def apply_patch(
-        self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnection, **kwargs
+        self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnectionBase, **kwargs
     ):
         commands = self.render_patch(diff, node_instance=node_instance)
         commands = [c.lstrip() for c in commands.splitlines() if c.strip() != "!"]

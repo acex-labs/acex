@@ -10,7 +10,7 @@ from acex_devkit.models.agent_manifest import ManifestTarget
 from acex_devkit.models.config_snapshot import DeviceConfigUpload
 from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry, LldpNeighborUpload
-from acex_devkit.models.management_connection import ManagementConnection
+from acex_devkit.models.management_connection import ManagementConnectionBase
 from acex_devkit.models.node_response import NodeListItem
 
 logger = logging.getLogger("acex_collection_agent")
@@ -84,9 +84,9 @@ class Collector:
             os=target.os,
             ned_id=ned_id,
         )
-        connection = ManagementConnection(
-            id=1337,  # placeholder, not used in driver transport, needed for object compatibility
-            node_id=node_id,
+        connection = ManagementConnectionBase(
+            #id=1337,  # placeholder, not used in driver transport, needed for object compatibility
+            #node_id=node_id, # not needed
             target_ip=target_ip,
             connection_type=target.connection_type or "ssh",
         )
