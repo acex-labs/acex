@@ -4906,5 +4906,199 @@
       "planned_date": null,
       "refs": []
     }
+  ],
+  "highlights": [
+    {
+      "id": "20261009-the-backend-s-settings-use-acex-names",
+      "date": "2026-10-09",
+      "title": "The backend's settings use ACEX_* names",
+      "description": "Every backend setting now has a name of the form ACEX_<SECTION>_<FIELD>. The old names are no longer read, so an installation must rename them before upgrading.",
+      "components": [
+        {
+          "component": "acex",
+          "version": "6.27.0"
+        }
+      ]
+    },
+    {
+      "id": "20261005-ztp-for-cisco-switches",
+      "date": "2026-10-05",
+      "title": "ZTP for Cisco switches",
+      "description": "A new, unconfigured Cisco switch can download its bootstrap from ACEX and be given its rendered configuration. The web interface has a ZTP section for following it.",
+      "components": [
+        {
+          "component": "acex",
+          "version": "6.24.0"
+        },
+        {
+          "component": "acex-driver-cisco-ioscli",
+          "version": "2.7.4"
+        },
+        {
+          "component": "acex-frontend",
+          "version": "0.0.34"
+        }
+      ]
+    },
+    {
+      "id": "20260930-nodes-have-an-admin-status-and-a-provisi",
+      "date": "2026-09-30",
+      "title": "Nodes have an admin status and a provisioning status",
+      "description": "A node's state is split in two: whether it is meant to be in service (planned, active, decommissioned) and how far provisioning has come. Tables, filters and agent match rules use both.",
+      "components": [
+        {
+          "component": "acex",
+          "version": "6.23.0"
+        },
+        {
+          "component": "acex-frontend",
+          "version": "0.0.34"
+        },
+        {
+          "component": "acex-mcp",
+          "version": "1.1.0"
+        }
+      ]
+    },
+    {
+      "id": "20260925-monitoring-copes-with-nodes-that-cannot-",
+      "date": "2026-09-25",
+      "title": "Monitoring copes with nodes that cannot be rendered",
+      "description": "A node that cannot be rendered no longer breaks a telemetry agent's configuration, and the agent's page shows which nodes were covered and which were not.",
+      "components": [
+        {
+          "component": "acex",
+          "version": "6.21.0"
+        },
+        {
+          "component": "acex-frontend",
+          "version": "0.0.32"
+        }
+      ]
+    },
+    {
+      "id": "20260915-supported-hardware-and-operating-systems",
+      "date": "2026-09-15",
+      "title": "Supported hardware and operating systems are declared",
+      "description": "Assets must use a supported vendor and operating system, and the supported vendors, hardware models and operating systems can be listed.",
+      "components": [
+        {
+          "component": "acex",
+          "version": "6.16.0"
+        },
+        {
+          "component": "acex-devkit",
+          "version": "2.5.0"
+        }
+      ]
+    },
+    {
+      "id": "20260910-an-mcp-server-that-reads-as-the-signed-i",
+      "date": "2026-09-10",
+      "title": "An MCP server that reads as the signed-in user",
+      "description": "AI assistants sign in and read devices, intended and collected configuration, drift and cabling as the signed-in user. The earlier tool set is replaced.",
+      "components": [
+        {
+          "component": "acex-mcp",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "id": "20260910-the-ai-assistant-shows-its-steps-and-ope",
+      "date": "2026-09-10",
+      "title": "The AI assistant shows its steps and opens pages",
+      "description": "The assistant shows the steps it takes and can offer a button that opens the page you asked about. Requests fall back to another provider or model when one fails.",
+      "components": [
+        {
+          "component": "acex",
+          "version": "6.14.0"
+        },
+        {
+          "component": "acex-frontend",
+          "version": "0.0.26"
+        }
+      ]
+    },
+    {
+      "id": "20260908-manage-sites-regions-nodes-and-assets-in",
+      "date": "2026-09-08",
+      "title": "Manage sites, regions, nodes and assets in the web interface",
+      "description": "Sites, regions, logical nodes, assets and nodes can be created, edited and deleted from the web interface, with links between a node and its asset and logical node.",
+      "components": [
+        {
+          "component": "acex-frontend",
+          "version": "0.0.23"
+        }
+      ]
+    },
+    {
+      "id": "20260908-report-a-bug-from-any-page",
+      "date": "2026-09-08",
+      "title": "Report a bug from any page",
+      "description": "Anyone can report a bug from any page, with a severity and steps to reproduce. Reports are delivered to Slack and Azure DevOps when those are configured.",
+      "components": [
+        {
+          "component": "acex-frontend",
+          "version": "0.0.22"
+        },
+        {
+          "component": "acex",
+          "version": "6.11.0"
+        }
+      ]
+    },
+    {
+      "id": "20260827-import-nodes-assets-sites-and-regions-fr",
+      "date": "2026-08-27",
+      "title": "Import nodes, assets, sites and regions from CSV",
+      "description": "Nodes, assets and management connections, and sites and regions, can be imported from CSV files.",
+      "components": [
+        {
+          "component": "acex",
+          "version": "6.7.0"
+        }
+      ]
+    },
+    {
+      "id": "20260611-port-layouts-for-119-cisco-hardware-mode",
+      "date": "2026-06-11",
+      "title": "Port layouts for 119 Cisco hardware models",
+      "description": "Interface names for stacked and modular Cisco switches are built per hardware model, with port layouts for 119 models.",
+      "components": [
+        {
+          "component": "acex-driver-cisco-ioscli",
+          "version": "2.1.0"
+        }
+      ]
+    },
+    {
+      "id": "20260505-grafana-is-kept-in-step-with-acex",
+      "date": "2026-05-05",
+      "title": "Grafana is kept in step with ACEX",
+      "description": "An agent creates the datasources and dashboards ACEX generates in a Grafana instance and removes dashboards that were removed from ACEX.",
+      "components": [
+        {
+          "component": "acex-grafana-sync",
+          "version": "0.1.0"
+        }
+      ]
+    },
+    {
+      "id": "20260501-juniper-junos-devices",
+      "date": "2026-05-01",
+      "title": "Juniper Junos devices",
+      "description": "ACEX renders Junos configuration as set commands and applies it over SSH. Reading a device's configuration back was not yet supported in the first version.",
+      "components": [
+        {
+          "component": "acex-driver-juniper-junoscli",
+          "version": "1.0.0"
+        },
+        {
+          "component": "acex",
+          "version": "6.17.0"
+        }
+      ]
+    }
   ]
 }
