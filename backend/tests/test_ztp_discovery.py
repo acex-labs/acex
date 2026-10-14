@@ -46,7 +46,7 @@ def db():
     return _Db()
 
 
-def _fetch_bootstrap(db, producer, login=("acex-ztp", "Temp123")):
+def _fetch_bootstrap(db, producer, login=("acex-ztp", "Temp123"), path=BOOTSTRAP):
     methods = ZtpMethodManager(db, neds=set)
     if login:
         username, password = login
@@ -57,7 +57,7 @@ def _fetch_bootstrap(db, producer, login=("acex-ztp", "Temp123")):
         )
     app = FastAPI()
     app.include_router(create_router(SimpleNamespace(jobs=JobManager(db, producer), ztp_methods=methods)))
-    return TestClient(app, client=(DEVICE_IP, 50000)).get(BOOTSTRAP)
+    return TestClient(app, client=(DEVICE_IP, 50000)).get(path)
 
 
 def _jobs(db) -> list[Job]:
@@ -109,3 +109,12 @@ class TestBootstrapLogin:
 
         assert response.status_code == 503
         assert _jobs(db) == []
+
+    def should_not_find_a_file_the_method_does_not_serve(self, db):
+        response = _fetch_bootstrap(db, _Producer(), path="/api/v1/ztp/init_config/cisco_iosxe_python/other.py")
+
+        assert response.status_code == 404
+        assert _jobs(db) == []
+
+    def should_not_find_an_unknown_method(self, db):
+        assert _fetch_bootstrap(db, _Producer(), path="/api/v1/ztp/init_config/junos/ztp.py").status_code == 404
