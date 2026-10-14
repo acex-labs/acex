@@ -21,6 +21,9 @@ Namespaces:
     client.system            — auth_config, health_node, health_site
     client.workers           — connect, job_types, jobs (query, get, claim, succeed, fail)
     client.ztp_methods       — query, get, update (the NED and bootstrap login of each ZTP method)
+    client.ztp_vendor_classes — query, create, update, delete (DHCP vendor class → ZTP method)
+    client.ztp_dhcp_scopes   — query, create, update, delete (IPv4 networks the ZTP DHCP server serves)
+    client.ztp_dhcp          — kea (the rendered Kea DHCPv4 config for ZTP)
 """
 
 from __future__ import annotations
@@ -35,7 +38,10 @@ from acex_client.resources.observability import ObservabilityNamespace
 from acex_client.resources.operations import OperationsNamespace
 from acex_client.resources.system import SystemNamespace
 from acex_client.resources.workers import Workers
+from acex_client.resources.ztp_dhcp import ZtpDhcp
+from acex_client.resources.ztp_dhcp_scopes import ZtpDhcpScopes
 from acex_client.resources.ztp_methods import ZtpMethods
+from acex_client.resources.ztp_vendor_classes import ZtpVendorClasses
 
 
 class Acex:
@@ -68,6 +74,9 @@ class Acex:
         self.system = SystemNamespace(self.rest)
         self.workers = Workers(self.rest)
         self.ztp_methods = ZtpMethods(self.rest)
+        self.ztp_vendor_classes = ZtpVendorClasses(self.rest)
+        self.ztp_dhcp_scopes = ZtpDhcpScopes(self.rest)
+        self.ztp_dhcp = ZtpDhcp(self.rest)
 
         # AI is optional — HEAD-probe /ai_ops/ai/ask/. If the backend doesn't
         # mount ai_ops, set self.ai to None so callers can `if client.ai:`.
