@@ -38,7 +38,12 @@ class HandleZtpProvision(Handler):
         m = client.ztp_methods.get(method=job_data.method)
         username, password = m.bootstrap_username, m.bootstrap_password
 
-        driver.provision(configuration, node, connection, {"username": username, "password": password})
+        driver.provision(
+            configuration,
+            node,
+            connection.target_ip,
+            {"username": username, "password": password},
+        )
 
         out = node.provision_status = NodeProvisionStatus.provisioned
         node.save()

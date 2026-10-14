@@ -3,7 +3,6 @@ from typing import Any
 
 from acex_devkit.models.asset import Asset
 from acex_devkit.models.composed_configuration import ComposedConfiguration
-from acex_devkit.models.management_connection import ManagementConnectionBase
 from acex_devkit.models.node_response import NodeListItem
 
 
@@ -22,20 +21,16 @@ class RendererBase(ABC):
 
 class TransportBase(ABC):
     @abstractmethod
-    def get_config(self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs) -> str:
+    def get_config(self, node: NodeListItem, target_ip: str, **kwargs) -> str:
         """Fetch the full running configuration from a device."""
         pass
 
     @abstractmethod
-    def send_config(
-        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
-    ) -> str:
+    def send_config(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> str:
         """Apply configuration commands to a device."""
         pass
 
-    def execute(
-        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
-    ) -> list[str]:
+    def execute(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> list[str]:
         """Run arbitrary commands. Opt-in per driver."""
         raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
 

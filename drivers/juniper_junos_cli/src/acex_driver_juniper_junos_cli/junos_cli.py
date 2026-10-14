@@ -4,7 +4,6 @@ from typing import Any
 from acex_devkit.configdiffer import Diff
 from acex_devkit.drivers import NetworkElementDriver, TransportBase
 from acex_devkit.models.composed_configuration import ComposedConfiguration
-from acex_devkit.models.management_connection import ManagementConnectionBase
 from acex_devkit.models.node_response import NodeListItem
 from netmiko import ConnectHandler
 
@@ -16,14 +15,14 @@ class JunosCLITransport(TransportBase):
     def __init__(self):
         self._session_conn: ConnectHandler | None = None
 
-    def _open_connection(self, connection: ManagementConnectionBase, **kwargs) -> ConnectHandler:
+    def _open_connection(self, target_ip: str, **kwargs) -> ConnectHandler:
         username = kwargs.get("username")
         password = kwargs.get("password")
         if not username or not password:
             raise ValueError("Credentials required: username and password must be provided")
         device = {
             "device_type": "juniper_junos",
-            "host": connection.target_ip,
+            "host": target_ip,
             "username": username,
             "password": password,
             "port": 22,
@@ -32,9 +31,9 @@ class JunosCLITransport(TransportBase):
         return ConnectHandler(**device)
 
     @contextmanager
-    def session(self, connection: ManagementConnectionBase, **kwargs):
+    def session(self, target_ip: str, **kwargs):
         """Hold one SSH session open for the duration of the block."""
-        conn = self._open_connection(connection, **kwargs)
+        conn = self._open_connection(target_ip, **kwargs)
         self._session_conn = conn
         try:
             yield self
@@ -46,12 +45,12 @@ class JunosCLITransport(TransportBase):
                 pass
 
     @contextmanager
-    def _conn(self, connection: ManagementConnectionBase, **kwargs):
+    def _conn(self, target_ip: str, **kwargs):
         """Yield active session conn or open a one-shot, closing what we own."""
         if self._session_conn is not None:
             yield self._session_conn
             return
-        conn = self._open_connection(connection, **kwargs)
+        conn = self._open_connection(target_ip, **kwargs)
         try:
             yield conn
         finally:
@@ -60,8 +59,8 @@ class JunosCLITransport(TransportBase):
             except Exception:
                 pass
 
-    def get_config(self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs) -> str:
-        with self._conn(connection, **kwargs) as conn:
+    def get_config(self, node: NodeListItem, target_ip: str, **kwargs) -> str:
+        with self._conn(target_ip, **kwargs) as conn:
             # `display set` flattens hierarchical config into reproducible
             # `set` lines; `no-more` disables paging.
             return conn.send_command(
@@ -69,22 +68,18 @@ class JunosCLITransport(TransportBase):
                 read_timeout=120,
             )
 
-    def send_config(
-        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
-    ) -> str:
+    def send_config(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> str:
         # netmiko's juniper_junos handler enters configure mode, sends the
         # commands, commits, and exits — driven by send_config_set.
-        with self._conn(connection, **kwargs) as conn:
+        with self._conn(target_ip, **kwargs) as conn:
             return conn.send_config_set(commands)
 
-    def execute(
-        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
-    ) -> list[str]:
-        with self._conn(connection, **kwargs) as conn:
+    def execute(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> list[str]:
+        with self._conn(target_ip, **kwargs) as conn:
             return [conn.send_command(cmd, read_timeout=120) for cmd in commands]
 
-    def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs) -> list[dict]:
-        with self._conn(connection, **kwargs) as conn:
+    def get_lldp_neighbors(self, node: NodeListItem, target_ip: str, **kwargs) -> list[dict]:
+        with self._conn(target_ip, **kwargs) as conn:
             try:
                 raw = conn.send_command("show lldp neighbors", read_timeout=60)
             except Exception:
@@ -137,9 +132,7 @@ class JunosCLI(NetworkElementDriver):
     def render_patch(self, diff: Diff, node_instance: Any):
         return self.renderer.render_patch(diff, node_instance)
 
-    def apply_patch(
-        self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnectionBase, **kwargs
-    ):
+    def apply_patch(self, diff: Diff, node_instance, node: NodeListItem, target_ip: str, **kwargs):
         rendered = self.render_patch(diff, node_instance=node_instance)
         commands = [c.strip() for c in rendered.splitlines() if c.strip()]
-        return self.transport.send_config(node, connection, commands, **kwargs)
+        return self.transport.send_config(node, target_ip, commands, **kwargs)
