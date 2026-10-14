@@ -63,7 +63,8 @@ The `Changelog` workflow runs on every pull request:
    check, or add a `kind: internal` fragment: that leaves a trace in the
    repository.
 3. The compiled `changelog.json` files are current (`build --check`): they
-   change only when planned items change or a release is cut.
+   change only when planned items change, a highlight is added or a release
+   is cut.
 4. Into `main`: a component whose version differs from `main`'s has no
    unreleased fragments, so the version the pipeline is about to publish
    carries its notes.
@@ -110,6 +111,68 @@ changed for the people who use ACEX, not how. A release without a summary
 is shown as before. The summary of an older release can be added or
 corrected by editing the `summary` field of that release in `changelog.json`;
 `release` and `build` leave older releases as they are.
+
+## Highlights
+
+Settings > What's new opens on the product's highlights: the features worth
+telling an ordinary user about, newest first, each with the date it arrived.
+They are written by hand when a feature ships, at the level of "ZTP for Cisco
+switches" and not "ZTP script URL moved", and one highlight can span several
+components.
+
+```bash
+python scripts/changelog.py highlight backend \
+    --title "ZTP for Cisco switches" --date 2026-10-05 \
+    --components "acex 6.24.0, acex-driver-cisco-ioscli 2.7.4, acex-frontend 0.0.34" \
+    --body "A new, unconfigured Cisco switch can download its bootstrap from ACEX and be given its rendered configuration."
+```
+
+This creates `backend/changelog.d/highlights/<date>-<slug>.md` and brings the
+compiled `changelog.json` up to date; commit both. (Editing a highlight file
+by hand needs `python scripts/changelog.py build`, which the pull request
+check also runs.)
+
+```markdown
+---
+title: ZTP for Cisco switches
+date: 2026-10-05
+components: acex 6.24.0, acex-driver-cisco-ioscli 2.7.4, acex-frontend 0.0.34
+---
+A new, unconfigured Cisco switch can download its bootstrap from ACEX ...
+```
+
+- `title` is at most 80 characters and `date` is required (`YYYY-MM-DD`).
+- The text is one or two sentences, at most 400 characters, for someone who
+  does not know the packages.
+- `components` names where the feature shipped, as `component version`. The
+  page uses it to lead from a highlight to the details of those releases.
+- A release does not consume highlights; they are the product's history.
+  They are compiled into the component's `changelog.json`, and the page
+  gathers the highlights of every product component, so a package other than
+  the backend can keep its own.
+- Nothing forces a highlight to be written. A release without one is simply
+  not in the highlights, and its details are still under each component.
+- A highlight that cannot be read is skipped with a warning; it never takes
+  the releases of its component with it.
+- The same day is listed in title order. A date more than 31 days ahead is
+  refused.
+
+### Choosing what to see
+
+Highlights are not filtered. The Details view, which lists every change by
+component, shows a point of view:
+
+| Choice | Shows entries tagged |
+|---|---|
+| Users | `user` |
+| Administrators | `user` and `admin` (an administrator is also a user) |
+| Developers | `developer` |
+| Everyone | all of them |
+
+It starts on the person's role (Administrators for `naas-admin`, otherwise
+Users). A choice the person made before wins and is remembered in the
+browser. A component whose notes are all for another point of view is marked
+in the list and offers to show them.
 
 ## Planned work
 

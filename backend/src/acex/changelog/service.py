@@ -33,6 +33,7 @@ from acex.changelog.models import (
     ChangelogSection,
     ComponentChangelog,
     ComponentRelease,
+    Highlight,
     SectionInfo,
     SourceKind,
 )
@@ -116,17 +117,28 @@ class ChangelogService:
 
     def changelog(self) -> ChangelogResponse:
         seen: set[str] = set()
+        highlights: list[Highlight] = []
         sections: dict[str, tuple[SectionInfo, list[tuple[ComponentChangelog, SourceKind]]]] = {}
         for changelog, source in [*self.packaged(), *self.deployment()]:
             if changelog.component in seen:
                 logger.warning(f"changelog for '{changelog.component}' found twice; keeping the first")
                 continue
             seen.add(changelog.component)
+            if source != SourceKind.directory:
+                # The file stem is only unique within one component; the component makes it unique here.
+                highlights.extend(
+                    h.model_copy(update={"id": f"{changelog.component}/{h.id}"}) for h in changelog.highlights
+                )
             section = PRODUCT if source != SourceKind.directory else changelog.section
             sections.setdefault(section.id, (section, []))[1].append((changelog, source))
         ordered = sorted(sections.values(), key=lambda item: (item[0].id != PRODUCT.id, item[0].name.lower()))
+        # The newest first; a deployment's own notes have none, so they are not part of the product's story.
+        highlights.sort(key=lambda h: h.title.casefold())
+        highlights.sort(key=lambda h: h.date, reverse=True)  # stable: the same day stays in title order
         return ChangelogResponse(
-            generated_at=self.now(), sections=[_section(info, members) for info, members in ordered]
+            generated_at=self.now(),
+            highlights=highlights,
+            sections=[_section(info, members) for info, members in ordered],
         )
 
 

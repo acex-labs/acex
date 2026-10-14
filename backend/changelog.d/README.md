@@ -36,6 +36,9 @@ boot through that method are handled by the chosen driver.
 worth telling users goes there.
 
 The person who cuts a release can add one sentence about it with
-`release --summary "..."`; fragments never carry one.
+`release --summary "..."`; fragments never carry one. A feature worth telling
+an ordinary user about gets a highlight in `highlights/`
+(`python scripts/changelog.py highlight backend --title ...`), written when it
+ships and kept; see the guide.
 
 Full guide: `docs/guides/changelog.md`.

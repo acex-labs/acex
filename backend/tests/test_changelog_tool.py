@@ -3,7 +3,7 @@ version when the release is cut. Nobody edits a shared file and nobody types a v
 
 import json
 import subprocess
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -590,3 +590,184 @@ class TestJavaScriptComponent:
         assert tool.main(["release", "example-ui", "--bump", "minor", "--date", "2026-10-20"], repo=repo) == 0
         data = json.loads(component.output.read_text(encoding="utf-8"))
         assert data["releases"][0]["version"] == "0.5.0"
+
+
+def write_highlight(
+    path: Path, *, title="ZTP for Cisco switches", on="2026-10-09", components=None, body="Switches are provisioned."
+):
+    lines = [f"title: {title}"]
+    if on is not None:
+        lines.append(f"date: {on}")
+    if components is not None:
+        lines.append(f"components: {components}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("---\n" + "\n".join(lines) + "\n---\n" + body + "\n", encoding="utf-8")
+    return path
+
+
+class TestHighlights:
+    """The product's story at the level of a feature: written by hand when it ships, and kept."""
+
+    def should_be_read_newest_first_with_the_components_they_came_in(self, component):
+        write_highlight(component.highlights_dir / "a.md", title="Older", on="2026-09-01")
+        write_highlight(
+            component.highlights_dir / "b.md",
+            on="2026-10-09",
+            components="acex 6.27.0, acex-driver-cisco-ioscli 2.7.4, acex-frontend",
+        )
+
+        found = tool.highlights(component)
+
+        assert [h["title"] for h in found] == ["ZTP for Cisco switches", "Older"]
+        assert found[0]["components"] == [
+            {"component": "acex", "version": "6.27.0"},
+            {"component": "acex-driver-cisco-ioscli", "version": "2.7.4"},
+            {"component": "acex-frontend", "version": None},
+        ]
+        assert found[0]["id"] == "b" and found[0]["description"] == "Switches are provisioned."
+
+    def should_need_a_date(self, component):
+        write_highlight(component.highlights_dir / "a.md", on=None)
+        with pytest.raises(tool.FragmentError, match="'date' is required"):
+            tool.highlights(component)
+
+    def should_refuse_a_text_that_is_not_a_couple_of_sentences(self, component):
+        write_highlight(component.highlights_dir / "a.md", body="x" * 401)
+        with pytest.raises(tool.FragmentError, match="keep it under 400"):
+            tool.highlights(component)
+
+    def should_refuse_a_component_it_cannot_read(self, component):
+        write_highlight(component.highlights_dir / "a.md", components="acex 6.27.0 extra")
+        with pytest.raises(tool.FragmentError, match="expected 'component version'"):
+            tool.highlights(component)
+
+    def should_not_be_taken_for_fragments_or_planned_work(self, component):
+        write_highlight(component.highlights_dir / "a.md")
+        assert tool.fragments(component) == []
+        assert tool.coming(component) == []
+
+    def should_end_up_in_the_compiled_file_and_survive_a_release(self, component):
+        write_highlight(component.highlights_dir / "a.md")
+        write_fragment(component.fragments_dir / "f.md")
+
+        assert tool.release(component, on=date(2026, 10, 20)).ok
+
+        data = json.loads(component.output.read_text(encoding="utf-8"))
+        assert [h["title"] for h in data["highlights"]] == ["ZTP for Cisco switches"]
+        assert (component.highlights_dir / "a.md").exists()  # a release does not consume them
+
+    def should_not_call_for_a_fragment_when_only_highlights_change(self, repo, component):
+        changed = [("A", "drivers/example/changelog.d/highlights/20261009-ztp.md")]
+        assert tool.check([component], changed, repo).ok
+
+    def should_be_checked_by_validate(self, repo, component, capsys):
+        write_highlight(component.highlights_dir / "a.md", on="not-a-date")
+        assert tool.main(["validate"], repo=repo) == 1
+        assert "the date must be YYYY-MM-DD" in capsys.readouterr().err
+
+    def should_be_created_from_the_command_line(self, repo, component):
+        argv = [
+            "highlight",
+            "example",
+            "--title",
+            "ZTP for Cisco switches",
+            "--date",
+            "2026-10-09",
+            "--components",
+            "acex 6.27.0",
+            "--body",
+            "Switches are provisioned.",
+        ]
+        assert tool.main(argv, repo=repo) == 0
+
+        [path] = component.highlights_dir.glob("*.md")
+        assert path.name == "20261009-ztp-for-cisco-switches.md"
+        assert tool.highlights(component)[0]["components"] == [{"component": "acex", "version": "6.27.0"}]
+
+    def should_call_for_a_fragment_when_the_code_changed_next_to_a_highlight(self, repo, component):
+        changed = [
+            ("A", "drivers/example/changelog.d/highlights/20261009-ztp.md"),
+            ("M", "drivers/example/src/acex_driver_example/driver.py"),
+        ]
+        report = tool.check([component], changed, repo)
+        assert "changed without a changelog entry" in report.errors[0]
+
+    def should_keep_the_same_day_in_title_order_whatever_the_case(self, component):
+        for name, title in (("1", "zulu"), ("2", "Älg"), ("3", "Beta"), ("4", "alpha")):
+            write_highlight(component.highlights_dir / f"{name}.md", title=title, on="2026-10-09")
+        write_highlight(component.highlights_dir / "5.md", title="Newer", on="2026-10-10")
+
+        assert [h["title"] for h in tool.highlights(component)] == ["Newer", "alpha", "Beta", "zulu", "Älg"]
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("on", "20261009", "must be YYYY-MM-DD"),
+            ("on", "2026-02-30", "is not a date"),
+            ("on", "2026-W41-5", "must be YYYY-MM-DD"),
+            ("title", "x" * 81, "title is 81 characters"),
+            ("title", "feat: choose a driver", "looks like a commit subject"),
+            ("components", "acex, 6.27.0", "looks like a version"),
+        ],
+    )
+    def should_refuse_a_highlight_that_breaks_the_format(self, component, field, value, message):
+        write_highlight(component.highlights_dir / "a.md", **{field: value})
+        with pytest.raises(tool.FragmentError, match=message):
+            tool.highlights(component)
+
+    def should_refuse_a_date_years_ahead(self, component):
+        far = (date.today() + timedelta(days=400)).isoformat()
+        write_highlight(component.highlights_dir / "a.md", on=far)
+        with pytest.raises(tool.FragmentError, match="days ahead"):
+            tool.highlights(component)
+
+    def should_refuse_an_unknown_front_matter_field(self, component):
+        path = write_highlight(component.highlights_dir / "a.md")
+        path.write_text(path.read_text().replace("---\n", "---\naudience: admin\n", 1), encoding="utf-8")
+        with pytest.raises(tool.FragmentError, match="unknown front matter field"):
+            tool.highlights(component)
+
+    def should_leave_no_file_behind_when_the_command_rejects_a_highlight(self, repo, component, capsys):
+        argv = ["highlight", "example", "--title", "x" * 81, "--date", "2026-10-09"]
+        assert tool.main(argv, repo=repo) == 1
+        assert list(component.highlights_dir.glob("*.md")) == []
+        # and the corrected one is not refused as "already exists"
+        assert tool.main(["highlight", "example", "--title", "x" * 20, "--date", "2026-10-09"], repo=repo) == 0
+
+    def should_report_a_bad_date_on_the_command_line_without_a_traceback(self, repo, component, capsys):
+        argv = ["highlight", "example", "--title", "Fine", "--date", "2026-13-45"]
+        assert tool.main(argv, repo=repo) == 1
+        assert "is not a date" in capsys.readouterr().err
+
+    def should_bring_the_compiled_file_up_to_date_when_a_highlight_is_created(self, repo, component):
+        argv = ["highlight", "example", "--title", "ZTP for Cisco switches", "--date", "2026-10-09"]
+        assert tool.main(argv, repo=repo) == 0
+        assert tool.main(["build", "--check"], repo=repo) == 0
+        data = json.loads(component.output.read_text(encoding="utf-8"))
+        assert [h["title"] for h in data["highlights"]] == ["ZTP for Cisco switches"]
+
+    def should_name_the_file_from_ascii_letters_and_whole_words(self, repo, component):
+        assert tool.slugify("Brandväggar för alla") == "brandvaggar-for-alla"
+        assert (
+            tool.slugify("Nodes have an admin status and a provisioning status") == "nodes-have-an-admin-status-and-a"
+        )
+        assert tool.slugify("日本語") == "change"
+        assert tool.slugify("x" * 60) == "x" * 40
+
+    def should_not_let_a_slug_leave_the_directory(self, repo, component):
+        argv = ["highlight", "example", "--title", "Fine", "--date", "2026-10-09", "--slug", "../../x"]
+        assert tool.main(argv, repo=repo) == 0
+        [path] = component.highlights_dir.glob("*.md")
+        assert path.name == "20261009-x.md"
+
+    def should_stop_a_release_before_it_changes_anything_when_a_highlight_is_broken(self, component):
+        write_coming(component.coming_dir / "junos-ztp.md")
+        write_fragment(component.fragments_dir / "a.md", completes="junos-ztp")
+        write_highlight(component.highlights_dir / "bad.md", on="not-a-date")
+
+        with pytest.raises(tool.FragmentError):
+            tool.release(component)
+
+        assert (component.coming_dir / "junos-ztp.md").exists()
+        assert (component.fragments_dir / "a.md").exists()
+        assert not component.output.exists()

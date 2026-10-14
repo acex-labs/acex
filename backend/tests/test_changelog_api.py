@@ -346,3 +346,88 @@ class TestBundledComponents:
     def should_be_fine_without_the_directory(self, own, tmp_path):
         [product] = service(own, bundled_dir=tmp_path / "missing").changelog().sections
         assert [c.id for c in product.components] == ["acex"]
+
+
+class TestHighlights:
+    def should_gather_the_product_highlights_across_components_newest_first(self, own, tmp_path):
+        data = json.loads(own.read_text())
+        data["highlights"] = [
+            {"id": "a", "date": "2026-09-01", "title": "Release notes", "components": []},
+            {
+                "id": "b",
+                "date": "2026-10-09",
+                "title": "ZTP for Cisco",
+                "components": [{"component": "acex", "version": "6.27.0"}],
+            },
+        ]
+        own.write_text(json.dumps(data), encoding="utf-8")
+        bundled = tmp_path / "bundled"
+        write(bundled / "worker.json", "acex-worker", "ACEX worker")
+        data = json.loads((bundled / "worker.json").read_text())
+        data["highlights"] = [{"id": "c", "date": "2026-09-20", "title": "Workers run background jobs"}]
+        (bundled / "worker.json").write_text(json.dumps(data), encoding="utf-8")
+
+        response = service(own, bundled_dir=bundled).changelog()
+
+        assert [h.title for h in response.highlights] == [
+            "ZTP for Cisco",
+            "Workers run background jobs",
+            "Release notes",
+        ]
+        assert response.highlights[0].components[0].version == "6.27.0"
+
+    def should_leave_a_deployments_notes_out_of_the_products_highlights(self, own, tmp_path):
+        extra = tmp_path / "extra"
+        write(extra / "example.json", "example-config", "Example", section={"id": "example", "name": "Example IT"})
+        data = json.loads((extra / "example.json").read_text())
+        data["highlights"] = [{"id": "x", "date": "2026-10-01", "title": "Our own milestone"}]
+        (extra / "example.json").write_text(json.dumps(data), encoding="utf-8")
+
+        assert service(own, extra_dir=extra).changelog().highlights == []
+
+    def should_have_none_when_nobody_wrote_any(self, own):
+        assert service(own).changelog().highlights == []
+
+    def should_keep_the_releases_when_one_highlight_is_malformed(self, tmp_path, caplog):
+        path = write(
+            tmp_path / "own.json", "acex", "ACEX backend", releases=[release("6.27.0", "2026-10-09", entry("Jobs"))]
+        )
+        data = json.loads(path.read_text())
+        data["highlights"] = [
+            {"id": "good", "date": "2026-10-09", "title": "ZTP for Cisco"},
+            {"id": "bad", "date": "Oct 2026", "title": "A feature"},
+            {"id": "worse", "date": "2026-10-09"},
+        ]
+        path.write_text(json.dumps(data), encoding="utf-8")
+
+        [product] = service(path).changelog().sections
+
+        assert [r.version for r in product.releases] == ["6.27.0"]
+        assert [h.title for h in service(path).changelog().highlights] == ["ZTP for Cisco"]
+        assert "highlight skipped" in caplog.text
+
+    def should_make_the_ids_unique_across_components(self, own, tmp_path):
+        data = json.loads(own.read_text())
+        data["highlights"] = [{"id": "20261009-ztp", "date": "2026-10-09", "title": "ZTP"}]
+        own.write_text(json.dumps(data), encoding="utf-8")
+        bundled = tmp_path / "bundled"
+        write(bundled / "worker.json", "acex-worker", "ACEX worker")
+        worker = json.loads((bundled / "worker.json").read_text())
+        worker["highlights"] = [{"id": "20261009-ztp", "date": "2026-10-09", "title": "ZTP for the worker"}]
+        (bundled / "worker.json").write_text(json.dumps(worker), encoding="utf-8")
+
+        ids = [h.id for h in service(own, bundled_dir=bundled).changelog().highlights]
+
+        assert sorted(ids) == ["acex-worker/20261009-ztp", "acex/20261009-ztp"]
+
+    def should_order_the_same_day_by_title_whatever_the_case(self, own):
+        data = json.loads(own.read_text())
+        data["highlights"] = [
+            {"id": "1", "date": "2026-10-09", "title": "zulu"},
+            {"id": "2", "date": "2026-10-09", "title": "Älg"},
+            {"id": "3", "date": "2026-10-09", "title": "Beta"},
+            {"id": "4", "date": "2026-10-09", "title": "alpha"},
+        ]
+        own.write_text(json.dumps(data), encoding="utf-8")
+
+        assert [h.title for h in service(own).changelog().highlights] == ["alpha", "Beta", "zulu", "Älg"]

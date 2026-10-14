@@ -39,7 +39,8 @@ def create_router(automation_engine):
 
     @router.get("/changelog", response_model=ChangelogResponse)
     def changelog(request: Request):
-        """Release notes of the backend and of every installed component that publishes them, plus planned work.
+        """What changed in each release, for the backend and every component that publishes notes, plus what is
+        planned and the product's highlights (its features, newest first, across components).
 
         Deployment-specific notes (ACEX_CHANGELOG_EXTRA_DIR) come as their own sections after the product.
         The answer is a few hundred kilobytes that change only when a package is updated or a deployment edits

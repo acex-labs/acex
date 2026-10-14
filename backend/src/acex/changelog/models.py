@@ -8,9 +8,12 @@ aggregate of those files.
 """
 
 import datetime
+import logging
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError, field_validator
+
+logger = logging.getLogger("acex.changelog")
 
 SCHEMA_VERSION = 1
 
@@ -98,6 +101,27 @@ class SectionInfo(BaseModel):
     name: str
 
 
+class HighlightComponent(BaseModel):
+    """A component, and optionally the version of it, that a highlight is delivered in."""
+
+    component: str
+    version: str | None = None
+
+
+class Highlight(BaseModel):
+    """A feature worth telling the product's users about, with the date it arrived.
+
+    Written by hand when the feature ships, at the level of "ZTP for Cisco switches", and spanning
+    components: the releases it came in are named so the page can lead to their details.
+    """
+
+    id: str
+    date: datetime.date
+    title: str
+    description: str | None = None
+    components: list[HighlightComponent] = []
+
+
 class ComponentChangelog(BaseModel):
     """The compiled changelog of one component: the file format."""
 
@@ -110,6 +134,21 @@ class ComponentChangelog(BaseModel):
     section: SectionInfo | None = None
     releases: list[ChangelogRelease] = []
     coming: list[ComingFeature] = []
+    highlights: list[Highlight] = []
+
+    @field_validator("highlights", mode="before")
+    @classmethod
+    def _keep_the_good_highlights(cls, value):
+        """A highlight that cannot be read is dropped (and logged); it must not take the releases with it."""
+        if not isinstance(value, list):
+            return []
+        kept = []
+        for item in value:
+            try:
+                kept.append(Highlight.model_validate(item))
+            except ValidationError as exc:
+                logger.warning(f"highlight skipped: {exc.error_count()} problem(s) in {str(item)[:80]}")
+        return kept
 
 
 # --- GET /changelog ---------------------------------------------------------
@@ -137,5 +176,7 @@ class ChangelogSection(BaseModel):
 class ChangelogResponse(BaseModel):
     schema_version: int = SCHEMA_VERSION
     generated_at: datetime.datetime
+    #: The product's highlights across its components, newest first.
+    highlights: list[Highlight] = []
     #: The product first, then any deployment-specific sections by name.
     sections: list[ChangelogSection]

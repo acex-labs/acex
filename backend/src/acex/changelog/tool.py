@@ -36,6 +36,7 @@ import re
 import subprocess
 import sys
 import tomllib
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -43,6 +44,7 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 FRAGMENT_DIR = "changelog.d"
 COMING_DIR = "coming"
+HIGHLIGHTS_DIR = "highlights"
 OUTPUT_NAME = "changelog.json"
 
 #: Kinds in the order they are shown. `internal` satisfies the pull request
@@ -53,6 +55,9 @@ AUDIENCES = ("user", "admin", "developer")
 COMING_STATUSES = ("planned", "in_progress", "preview")
 TITLE_MAX = 80
 SUMMARY_MAX = 200
+HIGHLIGHT_MAX = 400
+#: A highlight may be dated a little ahead of today (a release written up before it ships), not years.
+HIGHLIGHT_AHEAD_DAYS = 31
 
 #: Paths inside a component that do not call for a changelog entry on their own.
 EXEMPT_PATHS = (FRAGMENT_DIR, "tests", "README.md", "README", "poetry.lock", "uv.lock")
@@ -95,6 +100,10 @@ class Component:
     @property
     def coming_dir(self) -> Path:
         return self.fragments_dir / COMING_DIR
+
+    @property
+    def highlights_dir(self) -> Path:
+        return self.fragments_dir / HIGHLIGHTS_DIR
 
     @property
     def manifest(self) -> Path:
@@ -293,6 +302,56 @@ def parse_coming(path: Path) -> dict:
     }
 
 
+def _components_of(value: str, path: Path) -> list[dict[str, str | None]]:
+    """`components: acex 6.27.0, acex-driver-cisco-ioscli 2.7.4` -> the components a highlight came in."""
+    found = []
+    for item in (part.strip() for part in value.split(",")):
+        if not item:
+            continue
+        parts = item.split()
+        if len(parts) > 2:
+            raise FragmentError(f"{path}: cannot read '{item}', expected 'component version'")
+        if len(parts) == 1 and parts[0][:1].isdigit():
+            raise FragmentError(f"{path}: '{item}' looks like a version; write 'component version'")
+        found.append({"component": parts[0], "version": parts[1] if len(parts) == 2 else None})
+    return found
+
+
+def parse_day(text: str, where: str) -> date:
+    """`YYYY-MM-DD` and nothing else, a real day, and not far ahead."""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", text or ""):
+        raise FragmentError(
+            f"{where}: 'date' is required, as YYYY-MM-DD (not '{text}')"
+            if not text
+            else f"{where}: the date must be YYYY-MM-DD, not '{text}'"
+        )
+    try:
+        day = date.fromisoformat(text)
+    except ValueError as exc:
+        raise FragmentError(f"{where}: {text} is not a date") from exc
+    if (day - date.today()).days > HIGHLIGHT_AHEAD_DAYS:
+        raise FragmentError(f"{where}: {text} is more than {HIGHLIGHT_AHEAD_DAYS} days ahead")
+    return day
+
+
+def parse_highlight(path: Path) -> dict:
+    """One feature worth telling the product's users about. Written by hand when it ships, never consumed."""
+    meta, body = parse_front_matter(path)
+    unknown = set(meta) - {"title", "date", "components"}
+    if unknown:
+        raise FragmentError(f"{path}: unknown front matter field(s): {', '.join(sorted(unknown))}")
+    on = parse_day(meta.get("date", ""), str(path))
+    if len(body) > HIGHLIGHT_MAX:
+        raise FragmentError(f"{path}: the text is {len(body)} characters, keep it under {HIGHLIGHT_MAX}")
+    return {
+        "id": path.stem,
+        "date": on.isoformat(),
+        "title": _title(path, meta),
+        "description": body or None,
+        "components": _components_of(meta.get("components", ""), path),
+    }
+
+
 def _fragment_files(directory: Path) -> list[Path]:
     if not directory.is_dir():
         return []
@@ -301,6 +360,16 @@ def _fragment_files(directory: Path) -> list[Path]:
 
 def fragments(component: Component) -> list[dict]:
     return [parse_fragment(path) for path in _fragment_files(component.fragments_dir)]
+
+
+def highlights(component: Component) -> list[dict]:
+    """The component's highlights, newest first."""
+    found = sorted(
+        (parse_highlight(path) for path in _fragment_files(component.highlights_dir)),
+        key=lambda h: h["title"].casefold(),
+    )
+    found.sort(key=lambda h: h["date"], reverse=True)  # stable: the same day stays in title order
+    return found
 
 
 def coming(component: Component) -> list[dict]:
@@ -348,6 +417,7 @@ def compiled(component: Component, *, include_unreleased: bool = False) -> dict:
         "name": component.name,
         "releases": releases,
         "coming": coming(component),
+        "highlights": highlights(component),
     }
 
 
@@ -371,18 +441,59 @@ def write_compiled(component: Component, data: dict) -> bool:
 
 
 def slugify(text: str) -> str:
-    return _SLUG.sub("-", text.lower()).strip("-")[:40] or "change"
+    """A file name part: letters folded to ASCII (ä to a), words kept whole, at most 40 characters."""
+    folded = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    slug = _SLUG.sub("-", folded.lower()).strip("-")
+    if len(slug) > 40:
+        head = slug[:41]
+        slug = head[:40] if head.endswith("-") or "-" not in head else head.rsplit("-", 1)[0]
+    return slug or "change"
 
 
 def new_fragment(component: Component, *, kind: str, title: str, body: str = "", slug: str | None = None) -> Path:
     """Create a fragment file for a change, named so that two authors never pick the same file."""
-    stem = f"{date.today():%Y%m%d}-{slug or slugify(title)}"
+    stem = f"{date.today():%Y%m%d}-{slugify(slug) if slug else slugify(title)}"
     path = component.fragments_dir / f"{stem}.md"
     if path.exists():
         raise FragmentError(f"{path} already exists; pass --slug to name this one differently")
     component.fragments_dir.mkdir(parents=True, exist_ok=True)
     path.write_text(f"---\nkind: {kind}\ntitle: {title}\n---\n{body.strip()}\n", encoding="utf-8")
-    parse_fragment(path)
+    try:
+        parse_fragment(path)
+    except FragmentError:
+        path.unlink()  # a rejected note must not stay behind and break everything after it
+        raise
+    return path
+
+
+def new_highlight(
+    component: Component,
+    *,
+    title: str,
+    body: str = "",
+    on: date | None = None,
+    components: str = "",
+    slug: str | None = None,
+) -> Path:
+    """Create a highlight file and bring the compiled file up to date.
+
+    It stays: highlights are the product's history, and a release does not consume them.
+    """
+    day = on or date.today()
+    path = component.highlights_dir / f"{day:%Y%m%d}-{slugify(slug) if slug else slugify(title)}.md"
+    if path.exists():
+        raise FragmentError(f"{path} already exists; pass --slug to name this one differently")
+    component.highlights_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["---", f"title: {title}", f"date: {day.isoformat()}"]
+    if components:
+        lines.append(f"components: {components}")
+    path.write_text("\n".join(lines) + f"\n---\n{body.strip()}\n", encoding="utf-8")
+    try:
+        parse_highlight(path)
+    except FragmentError:
+        path.unlink()
+        raise
+    write_compiled(component, compiled(component))
     return path
 
 
@@ -390,7 +501,7 @@ def validate(components: list[Component]) -> Report:
     """Every fragment, coming item and compiled file of every component parses."""
     report = Report()
     for component in components:
-        for reader in (fragments, coming, read_compiled):
+        for reader in (fragments, coming, highlights, read_compiled):
             try:
                 reader(component)
             except FragmentError as exc:
@@ -499,6 +610,8 @@ def release(
         return report
     entries = published(pending)
     data = read_compiled(component)
+    # Read what is kept before anything is changed, so a broken file stops the release with nothing done.
+    planned, kept_highlights = coming(component), highlights(component)
     if bump_how:
         version = bump(component.version, bump_how, entries)
         set_version(component, version)
@@ -513,7 +626,7 @@ def release(
 
     # A `completes` naming no planned item is fine: the item may have been removed by hand.
     done = {e["completes"] for e in pending if e.get("completes")}
-    for item in coming(component):
+    for item in planned:
         if item["id"] in done:
             (component.coming_dir / f"{item['id']}.md").unlink()
             report.notes.append(f"removed planned item '{item['id']}', delivered in {version}")
@@ -528,7 +641,13 @@ def release(
         report.notes.append(f"{component.id}: only internal fragments; {version} gets no entries")
         if summary:
             report.notes.append(f"{component.id}: the summary was not stored, there is nothing to summarise")
-    data.update(component=component.id, name=component.name, releases=releases, coming=coming(component))
+    data.update(
+        component=component.id,
+        name=component.name,
+        releases=releases,
+        coming=[item for item in planned if item["id"] not in done],
+        highlights=kept_highlights,
+    )
     data["schema_version"] = SCHEMA_VERSION
     write_compiled(component, data)
     for path in _fragment_files(component.fragments_dir):
@@ -577,7 +696,7 @@ def check(
             if root != Path(".") and not relative.is_relative_to(root):
                 continue
             inside = relative.relative_to(root) if root != Path(".") else relative
-            if inside.parts[:1] == (FRAGMENT_DIR,) and inside.parts[1:2] != (COMING_DIR,):
+            if inside.parts[:1] == (FRAGMENT_DIR,) and inside.parts[1:2] not in ((COMING_DIR,), (HIGHLIGHTS_DIR,)):
                 # The README of the directory is not a change note.
                 if inside.suffix == ".md" and not inside.name.upper().startswith("README"):
                     added_fragment |= status.startswith("A")
@@ -663,6 +782,16 @@ def _parser() -> argparse.ArgumentParser:
     new.add_argument("--body", default="", help="longer description, Markdown")
     new.add_argument("--slug", default=None, help="file name part (default: from the title)")
 
+    highlight = commands.add_parser("highlight", help="add a feature to the product's highlights")
+    highlight.add_argument("component", help="the component that keeps the highlights, usually the backend")
+    highlight.add_argument("--title", required=True, help="the feature, in the words of the people who use ACEX")
+    highlight.add_argument("--body", default="", help="one or two sentences, Markdown")
+    highlight.add_argument("--date", default=None, help="when it arrived, YYYY-MM-DD (default: today)")
+    highlight.add_argument(
+        "--components", default="", help="where it shipped: 'acex 6.27.0, acex-driver-cisco-ioscli 2.7.4'"
+    )
+    highlight.add_argument("--slug", default=None, help="file name part (default: from the title)")
+
     commands.add_parser("validate", help="check every fragment and compiled file")
     commands.add_parser("list", help="show components and their pending fragments")
 
@@ -700,6 +829,18 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
             component = find(components, args.component)
             path = new_fragment(component, kind=args.kind, title=args.title, body=args.body, slug=args.slug)
             print(f"created {path.relative_to(repo)}; edit it, then commit it with your change")
+            return 0
+        if args.command == "highlight":
+            component = find(components, args.component)
+            path = new_highlight(
+                component,
+                title=args.title,
+                body=args.body,
+                on=parse_day(args.date, "--date") if args.date else None,
+                components=args.components,
+                slug=args.slug,
+            )
+            print(f"created {path.relative_to(repo)} and updated {component.output.relative_to(repo)}; commit both")
             return 0
         if args.command == "list":
             for component in components:
