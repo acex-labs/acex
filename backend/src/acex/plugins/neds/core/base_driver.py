@@ -26,11 +26,15 @@ class TransportBase(ABC):
         pass
 
     @abstractmethod
-    def send_config(self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs) -> str:
+    def send_config(
+        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
+    ) -> str:
         """Apply configuration commands to a device."""
         pass
 
-    def execute(self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs) -> list[str]:
+    def execute(
+        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
+    ) -> list[str]:
         """Run arbitrary commands. Opt-in per driver."""
         raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
 

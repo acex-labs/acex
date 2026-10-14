@@ -16,15 +16,11 @@ class JunosCLITransport(TransportBase):
     def __init__(self):
         self._session_conn: ConnectHandler | None = None
 
-    def _open_connection(
-        self, connection: ManagementConnectionBase, **kwargs
-    ) -> ConnectHandler:
+    def _open_connection(self, connection: ManagementConnectionBase, **kwargs) -> ConnectHandler:
         username = kwargs.get("username")
         password = kwargs.get("password")
         if not username or not password:
-            raise ValueError(
-                "Credentials required: username and password must be provided"
-            )
+            raise ValueError("Credentials required: username and password must be provided")
         device = {
             "device_type": "juniper_junos",
             "host": connection.target_ip,
@@ -64,9 +60,7 @@ class JunosCLITransport(TransportBase):
             except Exception:
                 pass
 
-    def get_config(
-        self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs
-    ) -> str:
+    def get_config(self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs) -> str:
         with self._conn(connection, **kwargs) as conn:
             # `display set` flattens hierarchical config into reproducible
             # `set` lines; `no-more` disables paging.
@@ -76,11 +70,7 @@ class JunosCLITransport(TransportBase):
             )
 
     def send_config(
-        self,
-        node: NodeListItem,
-        connection: ManagementConnectionBase,
-        commands: list[str],
-        **kwargs
+        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
     ) -> str:
         # netmiko's juniper_junos handler enters configure mode, sends the
         # commands, commits, and exits — driven by send_config_set.
@@ -88,18 +78,12 @@ class JunosCLITransport(TransportBase):
             return conn.send_config_set(commands)
 
     def execute(
-        self,
-        node: NodeListItem,
-        connection: ManagementConnectionBase,
-        commands: list[str],
-        **kwargs
+        self, node: NodeListItem, connection: ManagementConnectionBase, commands: list[str], **kwargs
     ) -> list[str]:
         with self._conn(connection, **kwargs) as conn:
             return [conn.send_command(cmd, read_timeout=120) for cmd in commands]
 
-    def get_lldp_neighbors(
-        self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs
-    ) -> list[dict]:
+    def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs) -> list[dict]:
         with self._conn(connection, **kwargs) as conn:
             try:
                 raw = conn.send_command("show lldp neighbors", read_timeout=60)
@@ -154,12 +138,7 @@ class JunosCLI(NetworkElementDriver):
         return self.renderer.render_patch(diff, node_instance)
 
     def apply_patch(
-        self,
-        diff: Diff,
-        node_instance,
-        node: NodeListItem,
-        connection: ManagementConnectionBase,
-        **kwargs
+        self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnectionBase, **kwargs
     ):
         rendered = self.render_patch(diff, node_instance=node_instance)
         commands = [c.strip() for c in rendered.splitlines() if c.strip()]

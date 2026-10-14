@@ -85,8 +85,8 @@ class Collector:
             ned_id=ned_id,
         )
         connection = ManagementConnectionBase(
-            #id=1337,  # placeholder, not used in driver transport, needed for object compatibility
-            #node_id=node_id, # not needed
+            # id=1337,  # placeholder, not used in driver transport, needed for object compatibility
+            # node_id=node_id, # not needed
             target_ip=target_ip,
             connection_type=target.connection_type or "ssh",
         )

@@ -109,7 +109,9 @@ class CiscoIOSTransport(TransportBase):
             responses = await conn.send_commands(commands, timeout_ops=120)
             return [r.result for r in responses]
 
-    async def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs) -> list[dict]:
+    async def get_lldp_neighbors(
+        self, node: NodeListItem, connection: ManagementConnectionBase, **kwargs
+    ) -> list[dict]:
         async with self._conn(connection, **kwargs) as conn:
             neighbors = []
             try:
