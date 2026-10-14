@@ -6,6 +6,7 @@
     {
       "version": "0.15.0",
       "date": "2026-09-25",
+      "summary": "The agent finds itself by name, picks up new drivers without a restart and no longer bundles the Cisco IOS driver.",
       "entries": [
         {
           "id": "04-container-image-no-longer-bundles-the-ci",

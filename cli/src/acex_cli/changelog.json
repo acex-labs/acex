@@ -6,6 +6,7 @@
     {
       "version": "4.5.1",
       "date": "2026-09-02",
+      "summary": "The compact and flat diff views work with changes, and `acex version` prints a version again.",
       "entries": [
         {
           "id": "01-acex-node-config-diff-plan-f-compact-and",

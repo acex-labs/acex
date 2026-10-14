@@ -6,6 +6,7 @@
     {
       "version": "6.27.0",
       "date": "2026-10-09",
+      "summary": "The backend's settings use new ACEX_* names and the old names are no longer read; rename them before upgrading.",
       "entries": [
         {
           "id": "02-ai-ops-providers-and-chains-are-configur",
@@ -156,6 +157,7 @@
     {
       "version": "6.23.0",
       "date": "2026-09-30",
+      "summary": "Nodes get an admin status and a provisioning status instead of one status, and the agent images start again.",
       "entries": [
         {
           "id": "01-a-node-has-an-admin-status-and-a-provisi",
@@ -218,6 +220,7 @@
     {
       "version": "6.22.0",
       "date": "2026-09-25",
+      "summary": "Agents are found by name, and the exact set of nodes of an agent can be set in one call.",
       "entries": [
         {
           "id": "03-reading-one-telemetry-agent-no-longer-re",
@@ -266,6 +269,7 @@
     {
       "version": "6.21.0",
       "date": "2026-09-25",
+      "summary": "Telemetry agents are more robust, since one node that cannot be rendered no longer breaks the config, and show per-node coverage.",
       "entries": [
         {
           "id": "03-reading-one-telemetry-agent-shows-per-no",
@@ -508,6 +512,7 @@
     {
       "version": "6.17.0",
       "date": "2026-09-16",
+      "summary": "The API needs an OIDC issuer and named CORS origins to start, is started with acex-api, and the Junos driver is in the image.",
       "entries": [
         {
           "id": "03-automationengine-refuses-requests-unless",
@@ -570,6 +575,7 @@
     {
       "version": "6.16.0",
       "date": "2026-09-15",
+      "summary": "The API lists supported vendors, hardware models and operating systems, and bug reports can be saved as files.",
       "entries": [
         {
           "id": "02-list-supported-vendors-hardware-models-a",
@@ -666,6 +672,7 @@
     {
       "version": "6.14.0",
       "date": "2026-09-10",
+      "summary": "The AI assistant can offer links to pages and checks facts in ACEX; the MCP server base URL no longer includes /api/v1.",
       "entries": [
         {
           "id": "03-mcp-server-base-url-no-longer-includes-a",
@@ -836,6 +843,7 @@
     {
       "version": "6.11.0",
       "date": "2026-09-04",
+      "summary": "Bug reports get a severity and steps to reproduce, and are delivered to Slack and Azure DevOps.",
       "entries": [
         {
           "id": "02-bug-reports-are-delivered-to-slack-and-a",
@@ -1016,6 +1024,7 @@
     {
       "version": "6.7.0",
       "date": "2026-08-27",
+      "summary": "Nodes, assets, sites and regions can be imported from CSV, and InfluxDB outputs move to the backend instead of each telemetry agent.",
       "entries": [
         {
           "id": "01-telemetry-agents-no-longer-have-their-ow",
@@ -1138,6 +1147,7 @@
     {
       "version": "6.6.2",
       "date": "2026-08-19",
+      "summary": "AI operations use providers with failover chains, and users can choose the provider and model that answers.",
       "entries": [
         {
           "id": "01-ai-operations-are-configured-with-provid",

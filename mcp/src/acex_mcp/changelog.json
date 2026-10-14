@@ -26,6 +26,7 @@
     {
       "version": "1.0.0",
       "date": "2026-09-10",
+      "summary": "A new MCP server: assistants sign in and read devices, configuration, drift and cabling as the signed-in user. The earlier tool set is gone.",
       "entries": [
         {
           "id": "01-the-earlier-tool-set-is-replaced-prompts",

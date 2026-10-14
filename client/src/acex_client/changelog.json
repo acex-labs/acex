@@ -26,6 +26,7 @@
     {
       "version": "4.9.0",
       "date": "2026-09-25",
+      "summary": "Agents can be found by name and given their exact set of nodes, and a failed driver install raises an exception.",
       "entries": [
         {
           "id": "02-get-id-by-name-name-finds-an-agent-s-id-",
@@ -148,6 +149,7 @@
     {
       "version": "4.8.0",
       "date": "2026-08-27",
+      "summary": "Per-agent outputs are removed from the client, and AI providers and models can be listed.",
       "entries": [
         {
           "id": "01-per-agent-outputs-removed-observability-",

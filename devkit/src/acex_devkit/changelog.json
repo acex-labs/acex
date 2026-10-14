@@ -120,6 +120,7 @@
     {
       "version": "2.5.0",
       "date": "2026-09-15",
+      "summary": "Assets use typed vendors and operating systems, and a hardware catalog and OS version schemes are declared.",
       "entries": [
         {
           "id": "01-asset-uses-typed-vendor-and-os-os-versio",
