@@ -93,6 +93,24 @@ refused. Nobody types a version into an entry.
 `--bump auto` reads the fragments: a breaking entry bumps the major version,
 new or changed behaviour the minor one, fixes only the patch one.
 
+### A summary of the release
+
+A release with many entries is hard to scan. Give it one sentence about what
+it is about, written by whoever cuts the release:
+
+```bash
+python scripts/changelog.py release backend --bump minor \
+    --summary "ZTP for Cisco switches: discovery, approval and provisioning from the web interface."
+```
+
+The sentence is stored with the release and shown above its entries in
+Settings > What's new, and in the overview of a component's releases. It is
+for the reader who wants the gist (at most 200 characters), so write what
+changed for the people who use ACEX, not how. A release without a summary
+is shown as before. The summary of an older release can be added or
+corrected by editing the `summary` field of that release in `changelog.json`;
+`release` and `build` leave older releases as they are.
+
 ## Planned work
 
 `changelog.d/coming/` holds what is worth telling users about before it

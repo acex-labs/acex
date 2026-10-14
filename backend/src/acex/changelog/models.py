@@ -69,6 +69,8 @@ class ChangelogRelease(BaseModel):
     #: None means not released yet: a development build carrying pending entries.
     version: str | None = None
     date: datetime.date | None = None
+    #: One sentence on what the release is about, for the reader who wants the gist. Written when the release is cut.
+    summary: str | None = None
     entries: list[ChangelogEntry] = []
 
 

@@ -107,6 +107,21 @@ class TestProductSection:
             ("acex", "6.27.0"),
         ]
 
+    def should_pass_the_summary_of_a_release_through(self, tmp_path):
+        own = write(
+            tmp_path / "own.json",
+            "acex",
+            "ACEX backend",
+            releases=[
+                {**release("6.28.0", "2026-10-20", entry("Choose a driver")), "summary": "ZTP gets a driver choice."},
+                release("6.27.0", "2026-10-10", entry("Jobs can be cancelled")),
+            ],
+        )
+
+        [product] = service(own).changelog().sections
+
+        assert [r.summary for r in product.releases] == ["ZTP gets a driver choice.", None]
+
     def should_put_unreleased_entries_first(self, tmp_path):
         own = write(
             tmp_path / "own.json",

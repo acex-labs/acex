@@ -174,6 +174,35 @@ class TestRelease:
         assert [e["title"] for e in release["entries"]] == ["Yak", "Zebra"]
         assert list(component.fragments_dir.glob("*.md")) == []
 
+    def should_store_the_summary_of_a_release_above_its_entries(self, component):
+        write_fragment(component.fragments_dir / "a.md")
+
+        report = tool.release(component, on=date(2026, 10, 20), summary="ZTP arrives for Cisco   switches.")
+
+        assert report.ok, report.errors
+        [release] = json.loads(component.output.read_text(encoding="utf-8"))["releases"]
+        assert release["summary"] == "ZTP arrives for Cisco switches."  # whitespace is tidied
+        assert list(release) == ["version", "date", "summary", "entries"]
+
+    def should_leave_the_summary_out_when_none_is_given(self, component):
+        write_fragment(component.fragments_dir / "a.md")
+        assert tool.release(component).ok
+        [release] = json.loads(component.output.read_text(encoding="utf-8"))["releases"]
+        assert "summary" not in release
+
+    def should_refuse_a_summary_that_is_not_one_sentence_long(self, component):
+        write_fragment(component.fragments_dir / "a.md")
+
+        report = tool.release(component, summary="x" * 201)
+
+        assert "keep it under 200" in report.errors[0]
+        assert len(list(component.fragments_dir.glob("*.md"))) == 1  # nothing consumed
+
+    def should_say_when_a_summary_has_nothing_to_summarise(self, component):
+        write_fragment(component.fragments_dir / "a.md", kind="internal", title="Pinned scrapli")
+        report = tool.release(component, summary="Nothing users can see.")
+        assert report.ok and any("summary was not stored" in n for n in report.notes)
+
     def should_refuse_to_release_a_version_twice(self, component):
         write_fragment(component.fragments_dir / "a.md")
         assert tool.release(component).ok
@@ -417,6 +446,22 @@ class TestCommandLine:
         assert tool.main(["release", "acex-driver-example", "--bump", "patch", "--date", "2026-10-20"], repo=repo) == 0
         data = json.loads(component.output.read_text(encoding="utf-8"))
         assert (data["releases"][0]["version"], data["releases"][0]["date"]) == ("1.2.4", "2026-10-20")
+
+    def should_take_the_summary_from_the_command_line(self, repo, component):
+        tool.main(["new", "example", "--kind", "added", "--title", "Devices can be adopted"], repo=repo)
+        args = ["release", "example", "--bump", "minor", "--date", "2026-10-20", "--summary", "Adoption arrives."]
+        assert tool.main(args, repo=repo) == 0
+        assert json.loads(component.output.read_text(encoding="utf-8"))["releases"][0]["summary"] == "Adoption arrives."
+
+    def should_report_a_compiled_summary_that_has_grown_too_long(self, repo, component, capsys):
+        write_fragment(component.fragments_dir / "a.md")
+        assert tool.release(component).ok
+        data = json.loads(component.output.read_text(encoding="utf-8"))
+        data["releases"][0]["summary"] = "y" * 250
+        component.output.write_text(json.dumps(data), encoding="utf-8")
+
+        assert tool.main(["validate"], repo=repo) == 1
+        assert "keep it under 200" in capsys.readouterr().err
 
     def should_fail_loudly_on_a_bad_fragment(self, repo, component, capsys):
         (component.fragments_dir / "bad.md").write_text("---\nkind: added\n---\n", encoding="utf-8")

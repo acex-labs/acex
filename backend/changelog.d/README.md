@@ -35,4 +35,7 @@ boot through that method are handled by the chosen driver.
 `planned_version`, `planned_date`), compiled on every build. Only what is
 worth telling users goes there.
 
+The person who cuts a release can add one sentence about it with
+`release --summary "..."`; fragments never carry one.
+
 Full guide: `docs/guides/changelog.md`.

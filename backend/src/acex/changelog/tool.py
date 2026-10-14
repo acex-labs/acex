@@ -52,6 +52,7 @@ INTERNAL = "internal"
 AUDIENCES = ("user", "admin", "developer")
 COMING_STATUSES = ("planned", "in_progress", "preview")
 TITLE_MAX = 80
+SUMMARY_MAX = 200
 
 #: Paths inside a component that do not call for a changelog entry on their own.
 EXEMPT_PATHS = (FRAGMENT_DIR, "tests", "README.md", "README", "poetry.lock", "uv.lock")
@@ -394,6 +395,16 @@ def validate(components: list[Component]) -> Report:
                 reader(component)
             except FragmentError as exc:
                 report.errors.append(str(exc))
+        try:
+            for release_ in read_compiled(component).get("releases", []):
+                text = release_.get("summary") or ""
+                if len(text) > SUMMARY_MAX:
+                    report.errors.append(
+                        f"{component.output}: the summary of {release_.get('version')} is {len(text)} characters, "
+                        f"keep it under {SUMMARY_MAX}"
+                    )
+        except FragmentError:
+            pass  # already reported above
     return report
 
 
@@ -467,14 +478,21 @@ def release(
     version: str | None = None,
     bump_how: str | None = None,
     on: date | None = None,
+    summary: str | None = None,
 ) -> Report:
     """Stamp the pending fragments with a version and date, and move them into the compiled file.
 
     The version comes from the manifest (already bumped by the releaser), from
     `--bump`, which bumps the manifest too, or from `--version`.
-    Nothing is typed into the entries themselves.
+    Nothing is typed into the entries themselves. `summary` is the one sentence
+    a reader who wants the gist sees above the entries; it is written here, by
+    whoever cuts the release, not in a fragment.
     """
     report = Report()
+    summary = " ".join(summary.split()) if summary else None
+    if summary and len(summary) > SUMMARY_MAX:
+        report.errors.append(f"summary is {len(summary)} characters, keep it under {SUMMARY_MAX}: one sentence")
+        return report
     pending = fragments(component)
     if not pending:
         report.errors.append(f"{component.id}: nothing to release, {component.fragments_dir} has no fragments")
@@ -502,9 +520,14 @@ def release(
 
     releases = [r for r in data.get("releases", []) if r.get("version") is not None]
     if entries:
-        releases.insert(0, {"version": version, "date": (on or date.today()).isoformat(), "entries": entries})
+        new_release = {"version": version, "date": (on or date.today()).isoformat()}
+        if summary:
+            new_release["summary"] = summary
+        releases.insert(0, {**new_release, "entries": entries})
     else:
         report.notes.append(f"{component.id}: only internal fragments; {version} gets no entries")
+        if summary:
+            report.notes.append(f"{component.id}: the summary was not stored, there is nothing to summarise")
     data.update(component=component.id, name=component.name, releases=releases, coming=coming(component))
     data["schema_version"] = SCHEMA_VERSION
     write_compiled(component, data)
@@ -652,6 +675,7 @@ def _parser() -> argparse.ArgumentParser:
     release_cmd.add_argument("--version", default=None, help="override the version in the manifest")
     release_cmd.add_argument("--bump", choices=("major", "minor", "patch", "auto"), help="bump the manifest first")
     release_cmd.add_argument("--date", default=None, help="release date, YYYY-MM-DD (default: today)")
+    release_cmd.add_argument("--summary", default=None, help="one sentence about the release, shown above its entries")
 
     check_cmd = commands.add_parser("check", help="pull request check: changed components have a fragment")
     check_cmd.add_argument("--base", required=True, help="the branch the pull request targets, e.g. origin/dev")
@@ -695,7 +719,7 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
         if args.command == "release":
             on = date.fromisoformat(args.date) if args.date else None
             component = find(components, args.component)
-            return _print(release(component, version=args.version, bump_how=args.bump, on=on))
+            return _print(release(component, version=args.version, bump_how=args.bump, on=on, summary=args.summary))
         if args.command == "check":
             base_versions = git_versions_at(repo, args.base, components) if args.release_ready else None
             changed = git_changed(repo, args.base)
