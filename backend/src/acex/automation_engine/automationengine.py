@@ -40,9 +40,20 @@ class AutomationEngine:
         from acex.database import Connection, DatabaseManager
         from acex.device_configs import DeviceConfigManager
         from acex.inventory import Inventory
+        from acex.jobs import JobManager
         from acex.management_connections import ManagementConnectionManager
+        from acex.messaging import JobProducer
         from acex.plugins import PluginManager
         from acex.settings import Settings
+        from acex.ztp import (
+            KeaConfigRenderer,
+            ZtpCallManager,
+            ZtpDhcpScopeManager,
+            ZtpDiscoveryManager,
+            ZtpMethodManager,
+            ZtpPipelineManager,
+            ZtpVendorClassManager,
+        )
 
         if dev_mode is not None:
             _deprecated("AutomationEngine(dev_mode=...)", "pass settings=Settings(dev=...) instead")
@@ -69,6 +80,15 @@ class AutomationEngine:
         self.config_compiler = ConfigCompiler(self.db)
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
         self.influxdb_settings = self.settings.influxdb
+        # Nothing connects to RabbitMQ until the first job is published.
+        self.jobs = JobManager(self.db, JobProducer(self.settings.rabbitmq))
+        self.ztp_discoveries = ZtpDiscoveryManager(self.db)
+        self.ztp_calls = ZtpCallManager(self.db, self.jobs)
+        self.ztp_methods = ZtpMethodManager(self.db)
+        self.ztp_vendor_classes = ZtpVendorClassManager(self.db)
+        self.ztp_dhcp_scopes = ZtpDhcpScopeManager(self.db)
+        self.ztp_kea = KeaConfigRenderer(self.ztp_methods, self.ztp_vendor_classes, self.ztp_dhcp_scopes)
+        self.ztp_pipeline = ZtpPipelineManager(self.db, self.ztp_discoveries, self.jobs, self.settings.ztp)
 
         # create plugin instances.
         if assets_plugin is not None:

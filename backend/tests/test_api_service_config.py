@@ -12,6 +12,7 @@ from acex.settings import (
     InfluxDBOutput,
     InfluxDBSettings,
     OidcSettings,
+    RabbitMQSettings,
     Section,
     Settings,
     UnsafeConfiguration,
@@ -25,6 +26,7 @@ def clean_env(monkeypatch):
     for name in (
         "ACEX_DEV",
         "ACEX_SERVER_RELOAD",
+        "ACEX_SERVER_FORWARDED_ALLOW_IPS",
         "ACEX_CORS_ALLOWED_ORIGINS",
         "ACEX_OIDC_ISSUER_URL",
         "ACEX_OIDC_AUDIENCE",
@@ -36,6 +38,11 @@ def clean_env(monkeypatch):
         "ACEX_INFLUXDB_URL",
         "ACEX_INFLUXDB_TOKEN",
         "ACEX_INFLUXDB_EXTRA_OUTPUTS",
+        "ACEX_RABBITMQ_HOST",
+        "ACEX_RABBITMQ_PORT",
+        "ACEX_RABBITMQ_VHOST",
+        "ACEX_RABBITMQ_USER",
+        "ACEX_RABBITMQ_PASSWORD",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -206,3 +213,51 @@ class TestInfluxDB:
         [output] = Settings().influxdb.redacted()["default"]
         assert "token" not in output
         assert output["token_set"] is True
+
+
+class TestRabbitMQ:
+    def should_be_unconfigured_without_a_host(self):
+        assert not Settings().rabbitmq.configured
+
+    def should_build_the_url_from_env(self, monkeypatch):
+        monkeypatch.setenv("ACEX_RABBITMQ_HOST", "rabbitmq")
+        monkeypatch.setenv("ACEX_RABBITMQ_USER", "acex")
+        monkeypatch.setenv("ACEX_RABBITMQ_PASSWORD", "pw")
+        rabbitmq = Settings().rabbitmq
+        assert rabbitmq.configured
+        assert rabbitmq.url == "amqp://acex:pw@rabbitmq:5672/%2F"
+
+    def should_quote_characters_that_would_break_the_url(self):
+        rabbitmq = RabbitMQSettings(host="rabbitmq", user="acex", password="p@ss/w:rd%", vhost="acex")
+        assert rabbitmq.url == "amqp://acex:p%40ss%2Fw%3Ard%25@rabbitmq:5672/acex"
+
+    def should_not_show_the_password(self, monkeypatch):
+        monkeypatch.setenv("ACEX_RABBITMQ_HOST", "rabbitmq")
+        monkeypatch.setenv("ACEX_RABBITMQ_PASSWORD", "pw")
+        assert "pw" not in repr(Settings().rabbitmq)
+
+
+class TestProxyHeaders:
+    """Behind the Kubernetes ingress, a ZTP device's address only reaches the
+    API through X-Forwarded-For, and only from a proxy that is trusted."""
+
+    def should_trust_only_localhost_unless_told(self):
+        assert Settings().server.forwarded_allow_ips is None
+
+    def should_take_the_trusted_proxies_from_env(self, monkeypatch):
+        monkeypatch.setenv("ACEX_SERVER_FORWARDED_ALLOW_IPS", "10.244.0.0/16")
+        assert Settings().server.forwarded_allow_ips == "10.244.0.0/16"
+
+    @pytest.mark.parametrize("reload", [False, True])
+    def should_hand_them_to_uvicorn(self, monkeypatch, reload):
+        import acex_api.app
+
+        served = {}
+        monkeypatch.setattr(acex_api.app, "create_app", lambda settings: "app")
+        monkeypatch.setattr(acex_api.app.uvicorn, "run", lambda app, **kwargs: served.update(kwargs))
+        settings = Settings(dev=True, server={"forwarded_allow_ips": "*", "reload": reload})
+
+        acex_api.app.run(settings)
+
+        assert served["proxy_headers"] is True
+        assert served["forwarded_allow_ips"] == "*"

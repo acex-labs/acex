@@ -27,15 +27,19 @@ class NodeAdminStatus(StrEnum):
 
 
 class NodeProvisionStatus(StrEnum):
-    """Where the node's device is in the provisioning lifecycle. Set by the provisioning flow, not by operators."""
+    """Where the node's device is in the provisioning lifecycle. Set by the provisioning flow, not by operators.
 
-    unprovisioned = "unprovisioned"  # never provisioned by ACEX
-    adopted = "adopted"  # brownfield: already running when brought under management
-    pending = "pending"  # ZTP armed, waiting for the device to show up
-    bootstrapping = "bootstrapping"  # bootstrap config fetched, waiting for SSH reachability
+    With no provisioning under way the node sits in a steady state (unprovisioned, adopted,
+    provisioned). While it is in ZTP it is enrolled, provisioning or failed; an enrolled
+    node's ZTP stage (awaiting device, awaiting approval, ready) comes from its asset.
+    """
+
+    unprovisioned = "unprovisioned"  # steady: no provisioning requested, never provisioned by ACEX
+    adopted = "adopted"  # steady: brownfield, already running when brought under management
+    enrolled = "enrolled"  # in ZTP, waiting for its device to be discovered, approved and provisioned
     provisioning = "provisioning"  # full config being pushed and verified
-    provisioned = "provisioned"  # provisioned by ACEX and verified
-    failed = "failed"
+    provisioned = "provisioned"  # steady: provisioned by ACEX and verified
+    failed = "failed"  # in ZTP, stuck until retried or cancelled; the reason is on the job
 
 
 class NodeBase(BaseModel):

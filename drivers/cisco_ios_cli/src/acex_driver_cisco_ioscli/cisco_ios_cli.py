@@ -1,4 +1,5 @@
 import asyncio
+import re
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from typing import Any
@@ -179,6 +180,41 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     transport_class = CiscoIOSTransport
     parser_class = CiscoIOSCLIParser
     normalizer_class = CiscoIOSNormalizer
+
+    def discover(self, management_ip, username, password):
+        def _find(pattern, text):
+            m = re.search(pattern, text)
+            return m.group(1) if m else None
+
+        """
+        Used for discovery on bare asset
+        """
+        conn = ManagementConnection(
+            target_ip=management_ip,
+        )
+        t = CiscoIOSTransport()
+        out = asyncio.run(t.execute(None, conn, ["show version"], username=username, password=password))
+        os = "cisco_iosxe"
+        os_ver = _find(r"Version (\S+)", out[0])
+        serial = _find(r"System Serial Number\s+:\s(\S+)", out[0])
+        vendor = "cisco"
+        model = _find(r"Model Number\s+:\s(\S+)", out[0])
+        return {
+            "os": os,
+            "os_ver": os_ver,
+            "serial": serial,
+            "vendor": vendor,
+            "model": model,
+        }
+
+    def provision(
+        self, configuration: ComposedConfiguration, node_instance, connection: ManagementConnection, credentials
+    ):
+        asset = node_instance.asset
+        rendered = self.render(configuration, asset)
+        commands = [c.lstrip() for c in rendered.splitlines() if c.strip() and c.strip() != "!"]
+
+        return asyncio.run(self.transport.send_config(node_instance, connection, commands, **credentials))
 
     def render(self, configuration: ComposedConfiguration, asset):
         return self.renderer.render(configuration, asset)

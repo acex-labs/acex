@@ -35,8 +35,10 @@ from acex.settings.sections import (
     CredentialSettings,
     DatabaseSettings,
     OidcSettings,
+    RabbitMQSettings,
     ServerSettings,
     VaultSettings,
+    ZtpSettings,
 )
 from acex.settings.settings import Settings, UnsafeConfiguration
 
@@ -54,10 +56,12 @@ __all__ = [
     "InfluxDBOutput",
     "InfluxDBSettings",
     "OidcSettings",
+    "RabbitMQSettings",
     "Section",
     "ServerSettings",
     "Settings",
     "SlackBugReportSettings",
     "UnsafeConfiguration",
     "VaultSettings",
+    "ZtpSettings",
 ]
