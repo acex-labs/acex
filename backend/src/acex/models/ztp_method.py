@@ -21,6 +21,8 @@ class ZtpMethodRow(SQLModel, table=True):
     #: bootstrap, so stored and shown in the clear.
     bootstrap_username: str | None = None
     bootstrap_password: str | None = None
+    #: Devices whose vendor class matches no mapping bootstrap with this method. At most one row is.
+    is_default: bool = False
     updated_by: str | None = None
     updated_at: datetime | None = None
 

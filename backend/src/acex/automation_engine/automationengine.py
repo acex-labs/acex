@@ -45,7 +45,15 @@ class AutomationEngine:
         from acex.messaging import JobProducer
         from acex.plugins import PluginManager
         from acex.settings import Settings
-        from acex.ztp import ZtpCallManager, ZtpDiscoveryManager, ZtpMethodManager, ZtpPipelineManager
+        from acex.ztp import (
+            KeaConfigRenderer,
+            ZtpCallManager,
+            ZtpDhcpScopeManager,
+            ZtpDiscoveryManager,
+            ZtpMethodManager,
+            ZtpPipelineManager,
+            ZtpVendorClassManager,
+        )
 
         if dev_mode is not None:
             _deprecated("AutomationEngine(dev_mode=...)", "pass settings=Settings(dev=...) instead")
@@ -77,6 +85,9 @@ class AutomationEngine:
         self.ztp_discoveries = ZtpDiscoveryManager(self.db)
         self.ztp_calls = ZtpCallManager(self.db, self.jobs)
         self.ztp_methods = ZtpMethodManager(self.db)
+        self.ztp_vendor_classes = ZtpVendorClassManager(self.db)
+        self.ztp_dhcp_scopes = ZtpDhcpScopeManager(self.db)
+        self.ztp_kea = KeaConfigRenderer(self.ztp_methods, self.ztp_vendor_classes, self.ztp_dhcp_scopes)
         self.ztp_pipeline = ZtpPipelineManager(self.db, self.ztp_discoveries, self.jobs, self.settings.ztp)
 
         # create plugin instances.

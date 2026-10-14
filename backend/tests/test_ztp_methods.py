@@ -113,3 +113,24 @@ def test_fields_left_out_of_an_update_keep_their_value(api):
     method = api.get(f"{METHODS}/cisco_iosxe_python").json()
     assert method["ned"] == "CiscoIOSCLIDriver"
     assert method["bootstrap_username"] == "acex-ztp"
+
+
+def test_a_method_is_not_the_default_until_made_so(api):
+    assert api.get(f"{METHODS}/cisco_iosxe_python").json()["is_default"] is False
+
+    made = api.put(f"{METHODS}/cisco_iosxe_python", json={"is_default": True}).json()
+    assert made["is_default"] is True
+
+    unmade = api.put(f"{METHODS}/cisco_iosxe_python", json={"is_default": False}).json()
+    assert unmade["is_default"] is False
+
+
+def test_only_one_method_is_the_default(api, db):
+    with Session(db.engine) as session:
+        session.add(ZtpMethodRow(method="other_method", is_default=True))
+        session.commit()
+
+    api.put(f"{METHODS}/cisco_iosxe_python", json={"is_default": True})
+
+    with Session(db.engine) as session:
+        assert session.get(ZtpMethodRow, "other_method").is_default is False

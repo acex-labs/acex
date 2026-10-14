@@ -54,6 +54,12 @@ class ZtpMethodManager:
         try:
             self._rows(session)
             row = session.get(ZtpMethodRow, method.value)
+            if "is_default" in changes:
+                changes["is_default"] = bool(changes["is_default"])
+            if changes.get("is_default"):
+                for other in session.exec(select(ZtpMethodRow).where(ZtpMethodRow.is_default)).all():
+                    other.is_default = False
+                    session.add(other)
             for field, value in changes.items():
                 setattr(row, field, value)
             row.updated_by = updated_by
@@ -88,6 +94,7 @@ class ZtpMethodManager:
             ned=row.ned,
             bootstrap_username=row.bootstrap_username,
             bootstrap_password=row.bootstrap_password,
+            is_default=row.is_default,
             updated_by=row.updated_by,
             updated_at=row.updated_at,
         )

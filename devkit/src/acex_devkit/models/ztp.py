@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
+from ipaddress import IPv4Address, IPv4Network
 
 from pydantic import BaseModel, IPvAnyAddress
 
@@ -40,6 +41,8 @@ class ZtpMethodResponse(ZtpMethodInfo):
     #: until onboarding rotates it. Not a secret: the bootstrap is public.
     bootstrap_username: str | None = None
     bootstrap_password: str | None = None
+    #: Devices whose vendor class matches no mapping bootstrap with this method. At most one method is.
+    is_default: bool = False
     updated_by: str | None = None
     updated_at: datetime | None = None
 
@@ -50,6 +53,75 @@ class ZtpMethodUpdate(BaseModel):
     ned: str | None = None
     bootstrap_username: str | None = None
     bootstrap_password: str | None = None
+    #: True makes this the default method, and no other; false leaves no default.
+    is_default: bool | None = None
+
+
+class ZtpVendorClassMatch(StrEnum):
+    """How the vendor class (option 60) a device sends is compared to a mapped one."""
+
+    exact = "exact"
+    #: The device's vendor class starts with it, for vendors that add model or serial.
+    prefix = "prefix"
+
+
+class ZtpVendorClassCreate(BaseModel):
+    """A DHCP vendor class (option 60) a device may send, and the ZTP method it bootstraps with."""
+
+    #: Free text, matched by the DHCP server as `match` says.
+    vendor_class: str
+    match: ZtpVendorClassMatch = ZtpVendorClassMatch.exact
+    #: None until an administrator maps it.
+    method: ZtpMethod | None = None
+
+
+class ZtpVendorClassUpdate(BaseModel):
+    """Change a vendor class. Only the fields sent change; method None unmaps it."""
+
+    vendor_class: str | None = None
+    match: ZtpVendorClassMatch | None = None
+    method: ZtpMethod | None = None
+
+
+class ZtpVendorClassResponse(PersistedResponse):
+    vendor_class: str
+    match: ZtpVendorClassMatch
+    method: ZtpMethod | None = None
+    updated_by: str | None = None
+    updated_at: datetime | None = None
+
+
+class ZtpDhcpScopeCreate(BaseModel):
+    """An IPv4 network the ZTP DHCP server hands out addresses in."""
+
+    network: IPv4Network
+    #: The addresses handed out, both inclusive, inside the network.
+    pool_start: IPv4Address
+    pool_end: IPv4Address
+    #: Option 3. Inside the network, outside the pool.
+    gateway: IPv4Address
+    #: Option 6.
+    dns_servers: list[IPv4Address] = []
+    #: Option 15.
+    domain_name: str | None = None
+    description: str | None = None
+
+
+class ZtpDhcpScopeUpdate(BaseModel):
+    """Change a scope. Only the fields sent change; None clears an optional one."""
+
+    network: IPv4Network | None = None
+    pool_start: IPv4Address | None = None
+    pool_end: IPv4Address | None = None
+    gateway: IPv4Address | None = None
+    dns_servers: list[IPv4Address] | None = None
+    domain_name: str | None = None
+    description: str | None = None
+
+
+class ZtpDhcpScopeResponse(PersistedResponse, ZtpDhcpScopeCreate):
+    updated_by: str | None = None
+    updated_at: datetime | None = None
 
 
 class ZtpDiscoverData(BaseModel):
