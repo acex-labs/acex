@@ -10,7 +10,6 @@ from acex_devkit.models.agent_manifest import ManifestTarget
 from acex_devkit.models.config_snapshot import DeviceConfigUpload
 from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry, LldpNeighborUpload
-from acex_devkit.models.management_connection import ManagementConnection
 from acex_devkit.models.node_response import NodeListItem
 
 logger = logging.getLogger("acex_collection_agent")
@@ -46,7 +45,12 @@ class Collector:
         ned_id = target.ned_id
 
         def err(message: str) -> dict:
-            return {"node_id": node_id, "hostname": hostname, "status": "error", "message": message}
+            return {
+                "node_id": node_id,
+                "hostname": hostname,
+                "status": "error",
+                "message": message,
+            }
 
         if not target_ip:
             return err("No management IP")
@@ -84,20 +88,20 @@ class Collector:
             os=target.os,
             ned_id=ned_id,
         )
-        connection = ManagementConnection(
-            id=1337,  # placeholder, not used in driver transport, needed for object compatibility
-            node_id=node_id,
-            target_ip=target_ip,
-            connection_type=target.connection_type or "ssh",
-        )
 
         logger.info(f"Collecting config from {hostname} ({target_ip}) via {ned_id}")
         try:
             if asyncio.iscoroutinefunction(driver.transport.get_config):
-                return await self._run_async_driver(driver, node, connection, node_id, hostname, **creds)
+                return await self._run_async_driver(driver, node, target_ip, node_id, hostname, **creds)
             else:
                 return await asyncio.to_thread(
-                    self._run_sync_driver, driver, node, connection, node_id, hostname, **creds
+                    self._run_sync_driver,
+                    driver,
+                    node,
+                    target_ip,
+                    node_id,
+                    hostname,
+                    **creds,
                 )
         except AuthenticationFailed:
             logger.warning(f"  {hostname} ({target_ip}): Authentication failed")
@@ -109,17 +113,22 @@ class Collector:
             logger.warning(f"  {hostname} ({target_ip}): {e}")
             return err(str(e))
 
-    async def _run_async_driver(self, driver, node, connection, node_id: int, hostname: str, **creds) -> dict:
+    async def _run_async_driver(self, driver, node, target_ip: str, node_id: int, hostname: str, **creds) -> dict:
         """Transport path for async-native drivers."""
-        async with driver.transport.session(connection, **creds):
-            running_config = await driver.transport.get_config(node, connection, **creds)
+        async with driver.transport.session(target_ip, **creds):
+            running_config = await driver.transport.get_config(node, target_ip, **creds)
             if not running_config:
-                return {"node_id": node_id, "hostname": hostname, "status": "error", "message": "Empty config returned"}
+                return {
+                    "node_id": node_id,
+                    "hostname": hostname,
+                    "status": "error",
+                    "message": "Empty config returned",
+                }
 
             config_result = await asyncio.to_thread(self._upload_config, node_id, hostname, running_config)
 
             try:
-                neighbors = await driver.transport.get_lldp_neighbors(node, connection, **creds)
+                neighbors = await driver.transport.get_lldp_neighbors(node, target_ip, **creds)
                 if neighbors:
                     await asyncio.to_thread(self._upload_neighbors, node_id, neighbors)
                     logger.info(f"  {hostname}: {len(neighbors)} neighbors uploaded")
@@ -130,17 +139,22 @@ class Collector:
 
         return config_result
 
-    def _run_sync_driver(self, driver, node, connection, node_id: int, hostname: str, **creds) -> dict:
+    def _run_sync_driver(self, driver, node, target_ip: str, node_id: int, hostname: str, **creds) -> dict:
         """Transport path for synchronous drivers — called via asyncio.to_thread."""
-        with driver.transport.session(connection, **creds):
-            running_config = driver.transport.get_config(node, connection, **creds)
+        with driver.transport.session(target_ip, **creds):
+            running_config = driver.transport.get_config(node, target_ip, **creds)
             if not running_config:
-                return {"node_id": node_id, "hostname": hostname, "status": "error", "message": "Empty config returned"}
+                return {
+                    "node_id": node_id,
+                    "hostname": hostname,
+                    "status": "error",
+                    "message": "Empty config returned",
+                }
 
             config_result = self._upload_config(node_id, hostname, running_config)
 
             try:
-                neighbors = driver.transport.get_lldp_neighbors(node, connection, **creds)
+                neighbors = driver.transport.get_lldp_neighbors(node, target_ip, **creds)
                 if neighbors:
                     self._upload_neighbors(node_id, neighbors)
                     logger.info(f"  {hostname}: {len(neighbors)} neighbors uploaded")
@@ -179,7 +193,12 @@ class Collector:
                 "status": "error",
                 "message": f"Upload failed: {e}",
             }
-        return {"node_id": node_id, "hostname": hostname, "status": "ok", "message": "Config uploaded"}
+        return {
+            "node_id": node_id,
+            "hostname": hostname,
+            "status": "ok",
+            "message": "Config uploaded",
+        }
 
     def _upload_neighbors(self, node_id: int, neighbors: list[dict]):
         """Upload LLDP/CDP neighbors to ACEX API."""
