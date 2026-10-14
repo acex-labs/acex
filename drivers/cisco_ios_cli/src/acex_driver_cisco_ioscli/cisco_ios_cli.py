@@ -190,7 +190,9 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         Used for discovery on bare asset
         """
         conn = ManagementConnection(
-            target_ip=management_ip,
+            target_ip=str(management_ip),
+            node_id=None,
+            id=None
         )
         t = CiscoIOSTransport()
         out = asyncio.run(t.execute(None, conn, ["show version"], username=username, password=password))
