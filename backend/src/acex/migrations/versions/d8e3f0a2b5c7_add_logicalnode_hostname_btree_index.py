@@ -1,7 +1,7 @@
 """add btree index on logicalnode.hostname for sorting
 
 Revision ID: d8e3f0a2b5c7
-Revises: c7d2e9f1a3b4
+Revises: c3f7a9e1d5b8
 Create Date: 2026-10-02 00:00:00.000000
 
 """
