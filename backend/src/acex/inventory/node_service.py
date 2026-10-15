@@ -1,5 +1,6 @@
 import inspect
 from datetime import UTC, datetime
+from typing import Literal
 
 from acex.models import (
     ManagementConnection,
@@ -12,11 +13,22 @@ from acex.models import (
 from acex.models.node import NodeAdminStatus, NodeProvisionStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import case, cast, select
+from sqlalchemy.dialects.postgresql import INET
 
 
 class NodeService:
     """Service layer för Node business logik."""
+
+    SORTABLE_COLUMNS = {
+        "id": "id",
+        "hostname": "logical_node.hostname",
+        "site": "logical_node.site",
+        "role": "logical_node.role",
+        "admin_status": "admin_status",
+        "provision_status": "provision_status",
+        "ip": "ip",
+    }
 
     def __init__(self, adapter, inventory):
         self.adapter = adapter
@@ -120,6 +132,8 @@ class NodeService:
         provision_status: NodeProvisionStatus | None = None,
         limit: int = 100,
         offset: int = 0,
+        sort: str | None = None,
+        order: Literal["asc", "desc"] = "asc",
     ) -> PaginatedResponse[NodeListResponse]:
 
         query_filters = {
@@ -167,8 +181,45 @@ class NodeService:
                 )
             ]
 
+        sort_column = None
+        if sort is not None:
+            if sort not in self.SORTABLE_COLUMNS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid sort field '{sort}'. Valid: {sorted(self.SORTABLE_COLUMNS)}",
+                )
+            if sort == "ip":
+                # Order by the primary management connection's IP, numerically.
+                # Non-IP values (hostnames, blanks) and nodes without a
+                # connection sort last via NULL.
+                sort_column = (
+                    select(
+                        case(
+                            (
+                                ManagementConnection.target_ip.op("~")(
+    r"^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
+),
+                                cast(ManagementConnection.target_ip, INET),
+                            ),
+                            else_=None,
+                        )
+                    )
+                    .where(ManagementConnection.node_id == Node.id)
+                    .order_by(ManagementConnection.primary.desc(), ManagementConnection.id)
+                    .limit(1)
+                    .scalar_subquery()
+                )
+            else:
+                sort_column = self.SORTABLE_COLUMNS[sort]
+
         result = await self._call_method(
-            self.adapter.query, filters=query_filters, extra_filters=extra_filters, limit=limit, offset=offset
+            self.adapter.query,
+            filters=query_filters,
+            extra_filters=extra_filters,
+            limit=limit,
+            offset=offset,
+            sort=sort_column,
+            order=order,
         )
 
         # Bulk-fetch unique assets and clusters to avoid N+1
