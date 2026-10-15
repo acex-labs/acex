@@ -1,0 +1,1581 @@
+{
+  "schema_version": 1,
+  "component": "acex-driver-cisco-ioscli",
+  "name": "Cisco IOS CLI driver",
+  "releases": [
+    {
+      "version": "2.7.4",
+      "date": "2026-10-12",
+      "entries": [
+        {
+          "id": "01-bare-devices-can-be-provisioned-with-the",
+          "kind": "added",
+          "title": "Bare devices can be provisioned with their rendered configuration (zero-touch)",
+          "description": "The driver can now push a node's rendered configuration to a new, unconfigured Cisco device as part of ACEX's zero-touch provisioning flow. Comment-only `!` lines and leading indentation are removed before the commands are sent. The driver also answers the discovery step for such a device, but with fixed placeholder values (see open question).",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.7.1",
+      "date": "2026-10-08",
+      "entries": [
+        {
+          "id": "01-driver-no-longer-fails-to-load-with-the-",
+          "kind": "fixed",
+          "title": "Driver no longer fails to load with the newest SSH library release",
+          "description": "A new release of the SSH library the driver uses (scrapli 2026.10.3) removed a module the driver needs, so fresh installs could not load the Cisco IOS driver and it was missing from the list of device drivers. The driver now requires a scrapli release before 2026. Images or installs built since 2026-10-03 must be rebuilt to pick this up.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#311",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.7.0",
+      "date": "2026-08-21",
+      "entries": [
+        {
+          "id": "01-front-panel-port-names-now-follow-the-co",
+          "kind": "fixed",
+          "title": "Front-panel port names now follow the configured port speed",
+          "description": "When a front-panel interface has a configured speed, the driver now reads the speed as a plain number. Before, it received a structured value, so the speed-based choice of interface name prefix (for example Gigabit vs TenGigabit) could not be made.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#226",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.6.0",
+      "date": "2026-08-21",
+      "entries": [
+        {
+          "id": "01-driver-works-with-the-current-acex-devki",
+          "kind": "fixed",
+          "title": "Driver works with the current ACEX devkit and declares its template dependency",
+          "description": "The driver now imports its renderer and parser base classes from the current devkit instead of a legacy location, and lists the Jinja2 template library as a dependency. Without this the driver could fail to load in a fresh installation.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#225",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.5.2",
+      "date": "2026-08-14",
+      "entries": [
+        {
+          "id": "01-ip-addresses-on-physical-interfaces-are-",
+          "kind": "changed",
+          "title": "IP addresses on physical interfaces are now read from the running configuration",
+          "description": "The parser now picks up `ip address <address> <mask>` on physical Ethernet interfaces and reports it as an address with prefix length. Before, an address configured on such a port was not seen, so wanted and actual configuration could differ even when the device was correct.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#207",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-rendered-configuration-drops-boot-marker",
+          "kind": "changed",
+          "title": "Rendered configuration drops boot markers, `end` and extra blank lines",
+          "description": "The full configuration ACEX renders for a device no longer includes the `boot-start-marker`, `boot-end-marker` and `end` lines, and blank lines are collapsed (the stray blank line before `service compress-config` is gone). These lines were already ignored when comparing with the device.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#218",
+              "url": null
+            },
+            {
+              "label": "#207",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-no-empty-ssh-server-section-is-reported-",
+          "kind": "fixed",
+          "title": "No empty SSH server section is reported for devices without SSH settings",
+          "description": "SSH server settings are now only reported when the running configuration contains some; before, a default, empty SSH section was always added. A running configuration without hostname, banner or similar system data is also handled without error.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#207",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.5.1",
+      "date": "2026-06-29",
+      "entries": [
+        {
+          "id": "01-rendering-no-longer-fails-for-single-swi",
+          "kind": "fixed",
+          "title": "Rendering no longer fails for single switches without a stack index",
+          "description": "When a front-panel interface in the configuration had no stack index, as is normal for a single switch, rendering stopped with an error. The stack index now defaults to 0.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#202",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.5.0",
+      "date": "2026-06-19",
+      "entries": [
+        {
+          "id": "02-console-and-vty-lines-render-aaa-binding",
+          "kind": "changed",
+          "title": "Console and VTY lines render AAA bindings, ACLs and per-range settings",
+          "description": "`line con 0` and `line vty` now get `login authentication`, `authorization exec` and `authorization commands 0/1/15` (with `privilege level 15`), `access-class` (also with `vrfname`), `logging synchronous` and `transport input`. Consecutive VTY lines with the same settings are sent as one range; with no VTY lines configured, no `line vty` section is rendered. Login and exec authorization on console/VTY lines must now be set through the Cisco AAA augments.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#197",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-aaa-method-lists-for-authentication-auth",
+          "kind": "added",
+          "title": "AAA method lists for authentication, authorization and accounting are rendered",
+          "description": "Cisco AAA settings in ACEX now produce `aaa authentication <type> <list> group <group> ...`, `aaa authorization <type> [<level>] <list> ...` and `aaa accounting <type> [<level>] <list> <action> ...` lines. A list named `default_...` is sent as `default`, or an explicit CLI list name is used if one is set.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#197",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.4.5",
+      "date": "2026-06-15",
+      "entries": [
+        {
+          "id": "01-physical-interfaces-are-read-from-the-de",
+          "kind": "fixed",
+          "title": "Physical interfaces are read from the device's running configuration",
+          "description": "Since 2.4.3 the parser read physical interfaces from a fixed sample file instead of the running configuration fetched from the device. Interfaces are now parsed from the device's actual output, so differences reported for ports reflect the real device.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#188",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.4.4",
+      "date": "2026-06-15",
+      "entries": [
+        {
+          "id": "01-running-configuration-is-read-from-the-d",
+          "kind": "fixed",
+          "title": "Running configuration is read from the device, not from a sample file",
+          "description": "Version 2.4.3 left the parser reading a fixed sample configuration instead of the running configuration fetched from the device, so reported differences did not reflect the real device. It now uses the configuration read from the device, except for physical interfaces, which are fixed in 2.4.5.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#187",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.4.3",
+      "date": "2026-06-15",
+      "entries": [
+        {
+          "id": "01-dns-servers-and-clock-timezone-are-read-",
+          "kind": "added",
+          "title": "DNS servers and clock timezone are read from the running configuration",
+          "description": "The parser now recognises `ip name-server` lines (including `vrf <name>` and several addresses on one line) and `clock timezone`. ACEX can therefore compare wanted and actual DNS and timezone settings.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#186",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-dhcp-snooping-trust-on-interfaces-and-gi",
+          "kind": "changed",
+          "title": "DHCP snooping trust on interfaces and GigE port names are now recognised",
+          "description": "`ip dhcp snooping ...` under a physical interface is read and reported as a trusted interface, and port names containing `GigE` are treated as physical Ethernet ports. Empty values are no longer reported, which removes spurious differences against the wanted configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#186",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-snmp-settings-are-temporarily-not-read-f",
+          "kind": "changed",
+          "title": "SNMP settings are temporarily not read from the device",
+          "description": "SNMP parsing was switched off because it produced invalid results, so SNMP configuration on the device is not compared with the wanted configuration until it is re-enabled.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#186",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.4.2",
+      "date": "2026-06-15",
+      "entries": [
+        {
+          "id": "01-two-virtual-catalyst-9000-models-added-c",
+          "kind": "added",
+          "title": "Two virtual Catalyst 9000 models added (C9300-4V and C9KV-UADP-8P)",
+          "description": "The driver now knows the port layouts of two virtual Catalyst models, as used in Cisco CML labs. Nodes with these hardware models get their interface names generated like other supported models.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#185",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.4.1",
+      "date": "2026-06-12",
+      "entries": [
+        {
+          "id": "01-interfaces-in-a-vrf-now-get-vrf-forwardi",
+          "kind": "fixed",
+          "title": "Interfaces in a VRF now get `vrf forwarding` in the rendered configuration",
+          "description": "An interface that is a member of a VRF in ACEX is now rendered with `vrf forwarding <name>`; the VRF assignment was previously not applied. Interfaces in the global instance are unaffected.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#183",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.4.0",
+      "date": "2026-06-11",
+      "entries": [
+        {
+          "id": "01-front-panel-port-names-are-built-from-st",
+          "kind": "changed",
+          "title": "Front-panel port names are built from stack, module and port index per model",
+          "description": "Interface names such as `GigabitEthernet1/0/1` are now computed from the stack, module and port index of the interface in ACEX plus each model's start offsets, and the port numbering in all 110 model definitions was shifted to count from 0. Front-panel interfaces must now carry a module index and stack index, and ports that do not match a slot on the model are dropped from the rendered configuration.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#182",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.1.0",
+      "date": "2026-06-11",
+      "entries": [
+        {
+          "id": "01-port-layouts-for-119-cisco-hardware-mode",
+          "kind": "added",
+          "title": "Port layouts for 119 Cisco hardware models, including stacks",
+          "description": "The driver now has a port layout per hardware model (Catalyst 2950/2960/3560/3750/3850/9200/9300/9500, Nexus 9300, ISR 1841/1941, C8200 and others), listing slots, modules and supported speeds. Models that are not known fall back to a generic Cisco layout.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#181",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-interface-names-come-from-the-hardware-m",
+          "kind": "changed",
+          "title": "Interface names come from the hardware model and stack member position",
+          "description": "Front-panel interface names (for example `TenGigabitEthernet1/1/1`) are now built from the node's hardware model, the configured port speed and, for stacks, the model and position of each stack member. Interfaces in the configuration that do not match a port on the model are left out of the rendered configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#181",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-virtual-ios-switches-are-rendered-from-t",
+          "kind": "changed",
+          "title": "Virtual IOS switches are rendered from the common template",
+          "description": "Nodes with hardware model `vios_l2` are no longer rendered from a separate virtual-switch template; the common Cisco template is used for all models.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#181",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.0.5",
+      "date": "2026-06-03",
+      "entries": [
+        {
+          "id": "01-failed-logins-and-connection-timeouts-ar",
+          "kind": "changed",
+          "title": "Failed logins and connection timeouts are reported as distinct errors",
+          "description": "When the SSH session to a device cannot be opened, ACEX now reports either \"Authentication failed\" or \"Connection timed out\" instead of a generic failure. A login attempt that stalls and times out is reported as a timeout, not as a bad login.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#174",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.0.4",
+      "date": "2026-05-28",
+      "entries": [
+        {
+          "id": "01-lldp-and-cdp-neighbour-discovery-works-a",
+          "kind": "fixed",
+          "title": "LLDP and CDP neighbour discovery works again",
+          "description": "In 2.0.2 and 2.0.3 the neighbour collection used `asyncio` without importing it, so every attempt to read neighbours from a device ended in an internal error. The missing import is added.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "62c1f8d",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.0.3",
+      "date": "2026-05-28",
+      "entries": [
+        {
+          "id": "01-parallel-jobs-on-the-same-driver-no-long",
+          "kind": "fixed",
+          "title": "Parallel jobs on the same driver no longer share one SSH session",
+          "description": "The SSH session held open for a job is now kept per task instead of on the shared driver object. Two jobs running at once could previously use, and close, each other's connection.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "82392eb",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.0.2",
+      "date": "2026-05-28",
+      "entries": [
+        {
+          "id": "01-a-neighbour-command-that-times-out-ends-",
+          "kind": "changed",
+          "title": "A neighbour command that times out ends neighbour collection for that device",
+          "description": "The 10-second limit on LLDP and CDP commands is now enforced on the whole command, and when the LLDP command times out or fails, CDP is skipped on that session and the neighbours found so far are returned. Known problem: this release uses `asyncio` without importing it, so neighbour collection fails with an internal error until 2.0.4.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#169",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.0.1",
+      "date": "2026-05-28",
+      "entries": [
+        {
+          "id": "01-lldp-and-cdp-neighbour-discovery-fails-f",
+          "kind": "changed",
+          "title": "LLDP and CDP neighbour discovery fails fast on devices without LLDP/CDP",
+          "description": "Each neighbour command now waits at most 10 seconds (was 60), and an error response from the device such as LLDP not being enabled is ignored instead of being parsed. A device with only CDP or only LLDP returns what it has without delay.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#168",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.0.0",
+      "date": "2026-05-28",
+      "entries": [
+        {
+          "id": "01-device-connections-use-an-asynchronous-s",
+          "kind": "changed",
+          "title": "Device connections use an asynchronous SSH library (scrapli instead of netmiko)",
+          "description": "The driver now talks to devices through scrapli with asyncssh instead of netmiko, so several devices can be handled concurrently. The same login, enable password, 30 s connection timeout and 120 s command timeout apply.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#166",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.1",
+      "date": "2026-05-20",
+      "entries": [
+        {
+          "id": "01-parser-works-again-with-the-current-snmp",
+          "kind": "fixed",
+          "title": "Parser works again with the current SNMP configuration models",
+          "description": "The parser referred to SNMP model classes under names that no longer matched the ones the rest of ACEX uses, which could stop the running configuration from being read at all. The names are aligned.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#160",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-05-20",
+      "entries": [
+        {
+          "id": "01-802-1x-style-access-session-device-senso",
+          "kind": "added",
+          "title": "802.1X-style access-session, device-sensor and control policy are rendered",
+          "description": "Cisco augments on system services now produce `access-session attributes filter-list list`, `policy-map type control subscriber`, `device-sensor filter-list` and `filter-spec`, `access-session authentication|accounting attributes filter-spec`, `service-policy type control subscriber`, `access-session monitor` and `device-sensor notify all-changes`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-dhcp-snooping-and-ipv4-access-lists-are-",
+          "kind": "added",
+          "title": "DHCP snooping and IPv4 access lists are rendered",
+          "description": "DHCP snooping sends `ip dhcp snooping`, `ip dhcp snooping vlan <id>`, `no ip dhcp snooping information option` and `ip dhcp snooping track server [all-dhcp-acks]`. IPv4 ACLs send `ip access-list standard|extended <name>` with sequence numbers, remarks, `host` and address/wildcard-mask entries.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-more-system-settings-password-encryption",
+          "kind": "added",
+          "title": "More system settings: password encryption, timezone, logging, SSH and archive",
+          "description": "The driver can now send `service password-encryption`, `clock timezone`, `no logging console`, `logging trap <severity>`, `ip ssh logging events`, `ip ssh dh min size` and the `archive` block (log config, path, write-memory, time-period, maximum, rollback).",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-snmp-rendering-covers-v3-groups-views-co",
+          "kind": "changed",
+          "title": "SNMP rendering covers v3 groups, views, communities and trap hosts",
+          "description": "SNMP settings now render `snmp-server group <name> v3 auth ...`, `snmp-server view`, `location`, `contact`, `community` (with an optional ACL) and `snmp-server host` (with VRF and version). The earlier simple community/location/contact block is replaced.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-the-version-line-is-no-longer-rendered-a",
+          "kind": "changed",
+          "title": "The `version` line is no longer rendered at the top of the configuration",
+          "description": "The rendered configuration no longer starts with a `version <x>` line. Interface and VTP extensions render the same commands as before, but are now matched by names such as `cisco_service_policy` instead of `cisco.service_policy`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "date": "2026-05-13",
+      "entries": [
+        {
+          "id": "01-parser-no-longer-fails-because-of-rename",
+          "kind": "fixed",
+          "title": "Parser no longer fails because of renamed SNMP configuration models",
+          "description": "The parser's SNMP imports were updated to the renamed SNMP model classes, so the running configuration can be read again. Without it the parser raised a name error when it was loaded.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#158",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-05-01",
+      "entries": [
+        {
+          "id": "01-cisco-specific-extensions-on-interfaces-",
+          "kind": "added",
+          "title": "Cisco-specific extensions on interfaces, templates and VTP are rendered",
+          "description": "Extensions attached to interfaces, interface templates and the VTP configuration are now sent as `device-tracking attach-policy <name>`, `service-policy input|output <name>` and `vtp primary server`. Extension types the driver does not know are ignored.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#144",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.12.0",
+      "date": "2026-04-29",
+      "entries": [
+        {
+          "id": "01-interface-templates-render-storm-control",
+          "kind": "fixed",
+          "title": "Interface templates render storm-control, portfast and access VLAN correctly",
+          "description": "In interface templates storm-control levels that are multiples of 1000 are now written with a `k` suffix (for example `10k`), `spanning-tree portfast` is also set from the portfast setting, and `switchport access vlan` is rendered even when no switchport mode is configured. The order of the lines inside a template also changed.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#142",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.11.0",
+      "date": "2026-04-29",
+      "entries": [
+        {
+          "id": "01-interface-templates-are-rendered-and-int",
+          "kind": "added",
+          "title": "Interface templates are rendered, and interfaces can use them",
+          "description": "Interface templates now produce `template <name>` blocks (switchport mode and VLANs, storm-control, spanning-tree, MTU, speed, duplex, shutdown and more), and an interface that references one gets `source template <name>`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#141",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-more-per-port-settings-storm-control-lin",
+          "kind": "added",
+          "title": "More per-port settings: storm-control, link-status logging, voice VLAN, portfast",
+          "description": "Ports can now be given `storm-control` levels and action, `no logging event link-status`, `no snmp trap link-status`, `no mdix auto`, `switchport voice vlan`, `switchport nonegotiate` and `spanning-tree portfast`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#141",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-physical-ports-are-only-shut-down-when-e",
+          "kind": "changed",
+          "title": "Physical ports are only shut down when explicitly disabled",
+          "description": "On physical Ethernet interfaces ACEX now sends `shutdown` only when the interface is set to disabled. `no shutdown` is no longer rendered for enabled ports, and a port with no enabled setting is no longer shut down.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#141",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-switchport-access-vlan-uses-the-access-v",
+          "kind": "fixed",
+          "title": "`switchport access vlan` uses the access VLAN, not the native VLAN",
+          "description": "On access ports the rendered `switchport access vlan` took its value from the native VLAN setting. It now uses the access VLAN.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#141",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.10.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-one-ssh-login-is-reused-for-all-operatio",
+          "kind": "changed",
+          "title": "One SSH login is reused for all operations in a job",
+          "description": "The driver can now keep a single SSH session open for a whole job instead of logging in again for every command batch. Entering enable mode uses the enable password if one is given and otherwise the login password.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#137",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.9.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-reading-the-running-configuration-and-lo",
+          "kind": "fixed",
+          "title": "Reading the running configuration and long commands no longer time out early",
+          "description": "Commands sent to the device now wait up to 120 seconds for output (60 seconds for LLDP and CDP neighbour commands) instead of the library default, so large configurations can be read in full.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "cca0498",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-lldp-and-cdp-neighbours-are-discovered-f",
+          "kind": "added",
+          "title": "LLDP and CDP neighbours are discovered from the device",
+          "description": "The driver reads `show lldp neighbors detail` and `show cdp neighbors detail` and returns local interface, remote device, remote interface and protocol. LLDP is preferred; CDP adds links not already seen via LLDP.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-device-login-uses-the-credentials-acex-p",
+          "kind": "changed",
+          "title": "Device login uses the credentials ACEX provides, with optional enable password",
+          "description": "The username and password for the SSH login now come from the credentials configured in ACEX for the node, and an optional enable password is used for enable mode. A connection attempt without username and password is rejected with an error.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.7.0",
+      "date": "2026-04-24",
+      "entries": [
+        {
+          "id": "01-device-generated-noise-and-secrets-are-i",
+          "kind": "added",
+          "title": "Device-generated noise and secrets are ignored when comparing configurations",
+          "description": "Before comparing the device's running configuration with the wanted one, ACEX now ignores lines the device writes by itself (build and change timestamps, `end`, `version`, boot markers, licence IDs, SNMP engine ID, self-signed certificates) and masks secret values (enable and user secrets, SNMP communities, shared keys) as `<REDACTED>`. This removes false differences.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#131",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-04-24",
+      "entries": [
+        {
+          "id": "01-the-driver-can-read-the-running-configur",
+          "kind": "added",
+          "title": "The driver can read the running configuration and send changes over SSH",
+          "description": "ACEX can now log in to a Cisco IOS device over SSH, enter enable mode, read `show running-config`, send configuration commands and run commands. Patches are applied through this connection, with comment-only `!` lines and leading indentation removed.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#130",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.5.1",
+      "date": "2026-04-22",
+      "entries": [
+        {
+          "id": "01-physical-interface-names-no-longer-get-a",
+          "kind": "fixed",
+          "title": "Physical interface names no longer get an extra slash after the prefix",
+          "description": "Names were rendered as `GigabitEthernet/1/0/1`, which IOS rejects. They are now rendered as `GigabitEthernet1/0/1`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "5aa8373",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.4.1",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "01-ssh-host-key-section-is-reported-as-empt",
+          "kind": "fixed",
+          "title": "SSH host-key section is reported as empty instead of with empty sub-fields",
+          "description": "When reading a device's SSH settings, the parser now reports an empty host-key section instead of one with an empty algorithm list and an empty key list. This may remove a spurious difference against the wanted configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#119",
+              "url": null
+            },
+            {
+              "label": "#118",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.4.0",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "01-tacacs-and-radius-server-groups-and-serv",
+          "kind": "added",
+          "title": "TACACS+ and RADIUS server groups and servers are rendered",
+          "description": "Enabled AAA server groups now produce `aaa group server tacacs+ <group>` or `aaa group server radius <group>` with `server name` lines. Each server is sent as a `tacacs server` or `radius server` block with address, port (or auth/acct port), key and timeout.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "a796b2c",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-vtp-domain-mode-version-and-password-are",
+          "kind": "added",
+          "title": "VTP domain, mode, version and password are rendered",
+          "description": "The VTP configuration now produces `vtp domain`, `vtp mode`, `vtp version` and `vtp password` (with `hidden` when the password is given in hashed form).",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "a796b2c",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "date": "2026-04-14",
+      "entries": [
+        {
+          "id": "01-switch-stacks-are-rendered-with-interfac",
+          "kind": "added",
+          "title": "Switch stacks are rendered, with interface names built from stack member",
+          "description": "Nodes made of several stacked switches are now rendered: the operating system and version of the first member are used, and physical interface names are built from the speed-based prefix (Gigabit, TenGigabit, TwentyFiveGigE, ...), stack index, module index and port index. LAG interfaces are named `Port-channel<index>`. Known problem: names came out with an extra slash after the prefix, fixed in 0.5.1.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#110",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-04-08",
+      "entries": [
+        {
+          "id": "01-vlan-interfaces-are-rendered-as-interfac",
+          "kind": "fixed",
+          "title": "VLAN interfaces are rendered as `interface vlan<id>` with the plain VLAN number",
+          "description": "The VLAN interface header was built from the whole VLAN-ID value instead of the number, which gave an invalid command. It now sends for example `interface vlan10`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#104",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.24",
+      "date": "2026-04-07",
+      "entries": [
+        {
+          "id": "01-vlan-interfaces-on-virtual-switches-are-",
+          "kind": "fixed",
+          "title": "VLAN interfaces on virtual switches are rendered with the plain VLAN number",
+          "description": "The separate template used for virtual IOS switches had the same VLAN interface header problem as the main template: `interface Vlan<id>` was built from the whole VLAN-ID value. It now uses the number.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#103",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.23",
+      "date": "2026-03-30",
+      "entries": [
+        {
+          "id": "01-reading-a-device-without-snmp-data-no-lo",
+          "kind": "fixed",
+          "title": "Reading a device without SNMP data no longer fails",
+          "description": "The parser raised an error when the running configuration contained no SNMP data, because a variable was used before it was defined. It is now initialised as empty.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#90",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.22",
+      "date": "2026-03-27",
+      "entries": [
+        {
+          "id": "01-interfaces-are-rendered-again-after-acex",
+          "kind": "fixed",
+          "title": "Interfaces are rendered again after ACEX changed how interface types are stored",
+          "description": "The renderer and both templates looked up the interface type under a key that no longer exists, so physical, LAG, loopback, VLAN and management interfaces could not be recognised and rendered. They now use the current key.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#89",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-remote-syslog-servers-are-rendered-as-lo",
+          "kind": "fixed",
+          "title": "Remote syslog servers are rendered as `logging host`, with source interface",
+          "description": "The loop over remote logging servers used the wrong structure, so the `logging host <address>` lines and their source address were not produced correctly. They are now rendered per server, together with `logging buffered <size>`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#89",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.21",
+      "date": "2026-03-27",
+      "entries": [
+        {
+          "id": "01-snmp-settings-are-read-from-the-running-",
+          "kind": "added",
+          "title": "SNMP settings are read from the running configuration",
+          "description": "The parser now recognises `snmp-server location`, `contact`, `trap-source`, `group`, `view`, `host` (with VRF, version and community) and `enable traps`. ACEX can therefore report differences in SNMP settings; the author notes this is a first version to be reworked.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#88",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-ntp-and-ssh-source-interfaces-are-matche",
+          "kind": "fixed",
+          "title": "NTP and SSH source interfaces are matched to the right VLAN interface",
+          "description": "The check that links an NTP or SSH source interface such as `Vlan10` to the VLAN interface in the configuration was corrected, so the reference is found.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#88",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.19",
+      "date": "2026-03-24",
+      "entries": [
+        {
+          "id": "01-system-ntp-ssh-and-vlan-interface-settin",
+          "kind": "added",
+          "title": "System, NTP, SSH and VLAN interface settings are read from the device",
+          "description": "The parser now recognises hostname, domain name, SNMP location and contact, MOTD and login banners, `ntp server` (version, prefer, source interface), `ip ssh` settings (version, time-out, authentication retries, source interface) and VLAN interfaces (description, shutdown state, IPv4 address). Physical ports also report `negotiation`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#85",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.18",
+      "date": "2026-03-19",
+      "entries": [
+        {
+          "id": "01-remote-syslog-servers-follow-the-new-con",
+          "kind": "fixed",
+          "title": "Remote syslog servers follow the new configuration structure",
+          "description": "The `logging host <address>` section was updated to the new structure of remote logging servers, so the address and optional source interface are read from the right place and the host is rendered as a plain value.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#83",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.17",
+      "date": "2026-03-19",
+      "entries": [
+        {
+          "id": "01-rendering-no-longer-fails-when-no-ntp-se",
+          "kind": "fixed",
+          "title": "Rendering no longer fails when no NTP servers are defined",
+          "description": "The NTP section is now only rendered when NTP servers exist. Before, a configuration without NTP servers caused an error while rendering.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#82",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.16",
+      "date": "2026-02-25",
+      "entries": [
+        {
+          "id": "01-only-the-hostname-is-read-from-the-devic",
+          "kind": "changed",
+          "title": "Only the hostname is read from the device; interface settings are not read",
+          "description": "The parser stopped reading interfaces from the running configuration and reads only the hostname, so no interface differences are reported until interface parsing returns. The patch renderer is now also invoked for interface changes, but it only emits a placeholder command.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#76",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.15",
+      "date": "2026-02-25",
+      "entries": [
+        {
+          "id": "01-differences-can-be-turned-into-a-patch-h",
+          "kind": "added",
+          "title": "Differences can be turned into a patch; hostname changes are supported",
+          "description": "The driver can now build a patch from the difference between wanted and actual configuration and send it to the device in one configuration session. In this release only hostname changes are turned into commands (`hostname <name>` or `no hostname`); other differences produce no commands. This replaces the earlier approach of comparing two rendered configurations line by line.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#71",
+              "url": null
+            },
+            {
+              "label": "#72",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.14",
+      "date": "2026-02-20",
+      "entries": [
+        {
+          "id": "01-ssh-source-interface-is-written-as-vlan-",
+          "kind": "fixed",
+          "title": "SSH source interface is written as `Vlan<id>`; virtual-switch commands reordered",
+          "description": "`ip ssh source-interface` now uses `Vlan10` with a capital V, as it appears in the running configuration. In the virtual-switch template the commands were reordered to match the running configuration and `logging buffered` was added, which makes the rendered text easier to compare with the device.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#68",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.13",
+      "date": "2026-02-20",
+      "entries": [
+        {
+          "id": "01-virtual-switch-template-drops-fixed-lab-",
+          "kind": "changed",
+          "title": "Virtual-switch template drops fixed lab banners and fixes access-port order",
+          "description": "For virtual IOS switches the fixed `banner exec` and `banner incoming` texts are no longer sent, the MOTD banner text is written on the `banner motd` line, and `no process cpu extended history` and `no process cpu autoprofile hog` are added. `switchport mode access` now comes before `switchport access vlan`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#67",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.12",
+      "date": "2026-02-19",
+      "entries": [
+        {
+          "id": "01-static-routes-are-rendered-for-virtual-i",
+          "kind": "added",
+          "title": "Static routes are rendered for virtual IOS switches, including VRF routes",
+          "description": "Static routes now produce `ip route <prefix> <next-hop>` and, for routes in a VRF, `ip route vrf <name> <prefix> <next-hop>`, each with an optional `metric`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#65",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-virtual-switch-template-trunk-encapsulat",
+          "kind": "changed",
+          "title": "Virtual-switch template: trunk encapsulation, negotiation, banners and AUX line",
+          "description": "Trunk ports now get `switchport trunk encapsulation dot1q` before `switchport mode trunk`, ports can send `negotiation auto`, and VLAN interfaces are written as `interface Vlan<id>`. Only `shutdown` is written, never `no shutdown`; login and MOTD banners, `control-plane`, AES-CTR SSH algorithms and `line aux 0` with `login local` are added.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#65",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-a-stray-template-name-line-is-no-longer-",
+          "kind": "fixed",
+          "title": "A stray template-name line is no longer written at the top of the configuration",
+          "description": "The rendered configuration of 0.0.11 started with a line containing the name of the template; it was removed again, in both templates.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "96c04d4",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.11",
+      "date": "2026-02-17",
+      "entries": [
+        {
+          "id": "01-virtual-ios-switches-vios-l2-are-rendere",
+          "kind": "added",
+          "title": "Virtual IOS switches (`vios_l2`) are rendered from their own template",
+          "description": "A node whose hardware model is `vios_l2` is now rendered from a separate template written for virtual lab switches, instead of the standard template. All other models keep using the standard template.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "d931ab7",
+              "url": null
+            },
+            {
+              "label": "09e8bf4",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-aaa-default-gateway-and-http-server-line",
+          "kind": "changed",
+          "title": "AAA, default gateway and HTTP server lines in the standard template",
+          "description": "`aaa new-model` is sent only when AAA is enabled and otherwise `no aaa new-model`; `ip default-gateway` is sent when a default gateway is set. `ip forward-protocol nd`, `ip http server` and `ip http secure-server` are now always sent, and the configurable `spanning-tree mode` is no longer rendered.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "6d053a3",
+              "url": null
+            },
+            {
+              "label": "f72adbf",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-port-numbering-on-non-stacked-switches-n",
+          "kind": "changed",
+          "title": "Port numbering on non-stacked switches no longer adds 1 to the port index",
+          "description": "Names of ports without a stack index are built as `<module>/<index>` instead of `<module>/<index + 1>`, so the port number in the name is the configured index.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "13e8380",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-domain-name-is-sent-as-ip-domain-name",
+          "kind": "fixed",
+          "title": "Domain name is sent as `ip domain-name`",
+          "description": "The command was rendered as `ip domain_name`, which IOS rejects. It is now `ip domain-name <name>`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "6d053a3",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.10",
+      "date": "2026-02-13",
+      "entries": [
+        {
+          "id": "01-vlan-interfaces-svi-are-rendered",
+          "kind": "added",
+          "title": "VLAN interfaces (SVI) are rendered",
+          "description": "VLAN interfaces are now part of the rendered configuration with description, IP address and shutdown state. Known problem: the VLAN number was written as the whole value instead of the number, fixed in 0.1.0.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "5a80c9a",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-baseline-lines-at-the-top-of-the-rendere",
+          "kind": "changed",
+          "title": "Baseline lines at the top of the rendered configuration were changed",
+          "description": "The rendered configuration now includes `service compress-config`, boot markers, `no process cpu ...`, `no ipv6 cef` and `spanning-tree mode pvst` / `extend system-id`, and `no aaa new-model` when AAA is off. `service call-home`, `logging console emergencies`, `aaa new-model`, `aaa session-id common`, `vtp mode off`, local usernames and VLAN definitions are no longer rendered.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "1cf3c9c",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.9",
+      "date": "2026-02-13",
+      "entries": [
+        {
+          "id": "01-a-diff-can-be-turned-into-cli-commands-f",
+          "kind": "added",
+          "title": "A diff can be turned into CLI commands for the device",
+          "description": "The driver can now take a difference between configurations and produce the commands to apply it: it renders the configuration before and after the change, and lines that disappear become `no <command>` while new lines are sent as they are. This is replaced by a patch generator in 0.0.15.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#52",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.8",
+      "date": "2026-02-12",
+      "entries": [
+        {
+          "id": "01-the-driver-now-depends-on-the-acex-devki",
+          "kind": "changed",
+          "title": "The driver now depends on the ACEX devkit package",
+          "description": "Configuration models and driver base classes are imported from the separate devkit package instead of the backend, so the devkit must be installed together with the driver.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#48",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.6",
+      "date": "2026-02-09",
+      "entries": [
+        {
+          "id": "01-hostname-physical-ports-and-port-channel",
+          "kind": "added",
+          "title": "Hostname, physical ports and port-channels are read from the device",
+          "description": "The driver can now parse a device's running configuration: hostname, physical Ethernet ports (description, switchport mode, VLANs, shutdown state) and Port-channel interfaces. This is the basis for comparing wanted and actual configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#42",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.5",
+      "date": "2026-02-06",
+      "entries": [
+        {
+          "id": "01-10-gb-ports-on-ios-devices-are-named-ten",
+          "kind": "added",
+          "title": "10 Gb ports on IOS devices are named TenGigabitEthernet",
+          "description": "Interfaces configured with 10 Gb speed on classic IOS (not only IOS XE) now get the `TenGigabitEthernet` prefix.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#41",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-port-names-are-built-from-module-and-por",
+          "kind": "changed",
+          "title": "Port names are built from module and port index when there is no stack index",
+          "description": "A port without a stack index is now named `<module>/<port>` (for example `GigabitEthernet0/1`) instead of always `1/0/<port>`, and a module index is taken into account in the name.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#41",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.4",
+      "date": "2026-01-13",
+      "entries": [
+        {
+          "id": "02-switch-modules-are-included-in-port-name",
+          "kind": "added",
+          "title": "Switch modules are included in port names",
+          "description": "Port names now carry the module index, for example `GigabitEthernet1/1/3`, so ports on uplink modules get the right name.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "ec322a9",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-vrf-definitions-vlans-and-the-ios-versio",
+          "kind": "added",
+          "title": "VRF definitions, VLANs and the IOS version line are rendered",
+          "description": "The rendered configuration now contains `vrf definition <name>` with IPv4 and IPv6 address families for every non-global network instance, `vlan <id>` with names, `vtp mode off`, `aaa new-model` and the `version` line taken from the node's operating system version. Known problem: the domain name was written as `ip domain_name`, fixed in 0.0.11.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "4bda268",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-interface-references-such-as-the-ssh-sou",
+          "kind": "fixed",
+          "title": "Interface references such as the SSH source interface are resolved correctly",
+          "description": "References from settings to interfaces (for example the SSH source interface) pointed to the wrong place in the configuration and are now read from the correct field.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "6d41cb0",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.3",
+      "date": "2026-01-08",
+      "entries": [
+        {
+          "id": "01-hostname-and-domain-name-are-written-wit",
+          "kind": "fixed",
+          "title": "Hostname and domain name are written with their actual value",
+          "description": "The template read the hostname and domain name one level too deep, so `hostname` and `ip domain-name` did not receive the configured text. They now use the value directly.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "3d32d3a",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.2",
+      "date": "2026-01-06",
+      "entries": [
+        {
+          "id": "01-port-channels-lacp-ntp-logging-and-ssh-s",
+          "kind": "added",
+          "title": "Port-channels, LACP, NTP, logging and SSH settings are rendered",
+          "description": "The template was reworked for the new configuration format and now produces Port-channel interfaces, `lacp system-priority` and `system-id`, `port-channel load-balance`, `ntp server` (with `prefer`), `logging buffered`, `logging host` with source interface and `ip ssh` version, time-out, authentication retries and source interface. More port speeds are named for IOS XE (10, 25, 40 and 100 Gb).",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#22",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-rendering-no-longer-breaks-when-ssh-or-v",
+          "kind": "fixed",
+          "title": "Rendering no longer breaks when SSH or VRF interface references are missing",
+          "description": "The renderer failed when the SSH source interface or a VRF interface reference was not defined, for example when no SSH settings were configured at all. Empty settings and empty references are now skipped. The renderer also reads the configuration in its new model format.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#22",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.1",
+      "date": "2025-12-22",
+      "entries": [
+        {
+          "id": "01-first-release-renders-cisco-ios-configur",
+          "kind": "added",
+          "title": "First release: renders Cisco IOS configuration text from the ACEX configuration",
+          "description": "The Cisco IOS CLI driver renders a device configuration with hostname, domain name, enable secret, local users, loopback, physical and VLAN interfaces. Static routes, OSPF, VLANs, spanning-tree, SNMP, NTP, logging, console/VTY lines and SSH settings are in the template but commented out in this version.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#18",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": [],
+  "highlights": []
+}

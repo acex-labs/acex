@@ -37,6 +37,10 @@ celery = ">=5.5.0"
 [tool.poetry.scripts]
 acex-api = "acex_api.server:main"
 
+# Shown as the component's name in Settings > What's new; see changelog.d/README.md.
+[tool.acex.changelog]
+name = "ACEX backend"
+
 [tool.poetry.extras]
 vault = ["hvac"]
 

@@ -31,6 +31,7 @@ from acex.settings.bug_report import (
 from acex.settings.influxdb import InfluxDBOutput, InfluxDBSettings
 from acex.settings.section import Section
 from acex.settings.sections import (
+    ChangelogSettings,
     CorsSettings,
     CredentialSettings,
     DatabaseSettings,
@@ -49,6 +50,7 @@ __all__ = [
     "AIProvider",
     "AdoBugReportSettings",
     "BugReportSettings",
+    "ChangelogSettings",
     "CorsSettings",
     "CredentialSettings",
     "DatabaseSettings",

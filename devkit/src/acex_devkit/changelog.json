@@ -1,0 +1,1740 @@
+{
+  "schema_version": 1,
+  "component": "acex-devkit",
+  "name": "ACEX devkit",
+  "releases": [
+    {
+      "version": "2.10.0",
+      "date": "2026-09-30",
+      "entries": [
+        {
+          "id": "02-agent-match-rules-match-on-admin-status-",
+          "kind": "changed",
+          "title": "Agent match rules match on `admin_status` and `provision_status`",
+          "description": "`TelemetryAgentMatchRuleBase` and `CollectionAgentMatchRuleBase` replace the `status` field with `admin_status` and `provision_status` (both `str | None`). Rules that set `status` must be rewritten to use one or both.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#292",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-node-status-split-into-admin-status-and-",
+          "kind": "changed",
+          "title": "Node `status` split into `admin_status` and `provision_status`",
+          "description": "`NodeBase`, `NodeUpdate` and the node list/detail responses no longer have `status`; they have `admin_status` (`NodeAdminStatus`: `planned`, `active`, `decommissioned`) and `provision_status` (`NodeProvisionStatus`). The old `init` value is gone and `NodeStatus` is removed from `acex_devkit.models`: use the two new enums. This is also a change to the backend and client API.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#292",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.9.0",
+      "date": "2026-09-25",
+      "entries": [
+        {
+          "id": "01-set-an-agent-s-explicit-nodes-in-one-cal",
+          "kind": "added",
+          "title": "Set an agent's explicit nodes in one call: `AgentNodeSet`",
+          "description": "New models `AgentNodeSet` (`node_ids`, optional `expected_revision`) and `AgentNodeSetResult` (`added`, `removed`, `config_revision`), exported from `acex_devkit.models`. `node_ids` replaces the agent's explicit node links and an empty list removes them all; rule-matched nodes are unaffected. Per the docstring, a differing `expected_revision` is rejected with 409.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.8.0",
+      "date": "2026-09-25",
+      "entries": [
+        {
+          "id": "01-telemetryagentresponse-node-coverage-sho",
+          "kind": "added",
+          "title": "`TelemetryAgentResponse.node_coverage` shows what is rendered per node",
+          "description": "New `NodeCoverage` (`node_id`, `hostname`, `source`: `explicit`/`rule`/`both`, `capabilities`) and `CapabilityCoverage` (`status`: `rendered`/`skipped`, `reason`, `detail`). `TelemetryAgentResponse.node_coverage` is filled only when a single agent is read and is empty in listings.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#287",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.7.0",
+      "date": "2026-09-22",
+      "entries": [
+        {
+          "id": "01-nodelistitem-management-connections-list",
+          "kind": "added",
+          "title": "`NodeListItem.management_connections` lists a node's management connections",
+          "description": "`NodeListItem` gains `management_connections: list[ManagementConnectionResponse]` (default empty), so the node list carries each node's management connections, including the target IP, without a per-node request.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#275",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.6.0",
+      "date": "2026-09-16",
+      "entries": [
+        {
+          "id": "01-dependency-constraints-no-longer-have-an",
+          "kind": "changed",
+          "title": "Dependency constraints no longer have an upper bound",
+          "description": "`pydantic`, `typing-extensions`, `deepdiff`, `ipaddress` and `sqlmodel` change from caret ranges (for example `^2.12.5`) to lower bounds only (`>=2.12.5`). The minimum versions are unchanged, but a resolver may now pick a newer major release than before; Python stays `^3.13`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#277",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.5.0",
+      "date": "2026-09-15",
+      "summary": "Assets use typed vendors and operating systems, and a hardware catalog and OS version schemes are declared.",
+      "entries": [
+        {
+          "id": "01-asset-uses-typed-vendor-and-os-os-versio",
+          "kind": "changed",
+          "title": "`Asset` uses typed `Vendor` and `OS`; `os_version` is optional and checked",
+          "description": "`Asset`, `AssetCreate` and `AssetUpdate` take `vendor: Vendor` and `os: OS` (new enums in `acex_devkit.models.platform`) instead of free strings, and the defaults for `vendor`, `serial_number`, `os` and `hardware_model` are gone, so they are required on create. `os_version` is now `str | None`, default `None`, and is validated against the version scheme of the asset's `os`. Callers that sent other vendor/OS strings or relied on the old defaults must change; this is also a backend and client API change.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#271",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-declared-hardware-catalog-devicetype-and",
+          "kind": "added",
+          "title": "Declared hardware catalog: `DeviceType` and `acex_devkit.device_types`",
+          "description": "Hardware models are declared as `DeviceType` subclasses (vendor, `os`, `models`, front-panel `ports` as `PortGroup`, `slots` as `ModuleSlot`) for Cisco, Juniper and Fortinet, and `PortModule` declares pluggable modules. Look them up with `device_types.get(model)`, `device_types.models(vendor=..., os=...)`, `vendors()` and `port_modules(fits=...)`; `DeviceType.interfaces()` expands a device into zero-based `InterfaceSlot` positions. Interface names and offsets stay the driver's job.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#271",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-os-version-schemes-osversion-and-osversi",
+          "kind": "added",
+          "title": "OS version schemes: `OsVersion` and `OsVersionScheme`",
+          "description": "New `OsVersion` (comparable `major`, `minor`, `patch`, `build`, `qualifier`) and `OsVersionScheme`, one per OS, declared in `acex_devkit.os_versions` for `cisco_ios`, `cisco_iosxe`, `cisco_iosxr`, `cisco_nxos`, `juniper_junos`, `fortinet_fortios` and `arista_eos`. A new OS needs a scheme to accept a version on an `Asset`; a new release of a known OS needs nothing.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#271",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.4.1",
+      "date": "2026-09-07",
+      "entries": [
+        {
+          "id": "01-assetclustercreate-asset-ids-creates-a-c",
+          "kind": "added",
+          "title": "`AssetClusterCreate.asset_ids` creates a cluster with its assets",
+          "description": "`AssetClusterCreate` gains `asset_ids: list[int]` (default empty), so a cluster and its assets are created in one request. Per the PR, the backend answers 409 if one of the assets already belongs to another cluster.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#244",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.4.0",
+      "date": "2026-08-27",
+      "entries": [
+        {
+          "id": "01-outputdestination-models-and-telemetryag",
+          "kind": "removed",
+          "title": "`OutputDestination*` models and `TelemetryAgentResponse.outputs` removed",
+          "description": "`OutputDestinationBase`, `OutputDestinationCreate`, `OutputDestinationUpdate` and `OutputDestinationResponse` are gone from `acex_devkit.models`, as is the `outputs` field on `TelemetryAgentResponse`. Outputs are no longer configured per agent but by the backend's InfluxDB settings; remove any code that creates or reads per-agent outputs.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.3.0",
+      "date": "2026-08-24",
+      "entries": [
+        {
+          "id": "01-ai-requests-can-name-a-model-provider-an",
+          "kind": "added",
+          "title": "AI requests can name a model; provider and model listing models added",
+          "description": "`AiAskRequest` and `AiAnalysisRequest` gain `model: str | None` (\"provider/model\" or \"model\"); left out, the failover chain is used. New response models `AiProvidersResponse` (`providers`, per-task `chains`), `AiProviderInfo`, `AiModelsResponse`, `AiModelInfo` and `AiChainLevel` describe `GET /ai_ops/providers` and `GET /ai_ops/models`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#223",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-08-14",
+      "entries": [
+        {
+          "id": "01-telemetry-agents-get-snmp-trap-and-syslo",
+          "kind": "added",
+          "title": "Telemetry agents get SNMP trap and syslog receiver settings",
+          "description": "`TelemetryAgentBase`, `TelemetryAgentUpdate` and `TelemetryAgentResponse` gain `snmp_version` (`SnmpVersion`: `2c`, `3`, `both`; default `2c`), `snmp_trap_port` (162), `syslog_port` (514), `snmpv3_sec_level` (`SnmpSecLevel`), `snmpv3_sec_name`, `snmpv2c_credential_id` and `snmpv3_credential_id`. `SnmpVersion` and `SnmpSecLevel` live in `acex_devkit.models.telemetry_agent`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#219",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-credentialcreate-validates-snmpv3-auth-p",
+          "kind": "changed",
+          "title": "`CredentialCreate` validates SNMPv3 `auth_protocol` and `priv_protocol` values",
+          "description": "New enums `SnmpAuthProtocol` (`MD5`, `SHA`, `SHA224` … `SHA512`) and `SnmpPrivProtocol` (`DES`, `AES`, `AES192`, `AES192C`, `AES256`, `AES256C`) in `acex_devkit.models.credential`. A `CredentialCreate` of type `snmpv3` whose `auth_protocol` or `priv_protocol` is not one of them now fails validation; empty or missing values are still accepted.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#219",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.1.1",
+      "date": "2026-08-13",
+      "entries": [
+        {
+          "id": "04-enabled-on-ntp-snmp-and-aaa-global-confi",
+          "kind": "changed",
+          "title": "`enabled` on NTP, SNMP and AAA global config now defaults to unset",
+          "description": "`NtpConfig.enabled`, `SnmpConfig.enabled` and `aaaGlobalAttributes.enabled` changed from `AttributeValue(value=False)` (or `False`) to `None` by default, like the other `enabled` attributes. A renderer or parser that read `.enabled.value` without a check must now handle `None`, and a device with the feature off no longer shows an explicit `False` unless it is set.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            },
+            {
+              "label": "#207",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-create-and-update-models-for-nodes-asset",
+          "kind": "added",
+          "title": "Create and update models for nodes, assets, sites, regions and contacts",
+          "description": "New request models exported from `acex_devkit.models`: `AssetCreate`, `AssetUpdate`, `LogicalNodeUpdate`, `NodeCreate`, `NodeUpdate`, `ManagementConnectionCreate`, `ManagementConnectionUpdate`, `SiteCreate`, `SiteUpdate`, `RegionCreate`, `RegionUpdate`, `ContactCreate`, `ContactUpdate`, plus `RegionAssignmentCreate/Response` and `ContactAssignmentCreate/Response`. The `*Update` models have every field optional, so only fields sent are changed.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-models-for-telemetry-agents-and-collecti",
+          "kind": "added",
+          "title": "Models for telemetry agents and collection agents",
+          "description": "New `telemetry_agent` models (`TelemetryAgentCreate`, `TelemetryAgentUpdate`, `TelemetryAgentResponse`, `TelemetryAgentAck`, match rules, `OutputDestination*`, `InfluxDBVersion`), `TelemetryCapability` (`icmp`, `mdt`, `snmp`, `snmp_trap`, `syslog_rfc5424`), `CollectionAgentManifest` with `ManifestTarget`, `AckResult`, `AgentConfigResponse`, and `CollectionAgentAck` / `CollectionAgentMatchRuleCreate`. Agent match rules select nodes by `region`, `site`, `vendor`, `os`, `status` and `role`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-response-models-for-config-snapshots-com",
+          "kind": "added",
+          "title": "Response models for config snapshots, compliance, LLDP topology and AI ops",
+          "description": "New models for backend endpoints: `ConfigSnapshotDetail`, `ConfigDiffResult`, `ConfigChangeListResult`, `DeviceConfigUpload` (`config_snapshot`); `ComplianceResult`, `SiteComplianceResult`; `LldpTopology` and `LldpUploadResult`; `ConfigComponentCatalogEntry`, `TranslateRequest`, `ReconcileRequest` (`config_components`); `AiAskRequest`, `AiAnalysisRequest`; and `AuthConfig`. These describe the backend API as the client consumes it.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-persistedresponse-models-can-be-built-fr",
+          "kind": "changed",
+          "title": "`PersistedResponse` models can be built from ORM objects; `sqlmodel` declared",
+          "description": "`PersistedResponse` now sets `from_attributes=True`, so every response model derived from it can be validated directly from an object's attributes. `sqlmodel` (`^0.0.27`) is added to the package dependencies; `ExternalValue` already depended on it.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-configdiffer-tolerates-a-missing-configu",
+          "kind": "fixed",
+          "title": "`ConfigDiffer` tolerates a missing configuration section",
+          "description": "The differ's internal walk (`_flatten`) now returns nothing for a `None` model instead of trying to read its fields, so comparing a composed configuration where a whole section is unset no longer fails.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#207",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.1.0",
+      "date": "2026-06-22",
+      "entries": [
+        {
+          "id": "01-aaa-authentication-authorization-and-acc",
+          "kind": "changed",
+          "title": "AAA authentication, authorization and accounting `config` is now a keyed entry",
+          "description": "`aaaAuthentication.config`, `aaaAuthorization.config` and `aaaAccounting.config` are no longer dicts of methods: each is now a single `aaaAuthenticationConfig`, `aaaAuthorizationConfig` or `aaaAccountingConfig` with `name` and a `methods` dict (authorization and accounting also hold `events` there). Code that indexed `config[<list name>]` must read `config.methods[<list name>]` instead.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#197",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-aaaglobalattributes-console-and-vtyline-",
+          "kind": "changed",
+          "title": "`aaaGlobalAttributes`, `Console` and `VtyLine` can be keyed and augmented",
+          "description": "`aaaGlobalAttributes` becomes a `ContainerEntry` with a `name` identity field, `Console` becomes a `ContainerEntry` (identity `name`) and `Augmentable`, and `VtyLine` is now `Augmentable`, so vendor augments (such as the Cisco AAA augments from the same PR) can attach to them and the differ can match them by identity.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#197",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.0.0",
+      "date": "2026-06-17",
+      "entries": [
+        {
+          "id": "02-configuration-moved-from-logicalnoderesp",
+          "kind": "changed",
+          "title": "`configuration` moved from `LogicalNodeResponse` to `LogicalNodeConfigResponse`",
+          "description": "`LogicalNodeResponse` moved to `acex_devkit.models.logical_node` and holds `hostname`, `role`, `site`, `sequence` and `regions` only. The `configuration` (`ComposedConfiguration`) and `meta_data` fields are on the new `LogicalNodeConfigResponse`; `LogicalNodeListResponse` and `LogicalNodeCreate` are also new.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#190",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-managementconnection-is-now-an-alias-of-",
+          "kind": "changed",
+          "title": "`ManagementConnection` is now an alias of `ManagementConnectionResponse`",
+          "description": "`ManagementConnection` is kept as an alias of `ManagementConnectionResponse`, which requires `id` and `node_id`; the editable fields (`primary`, `connection_type`, `target_ip`) are in `ManagementConnectionBase`. `NodeListItem` and `NodeResponse` gain `regions`, and `NodeListItem` gains `role`.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#190",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-node-asset-and-logical-node-models-reorg",
+          "kind": "changed",
+          "title": "Node, asset and logical node models reorganised; `id` is now required",
+          "description": "`Asset`, `AssetCluster` and `AssetClusterAsset` leave `node_response`; use `Asset`, `AssetResponse`, `AssetClusterResponse` and `AssetClusterAssetResponse` from `acex_devkit.models.asset`, and `Node` is removed in favour of `NodeResponse` and `NodeListItem`. Responses now derive from `PersistedResponse`, so `id` is an `int` instead of `Optional`, and `NodeResponse.asset` is `AssetResponse | AssetClusterResponse`. This is also a change to the backend and client API.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#190",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-models-for-credentials-agents-lldp-neigh",
+          "kind": "added",
+          "title": "Models for credentials, agents, LLDP neighbours, sites, regions and paging",
+          "description": "`acex_devkit.models` now exports `CredentialCreate`, `CredentialResponse`, `CredentialSecret`, `NodeCredentialCreate`, `CollectionAgentCreate`, `CollectionAgentResponse`, `LldpNeighborUpload`, `LldpNeighborResponse`, `SiteResponse`, `RegionResponse`, `ContactResponse`, `PaginatedResponse` (`items`, `total`, `limit`, `offset`), `AssetClusterCreate` and `AssetClusterUpdate`, among others. They are the shapes the backend API and client use.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#190",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.17.1",
+      "date": "2026-06-03",
+      "entries": [
+        {
+          "id": "01-drivers-can-raise-connectiontimeout-and-",
+          "kind": "added",
+          "title": "Drivers can raise `ConnectionTimeout` and `AuthenticationFailed`",
+          "description": "Two new exceptions in `acex_devkit.exceptions`, both subclasses of `ConnectionError`: `ConnectionTimeout` for a connection attempt or operation that times out, and `AuthenticationFailed` for rejected device authentication. Existing `except ConnectionError` handlers still catch them; raise them from a transport to let callers tell the causes apart.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#174",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.17.0",
+      "date": "2026-05-20",
+      "entries": [
+        {
+          "id": "02-services-fields-moved-under-services-con",
+          "kind": "changed",
+          "title": "`Services` fields moved under `Services.config`; `Ssh.config` has a default",
+          "description": "`name`, `http` and `https` are no longer on `Services`; read them from `Services.config` (a `ServicesAttributes`, always present). `Ssh.config` now defaults to an empty `SshServer()` instead of `None`.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-snmp-models-lose-the-attributes-suffix-a",
+          "kind": "changed",
+          "title": "SNMP models lose the `Attributes` suffix again",
+          "description": "Relative to 1.16.x: `SnmpConfigAttributes`, `SnmpCommunityAttributes`, `SnmpGroupAttributes`, `SnmpUserAttributes`, `SnmpServerAttributes` and `TrapEventAttributes` are named `SnmpConfig`, `SnmpCommunity`, `SnmpGroup`, `SnmpUser`, `SnmpServer` and `TrapEvent`, and `SnmpViewOidAttributes` is `SnmpView`. Imports of the 1.16.x names must be updated; `SnmpViewAttributes` keeps its name.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-system-clock-with-clockconfig-timezone",
+          "kind": "added",
+          "title": "`System.clock` with `ClockConfig.timezone`",
+          "description": "The composed `System` gains `clock: Clock` (default `Clock()`), whose `config` is a `ClockConfig` with `timezone: AttributeValue[str] | None`. A renderer can use it for the device's clock timezone.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-augment-base-classes-moved-to-models-aug",
+          "kind": "added",
+          "title": "Augment base classes moved to `models.augment`; more components augmentable",
+          "description": "`AugmentAttributes` and `Augmentable` move to the new module `acex_devkit.models.augment` (extra fields are kept, so backend-defined subclasses round-trip). `SystemConfig`, `SshServer`, `LoggingConfig`, `Console`, `FileLogging`, `DHCPSnoopingAttributes` and the new `ServicesAttributes` are now `Augmentable`, so a driver can read vendor augments from their `augments` dict.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.16.1",
+      "date": "2026-05-13",
+      "entries": [
+        {
+          "id": "01-importing-the-composed-configuration-mod",
+          "kind": "fixed",
+          "title": "Importing the composed configuration models no longer raises `NameError`",
+          "description": "In 1.16.0, `composed_configuration` referenced `SnmpViewOidAttributes` before it was defined, so importing the SNMP models failed with `NameError`. The class is now defined first. Use 1.16.1 instead of 1.16.0.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#158",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.16.0",
+      "date": "2026-05-11",
+      "entries": [
+        {
+          "id": "01-snmp-models-reworked-groups-added-commun",
+          "kind": "changed",
+          "title": "SNMP models reworked: groups added, communities slimmed, views hold OIDs",
+          "description": "`Snmp` gains `groups` (`SnmpGroupAttributes`: `name`, `access`, `ipv4acl`, `ipv6acl`, `users`, `views`); `SnmpCommunityAttributes` keeps only the community string plus `ipv4acl`/`ipv6acl` references, so `access`, `view`, `ipv4_acl`, `ipv6_acl` and `source_interface` are gone. A view (`SnmpViewAttributes`) now holds many OIDs in `oids`, `SnmpServerAttributes` gains `group`, and the SNMP classes are renamed with an `Attributes` suffix. This release does not import; use 1.16.1.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#157",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.15.0",
+      "date": "2026-05-11",
+      "entries": [
+        {
+          "id": "03-reference-classes-available-from-acex-de",
+          "kind": "added",
+          "title": "Reference classes available from `acex_devkit.models.reference`",
+          "description": "`Reference`, `ReferenceTo`, `ReferenceFrom`, `RenderedReference`, `Metadata` and `MetadataValueType` now live in their own module so model files can import them without a circular import. They are still importable from `composed_configuration`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#155",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-vty-lines-can-reference-an-acl-vtyline-i",
+          "kind": "added",
+          "title": "VTY lines can reference an ACL: `VtyLine.ipv4acl`, `ipv6acl`, `acl_direction`",
+          "description": "`VtyLine` gains `ipv4acl` and `ipv6acl` (a `Reference` to an ACL object), `acl_direction` (`in` or `out`) and `acl_network_instance`. The comments in the model mark them as Cisco-only.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#155",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-acl-ipv4-acls-ipv6-acls-and-acl-entries-",
+          "kind": "changed",
+          "title": "`Acl.ipv4_acls`, `ipv6_acls` and `acl_entries` default to `{}` instead of `None`",
+          "description": "On `Acl`, `Ipv4AclAttributes` and `Ipv6AclAttributes` the dictionaries are empty by default. Code that tests these fields with `is None` to mean \"no ACLs\" must test for emptiness instead.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#155",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.14.1",
+      "date": "2026-05-08",
+      "entries": [
+        {
+          "id": "01-netflow-models-are-keyed-by-name-collect",
+          "kind": "changed",
+          "title": "Netflow models are keyed by `name`; collectors reference records and exporters",
+          "description": "`NetflowRecordAttributes`, `NetflowRecordIpv4Match`, `NetflowCollectorAttributes`, `NetflowExporterOptions`, `NetflowExporterAttributes` and `NetflowGlobalConfigAttributes` are now `ContainerEntry`s with a required `name`; `NetflowExporterAttributes` is identified by `name` instead of `address`. `NetflowCollectorAttributes.netflow_record` and `netflow_exporter` are replaced by `records` and `exporters`, dicts of `Reference`. Config maps and renderers using the old fields must be updated.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#156",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.14.0",
+      "date": "2026-05-01",
+      "entries": [
+        {
+          "id": "02-snmpcommunity-clients-and-vtpattributes-",
+          "kind": "removed",
+          "title": "`SnmpCommunity.clients` and `VTPAttributes.primary_server` removed",
+          "description": "Both vendor-specific fields (`clients` was marked Juniper-specific, `primary_server` Cisco-proprietary) are gone from the vendor-neutral models. Config using them must move to the new augments, or drop them.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#144",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-vendor-specific-augments-augmentattribut",
+          "kind": "added",
+          "title": "Vendor-specific augments: `AugmentAttributes` and `Augmentable`",
+          "description": "New `AugmentAttributes` base (accepts extra fields, so backend-defined subclasses round-trip through JSON) and `Augmentable` mixin with an `augments` dict. `Interface`, `InterfaceTemplateAttributes`, `SnmpCommunity` and `VTPAttributes` are now `Augmentable`; a driver reads vendor-only settings from `augments` by augment `type`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#144",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.13.0",
+      "date": "2026-04-29",
+      "entries": [
+        {
+          "id": "01-dns-servers-in-the-composed-configuratio",
+          "kind": "added",
+          "title": "DNS servers in the composed configuration: `System.dns`",
+          "description": "`System` gains `dns: Dns` (default `Dns()`), with `dns_servers: dict[str, DnsServerAttributes]`. Each `DnsServerAttributes` is keyed by `address` and has `port`, `source_interface` (a `Reference`) and `network_instance`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#143",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.12.0",
+      "date": "2026-04-29",
+      "entries": [
+        {
+          "id": "01-interfacetemplateattributes-stp-portfast",
+          "kind": "added",
+          "title": "`InterfaceTemplateAttributes.stp_portfast` added",
+          "description": "Interface templates gain `stp_portfast: AttributeValue[bool] | None`, documented in the model as Cisco-explicit and rendered to `spanning-tree portfast`. `stp_edge_port` is documented as the 802.1w edge-port setting and renders to the same command on Cisco.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#142",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.11.0",
+      "date": "2026-04-29",
+      "entries": [
+        {
+          "id": "01-interface-templates-composedconfiguratio",
+          "kind": "added",
+          "title": "Interface templates: `ComposedConfiguration.interface_templates`",
+          "description": "New `InterfaceTemplateAttributes` (keyed by `name`) holds reusable interface settings: L2/L1 (switchport, VLANs, `speed`, `duplex`, `auto_mdix`), spanning-tree, LACP, `storm_control` and link-status logging. `ComposedConfiguration` gains `interface_templates`, and `Interface` gains `interface_template` (a `Reference`).",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#141",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-interfaces-get-storm-control-dtp-negotia",
+          "kind": "added",
+          "title": "Interfaces get storm control, `dtp_negotiation`, link-status logging and traps",
+          "description": "`Interface` gains `storm_control` (`StormControlAttributes`: `broadcast_pps`, `multicast_pps`, `unknown_unicast_pps`, `action`), `dtp_negotiation` (`False` renders `switchport nonegotiate` on Cisco), `logging_link_status` and `snmp_link_status_trap`. `EthernetCsmacdInterface` also gains `auto_mdix`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#141",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.10.1",
+      "date": "2026-04-28",
+      "entries": [
+        {
+          "id": "01-netflow-collector-references-its-record-",
+          "kind": "changed",
+          "title": "Netflow collector references its record and exporter; two fields renamed",
+          "description": "`NetflowCollectorAttributes` gains `netflow_record` and `netflow_exporter` (string references to the record and exporter). `NetflowExporterOptions.sampler_table_timeout` (int) becomes `sampler_table` (bool), and `NetflowExporterAttributes.format` (`NetflowFormat`) becomes `netflow_format` (`str`). Config written against 1.10.0 must use the new names.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#139",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.10.0",
+      "date": "2026-04-28",
+      "entries": [
+        {
+          "id": "02-early-sflow-models-exist-but-are-not-yet",
+          "kind": "added",
+          "title": "Early sFlow models exist but are not yet in the composed tree",
+          "description": "`Sflow` and `SflowCollectorAttributes` exist, but `Sampling.sflow` is commented out, so sFlow cannot be set on a `ComposedConfiguration` yet. The PR describes them as a reference that is untested and needs more work.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#138",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-netflow-configuration-composedconfigurat",
+          "kind": "added",
+          "title": "Netflow configuration: `ComposedConfiguration.sampling.netflow`",
+          "description": "`ComposedConfiguration` gains `sampling: Sampling`, whose `netflow` holds a global `config`, `records`, `exporters` and `collectors` (the monitor, named after OpenConfig). New models include `NetflowRecordAttributes`, `NetflowExporterAttributes`, `NetflowCollectorAttributes` and `NetflowFormat` (`IPFIX`, `NetFlow v9`, `NetFlow v5`).",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#138",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.9.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "02-transportbase-get-lldp-neighbors-for-lld",
+          "kind": "added",
+          "title": "`TransportBase.get_lldp_neighbors()` for LLDP/CDP neighbour collection",
+          "description": "New optional method `get_lldp_neighbors(node, connection, **kwargs)`; implement it to return a list of dicts with `local_interface`, `remote_device`, `remote_interface` and `discovery_protocol`. It is not abstract: transports that do not implement it raise `NotImplementedError`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-transportbase-session-lets-a-caller-reus",
+          "kind": "added",
+          "title": "`TransportBase.session()` lets a caller reuse one connection",
+          "description": "`TransportBase.session(connection, **kwargs)` is a context manager that yields the transport. The default does nothing, so each method still connects per call; a driver can override it to hold one connection open across several operations.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.8.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-small-device-services-in-the-composed-co",
+          "kind": "added",
+          "title": "Small device services in the composed configuration: `System.services`",
+          "description": "`System` gains `services: Services` (default `Services()`), a model with `name`, `http` and `https` (web GUI access) attributes.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#134",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.7.1",
+      "date": "2026-04-24",
+      "entries": [
+        {
+          "id": "01-config-normalizer-basenormalizer-and-dri",
+          "kind": "added",
+          "title": "Config normalizer: `BaseNormalizer` and driver `normalize()`/`mask()`",
+          "description": "New package `acex_devkit.normalizer` with `BaseNormalizer` (subclass and declare `line_rules`, `block_rules`, `rewrite_rules`), `LineRule`, `BlockRule`, `RewriteRule` and `NormalizerEngine`. A driver sets `normalizer_class`; `NetworkElementDriver.normalize(raw)` then drops non-intent lines such as timestamps, and `mask(raw)` rewrites secrets to `<REDACTED>`. Without a normalizer both return the input unchanged.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#131",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.7.0",
+      "date": "2026-04-24",
+      "entries": [
+        {
+          "id": "01-transportbase-requires-get-config-and-se",
+          "kind": "changed",
+          "title": "`TransportBase` requires `get_config` and `send_config`, not four old methods",
+          "description": "The abstract methods `connect`, `send`, `verify` and `rollback` are removed. A transport must implement `get_config(node, connection, **kwargs) -> str` (full running configuration) and `send_config(node, connection, commands, **kwargs) -> str`, each taking the `NodeListItem` and `ManagementConnection`; there is no persistent session state in the contract. Existing transports must be rewritten, or they cannot be instantiated.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#130",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-optional-transportbase-execute-and-the-m",
+          "kind": "added",
+          "title": "Optional `TransportBase.execute()` and the `ManagementConnection` model",
+          "description": "`TransportBase.execute(node, connection, commands, **kwargs)` runs arbitrary commands and returns one output string per command; it raises `NotImplementedError` unless a driver implements it. `ManagementConnection` (`id`, `node_id`, `primary`, `connection_type`, `target_ip`) and `ConnectionType` (`ssh`, `telnet`) are exported from `acex_devkit.models`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#130",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.6.2",
+      "date": "2026-04-22",
+      "entries": [
+        {
+          "id": "01-noderesponse-asset-can-be-an-assetcluste",
+          "kind": "changed",
+          "title": "`NodeResponse.asset` can be an `AssetCluster`, chosen by `type`",
+          "description": "`NodeResponse.asset` is now `Asset | AssetCluster`, discriminated by a `type` field (`asset` or `asset_cluster`). `Asset` gains `type`, and new `AssetCluster` (`name`, `ned_id`, `assets`) and `AssetClusterAsset` (with `cluster_index`) are in `acex_devkit.models.node_response`. Code that read `node.asset.serial_number` must check `type` first. This is also a backend and client API change.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#124",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.6.1",
+      "date": "2026-04-22",
+      "entries": [
+        {
+          "id": "01-node-response-models-no-longer-invent-de",
+          "kind": "changed",
+          "title": "Node response models no longer invent default values",
+          "description": "In `node_response`, `LogicalNodeResponse` fields (`hostname`, `role`, `site`, `sequence`, `configuration`) now default to `None` instead of `R1`, `core`, `HQ`, `1` and an empty `ComposedConfiguration`. `NodeBase.asset_ref_type` and `status` default to `None`, and every `Asset` field is `Optional`. Callers must handle `None` where they relied on the old defaults or required fields.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#122",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.5.1",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "01-assetreftype-assetcluster-is-now-asset-c",
+          "kind": "changed",
+          "title": "`AssetRefType.assetcluster` is now `asset_cluster`",
+          "description": "The enum member `AssetRefType.assetcluster` (value `\"assetcluster\"`) is renamed to `AssetRefType.asset_cluster` (value `\"asset_cluster\"`). Code or stored data that uses the old string must be updated; this value is also sent in backend and client API payloads.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#118",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.5.0",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "02-ethernetcsmacdinterface-cdp-enabled-remo",
+          "kind": "removed",
+          "title": "`EthernetCsmacdInterface.cdp_enabled` removed",
+          "description": "Per-interface CDP is no longer set through `cdp_enabled` on `EthernetCsmacdInterface`; list the interface under `cdp.interfaces` instead. Config using `cdp_enabled` must be changed.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#117",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-cdp-configuration-composedconfiguration-",
+          "kind": "added",
+          "title": "CDP configuration: `ComposedConfiguration.cdp`",
+          "description": "`ComposedConfiguration` gains `cdp: CdpConfigAttributes` with `enabled`, `transmit_interval`, `hold_time`, `advertise_v2` and `interfaces` (a dict of `Reference`). The interfaces CDP applies to are listed here.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#117",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.4.0",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "02-ethernetcsmacdinterface-lldp-enabled-rem",
+          "kind": "removed",
+          "title": "`EthernetCsmacdInterface.lldp_enabled` removed",
+          "description": "Per-interface LLDP is no longer set with `lldp_enabled` on `EthernetCsmacdInterface`; the interface is listed under `lldp.interfaces`. Config using `lldp_enabled` must be changed.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#116",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-nodelistitem-for-node-listings-noderespo",
+          "kind": "added",
+          "title": "`NodeListItem` for node listings; `NodeResponse.id`",
+          "description": "New `NodeListItem` in `acex_devkit.models` is a list shape with the node's fields plus denormalised `hostname`, `site`, `vendor`, `os`, `ned_id`, `created_at` and `updated_at`. `NodeResponse` gains `id`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-lldp-configuration-lldpconfigattributes-",
+          "kind": "added",
+          "title": "LLDP configuration: `LldpConfigAttributes` on `ComposedConfiguration.lldp`",
+          "description": "`ComposedConfiguration.lldp` changes from an empty `Lldp` placeholder to `LldpConfigAttributes`, with `enabled`, `transmit_interval`, `hold_time`, `system_name`, `suppress_tlv_advertisement` and `interfaces` (a dict of `Reference`). The `Lldp` class is removed.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#116",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.3.4",
+      "date": "2026-04-20",
+      "entries": [
+        {
+          "id": "01-dhcp-snooping-and-relay-in-the-composed-",
+          "kind": "added",
+          "title": "DHCP snooping and relay in the composed configuration: `System.dhcp`",
+          "description": "`System` gains `dhcp: Dhcp` with `snooping` (`DHCPSnoopingAttributes`: `enabled`, `vlans`, `trust_interfaces`, `option82`) and `relay` (`DhcpRelay.relay_servers`, keyed by `address`, each with `network_instance` and the `interfaces` it relays for).",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#114",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.3.3",
+      "date": "2026-04-16",
+      "entries": [
+        {
+          "id": "01-node-status-and-timestamps-nodestatus-cr",
+          "kind": "added",
+          "title": "Node `status` and timestamps: `NodeStatus`, `created_at`, `updated_at`",
+          "description": "New `NodeStatus` enum (`planned`, `init`, `active`, `decommissioned`) and `NodeBase.status` (default `planned`). `Node` and `NodeResponse` gain `created_at` and `updated_at`; on `NodeResponse` `created_at` is required. This is also a backend and client API change.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#103",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-per-interface-redirects-proxy-arp-lldp-e",
+          "kind": "added",
+          "title": "Per-interface `redirects`, `proxy_arp`, `lldp_enabled` and `cdp_enabled`",
+          "description": "`Interface` gains `redirects` and `proxy_arp` (the model notes Cisco true = yes, Juniper true = unrestricted). `EthernetCsmacdInterface` gains `lldp_enabled` and `cdp_enabled`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#111",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-vtp-configuration-system-vtp",
+          "kind": "added",
+          "title": "VTP configuration: `System.vtp`",
+          "description": "`System` gains `vtp: VTP`, whose `config` is a `VTPAttributes` with `domain_name`, `mode` (`server`, `client`, `transparent`, `off`), `primary_server`, `version` (1-3), `password` and `password_hashed`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#111",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.3.2",
+      "date": "2026-03-27",
+      "entries": [
+        {
+          "id": "01-snmpserver-address-is-optional",
+          "kind": "changed",
+          "title": "`SnmpServer.address` is optional",
+          "description": "`SnmpServer.address` changes from required to `AttributeValue[str] | None` (default `None`), so an SNMP trap server can be built, for example by a parser, without an address.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#88",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.3.1",
+      "date": "2026-03-26",
+      "entries": [
+        {
+          "id": "04-vlan-id-on-l3-loopback-sub-management-in",
+          "kind": "changed",
+          "title": "`vlan_id` on L3/loopback/sub/management interfaces is an `AttributeValue[int]`",
+          "description": "`L3IpvlanInterface`, `SoftwareLoopbackInterface`, `SubInterface` and `ManagementInterface` change `vlan_id` from `int | None` to `AttributeValue[int] | None`. `AuthorizedKey.algorithm` and `public_key` are likewise `AttributeValue`s and optional, and the `metadata` field is removed from `Vlan` and `Interface`. Read `.value` and stop passing `metadata`.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#84",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-containerentry-mixin-container-models-de",
+          "kind": "added",
+          "title": "`ContainerEntry` mixin: container models declare `identity_fields`",
+          "description": "New `acex_devkit.models.container_entry.ContainerEntry`. A model used as a value in a dict container must declare `identity_fields: ClassVar[tuple[str, ...]]`: field names whose values identify the entry, or `()` to use the dict key. A subclass without it raises `TypeError` at class creation. All composed-configuration container models (interfaces, VLANs, NTP servers, ACLs, SNMP, AAA, spanning tree) now do this.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#84",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-configdiffer-matches-container-entries-b",
+          "kind": "changed",
+          "title": "`ConfigDiffer` matches container entries by `identity_fields`, not dict key",
+          "description": "Entries that are `ContainerEntry`s are paired between desired and observed by their identity-field values, so `Gi0/0/1` and `GigabitEthernet0/0/1` can be the same interface. Singletons are matched by path, and a leaf is now any model with a direct `AttributeValue` field. Reported `path`, `component_name` and the set of changes can differ from before.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#84",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-the-differ-ignores-attributevalue-metada",
+          "kind": "changed",
+          "title": "The differ ignores `AttributeValue` metadata: equality compares `value` only",
+          "description": "`AttributeValue` now defines `__eq__` and `__hash__` on `value`, so two attributes with the same value are equal whatever their metadata, and the differ no longer reports metadata-only differences. This lets a parsed configuration be compared with a desired one.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#86",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-03-19",
+      "entries": [
+        {
+          "id": "03-remoteserver-transfer-renamed-to-transpo",
+          "kind": "changed",
+          "title": "`RemoteServer.transfer` renamed to `transport`",
+          "description": "The field that selects how a remote logging server is reached is now `RemoteServer.transport` (`AttributeValue[str] | None`); `transfer` no longer exists. Config and templates using `transfer` must be updated.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#83",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-logging-remote-servers-vty-and-files-are",
+          "kind": "changed",
+          "title": "Logging `remote_servers`, `vty` and `files` are typed container classes",
+          "description": "On `LoggingComponents`, `remote_servers`, `vty` and `files` are no longer `Dict`s but `RemoteServers`, `VtyLines` and `LogFiles`, holding the dict in `servers`, `lines` and `files`. Defaults are empty instances instead of `None`. Code that indexed `logging.vty[<key>]` must use `logging.vty.lines[<key>]`, and likewise for the other two.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#83",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-collection-fields-in-the-composed-config",
+          "kind": "changed",
+          "title": "Collection fields in the composed configuration default to `{}`, not `None`",
+          "description": "Dict collections such as `Ntp.servers`, `Ssh.host_keys`, `Snmp.users`, `Snmp.trap_servers`, `NetworkInstance.vlans` and the AAA `config`/`events` dicts default to an empty dict again after 1.2.0 made them `None`. Code that tests them with `is None` must test for emptiness.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#83",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.2.1",
+      "date": "2026-03-18",
+      "entries": [
+        {
+          "id": "01-configdiffer-walks-the-models-by-type-in",
+          "kind": "changed",
+          "title": "`ConfigDiffer` walks the models by type instead of dumping them to dicts",
+          "description": "`ConfigDiffer.diff` now discovers components by introspecting the `ComposedConfiguration` models (entries of `Dict[str, BaseModel]` fields are components) rather than scanning a dumped dict and a fixed `IGNORED_KEYS` list. `ComponentChange.before` and `after` are the model instances and `before_dict`/`after_dict` come from `model_dump()`. `AttributeChange.before` and `after` are typed `Any`, so they hold plain values.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#81",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-03-18",
+      "entries": [
+        {
+          "id": "01-composed-configuration-values-are-all-at",
+          "kind": "changed",
+          "title": "Composed configuration values are all `AttributeValue`; defaults are unset",
+          "description": "Raw fields in the spanning-tree, logging, AAA, SNMP and interface models (for example `RemoteServer.port`, `FileLogging.facility`, the `stp_*` interface fields, `aaaTacacsAttributes.port`) become `AttributeValue[T] | None`. Built-in defaults such as port `514`, transport `udp`, TACACS port `49` and `stp_edge_port=False` are replaced by `None`, and dict collections default to `None`. Code that read plain values or relied on the defaults must unwrap `.value` and handle `None`.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#80",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-snmp-name-and-event-name-fields-are-opti",
+          "kind": "changed",
+          "title": "SNMP `name` and `event_name` fields are optional `AttributeValue`s",
+          "description": "`SnmpServer.name`, `TrapEvent.name` and `TrapEvent.event_name` are no longer required plain values, and `RouteTarget.value` becomes `AttributeValue[str] | None`. Construct them with `AttributeValue(value=...)` or leave them out.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#80",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.2",
+      "date": "2026-03-11",
+      "entries": [
+        {
+          "id": "02-diff-summary-key-total-renamed-to-total-",
+          "kind": "changed",
+          "title": "`Diff.summary()` key `total` renamed to `total_changes`",
+          "description": "The `total` key in the dict returned by `Diff.summary()` is now `total_changes`; the value is unchanged (added + removed + changed). `Diff.get_changes_by_type()` now compares the class name of `component_type` with the string given. Callers reading `summary()[\"total\"]` must use the new key.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#79",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-diff-reports-compliance-compliant-count-",
+          "kind": "added",
+          "title": "`Diff` reports compliance: `compliant_count` and `compliance_percentage`",
+          "description": "`Diff` gains `total_desired` and `total_observed` (filled by `ConfigDiffer`) and the computed `compliant_count` and `compliance_percentage` (100.0 when nothing is desired). `summary()` includes all four. `ComponentChange.component_type` is serialised as the class name, and `component_type_name` gives it directly.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#79",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.1",
+      "date": "2026-03-02",
+      "entries": [
+        {
+          "id": "02-snmp-config-is-a-dict-of-snmpconfig-defa",
+          "kind": "changed",
+          "title": "`Snmp.config` is a dict of `SnmpConfig`, default `{}`",
+          "description": "`Snmp.config` changes from a single `SnmpConfig` to `Dict[str, SnmpConfig]`, like the other SNMP collections. Code that read `snmp.config.<field>` must index the dict by key.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#78",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-system-snmp-defaults-to-an-empty-snmp-in",
+          "kind": "fixed",
+          "title": "`System.snmp` defaults to an empty `Snmp()` instead of `{}`",
+          "description": "`System.snmp` was initialised with an empty dict, which is not an `Snmp` model and caused errors when the field was accessed. It now defaults to `Snmp()`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#78",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-02-27",
+      "entries": [
+        {
+          "id": "01-ipv4-and-ipv6-acl-models-acl-ipv4aclattr",
+          "kind": "added",
+          "title": "IPv4 and IPv6 ACL models: `Acl`, `Ipv4AclAttributes`, `Ipv6AclAttributes`",
+          "description": "New module `acex_devkit.models.acl_model`. `Acl` holds `ipv4_acls` and `ipv6_acls`; each ACL has a `name` and `acl_entries` with `sequence_id`, `action`, `protocol` (`AclProtoclOptions`), source/destination address and port, `dscp`, `log` and `description`. `Acl` replaces the empty placeholder in `ComposedConfiguration`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#40",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-ipaddress-added-to-the-package-dependenc",
+          "kind": "changed",
+          "title": "`ipaddress` added to the package dependencies",
+          "description": "`pyproject.toml` now lists `ipaddress` as a dependency, because the ACL models use `IPv4Network` and `IPv6Network`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#40",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-attributevalue-serialises-ip-address-and",
+          "kind": "fixed",
+          "title": "`AttributeValue` serialises IP address and network values as strings",
+          "description": "Values of type `IPv4Address`, `IPv6Address`, `IPv4Network`, `IPv6Network`, `IPv4Interface` and `IPv6Interface` are now converted to `str` when an `AttributeValue` is serialised. Before, the raw object was returned and JSON serialisation raised `PydanticSerializationError`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#40",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.8",
+      "date": "2026-02-26",
+      "entries": [
+        {
+          "id": "02-aaa-events-global-enabled-and-single-str",
+          "kind": "changed",
+          "title": "AAA events, global `enabled` and single-string `method`",
+          "description": "`aaaAuthorization.events` and `aaaAccounting.events` are dicts of event entries with an `event` attribute, `aaaAccounting.config` is a dict of methods, and `TripleA.config` is an `aaaGlobalAttributes` with `enabled` (default `False`). Authentication, authorization and accounting `method` is an `AttributeValue[str]`, so a list of methods must be given as a string.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#39",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-aaa-server-groups-hold-their-tacacs-and-",
+          "kind": "changed",
+          "title": "AAA server groups hold their TACACS and RADIUS servers",
+          "description": "`aaaServerGroupAttributes.tacacs` and `radius` change from a single `Reference` to dicts of `aaaTacacsAttributes` / `aaaRadiusAttributes`, and `TripleA.tacacs` and `TripleA.radius` are removed. The server models drop `aaaBaseClass`, replace `source_address` with `source_interface` (a `Reference`) and gain `server_group`. Config that defined servers under `aaa` directly must move them into a group.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#39",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.7",
+      "date": "2026-02-25",
+      "entries": [
+        {
+          "id": "02-diffnode-diffop-and-configdiffer-apply-d",
+          "kind": "removed",
+          "title": "`DiffNode`, `DiffOp` and `ConfigDiffer.apply_diff` removed from `configdiffer`",
+          "description": "`acex_devkit.configdiffer` now exports `ConfigDiffer`, `Diff`, `ComponentChange`, `ComponentDiffOp` and `AttributeChange`. `DiffNode`, `DiffOp` and `apply_diff` are no longer part of the public package; the old implementation was kept in `old_configdiffer` and `old_diff`. Code importing the removed names must switch to the component-based diff.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#70",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-configdiffer-diff-takes-composedconfigur",
+          "kind": "changed",
+          "title": "`ConfigDiffer.diff` takes `ComposedConfiguration`s and returns component changes",
+          "description": "`ConfigDiffer.diff(desired_config=..., observed_config=...)` now takes two `ComposedConfiguration` objects and returns a `Diff` with `added`, `removed` and `changed` lists of `ComponentChange` (`op`, `path`, `component_type`, `component_name`, `before`, `after`, `before_dict`, `after_dict`, `changed_attributes`). The earlier `DiffNode` tree is no longer returned. Drivers can use this to render a patch per component.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#70",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-command-and-context-models-for-rendered-",
+          "kind": "added",
+          "title": "`Command` and `Context` models for rendered patch commands",
+          "description": "New `acex_devkit.configdiffer.command` with `Command` (a `command` string with its `Context`) and `Context` (a `path` tuple). Both are frozen, so instances are immutable and hashable.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#71",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.6",
+      "date": "2026-02-24",
+      "entries": [
+        {
+          "id": "02-spanning-tree-config-fields-are-dicts-ke",
+          "kind": "changed",
+          "title": "Spanning-tree `config` fields are dicts keyed by name",
+          "description": "`SpanningTree.config`, `RSTPConfig.config` and `MSTPConfig.config` change from a single attributes object to `Dict[str, ...]` (default `{}`). Code that read `stp.rstp.config.<field>` must index the dict first.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#69",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-composedconfiguration-stp-defaults-to-an",
+          "kind": "fixed",
+          "title": "`ComposedConfiguration.stp` defaults to an empty `SpanningTree()`",
+          "description": "The default of `ComposedConfiguration.stp` was `{}`, which is not a `SpanningTree`. It is now `SpanningTree()`, whose `rstp`, `mstp` and `rapidpvst` are optional, so a node without spanning-tree config carries only `stp` and not each protocol's defaults.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#69",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.5",
+      "date": "2026-02-20",
+      "entries": [
+        {
+          "id": "01-node-models-importable-from-acex-devkit-",
+          "kind": "added",
+          "title": "Node models importable from `acex_devkit.models`: `NodeResponse`, `Asset`",
+          "description": "`acex_devkit.models.node_response` defines `LogicalNodeResponse`, `Asset`, `AssetRefType` (`asset`, `assetcluster`), `NodeBase`, `Node` and `NodeResponse`, and `acex_devkit.models` exports `NodeResponse` and `LogicalNodeResponse`. Before this release the module used `BaseModel`, `Field`, `AssetRefType` and `AssetResponse` without defining or importing them.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#64",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.4",
+      "date": "2026-02-19",
+      "entries": [
+        {
+          "id": "01-login-and-motd-banners-systemconfig-logi",
+          "kind": "added",
+          "title": "Login and MOTD banners: `SystemConfig.login_banner` and `motd_banner`",
+          "description": "`SystemConfig` gains `login_banner` and `motd_banner`, both `AttributeValue[str] | None`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#63",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.3",
+      "date": "2026-02-19",
+      "entries": [
+        {
+          "id": "01-static-routes-networkinstance-protocols-",
+          "kind": "added",
+          "title": "Static routes: `NetworkInstance.protocols.static_routes`",
+          "description": "`NetworkInstance` gains `protocols: Protocols` with `static_routes`, a dict of `StaticRoute` (`prefix`, `route_name`, `network_instance`, `next_hops`). Each `StaticRouteNextHop` has `next_hop` (an address or interface), `index` and `metric`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#61",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.2",
+      "date": "2026-02-18",
+      "entries": [
+        {
+          "id": "01-ethernetcsmacdinterface-negotiation-for-",
+          "kind": "added",
+          "title": "`EthernetCsmacdInterface.negotiation` for auto-negotiation",
+          "description": "`EthernetCsmacdInterface` gains `negotiation: AttributeValue[bool] | None` (default `None`, so no setting is implied).",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "82f0ae9",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "date": "2026-02-16",
+      "entries": [
+        {
+          "id": "03-attributevalue-t-and-externalvalue-wrap-",
+          "kind": "added",
+          "title": "`AttributeValue[T]` and `ExternalValue` wrap configuration values",
+          "description": "Configuration attributes are `AttributeValue[T]`: a `value` that is either concrete or an `ExternalValue` reference resolved by a plugin, plus `metadata`. Raw values are accepted on input and wrapped. `ExternalValue` is a `sqlmodel` table, and `sqlmodel` is not declared as a dependency until 2.1.1.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#48",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-configdiffer-compares-two-configurations",
+          "kind": "added",
+          "title": "`ConfigDiffer` compares two configurations: `Diff`, `DiffNode`, `DiffOp`",
+          "description": "`acex_devkit.configdiffer.ConfigDiffer.diff(desired_config=..., observed_config=...)` returns a `Diff` whose `root` is a tree of `DiffNode`s (`add`, `remove`, `change`), with `is_empty()` and `summary()`. `apply_diff(config, diff)` applies a diff to a `ComposedConfiguration` or dict. `deepdiff` becomes a dependency.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#48",
+              "url": null
+            },
+            {
+              "label": "#52",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-ned-model-and-a-first-noderesponse",
+          "kind": "added",
+          "title": "`Ned` model and a first `NodeResponse`",
+          "description": "New `Ned` (`name`, `package_name`, `version`, `description`, `filename`) in `acex_devkit.models.ned`. `acex_devkit.models.node_response` is added, but it is incomplete in this release: it uses names it does not import, so use 1.0.5 or later.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#49",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-composed-configuration-models-composedco",
+          "kind": "added",
+          "title": "Composed configuration models: `ComposedConfiguration` and its components",
+          "description": "New `acex_devkit.models.composed_configuration` with `ComposedConfiguration` (`system`, `acl`, `lldp`, `lacp`, `interfaces`, `network_instances`, `stp`), the interface types (`EthernetCsmacdInterface`, `Ieee8023adLagInterface`, `L3IpvlanInterface`, `SoftwareLoopbackInterface`, `SubInterface`, `ManagementInterface`), `System` (AAA, logging, NTP, SSH, SNMP) and spanning-tree models. This is the device-independent structure a driver renders and parses.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#48",
+              "url": null
+            },
+            {
+              "label": "#49",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-acex-devkit-drivers-imports-again",
+          "kind": "fixed",
+          "title": "`acex_devkit.drivers` imports again",
+          "description": "In 1.0.0 `drivers/base.py` imported `acex_devkit.models.logical_node`, a module that did not exist, so importing the driver base classes failed. The import is removed and `NetworkElementDriver.render` takes `logical_node` as an untyped forward reference.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#47",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-02-10",
+      "entries": [
+        {
+          "id": "01-driver-base-classes-networkelementdriver",
+          "kind": "added",
+          "title": "Driver base classes: `NetworkElementDriver`, `RendererBase`, `TransportBase`",
+          "description": "First release of `acex-devkit`. A driver subclasses `NetworkElementDriver` and sets `renderer_class`, `transport_class` and `parser_class`; a transport implements `connect`, `send`, `verify` and `rollback`, a renderer `render(model, asset)` and a parser `parse(configuration)`. Requires Python `^3.13` and `pydantic ^2.12.5`. Importing `acex_devkit.drivers` failed in this release because of a missing module; see 1.0.1.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#46",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-exceptions-and-protocols-driverexception",
+          "kind": "added",
+          "title": "Exceptions and protocols: `DriverException` family and `Renderable`/`Parseable`",
+          "description": "`acex_devkit.exceptions` defines `AcexDevkitException`, `MethodNotImplemented`, `DriverException` and its subclasses `ConnectionError`, `ConfigurationError`, `VerificationError`, `RenderingError` and `ParsingError`. `acex_devkit.types` has the runtime-checkable protocols `Renderable`, `Parseable` and `Transportable`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#46",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": [],
+  "highlights": []
+}

@@ -23,6 +23,13 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.plugins."acex.neds"]
 juniper_junos_cli = "acex_driver_juniper_junos_cli.junos_cli:JunosCLI"
 
+[tool.poetry.plugins."acex.changelog"]
+acex-driver-juniper-junoscli = "acex_driver_juniper_junos_cli"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "Juniper Junos CLI driver"
+
 [dependency-groups]
 dev = [
     "ipython (>=9.10.0,<10.0.0)"
