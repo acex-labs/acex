@@ -8,6 +8,7 @@ from acex.settings import Settings, UnsafeConfiguration
 
 from .logging_config import build_logging_config
 
+
 def create_engine(settings: Settings | None = None) -> AutomationEngine:
     """Build an AutomationEngine from settings (read from the environment if omitted).
 
@@ -112,4 +113,3 @@ def main(argv: list[str] | None = None) -> None:
         run(settings)
     except UnsafeConfiguration as exc:
         parser.exit(2, f"{exc}\n")
-
