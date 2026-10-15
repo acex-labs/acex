@@ -264,7 +264,7 @@ ip dhcp snooping track server
 {%-   endif %}
 {%- endif %}
 !
-spanning-tree mode pvst
+spanning-tree mode rapid-pvst
 spanning-tree extend system-id
 !
 {%- if configuration.system.vtp and configuration.system.vtp.config -%}
