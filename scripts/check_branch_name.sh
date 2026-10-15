@@ -6,7 +6,7 @@
 # Allowed prefixes: feat, fix, chore, docs, refactor, test, hotfix, ci, perf, build
 # Description: lowercase letters, digits, hyphens and dots (kebab-case).
 #
-# Exempt: main, stage and dependabot branches are not validated.
+# Exempt: main, stage, dev and dependabot branches are not validated.
 #
 # Usage:
 #   scripts/check_branch_name.sh              # validates the current branch
@@ -23,7 +23,7 @@ PATTERN="^(${ALLOWED_PREFIXES})/[a-z0-9][a-z0-9._-]*$"
 is_exempt() {
     local branch="$1"
     case "$branch" in
-        main|stage) return 0 ;;
+        main|stage|dev) return 0 ;;
         dependabot/*) return 0 ;;
         *) return 1 ;;
     esac

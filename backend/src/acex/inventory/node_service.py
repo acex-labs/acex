@@ -226,12 +226,13 @@ class NodeService:
 
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
-    async def update(self, id: str, logical_node: Node):
+    async def update(self, id: str, logical_node: Node) -> NodeResponse:
+        """Update the node instance and answer it as `get` does, so a client can read both the same way."""
         logical_node.updated_at = datetime.now(UTC)
         # admin_status, provision_status and logical_node_id affect telemetry rule matching.
         with self.inventory.telemetry_agent_manager.bumping_revisions_for_nodes([int(id)]):
-            result = await self._call_method(self.adapter.update, id, logical_node)
-        return result
+            await self._call_method(self.adapter.update, id, logical_node)
+        return await self.get(id)
 
     async def delete(self, id: str):
         self.inventory.telemetry_agent_manager.bump_revisions_for_node(int(id))

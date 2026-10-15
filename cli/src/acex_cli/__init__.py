@@ -1,3 +1,5 @@
 """ACE-X CLI - Command-line interface for ACE-X."""
 
-__version__ = "0.2.0"
+import importlib.metadata
+
+__version__ = importlib.metadata.version("acex-cli")

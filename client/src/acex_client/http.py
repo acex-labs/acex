@@ -8,6 +8,7 @@ import httpx
 from acex_client.auth.provider import AuthProvider
 from acex_client.exceptions import (
     AcexAuthError,
+    AcexConflictError,
     AcexConnectionError,
     AcexHTTPError,
     AcexNotFoundError,
@@ -21,6 +22,7 @@ _STATUS_MAP: dict[int, type[AcexHTTPError]] = {
     401: AcexAuthError,
     403: AcexPermissionError,
     404: AcexNotFoundError,
+    409: AcexConflictError,
     422: AcexValidationError,
 }
 

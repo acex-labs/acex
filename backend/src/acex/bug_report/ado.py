@@ -1,9 +1,9 @@
 import base64
 import logging
-import os
 
 import httpx
 from acex.models.bug_report import BugReportCreate
+from acex.settings import AdoBugReportSettings
 
 _IMAGE_EXTS = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp"}
 
@@ -64,34 +64,23 @@ async def dispatch(
     payload: BugReportCreate,
     reporter_id: str,
     reporter_email: str | None,
-    *,
-    pat: str | None = None,
-    org: str | None = None,
-    project: str | None = None,
-    feature_id: int | None = None,
+    settings: AdoBugReportSettings,
 ) -> bool:
     """Create a User Story in ADO under the configured feature. Returns True if created."""
-    _pat = pat or os.getenv("ADO_SERVICE_PAT")
-    _org = org or os.getenv("ADO_ORG")
-    _project = project or os.getenv("ADO_PROJECT")
-    _feature_id_str = str(feature_id) if feature_id else os.getenv("ADO_BUGFIX_FEATURE_ID")
-
-    if not all([_pat, _org, _project, _feature_id_str]):
-        cfg = {"PAT": _pat, "org": _org, "project": _project, "feature_id": _feature_id_str}
-        missing = [k for k, v in cfg.items() if not v]
+    if not settings.configured:
+        missing = [name for name in ("service_pat", "org", "project", "feature_id") if not getattr(settings, name)]
         logger.warning(f"ADO not configured — missing: {missing}")
         return False
 
-    _feature_id = int(_feature_id_str)
     reporter = reporter_email or reporter_id
-    patch = _build_patch(payload, reporter, _parent_url(_org, _project, _feature_id))
+    patch = _build_patch(payload, reporter, _parent_url(settings.org, settings.project, settings.feature_id))
 
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
-            _work_item_url(_org, _project),
+            _work_item_url(settings.org, settings.project),
             json=patch,
             headers={
-                "Authorization": _auth_header(_pat),
+                "Authorization": _auth_header(settings.service_pat.get_secret_value()),
                 "Content-Type": "application/json-patch+json",
             },
         )
@@ -101,7 +90,9 @@ async def dispatch(
     logger.info(f"ADO work item created: {created_id}")
 
     if payload.screenshots and created_id:
-        await _attach_screenshots(payload.screenshots, created_id, _pat, _org, _project)
+        await _attach_screenshots(
+            payload.screenshots, created_id, settings.service_pat.get_secret_value(), settings.org, settings.project
+        )
 
     return True
 

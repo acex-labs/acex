@@ -12,22 +12,25 @@ from fastapi.middleware.cors import CORSMiddleware
 class Api:
     def create_app(self, automation_engine):
 
+        settings = automation_engine.settings
+
         # Set before anything can serve a request: without it an engine with no
         # OIDC issuer refuses requests rather than answering them unauthenticated.
-        _auth.set_dev_mode(automation_engine.dev_mode)
+        _auth.set_dev_mode(settings.dev)
 
-        if automation_engine.oidc_issuer_url is not None:
-            _auth.configure(
-                automation_engine.oidc_issuer_url,
-                automation_engine.oidc_audience,
-                automation_engine.oidc_jwks_ttl,
-                automation_engine.oidc_verify_ssl,
-            )
+        # Always configured from settings, also when no issuer is set, so auth
+        # never depends on what the environment held when auth.py was imported.
+        _auth.configure(
+            settings.oidc.issuer_url,
+            settings.oidc.audience,
+            settings.oidc.jwks_ttl,
+            settings.oidc.verify_ssl,
+        )
 
         @asynccontextmanager
         async def lifespan(app):
             if not _auth.OIDC_ISSUER_URL:
-                if automation_engine.dev_mode:
+                if settings.dev:
                     print("AUTH: dev mode — no OIDC issuer configured, every endpoint is open")
                 else:
                     print("AUTH: no OIDC issuer configured — requests will be refused with 503")
@@ -48,7 +51,7 @@ class Api:
             dependencies=[Depends(lambda: automation_engine), Depends(_auth.get_current_user)],
         )
 
-        if automation_engine.oidc_issuer_url is not None:
+        if settings.oidc.issuer_url is not None:
             _original_openapi = Api.openapi
 
             def _custom_openapi():
@@ -76,10 +79,12 @@ class Api:
 
             Api.openapi = _custom_openapi
 
-        if automation_engine.cors_settings_default is False:
+        # No origins configured means no CORS middleware at all: same-origin
+        # callers need none, and nothing else is trusted.
+        if settings.cors.allowed_origins:
             Api.add_middleware(
                 CORSMiddleware,
-                allow_origins=automation_engine.cors_allowed_origins,
+                allow_origins=settings.cors.allowed_origins,
                 allow_credentials=True,
                 allow_methods=["*"],
                 allow_headers=["*"],

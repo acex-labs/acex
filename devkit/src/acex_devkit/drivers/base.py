@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import Any
 
-from acex_devkit.models.management_connection import ManagementConnection
 from acex_devkit.models.node_response import NodeListItem
 
 
@@ -50,12 +49,12 @@ class TransportBase(ABC):
 
     Args:
         node: The node instance (identity, hostname, vendor, os, ned_id)
-        connection: Management connection (target_ip, connection_type)
+        target_ip: Management IP or hostname of the device
         **kwargs: Future use (credentials, options, etc.)
     """
 
     @contextmanager
-    def session(self, connection: ManagementConnection, **kwargs):
+    def session(self, target_ip: str, **kwargs):
         """Open a reusable session for multiple ops on one device.
 
         Default is a no-op: methods continue to open/close per call.
@@ -65,20 +64,20 @@ class TransportBase(ABC):
         yield self
 
     @abstractmethod
-    def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
+    def get_config(self, node: NodeListItem, target_ip: str, **kwargs) -> str:
         """Fetch the full running configuration from a device."""
         pass
 
     @abstractmethod
-    def send_config(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> str:
+    def send_config(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> str:
         """Apply configuration commands to a device."""
         pass
 
-    def execute(self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs) -> list[str]:
+    def execute(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> list[str]:
         """Run arbitrary commands and return output per command. Opt-in per driver."""
         raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
 
-    def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> list[dict]:
+    def get_lldp_neighbors(self, node: NodeListItem, target_ip: str, **kwargs) -> list[dict]:
         """Fetch LLDP/CDP neighbor table from a device.
 
         Returns list of dicts with keys:

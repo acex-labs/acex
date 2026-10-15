@@ -101,7 +101,7 @@ acex-mcp
 ```
 
 The Docker Compose stack builds and wires this automatically; the backend
-reaches it at `ACEX_AI_MCP_SERVER_URL=http://mcp-server:8000/mcp`.
+reaches it at `ACEX_AI_OPS_MCP_SERVER_URL=http://mcp-server:8000/mcp`.
 
 ### Configuration for Claude Desktop
 

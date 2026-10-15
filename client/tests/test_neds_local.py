@@ -256,3 +256,15 @@ def test_get_driver_instance_returns_none_for_uninstalled(mock_eps, neds):
     mock_eps.return_value = _make_eps({"CiscoIOS": {"package_name": "acex-driver-cisco-ioscli", "version": "1.0.0"}})
     driver = neds.get_driver_instance("Nonexistent")
     assert driver is None
+
+
+# ---------------------------------------------------------------------------
+# installed_version
+# ---------------------------------------------------------------------------
+
+
+@patch("acex_client.resources.neds.importlib.metadata.entry_points")
+def test_installed_version_returns_the_local_version(mock_eps, neds):
+    mock_eps.return_value = _make_eps({"CiscoIOS": {"package_name": "acex-driver-cisco-ioscli", "version": "1.0.0"}})
+    assert neds.installed_version("CiscoIOS") == "1.0.0"
+    assert neds.installed_version("Nonexistent") is None

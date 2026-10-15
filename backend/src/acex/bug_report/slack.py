@@ -1,8 +1,8 @@
 import logging
-import os
 
 import httpx
 from acex.models.bug_report import BugReportCreate
+from acex.settings import SlackBugReportSettings
 
 logger = logging.getLogger("acex.bug_report.slack")
 
@@ -55,20 +55,18 @@ async def dispatch(
     payload: BugReportCreate,
     reporter_id: str,
     reporter_email: str | None,
-    *,
-    webhook_url: str | None = None,
+    settings: SlackBugReportSettings,
 ) -> bool:
     """Post a bug report to Slack. Returns True if sent, False if not configured."""
-    url = webhook_url or os.getenv("SLACK_BUG_REPORT_WEBHOOK")
-    if not url:
-        logger.warning("SLACK_BUG_REPORT_WEBHOOK not set — skipping Slack dispatch")
+    if not settings.configured:
+        logger.warning("ACEX_BUG_REPORT_SLACK_WEBHOOK_URL not set — skipping Slack dispatch")
         return False
 
     reporter = reporter_email or reporter_id
     blocks = _build_blocks(payload, reporter)
 
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(url, json={"blocks": blocks})
+        resp = await client.post(settings.webhook_url.get_secret_value(), json={"blocks": blocks})
         resp.raise_for_status()
 
     return True
