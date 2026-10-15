@@ -1,0 +1,1627 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Declarative network automation platform — config as code for network devices">
+      
+      
+      
+        <link rel="canonical" href="https://acex-labs.github.io/acex/ztp/main/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Zero touch provisioning - ACE-X</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#zero-touch-provisioning" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ACE-X" class="md-header__button md-logo" aria-label="ACE-X" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ACE-X
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Zero touch provisioning
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/acex-labs/acex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    acex-labs/acex
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/config-maps/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../components/cli/" class="md-tabs__link">
+          
+  
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../examples/ai_ops/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI Ops
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../development/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Development
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ACE-X" class="md-nav__button md-logo" aria-label="ACE-X" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    ACE-X
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/acex-labs/acex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    acex-labs/acex
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/config-maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config Maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/filters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Filters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/drivers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drivers (NEDs)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/ai_ops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Ops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ztp-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ZTP methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-init" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Init
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Registration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-approval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Approval
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-bulk-approval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Bulk approval
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-provisioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Provisioning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#node-provision-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Node provision status
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-ztp_discovery-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The ztp_discovery table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#call-ins-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call-ins API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#review-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Review API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pipeline-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#methods-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/acex-labs/acex/edit/main/docs/ztp/main.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"></path></svg>
+    </a>
+  
+  
+
+
+<h1 id="zero-touch-provisioning">Zero touch provisioning<a class="headerlink" href="#zero-touch-provisioning" title="Permanent link">¶</a></h1>
+<p>Zero touch provisioning (ZTP) takes a switch from factory default to a device that is registered in ACE-X and reachable for further configuration, without anyone touching it.</p>
+<p>Nothing the switch reports is trusted on its own. Fetching the init config is unauthenticated, and the serial number comes from the device itself, so discovery only records a claim: "the device at IP Y says it is serial X". An administrator always reviews that claim and approves it before ACE-X pushes any full configuration.</p>
+<h2 id="workflow">Workflow<a class="headerlink" href="#workflow" title="Permanent link">¶</a></h2>
+<pre class="mermaid"><code>sequenceDiagram
+    participant SW as Switch
+    participant DHCP as DHCP server
+    participant BE as ACE-X backend
+    participant MQ as Message queue
+    participant WK as Worker
+    actor AD as Administrator
+
+    SW-&gt;&gt;DHCP: DHCP request (vendor class)
+    DHCP--&gt;&gt;SW: IP + boot parameters (e.g. option 67)
+    SW-&gt;&gt;BE: Fetch init config (method endpoint)
+    BE-&gt;&gt;BE: Record source IP and method, create job
+    BE-&gt;&gt;MQ: ztp.discover (job id)
+    SW-&gt;&gt;SW: Apply init config
+    MQ-&gt;&gt;WK: ztp.discover (acex.ztp queue)
+    WK-&gt;&gt;BE: Fetch job
+    WK-&gt;&gt;SW: Log in, collect facts
+    WK-&gt;&gt;BE: Report discovery
+    BE-&gt;&gt;BE: Store ztp_discovery (evidence)
+    AD-&gt;&gt;BE: Approve identity: asset created or updated
+    AD-&gt;&gt;BE: Provision node (separate step)</code></pre>
+<h3 id="ztp-methods">ZTP methods<a class="headerlink" href="#ztp-methods" title="Permanent link">¶</a></h3>
+<p>How a device is brought up differs per platform: what DHCP hands out, what the device fetches, what the init config contains and how the worker collects facts. Each combination is a named ZTP method. The method is determined by which init endpoint the device fetches, and the DHCP server picks that endpoint from the device's vendor class.</p>
+<p>The method is stored on the job and on the <code>ztp_discovery</code> row. It tells the worker which platform to expect and how discovery is done.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Platform</th>
+<th>Init</th>
+<th>Discovery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cisco-iosxe-python</code></td>
+<td>Cisco IOS-XE (e.g. Catalyst 9300)</td>
+<td>DHCP option 67 points to a <code>ztp.py</code> script that the switch downloads over HTTP and runs</td>
+<td>SSH with the temporary credentials from the init config</td>
+</tr>
+</tbody>
+</table>
+<h3 id="1-init">1. Init<a class="headerlink" href="#1-init" title="Permanent link">¶</a></h3>
+<p>The switch boots with no configuration and requests an IP address over DHCP. The lease includes boot parameters that depend on the vendor class and point the device to the init endpoint for its ZTP method.</p>
+<p>The init config is the smallest possible configuration that makes the switch reachable from ACE-X. With <code>cisco-iosxe-python</code> it generates a certificate for SSH and configures a temporary username and password.</p>
+<p>The init config must be fetched over HTTP. A transfer the backend does not see itself, such as TFTP from a separate server, gives no source IP to register.</p>
+<h3 id="2-registration">2. Registration<a class="headerlink" href="#2-registration" title="Permanent link">¶</a></h3>
+<p>When the init config is fetched, the backend records which IP fetched it — from <code>X-Forwarded-For</code> if the request came through a trusted proxy, otherwise from the packet's source address. The IP and the ZTP method are stored with a new job, and a <code>ztp.discover</code> message is published on the message queue.</p>
+<p>At this point the backend only knows an IP address and a method. It does not know which device, asset or node it is talking to.</p>
+<h3 id="3-discovery">3. Discovery<a class="headerlink" href="#3-discovery" title="Permanent link">¶</a></h3>
+<p>A worker consumes the message from the <code>acex.ztp</code> queue. It reads the job id from the message and fetches the job from the ACE-X API, which tells it that this is a <code>ztp.discover</code> job, which IP to target and which ZTP method was used.</p>
+<p>The method decides how the worker collects facts. With <code>cisco-iosxe-python</code> it logs in over SSH and collects the serial number, hardware model, OS and OS version.</p>
+<p>The message is published when the init config is fetched, before the device has applied it, so the worker retries with backoff until the device answers or a timeout is reached.</p>
+<p>It reports the facts back to the backend, which stores them as a row in <code>ztp_discovery</code>. Discovery does not create or change assets or nodes; the row is evidence waiting for review. If the worker cannot log in or collect facts before the timeout, the job fails and no row is written.</p>
+<h3 id="4-approval">4. Approval<a class="headerlink" href="#4-approval" title="Permanent link">¶</a></h3>
+<p>An administrator reviews each discovery and decides whether to trust the device's identity. The worker logged in at the source IP, so the reported serial number and facts come from the device at that address; the administrator judges whether that IP is where the expected device should be.</p>
+<p>Approval is about identity only. It never changes a node's status and never pushes configuration.</p>
+<p>The IP the device was reached at is how ACE-X talks to it, so it becomes a management connection of the asset's node: when a discovery of an asset already bound to a node is approved, or when an asset with an approved discovery is claimed (enrolled). It is added beside any connections the node already has, as primary only if the node has none, and not again if the node already has one to that IP.</p>
+<ul>
+<li><strong>Approve:</strong> the asset with the reported serial number is created if none exists (vendor, hardware model, OS, OS version, and the NED chosen for the method), or updated with the hardware model, OS and OS version that differ. The discovery records the asset it was approved as, and other unreviewed discoveries of the same serial are rejected.</li>
+<li><strong>Reject:</strong> the discovery is marked rejected. Nothing else changes.</li>
+</ul>
+<p>What approval would do is shown before it happens. Every unreviewed discovery carries a <code>proposal</code>, computed by the same code that approves it:</p>
+<table>
+<thead>
+<tr>
+<th><code>action</code></th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create</code></td>
+<td>No asset has the serial; <code>asset</code> is what will be created</td>
+</tr>
+<tr>
+<td><code>update</code></td>
+<td>The asset exists; <code>changes</code> lists each field's current and reported value</td>
+</tr>
+<tr>
+<td><code>unchanged</code></td>
+<td>The asset already matches</td>
+</tr>
+<tr>
+<td><code>blocked</code></td>
+<td>It cannot be approved; <code>blocked_by</code> says why: an unknown vendor or OS, a missing fact, an OS version its scheme rejects, a vendor that differs from the asset's, or several assets with the serial</td>
+</tr>
+</tbody>
+</table>
+<p>The proposal has a <code>hash</code>. Approve sends it back, and is refused if the proposal has changed since it was shown.</p>
+<p>Conflicts are shown alongside: the same serial reported from another IP, the same IP previously reporting another serial (both identity conflicts), and a serial that belongs to a provisioned node, which may have been reset.</p>
+<h3 id="5-bulk-approval">5. Bulk approval<a class="headerlink" href="#5-bulk-approval" title="Permanent link">¶</a></h3>
+<p>Many devices can be discovered and approved without being bound to a node. A bulk approval first runs as a dry run, which goes through exactly the same steps and rolls back, and answers per discovery with its proposal or the reason it would be skipped. Discoveries with a blocked proposal, an identity conflict or a changed proposal are skipped; one with an identity conflict can still be approved on its own.</p>
+<h3 id="6-provisioning">6. Provisioning<a class="headerlink" href="#6-provisioning" title="Permanent link">¶</a></h3>
+<p>An administrator starts it on a <code>ready</code> node; approval never does. That queues an <code>acex.ztp.provision</code> job with the node id and moves the node to <code>provisioning</code>. What the worker does is still to be defined: full configuration is compiled, pushed over SSH and verified, and the node ends in <code>provisioned</code> or <code>failed</code>.</p>
+<h2 id="node-provision-status">Node provision status<a class="headerlink" href="#node-provision-status" title="Permanent link">¶</a></h2>
+<p><code>provision_status</code> on the node says whether it is in ZTP and, once provisioning starts, how far it has come. Steps that happen before ACE-X knows which node a device belongs to (init and discovery) are tracked on the job and the discovery, not on the node.</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Kind</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unprovisioned</code></td>
+<td>steady</td>
+<td>Bound to an asset, not in ZTP</td>
+</tr>
+<tr>
+<td><code>adopted</code></td>
+<td>steady</td>
+<td>Brownfield: already running when brought under management</td>
+</tr>
+<tr>
+<td><code>enrolled</code></td>
+<td>in ZTP</td>
+<td>Waiting for its device to be discovered, approved and provisioned</td>
+</tr>
+<tr>
+<td><code>provisioning</code></td>
+<td>in ZTP</td>
+<td>Full config being pushed and verified</td>
+</tr>
+<tr>
+<td><code>provisioned</code></td>
+<td>steady</td>
+<td>Provisioned by ACE-X and verified</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>in ZTP</td>
+<td>Until retried or cancelled; the reason is on the job</td>
+</tr>
+</tbody>
+</table>
+<p>Claiming an asset enrolls its node. A node can also be enrolled on its own, from <code>unprovisioned</code>, <code>adopted</code> or <code>provisioned</code> (to provision it again from scratch). The status it had is kept in <code>ztp_previous_status</code>.</p>
+<p>ZTP can always be cancelled. The node returns to <code>ztp_previous_status</code>, and any queued provisioning job is cancelled. If a provisioning job was running, the job is cancelled and the node is left <code>failed</code> instead, since a worker may have started configuring the device; cancelling again takes it out. A worker still running a cancelled job gets 409 when it reports, so it cannot move the node afterwards, though it may already have pushed configuration.</p>
+<p>A provisioning node is <strong>stalled</strong> when nothing is moving it forward: it has no provisioning job, its latest job is not queued or running, its job has been queued longer than <code>ACEX_ZTP_PROVISION_QUEUE_TIMEOUT_MINUTES</code> (default 10), or running longer than <code>ACEX_ZTP_PROVISION_RUN_TIMEOUT_MINUTES</code> (default 30). It can be stepped back to <code>enrolled</code> (usually ready again) or cancelled.</p>
+<h2 id="the-ztp_discovery-table">The <code>ztp_discovery</code> table<a class="headerlink" href="#the-ztp_discovery-table" title="Permanent link">¶</a></h2>
+<p>One row per discovery the worker reports.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td><code>job_id</code></td>
+<td>The <code>ztp.discover</code> job that produced it</td>
+</tr>
+<tr>
+<td><code>source_ip</code></td>
+<td>IP that fetched the init config</td>
+</tr>
+<tr>
+<td><code>method</code></td>
+<td>ZTP method used, e.g. <code>cisco-iosxe-python</code></td>
+</tr>
+<tr>
+<td><code>serial_number</code></td>
+<td>Serial number as reported by the device</td>
+</tr>
+<tr>
+<td><code>vendor</code>, <code>hardware_model</code>, <code>os</code>, <code>os_version</code></td>
+<td>Facts collected by the worker</td>
+</tr>
+<tr>
+<td><code>asset_id</code></td>
+<td>The asset it was approved as</td>
+</tr>
+<tr>
+<td><code>review_status</code></td>
+<td><code>unreviewed</code>, <code>approved</code> or <code>rejected</code></td>
+</tr>
+<tr>
+<td><code>reviewed_by</code>, <code>reviewed_at</code></td>
+<td>Who reviewed it and when</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>When the discovery was reported</td>
+</tr>
+</tbody>
+</table>
+<p>The worker reports a discovery by finishing its <code>acex.ztp.discover</code> job with a result (<code>serial_number</code>, <code>vendor</code>, <code>hardware_model</code>, <code>os</code>, <code>os_version</code>). The row is written, and the node matched, in the same transaction that marks the job succeeded.</p>
+<h2 id="call-ins-api">Call-ins API<a class="headerlink" href="#call-ins-api" title="Permanent link">¶</a></h2>
+<p>Every init config fetch starts a <code>ztp.discover</code> job. <code>/api/v1/ztp_calls</code> shows them one device per source IP, newest first, with the latest job deciding the stage: <code>waiting</code> (no worker has picked it up), <code>discovering</code>, <code>failed</code> or <code>reported</code> (a <code>ztp_discovery</code> row awaits review). A device that reboots and calls in again adds an attempt to the same IP.</p>
+<p>Call-ins are not tied to a site. The Discovery page can group them by subnet, with a prefix length the operator picks. A stronger IP-to-site link is left for when ACE-X has an internal IPAM.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/ztp_calls</code></td>
+<td>Call-ins per IP. Filter: <code>stage</code></td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ztp_calls/{ip}/retry</code></td>
+<td>Queue discovery of that IP again; 503 without a broker</td>
+</tr>
+</tbody>
+</table>
+<h2 id="review-api">Review API<a class="headerlink" href="#review-api" title="Permanent link">¶</a></h2>
+<p>Reviews live under <code>/api/v1/ztp_discoveries</code>, which requires a token. They are deliberately not under <code>/api/v1/ztp</code>: everything there is public so that a factory-default device can fetch its init config.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/ztp_discoveries</code></td>
+<td>List discoveries, newest first, with <code>conflicts</code> and (unreviewed) <code>proposal</code>. Filters: <code>review_status</code>, <code>asset_id</code>, <code>serial_number</code>, <code>source_ip</code></td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/ztp_discoveries/{id}</code></td>
+<td>One discovery</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ztp_discoveries/{id}/approve</code></td>
+<td>Approve as proposed. Body <code>{"proposal_hash": ...}</code>, optional; 409 if it no longer matches or the proposal is blocked</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ztp_discoveries/{id}/reject</code></td>
+<td>Reject</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ztp_discoveries/approve</code></td>
+<td>Bulk: <code>{"items": [{"discovery_id", "proposal_hash"}], "dry_run": bool}</code>; per-item <code>outcome</code> and a <code>summary</code></td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ztp_discoveries/reject</code></td>
+<td>Bulk: <code>{"discovery_ids": [...]}</code></td>
+</tr>
+</tbody>
+</table>
+<p>Reviewing a discovery that is already reviewed answers 409.</p>
+<h2 id="pipeline-api">Pipeline API<a class="headerlink" href="#pipeline-api" title="Permanent link">¶</a></h2>
+<p>Where each node stands in ZTP, and taking it in or out. An enrolled node's stage comes from its asset: <code>awaiting_device</code> (no discovery of the serial, or only rejected ones), <code>awaiting_approval</code> (the latest discovery is unreviewed) or <code>ready</code> (the latest is approved). Otherwise the stage is the node's <code>provision_status</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/ztp_nodes</code></td>
+<td>Nodes in ZTP, stalled and failed first. Filters: <code>stage</code> (any stage), <code>stalled</code></td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/ztp_nodes/summary</code></td>
+<td>Every node counted once per stage, how many are <code>stalled</code>, and <code>pool</code>: approved assets bound to no node</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/ztp_nodes/{node_id}</code></td>
+<td>One node with its asset, readiness, the approved IP, the discoveries of its serial and its <code>acex.ztp.provision</code> jobs</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ztp_nodes/{node_id}/enroll</code></td>
+<td>Take the node into ZTP; 409 if it is already in ZTP or bound to an asset cluster</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ztp_nodes/{node_id}/provision</code></td>
+<td>Start provisioning a <code>ready</code> node: an <code>acex.ztp.provision</code> job (<code>{"node_id"}</code>) is queued on <code>acex.ztp</code> and the node is <code>provisioning</code>; 409 if it is not ready, 503/502 without a broker (the node stays ready)</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ztp_nodes/{node_id}/cancel</code></td>
+<td>Take the node out of ZTP (see above); 409 if it is not in ZTP</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ztp_nodes/{node_id}/reset</code></td>
+<td>Step a provisioning or failed node back to <code>enrolled</code>, cancelling any provisioning job</td>
+</tr>
+</tbody>
+</table>
+<h2 id="methods-api">Methods API<a class="headerlink" href="#methods-api" title="Permanent link">¶</a></h2>
+<p>The methods are code, but each has a row in <code>ztp_method</code> with what an administrator has chosen for it: the NED that discovery uses. The worker looks it up for the job's method; with no NED chosen, the discovery job fails. A NED the worker does not have yet is installed from the backend first. Like reviews, this requires a token and is not under <code>/api/v1/ztp</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET</code></td>
+<td><code>/ztp_methods</code></td>
+<td>Every method, with its chosen NED</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/ztp_methods/{method}</code></td>
+<td>One method</td>
+</tr>
+<tr>
+<td><code>PUT</code></td>
+<td><code>/ztp_methods/{method}</code></td>
+<td>Choose the NED (<code>{"ned": "..."}</code>, or <code>null</code> to clear); 422 if the NED is not installed in the backend</td>
+</tr>
+</tbody>
+</table>
+<h2 id="open-questions">Open questions<a class="headerlink" href="#open-questions" title="Permanent link">¶</a></h2>
+<ul>
+<li>A discovered serial with no matching claim: should it show up under unclaimed assets from the <code>ztp_discovery</code> row, and should claiming it create the asset? Either way the node still goes through <code>awaiting_approval</code>.</li>
+<li>How long <code>unreviewed</code> discoveries are kept, and whether a newer discovery for the same serial supersedes an older one.</li>
+<li>More methods. Arista EOS ZTP (option 67 URL) and Junos ZTP (option 43, HTTP transfer mode) fit the same flow; the Junos init config must also set root authentication and enable SSH. Cisco PnP is a different protocol: the backend acts as a PnP server, and the device reports its serial number in the protocol itself, so discovery may not need SSH. A PnP serial number is still self-reported and goes through approval like any other.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mermaid-zoom.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

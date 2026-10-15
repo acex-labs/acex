@@ -980,10 +980,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#configuration-via-environment-variables-only-no-apppy-changes" class="md-nav__link">
+  <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration via environment variables only (no app.py changes)
+        Configuration
       
     </span>
   </a>
@@ -1079,10 +1079,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#configuration-via-environment-variables-only-no-apppy-changes" class="md-nav__link">
+  <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration via environment variables only (no app.py changes)
+        Configuration
       
     </span>
   </a>
@@ -1132,55 +1132,59 @@ and <strong>per-task failover chains</strong> (ordered lists of <code>provider/m
   HTTP 429 and 5xx move to the next chain level; 4xx fails immediately
   (configuration problem, not transient).</li>
 <li>Tasks without their own chain inherit <code>default</code>.</li>
-<li>AI Ops needs <strong>no code at all</strong>: if <code>ACEX_AI_PROVIDERS</code> is set in the
-  environment, <code>create_app()</code> enables it automatically (see below). An explicit
-  <code>ae.ai_ops(...)</code> call always wins over env vars.</li>
+<li>AI Ops needs <strong>no code at all</strong>: it is on as soon as a provider is
+  configured in the environment (see below).</li>
 </ul>
-<h2 id="configuration-via-environment-variables-only-no-apppy-changes">Configuration via environment variables only (no app.py changes)<a class="headerlink" href="#configuration-via-environment-variables-only-no-apppy-changes" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">ae</span><span class="o">.</span><span class="n">ai_ops</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">providers</span><span class="o">=</span><span class="p">[</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"groq"</span><span class="p">,</span> <span class="s2">"base_url"</span><span class="p">:</span> <span class="o">...</span><span class="p">,</span> <span class="s2">"api_key"</span><span class="p">:</span> <span class="o">...</span><span class="p">},</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"local"</span><span class="p">,</span> <span class="s2">"base_url"</span><span class="p">:</span> <span class="s2">"http://localhost:11434/v1"</span><span class="p">,</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>         <span class="s2">"api_key"</span><span class="p">:</span> <span class="s2">"ollama"</span><span class="p">,</span> <span class="s2">"static_models"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"qwen3:32b"</span><span class="p">],</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>         <span class="c1"># Declare capabilities yourself when the provider doesn't report them:</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>         <span class="s2">"model_meta"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"qwen3:32b"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"supports_tools"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"context_window"</span><span class="p">:</span> <span class="mi">32768</span><span class="p">}}},</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="p">],</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">chains</span><span class="o">=</span><span class="p">{</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">"default"</span><span class="p">:</span>  <span class="p">[</span><span class="s2">"groq/moonshotai/Kimi-K3"</span><span class="p">,</span> <span class="s2">"local/qwen3:32b"</span><span class="p">],</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="s2">"analysis"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"groq/deepseek-r1"</span><span class="p">],</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="p">},</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">mcp_server_url</span><span class="o">=</span><span class="s2">"http://localhost:8000/mcp"</span><span class="p">,</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">)</span>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">¶</a></h2>
+<p>Every setting can be given in code or as an environment variable; see
+<code>acex.settings</code>. In code:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">acex</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutomationEngine</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">acex.settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">AIOpsSettings</span><span class="p">,</span> <span class="n">Settings</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">ae</span> <span class="o">=</span> <span class="n">AutomationEngine</span><span class="p">(</span><span class="n">settings</span><span class="o">=</span><span class="n">Settings</span><span class="p">(</span><span class="n">ai_ops</span><span class="o">=</span><span class="n">AIOpsSettings</span><span class="p">(</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">providers</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        <span class="s2">"groq"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"base_url"</span><span class="p">:</span> <span class="o">...</span><span class="p">,</span> <span class="s2">"api_key"</span><span class="p">:</span> <span class="o">...</span><span class="p">},</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        <span class="s2">"local"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"base_url"</span><span class="p">:</span> <span class="s2">"http://localhost:11434/v1"</span><span class="p">,</span> <span class="s2">"api_key"</span><span class="p">:</span> <span class="s2">"ollama"</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                  <span class="s2">"static_models"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"qwen3:32b"</span><span class="p">],</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                  <span class="c1"># Declare capabilities yourself when the provider doesn't report them:</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                  <span class="s2">"model_meta"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"qwen3:32b"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"supports_tools"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"context_window"</span><span class="p">:</span> <span class="mi">32768</span><span class="p">}}},</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="p">},</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">chains</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        <span class="s2">"default"</span><span class="p">:</span>  <span class="p">[</span><span class="s2">"groq/moonshotai/Kimi-K3"</span><span class="p">,</span> <span class="s2">"local/qwen3:32b"</span><span class="p">],</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        <span class="s2">"analysis"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"groq/deepseek-r1"</span><span class="p">],</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="p">},</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">mcp_server_url</span><span class="o">=</span><span class="s2">"http://localhost:8000/mcp"</span><span class="p">,</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">)))</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Named providers (comma-separated list, then one block per provider):</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nv">ACEX_AI_PROVIDERS</span><span class="o">=</span>groq,local
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nv">ACEX_AI_PROVIDER_GROQ_BASEURL</span><span class="o">=</span>https://api.groq.com/openai/v1
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nv">ACEX_AI_PROVIDER_GROQ_API_KEY</span><span class="o">=</span>gsk_...
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nv">ACEX_AI_PROVIDER_LOCAL_BASEURL</span><span class="o">=</span>http://localhost:11434/v1
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nv">ACEX_AI_PROVIDER_LOCAL_API_KEY</span><span class="o">=</span>ollama
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nv">ACEX_AI_PROVIDER_LOCAL_STATIC_MODELS</span><span class="o">=</span>qwen3:32b,llama3.3<span class="w">   </span><span class="c1"># optional, if no /models endpoint</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="nv">ACEX_AI_PROVIDER_LOCAL_MODEL_META</span><span class="o">={</span><span class="s2">"qwen3:32b"</span>:<span class="w"> </span><span class="o">{</span><span class="s2">"supports_tools"</span>:<span class="w"> </span>true,<span class="w"> </span><span class="s2">"context_window"</span>:<span class="w"> </span><span class="m">32768</span><span class="o">}}</span><span class="w">  </span><span class="c1"># optional JSON</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Chains (comma-separated provider/model levels, in failover order):</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nv">ACEX_AI_CHAIN_DEFAULT</span><span class="o">=</span><span class="s2">"groq/moonshotai/Kimi-K3, local/qwen3:32b"</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="nv">ACEX_AI_CHAIN_ANALYSIS</span><span class="o">=</span><span class="s2">"groq/deepseek-r1"</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="c1"># MCP tool server:</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="nv">ACEX_AI_MCP_SERVER_URL</span><span class="o">=</span>http://localhost:8000/mcp
+<p>The same in the environment. Providers and chains are keyed by name, with <code>__</code>
+between the levels:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Providers, one block per name:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nv">ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL</span><span class="o">=</span>https://api.groq.com/openai/v1
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nv">ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY</span><span class="o">=</span>gsk_...
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nv">ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL</span><span class="o">=</span>http://localhost:11434/v1
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nv">ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY</span><span class="o">=</span>ollama
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nv">ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS</span><span class="o">=</span>qwen3:32b,llama3.3<span class="w">   </span><span class="c1"># optional, if no /models endpoint</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nv">ACEX_AI_OPS_PROVIDERS__LOCAL__MODEL_META</span><span class="o">={</span><span class="s2">"qwen3:32b"</span>:<span class="w"> </span><span class="o">{</span><span class="s2">"supports_tools"</span>:<span class="w"> </span>true,<span class="w"> </span><span class="s2">"context_window"</span>:<span class="w"> </span><span class="m">32768</span><span class="o">}}</span><span class="w">  </span><span class="c1"># optional JSON</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># Chains (comma-separated provider/model levels, in failover order):</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="nv">ACEX_AI_OPS_CHAINS__DEFAULT</span><span class="o">=</span><span class="s2">"groq/moonshotai/Kimi-K3, local/qwen3:32b"</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nv">ACEX_AI_OPS_CHAINS__ANALYSIS</span><span class="o">=</span><span class="s2">"groq/deepseek-r1"</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># MCP tool server:</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="nv">ACEX_AI_OPS_MCP_SERVER_URL</span><span class="o">=</span>http://localhost:8000/mcp
 </code></pre></div>
-<p><code>create_app()</code> enables AI Ops automatically whenever <code>ACEX_AI_PROVIDERS</code> is set
-(non-empty) — no <code>ae.ai_ops()</code> call needed in app.py:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">app</span> <span class="o">=</span> <span class="n">AutomationEngine</span><span class="p">(</span><span class="n">db_connection</span><span class="o">=</span><span class="n">Connection</span><span class="p">(),</span> <span class="n">dev_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">create_app</span><span class="p">()</span>
-</code></pre></div>
+<p>Provider names from the environment are lower-cased (<code>GROQ</code> → <code>groq</code>).</p>
 <ul>
-<li>Partial misconfiguration (providers set but no chain) fails at startup with an
-  actionable error.</li>
-<li>To disable, leave <code>ACEX_AI_PROVIDERS</code> unset or empty.</li>
+<li>A value in code wins over the environment. For <code>providers</code> and <code>chains</code> the
+  two are merged by name, code winning per name.</li>
+<li>A provider without a <code>default</code> chain, a chain naming an unknown provider or a
+  provider missing <code>base_url</code>/<code>api_key</code> fails at startup with an actionable error.</li>
+<li>To disable, configure no provider. Tasks without their own chain inherit
+  <code>default</code>.</li>
 </ul>
-<p>Code wins over env vars; <code>ae.ai_ops(enabled=True)</code> with no arguments reads
-everything from the environment. A <code>default</code> chain is required — tasks without
-their own chain inherit it.</p>
+<p>The previous layout (<code>ACEX_AI_PROVIDERS=groq,local</code>, <code>ACEX_AI_PROVIDER_&lt;NAME&gt;_BASEURL</code>,
+<code>ACEX_AI_CHAIN_&lt;TASK&gt;</code>) is no longer read. <code>ae.ai_ops(...)</code> still works but is
+deprecated.</p>
 
 
 

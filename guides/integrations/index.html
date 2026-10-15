@@ -1278,7 +1278,7 @@
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nv">ACEX_VAULT_ROLE_ID</span><span class="o">=</span>...
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nv">ACEX_VAULT_SECRET_ID</span><span class="o">=</span>...
 </code></pre></div>
-<p>If Vault is not configured, credentials are stored encrypted in PostgreSQL using a symmetric key (<code>ACEX_ENCRYPTION_KEY</code>).</p>
+<p>If Vault is not configured, credentials are stored encrypted in PostgreSQL using a symmetric key (<code>ACEX_CREDENTIALS_ENCRYPTION_KEY</code>).</p>
 <h2 id="keycloak">Keycloak<a class="headerlink" href="#keycloak" title="Permanent link">¶</a></h2>
 <p><strong>Direction:</strong> ACE-X calls Keycloak to validate tokens; Keycloak never calls ACE-X</p>
 <p>All API requests are authenticated via JWT (RS256). At startup ACE-X fetches the JWKS from the Keycloak discovery endpoint and caches it. Agents (collection-agent, telemetry-agent, grafana-sync) also authenticate to the backend using Keycloak client credentials.</p>
@@ -1323,13 +1323,13 @@
 <p><strong>Direction:</strong> One-way outbound (ACE-X posts to ADO or Slack)</p>
 <p>When a user submits a bug report via the web UI, ACE-X can create an Azure DevOps work item or post a Slack message.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Azure DevOps</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nv">ADO_SERVICE_PAT</span><span class="o">=</span>...
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nv">ADO_ORG</span><span class="o">=</span>my-org
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="nv">ADO_PROJECT</span><span class="o">=</span>my-project
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="nv">ADO_BUGFIX_FEATURE_ID</span><span class="o">=</span><span class="m">123</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nv">ACEX_BUG_REPORT_ADO_SERVICE_PAT</span><span class="o">=</span>...
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nv">ACEX_BUG_REPORT_ADO_ORG</span><span class="o">=</span>my-org
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="nv">ACEX_BUG_REPORT_ADO_PROJECT</span><span class="o">=</span>my-project
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="nv">ACEX_BUG_REPORT_ADO_FEATURE_ID</span><span class="o">=</span><span class="m">123</span>
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Slack</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="nv">SLACK_BUG_REPORT_WEBHOOK</span><span class="o">=</span>https://hooks.slack.com/...
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="nv">ACEX_BUG_REPORT_SLACK_WEBHOOK_URL</span><span class="o">=</span>https://hooks.slack.com/...
 </code></pre></div>
 
 

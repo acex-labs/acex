@@ -1181,6 +1181,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#development-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Images
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#env-files-and-secrets" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1397,6 +1408,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#development-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Images
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#env-files-and-secrets" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1582,7 +1604,7 @@
 <li><strong>Description:</strong> lowercase letters, digits, and hyphens (kebab-case)</li>
 </ul>
 <p>Examples: <code>feat/add-ntp-support</code>, <code>fix/static-route-nil-check</code>, <code>hotfix/1.2.1-crash-on-boot</code></p>
-<p>Exceptions: <code>main</code>, <code>stage</code>, and <code>dependabot/*</code> are not validated.</p>
+<p>Exceptions: <code>main</code>, <code>stage</code>, <code>dev</code>, and <code>dependabot/*</code> are not validated.</p>
 <p>The standard is enforced at three levels:</p>
 <ol>
 <li><strong>Locally</strong> — a pre-commit hook (<code>post-checkout</code>) warns immediately when you check out a branch with an invalid name. Enable with:
@@ -1604,22 +1626,30 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>scripts/check_branch_name.sh<span class="w">              </span><span class="c1"># validate the current branch</span>
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>scripts/check_branch_name.sh<span class="w"> </span>fix/my-fix<span class="w">   </span><span class="c1"># validate a given name</span>
 </code></pre></div>
+<h2 id="development-images">Development Images<a class="headerlink" href="#development-images" title="Permanent link">¶</a></h2>
+<p>Every push to <code>dev</code> runs <code>.github/workflows/docker-dev.yml</code>, which publishes the backend, agent and MCP images to the same GHCR repositories as a release, under development tags:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>ghcr.io/acex-labs/acex-backend:dev              # moving: newest successful dev build
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>ghcr.io/acex-labs/acex-backend:dev-&lt;short-sha&gt;  # fixed: one commit
+</code></pre></div>
+<p>The same pattern applies to <code>acex-collection-agent</code>, <code>acex-telemetry-agent</code>, <code>acex-grafana-sync-agent</code> and <code>acex-mcp</code>. Development builds install devkit, client and the drivers from the checked-out source, so they always contain the code of the commit they were built from, even when no package version has been bumped. They never publish <code>latest</code>, upload to PyPI or create a release; that remains the <code>main</code> pipeline in <code>ci.yml</code>.</p>
+<p>The five images are built independently. If one build fails, the others still receive the new tags and the failed image keeps its previous <code>dev</code> tag, so <code>:dev</code> can temporarily mix commits. The run summary lists, per image, whether <code>dev-&lt;short-sha&gt;</code> was published and its digest.</p>
+<p>A <code>dev-&lt;short-sha&gt;</code> tag tells you which commit an image was built from, but tags are not immutable: a rebuild of the same commit (for example after a base image or dependency update) replaces it. When a deployment must be pinned to exactly one image, reference the digest from the run summary instead, e.g. <code>ghcr.io/acex-labs/acex-backend@sha256:…</code>.</p>
 <h2 id="env-files-and-secrets">Env Files and Secrets<a class="headerlink" href="#env-files-and-secrets" title="Permanent link">¶</a></h2>
 <p>Files such as <code>.env</code>, <code>.env.&lt;variant&gt;</code>, and <code>*.env</code> may contain secrets and are never versioned. They are matched by <code>.gitignore</code>, and a pre-commit hook (<code>scripts/check_no_env_files.sh</code>) blocks commits that include them. Templates with placeholder values are checked in as <code>*.env.example</code>.</p>
 <p>Note: <code>.gitignore</code> does not affect already-tracked files. To untrack a file that is already in git (while keeping it locally):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>git<span class="w"> </span>rm<span class="w"> </span>--cached<span class="w"> </span>backend/.env
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>git<span class="w"> </span>rm<span class="w"> </span>--cached<span class="w"> </span>backend/.env
 </code></pre></div>
 <p>If a secret has accidentally ended up in history it must be rotated/invalidated — git-scrub does not remove it from old clones.</p>
 <h2 id="building-for-distribution">Building for Distribution<a class="headerlink" href="#building-for-distribution" title="Permanent link">¶</a></h2>
 <p>To build individual packages:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nb">cd</span><span class="w"> </span>backend
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>poetry<span class="w"> </span>build
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="nb">cd</span><span class="w"> </span>cli
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>poetry<span class="w"> </span>build
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="nb">cd</span><span class="w"> </span>worker
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>poetry<span class="w"> </span>build
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">cd</span><span class="w"> </span>backend
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>poetry<span class="w"> </span>build
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="nb">cd</span><span class="w"> </span>cli
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>poetry<span class="w"> </span>build
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="nb">cd</span><span class="w"> </span>worker
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>poetry<span class="w"> </span>build
 </code></pre></div>
 <p>Distribution files will be in <code>dist/</code> folder of each package.</p>
 <h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">¶</a></h2>
