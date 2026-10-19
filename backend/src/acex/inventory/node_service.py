@@ -200,8 +200,8 @@ class NodeService:
                         case(
                             (
                                 ManagementConnection.target_ip.op("~")(
-    r"^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
-),
+                                    r"^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
+                                ),
                                 cast(ManagementConnection.target_ip, INET),
                             ),
                             else_=None,
