@@ -3,6 +3,8 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from acex.models import (
+    Asset,
+    AssetCluster,
     ManagementConnection,
     ManagementConnectionResponse,
     Node,
@@ -10,7 +12,7 @@ from acex.models import (
     NodeResponse,
     PaginatedResponse,
 )
-from acex.models.node import NodeAdminStatus, NodeProvisionStatus
+from acex.models.node import AssetRefType, NodeAdminStatus, NodeProvisionStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from fastapi import HTTPException
 from sqlalchemy import case, cast, select
@@ -28,6 +30,7 @@ class NodeService:
         "admin_status": "admin_status",
         "provision_status": "provision_status",
         "ip": "ip",
+        "ned_id": "ned_id",
     }
 
     def __init__(self, adapter, inventory):
@@ -208,6 +211,20 @@ class NodeService:
                     .order_by(ManagementConnection.primary.desc(), ManagementConnection.id)
                     .limit(1)
                     .scalar_subquery()
+                )
+            elif sort == "ned_id":
+                # Order by the referenced asset's (or asset cluster's) NED.
+                # NULL ned_id sorts per Postgres defaults (last asc, first desc).
+                sort_column = case(
+                    (
+                        Node.asset_ref_type == AssetRefType.asset,
+                        select(Asset.ned_id).where(Asset.id == Node.asset_ref_id).scalar_subquery(),
+                    ),
+                    (
+                        Node.asset_ref_type == AssetRefType.asset_cluster,
+                        select(AssetCluster.ned_id).where(AssetCluster.id == Node.asset_ref_id).scalar_subquery(),
+                    ),
+                    else_=None,
                 )
             else:
                 sort_column = self.SORTABLE_COLUMNS[sort]
