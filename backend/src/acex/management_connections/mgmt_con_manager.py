@@ -1,4 +1,5 @@
 from acex.models import ManagementConnection, ManagementConnectionBase, ManagementConnectionResponse
+from sqlmodel import select
 
 
 class ManagementConnectionManager:
@@ -12,19 +13,19 @@ class ManagementConnectionManager:
         session = next(self.db.get_session())
 
         try:
-            query = session.query(ManagementConnection)
+            query = select(ManagementConnection)
 
             # Filtrera på node_id om det anges
             if node_id is not None:
-                query = query.filter(ManagementConnection.node_id == node_id)
+                query = query.where(ManagementConnection.node_id == node_id)
 
             # Lägg till limit och offset
             query = query.limit(limit).offset(offset)
 
-            connections = query.all()
+            connections = session.exec(query).all()
 
             # Konvertera till response objekt
-            return [ManagementConnectionResponse(**connection.dict()) for connection in connections]
+            return [ManagementConnectionResponse(**connection.model_dump()) for connection in connections]
 
         finally:
             session.close()
@@ -32,9 +33,9 @@ class ManagementConnectionManager:
     def get_connection(self, id: int) -> ManagementConnectionResponse | None:
         session = next(self.db.get_session())
         try:
-            connection = session.query(ManagementConnection).filter(ManagementConnection.id == id).first()
+            connection = session.get(ManagementConnection, id)
             if connection:
-                return ManagementConnectionResponse(**connection.dict())
+                return ManagementConnectionResponse(**connection.model_dump())
             return None
         finally:
             session.close()
@@ -58,7 +59,7 @@ class ManagementConnectionManager:
             session.refresh(mgmt_connection)
 
             # Returnera som response objekt
-            return ManagementConnectionResponse(**mgmt_connection.dict())
+            return ManagementConnectionResponse(**mgmt_connection.model_dump())
 
         except Exception as e:
             session.rollback()
@@ -69,7 +70,7 @@ class ManagementConnectionManager:
     def delete_connection(self, id: int) -> bool:
         session = next(self.db.get_session())
         try:
-            connection = session.query(ManagementConnection).filter(ManagementConnection.id == id).first()
+            connection = session.get(ManagementConnection, id)
             if connection:
                 session.delete(connection)
                 session.commit()
