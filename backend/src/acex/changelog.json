@@ -5,7 +5,7 @@
   "releases": [
     {
       "version": "6.27.0",
-      "date": "2026-10-09",
+      "date": "2026-10-15",
       "summary": "The backend's settings use new ACEX_* names and the old names are no longer read; rename them before upgrading.",
       "entries": [
         {

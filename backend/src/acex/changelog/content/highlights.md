@@ -4,7 +4,7 @@ The product's highlights: what Settings > What's new shows first.
 Written together when a release is cut, one entry per feature that people who use or run ACEX
 would recognise, in their words ("ZTP for Cisco switches"). Newest first. The format:
 
-    ## 2026-10-05 ZTP for Cisco switches
+    ## 2026-10-15 ZTP for Cisco switches
 
     One or two sentences, at most 400 characters. No versions, package names or ticket numbers.
 
@@ -13,11 +13,11 @@ writes the draft, a person or an assistant. `python scripts/changelog.py validat
 Nothing is compiled: an edit that is merged is live in the next image.
 -->
 
-## 2026-10-09 The backend's settings use ACEX_* names
+## 2026-10-15 The backend's settings use ACEX_* names
 
 Every backend setting now has a name of the form ACEX_<SECTION>_<FIELD>. The old names are no longer read, so an installation must rename them before upgrading.
 
-## 2026-10-05 ZTP for Cisco switches
+## 2026-10-15 ZTP for Cisco switches
 
 A new, unconfigured Cisco switch can download its bootstrap from ACEX and be given its rendered configuration. The web interface has a ZTP section for following it.
 
