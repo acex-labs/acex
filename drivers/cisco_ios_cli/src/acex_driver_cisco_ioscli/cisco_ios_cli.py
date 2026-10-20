@@ -8,7 +8,6 @@ from acex_devkit.configdiffer import Diff
 from acex_devkit.drivers import NetworkElementDriver, TransportBase
 from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_devkit.models.composed_configuration import ComposedConfiguration
-from acex_devkit.models.management_connection import ManagementConnection
 from acex_devkit.models.node_response import NodeListItem
 from scrapli.driver.core import AsyncIOSXEDriver
 from scrapli.exceptions import ScrapliAuthenticationFailed, ScrapliTimeout
@@ -33,13 +32,13 @@ _session_conn: ContextVar[AsyncIOSXEDriver | None] = ContextVar("_session_conn",
 
 
 class CiscoIOSTransport(TransportBase):
-    async def _open_connection(self, connection: ManagementConnection, **kwargs) -> AsyncIOSXEDriver:
+    async def _open_connection(self, target_ip: str, **kwargs) -> AsyncIOSXEDriver:
         username = kwargs.get("username")
         password = kwargs.get("password")
         if not username or not password:
             raise ValueError("Credentials required: username and password must be provided")
         driver = AsyncIOSXEDriver(
-            host=connection.target_ip,
+            host=target_ip,
             auth_username=username,
             auth_password=password,
             auth_secondary=kwargs.get("enable_password") or password,
@@ -61,9 +60,9 @@ class CiscoIOSTransport(TransportBase):
         return driver
 
     @asynccontextmanager
-    async def session(self, connection: ManagementConnection, **kwargs):
+    async def session(self, target_ip: str, **kwargs):
         """Hold one SSH session open for the duration of the block."""
-        conn = await self._open_connection(connection, **kwargs)
+        conn = await self._open_connection(target_ip, **kwargs)
         token = _session_conn.set(conn)
         try:
             yield self
@@ -75,13 +74,13 @@ class CiscoIOSTransport(TransportBase):
                 pass
 
     @asynccontextmanager
-    async def _conn(self, connection: ManagementConnection, **kwargs):
+    async def _conn(self, target_ip: str, **kwargs):
         """Yield active session conn or open a one-shot, closing what we own."""
         conn = _session_conn.get()
         if conn is not None:
             yield conn
             return
-        conn = await self._open_connection(connection, **kwargs)
+        conn = await self._open_connection(target_ip, **kwargs)
         try:
             yield conn
         finally:
@@ -90,27 +89,23 @@ class CiscoIOSTransport(TransportBase):
             except Exception:
                 pass
 
-    async def get_config(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> str:
-        async with self._conn(connection, **kwargs) as conn:
+    async def get_config(self, node: NodeListItem, target_ip: str, **kwargs) -> str:
+        async with self._conn(target_ip, **kwargs) as conn:
             response = await conn.send_command("show running-config", timeout_ops=120)
             return response.result
 
-    async def send_config(
-        self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs
-    ) -> str:
-        async with self._conn(connection, **kwargs) as conn:
+    async def send_config(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> str:
+        async with self._conn(target_ip, **kwargs) as conn:
             response = await conn.send_configs(commands)
             return response.result
 
-    async def execute(
-        self, node: NodeListItem, connection: ManagementConnection, commands: list[str], **kwargs
-    ) -> list[str]:
-        async with self._conn(connection, **kwargs) as conn:
+    async def execute(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> list[str]:
+        async with self._conn(target_ip, **kwargs) as conn:
             responses = await conn.send_commands(commands, timeout_ops=120)
             return [r.result for r in responses]
 
-    async def get_lldp_neighbors(self, node: NodeListItem, connection: ManagementConnection, **kwargs) -> list[dict]:
-        async with self._conn(connection, **kwargs) as conn:
+    async def get_lldp_neighbors(self, node: NodeListItem, target_ip: str, **kwargs) -> list[dict]:
+        async with self._conn(target_ip, **kwargs) as conn:
             neighbors = []
             try:
                 response = await asyncio.wait_for(conn.send_command("show lldp neighbors detail"), timeout=10)
@@ -124,7 +119,10 @@ class CiscoIOSTransport(TransportBase):
                 if "%" not in response.result[:40]:
                     seen = {(n["local_interface"], n["remote_device"]) for n in neighbors}
                     for entry in self._parse_cdp_detail(response.result):
-                        if (entry["local_interface"], entry["remote_device"]) not in seen:
+                        if (
+                            entry["local_interface"],
+                            entry["remote_device"],
+                        ) not in seen:
                             neighbors.append(entry)
             except (TimeoutError, ScrapliTimeout, ConnectionTimeout, Exception):
                 pass
@@ -189,13 +187,16 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         """
         Used for discovery on bare asset
         """
-        conn = ManagementConnection(
-            target_ip=str(management_ip),
-            node_id=None,
-            id=None
-        )
         t = CiscoIOSTransport()
-        out = asyncio.run(t.execute(None, conn, ["show version"], username=username, password=password))
+        out = asyncio.run(
+            t.execute(
+                None,
+                str(management_ip),
+                ["show version"],
+                username=username,
+                password=password,
+            )
+        )
         os = "cisco_iosxe"
         os_ver = _find(r"Version (\S+)", out[0])
         serial = _find(r"System Serial Number\s+:\s(\S+)", out[0])
@@ -210,13 +211,17 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
         }
 
     def provision(
-        self, configuration: ComposedConfiguration, node_instance, connection: ManagementConnection, credentials
+        self,
+        configuration: ComposedConfiguration,
+        node_instance,
+        target_ip: str,
+        credentials,
     ):
         asset = node_instance.asset
         rendered = self.render(configuration, asset)
         commands = [c.lstrip() for c in rendered.splitlines() if c.strip() and c.strip() != "!"]
 
-        return asyncio.run(self.transport.send_config(node_instance, connection, commands, **credentials))
+        return asyncio.run(self.transport.send_config(node_instance, target_ip, commands, **credentials))
 
     def render(self, configuration: ComposedConfiguration, asset):
         return self.renderer.render(configuration, asset)
@@ -227,9 +232,7 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     def render_patch(self, diff: Diff, node_instance: Any):
         return self.renderer.render_patch(diff, node_instance)
 
-    async def apply_patch(
-        self, diff: Diff, node_instance, node: NodeListItem, connection: ManagementConnection, **kwargs
-    ):
+    async def apply_patch(self, diff: Diff, node_instance, node: NodeListItem, target_ip: str, **kwargs):
         commands = self.render_patch(diff, node_instance=node_instance)
         commands = [c.lstrip() for c in commands.splitlines() if c.strip() != "!"]
-        return await self.transport.send_config(node, connection, commands, **kwargs)
+        return await self.transport.send_config(node, target_ip, commands, **kwargs)
