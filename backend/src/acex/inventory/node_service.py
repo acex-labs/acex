@@ -15,7 +15,7 @@ from acex.models import (
 from acex.models.node import AssetRefType, NodeAdminStatus, NodeProvisionStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from fastapi import HTTPException
-from sqlalchemy import case, cast, select
+from sqlalchemy import Integer, case, cast, func, select
 from sqlalchemy.dialects.postgresql import INET
 
 
@@ -194,15 +194,27 @@ class NodeService:
             if sort == "ip":
                 # Order by the primary management connection's IP, numerically.
                 # Non-IP values (hostnames, blanks) and nodes without a
-                # connection sort last via NULL.
+                # connection become NULL and follow the database's NULL order.
+                ip = ManagementConnection.target_ip
+                if self.adapter.plugin.db.connection.backend == "postgresql":
+                    numeric_ip = cast(ip, INET)
+                else:
+                    # No INET outside PostgreSQL: split the dotted quad on its dots and combine the octets.
+                    rest, octets = ip, []
+                    for _ in range(3):
+                        dot = func.instr(rest, ".")
+                        octets.append(cast(func.substr(rest, 1, dot - 1), Integer))
+                        rest = func.substr(rest, dot + 1)
+                    octets.append(cast(rest, Integer))
+                    numeric_ip = ((octets[0] * 256 + octets[1]) * 256 + octets[2]) * 256 + octets[3]
                 sort_column = (
                     select(
                         case(
                             (
-                                ManagementConnection.target_ip.op("~")(
+                                ip.regexp_match(
                                     r"^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
                                 ),
-                                cast(ManagementConnection.target_ip, INET),
+                                numeric_ip,
                             ),
                             else_=None,
                         )
