@@ -1270,20 +1270,45 @@
 <h2 id="collection-agent">Collection Agent<a class="headerlink" href="#collection-agent" title="Permanent link">¶</a></h2>
 <p><strong>Purpose:</strong> Pull running configs from network devices and upload them to ACE-X.</p>
 <pre class="mermaid"><code>sequenceDiagram
+    autonumber
     participant CA as Collection Agent
     participant BE as Backend API
     participant DEV as Network Device
 
-    loop Every 60 s (or on revision change)
-        CA-&gt;&gt;BE: GET manifest (node list + config_revision)
-        BE--&gt;&gt;CA: Targets + credential IDs
-        CA-&gt;&gt;BE: GET credentials (decrypted)
-        CA-&gt;&gt;DEV: SSH — show running-config
-        DEV--&gt;&gt;CA: Raw config
-        CA-&gt;&gt;BE: POST observed config (parsed)
-        CA-&gt;&gt;DEV: SSH — show lldp/cdp neighbors
-        CA-&gt;&gt;BE: POST topology neighbors
-        CA-&gt;&gt;BE: ACK manifest revision
+    loop Every 60 seconds or when the manifest revision changes
+        CA-&gt;&gt;BE: Request manifest
+        activate BE
+        BE--&gt;&gt;CA: Return targets, credential IDs, and revision
+        deactivate BE
+
+        Note over CA,BE: Collect the configuration for each assigned target
+        CA-&gt;&gt;BE: Request decrypted credentials
+        activate BE
+        BE--&gt;&gt;CA: Return credentials
+        deactivate BE
+
+        CA-&gt;&gt;DEV: Connect via SSH and request running configuration
+        activate DEV
+        DEV--&gt;&gt;CA: Return raw configuration
+        deactivate DEV
+
+        CA-&gt;&gt;BE: Submit parsed observed configuration
+        activate BE
+        BE--&gt;&gt;CA: Confirm configuration received
+        deactivate BE
+
+        Note over CA,DEV: Discover the device's direct neighbors
+        CA-&gt;&gt;DEV: Request LLDP/CDP neighbor data
+        activate DEV
+        DEV--&gt;&gt;CA: Return neighbor data
+        deactivate DEV
+
+        CA-&gt;&gt;BE: Submit discovered topology neighbors
+        activate BE
+        BE--&gt;&gt;CA: Confirm topology received
+        deactivate BE
+
+        CA-&gt;&gt;BE: Acknowledge manifest revision
     end</code></pre>
 <p>The collection agent:</p>
 <ul>
@@ -1306,11 +1331,21 @@
 <h2 id="telemetry-agent">Telemetry Agent<a class="headerlink" href="#telemetry-agent" title="Permanent link">¶</a></h2>
 <p><strong>Purpose:</strong> Keep a Telegraf configuration file in sync with ACE-X's desired observability state.</p>
 <pre class="mermaid"><code>flowchart LR
-    BE[Backend API] --&gt;|render Telegraf config| TA[Telemetry Agent]
-    TA --&gt;|write telegraf.conf| TG[Telegraf process]
-    TG --&gt;|SNMP poll| DEV[Network Devices]
-    DEV --&gt;|SNMP response| TG
-    TG --&gt;|write metrics| IDB[(InfluxDB)]</code></pre>
+    BE["Backend API"] --&gt;|"renders config"| TA["Telemetry Agent"]
+    TA --&gt;|"writes telegraf.conf"| TG["Telegraf"]
+    TG --&gt;|"polls via SNMP"| DEV["Network Devices"]
+    DEV --&gt;|"returns metrics"| TG
+    TG --&gt;|"stores metrics"| IDB[("InfluxDB")]
+
+    classDef service fill:#eef2ff,stroke:#818cf8,color:#1e1b4b
+    classDef agent fill:#f0fdfa,stroke:#2dd4bf,color:#134e4a
+    classDef device fill:#fff7ed,stroke:#fb923c,color:#7c2d12
+    classDef database fill:#f5f3ff,stroke:#a78bfa,color:#4c1d95
+
+    class BE service
+    class TA,TG agent
+    class DEV device
+    class IDB database</code></pre>
 <p>The telemetry agent:</p>
 <ul>
 <li>Polls the backend every 60 seconds for its agent object</li>
