@@ -28,17 +28,15 @@ boot through that method are handled by the chosen driver.
 - The text after the front matter is the description, in Markdown. Optional,
   but the place for anything the user has to do or should know.
 - Optional: `breaking: true`, `audience: admin|developer` (default `user`),
-  `refs: #316, ADO-1234` (a label, optionally followed by a URL),
-  `completes: <id>` to retire an item from `coming/` when it ships.
-
-`coming/` holds planned work in the same format (`title`, `status`,
-`planned_version`, `planned_date`), compiled on every build. Only what is
-worth telling users goes there.
+  `refs: #316, ADO-1234` (a label, optionally followed by a URL).
 
 The person who cuts a release can add one sentence about it with
-`release --summary "..."`; fragments never carry one. A feature worth telling
-an ordinary user about gets a highlight in `highlights/`
-(`python scripts/changelog.py highlight backend --title ...`), written when it
-ships and kept; see the guide.
+`release --summary "..."`; fragments never carry one.
+
+The product's highlights and roadmap are not fragments. They are two plain
+files in `src/acex/changelog/content/`, `highlights.md` (written together when
+a release is cut) and `roadmap.md` (kept by one person), and editing them needs
+no entry here. `python scripts/changelog.py brief` collects what the highlights
+are written from; see the guide.
 
 Full guide: `docs/guides/changelog.md`.

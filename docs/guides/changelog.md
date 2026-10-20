@@ -40,7 +40,6 @@ boot through that method are handled by the chosen driver.
 | `breaking` | no | `true` when users must act. Shown first. |
 | `audience` | no | `user` (default), `admin` or `developer`. Developer entries are for integrators and driver authors. |
 | `refs` | no | Comma-separated pull request or work item references, each optionally followed by a URL: `#316, ADO-1234 https://dev.azure.com/...`. |
-| `completes` | no | The id of an item in `changelog.d/coming/` that this change delivers; it is removed at release. |
 
 Write for the person at the screen, not for the reviewer:
 
@@ -56,15 +55,15 @@ The tool refuses titles that look like commit subjects or branch names.
 
 The `Changelog` workflow runs on every pull request:
 
-1. Every fragment and compiled file parses.
+1. Every fragment and compiled file parses, and so do the highlights and the
+   roadmap.
 2. A component with code changes in the pull request has at least one *new*
    fragment. Changes under `tests/`, to `README.md` and to `changelog.d/`
    itself do not count. Label the pull request `no-changelog` to skip the
    check, or add a `kind: internal` fragment: that leaves a trace in the
    repository.
 3. The compiled `changelog.json` files are current (`build --check`): they
-   change only when planned items change, a highlight is added or a release
-   is cut.
+   change only when a release is cut.
 4. Into `main`: a component whose version differs from `main`'s has no
    unreleased fragments, so the version the pipeline is about to publish
    carries its notes.
@@ -85,8 +84,8 @@ python scripts/changelog.py release backend --bump minor   # or --bump auto, pat
 ```
 
 This bumps `backend/pyproject.toml`, moves the fragments into
-`backend/src/acex/changelog.json` under the new version and today's date,
-retires the planned items they complete, and deletes the fragments. Commit
+`backend/src/acex/changelog.json` under the new version and today's date, and
+deletes the fragments. Commit
 the result with the release. Without `--bump`, the version already in
 `pyproject.toml` is used, and a version that is already in the file is
 refused. Nobody types a version into an entry.
@@ -112,50 +111,98 @@ is shown as before. The summary of an older release can be added or
 corrected by editing the `summary` field of that release in `changelog.json`;
 `release` and `build` leave older releases as they are.
 
-## Highlights
+## Highlights and the roadmap
 
 Settings > What's new opens on the product's highlights: the features worth
 telling an ordinary user about, newest first, each with the date it arrived.
-They are written by hand when a feature ships, at the level of "ZTP for Cisco
-switches" and not "ZTP script URL moved", and one highlight can span several
-components.
+Next to them is the roadmap: what is coming. Both belong to the product as a
+whole, not to a package, and each is one plain Markdown file that is read as
+it is. Nothing is compiled and no tool is needed to edit them, so they can be
+changed in the web editor of the repository.
+
+| | File | Written by | When |
+|---|---|---|---|
+| Highlights | `backend/src/acex/changelog/content/highlights.md` | the team, together | when a release is cut to `main` |
+| Roadmap | `backend/src/acex/changelog/content/roadmap.md` | the person who owns the roadmap | whenever the plan changes |
+
+Editing either file needs no changelog entry, and the edit is live with the
+next image. A package outside this repository can still carry `highlights`
+and `coming` in its own compiled file; they are shown as before.
+
+### Highlights at a release
+
+Nobody writes highlights per package or per pull request. When a release is
+cut, the team writes them once, together, in the release pull request (`dev`
+into `main`). The tool collects the material:
 
 ```bash
-python scripts/changelog.py highlight backend \
-    --title "ZTP for Cisco switches" --date 2026-10-05 \
-    --components "acex 6.24.0, acex-driver-cisco-ioscli 2.7.4, acex-frontend 0.0.34" \
-    --body "A new, unconfigured Cisco switch can download its bootstrap from ACEX and be given its rendered configuration."
+python scripts/changelog.py brief                    # everything since the newest highlight
+python scripts/changelog.py brief --since 2026-10-01
 ```
 
-This creates `backend/changelog.d/highlights/<date>-<slug>.md` and brings the
-compiled `changelog.json` up to date; commit both. (Editing a highlight file
-by hand needs `python scripts/changelog.py build`, which the pull request
-check also runs.)
+It prints a brief in Markdown: what a highlight is and how to write one, the
+format, what is already published, what is on the roadmap, and every change
+since then that matters to users and administrators, with the summary of each
+release. Give it to whoever drafts the highlights, a person or an AI
+assistant: they read the brief, add the entries to `highlights.md` and run
+`python scripts/changelog.py validate`. The draft is
+then reviewed like any other change in the release pull request, which is
+where the team agrees on what the release will be known for.
 
 ```markdown
----
-title: ZTP for Cisco switches
-date: 2026-10-05
-components: acex 6.24.0, acex-driver-cisco-ioscli 2.7.4, acex-frontend 0.0.34
----
-A new, unconfigured Cisco switch can download its bootstrap from ACEX ...
+## 2026-10-05 ZTP for Cisco switches
+
+A new, unconfigured Cisco switch can download its bootstrap from ACEX and be
+given its rendered configuration. The web interface has a ZTP section for
+following it.
 ```
 
-- `title` is at most 80 characters and `date` is required (`YYYY-MM-DD`).
-- The text is one or two sentences, at most 400 characters, for someone who
-  does not know the packages.
-- `components` names where the feature shipped, as `component version`. The
-  page uses it to lead from a highlight to the details of those releases.
-- A release does not consume highlights; they are the product's history.
-  They are compiled into the component's `changelog.json`, and the page
-  gathers the highlights of every product component, so a package other than
-  the backend can keep its own.
+- A heading is the day the feature arrived (`YYYY-MM-DD`) and what people
+  would call it, at most 80 characters, at the level of "ZTP for Cisco
+  switches" and not "ZTP script URL moved". A date more than 31 days ahead is
+  refused.
+- The text below it is one or two sentences, at most 400 characters, for
+  someone who does not know the packages. No versions, package names or ticket
+  numbers: the page does not lead from a highlight to a release, and the
+  releases are under Details.
+- Anything before the first heading, and `<!-- comments -->` anywhere, are
+  notes to the next editor and are left out.
+- Order in the file does not matter: the page lists the newest first, and the
+  same day in title order.
+- An entry that cannot be read is reported by `validate` and by the pull
+  request check, and skipped with a warning by the backend; it never takes the
+  others with it.
 - Nothing forces a highlight to be written. A release without one is simply
   not in the highlights, and its details are still under each component.
-- A highlight that cannot be read is skipped with a warning; it never takes
-  the releases of its component with it.
-- The same day is listed in title order. A date more than 31 days ahead is
-  refused.
+
+### The roadmap
+
+One person keeps the roadmap, in this one file. An item is a heading,
+optionally a few lines directly below it, and the explanation:
+
+```markdown
+## Background jobs on separate workers
+
+Status: in progress
+When: Q4 2026
+
+Long-running work such as discovery and provisioning is handed to separate
+workers, and Activity > Jobs lists the jobs.
+```
+
+- `Status` is `considering` (weighed, not decided), `planned`, `in progress`
+  or `preview`; it is `planned` when left out.
+- `When` and `Version` are optional and free text (`2026-11`, `Q1 2027`,
+  `6.30.0`). `Refs` points at the ticket (`Refs: ADO-1234 https://...`). Who
+  asked for something belongs in the tracker, not here: this repository is
+  public.
+- A line that looks like a field but is not one (`Staus: planned`) is refused
+  rather than shown as text.
+- Settings > What's new shows the items under *Roadmap*: under way first, then
+  preview, planned and considered. The product owner decides what goes here;
+  a backlog is not a roadmap.
+- When an item ships, delete it and let the next release's highlights say so:
+  the brief lists the roadmap so that nothing that shipped is forgotten.
 
 ### Choosing what to see
 
@@ -173,47 +220,6 @@ It starts on the person's role (Administrators for `naas-admin`, otherwise
 Users). A choice the person made before wins and is remembered in the
 browser. A component whose notes are all for another point of view is marked
 in the list and offers to show them.
-
-## Planned work and the roadmap
-
-`changelog.d/coming/` holds what is worth telling users about before it
-ships, one file per item, in the same form:
-
-```markdown
----
-title: Agents and the worker report their versions
-status: planned
-planned_version: 6.30.0
-components: acex, acex-collection-agent, acex-worker
----
-Collection agents, telemetry agents and the worker will report their version
-to the backend, so Settings > About shows them.
-```
-
-- `status` is `considering` (weighed, not decided), `planned`, `in_progress`
-  or `preview`.
-- `planned_version` and `planned_date` are optional and free text (`2026-11`,
-  `Q1 2027`).
-- `components` names the components the item touches, by id. A feature is
-  rarely one package.
-- `refs` points at the ticket (`refs: ADO-1234 https://...`). Who asked for
-  something belongs in the tracker, not here: this repository is public.
-
-Settings > What's new shows all of it, from every product component, in one
-place under *Roadmap*: under way first, then preview, planned and
-considered. Run `python scripts/changelog.py build` after editing and commit
-the compiled file. The product owner decides what goes here; a backlog is not
-a roadmap.
-
-When an item ships it becomes a highlight. This retires the planned item and
-uses its title, text and components as the defaults:
-
-```bash
-python scripts/changelog.py highlight backend --completes agent-versions --date 2026-11-02
-```
-
-A fragment with `completes: <id>` retires an item too, at release, without
-making a highlight.
 
 ## Development images
 

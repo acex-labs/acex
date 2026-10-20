@@ -5,6 +5,7 @@ a section of their own."""
 import json
 from datetime import UTC, datetime
 from importlib.metadata import EntryPoint
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -74,6 +75,7 @@ def package(tmp_path, monkeypatch):
 
 
 def service(own, entry_points=(), **kwargs):
+    kwargs.setdefault("content_dir", (own.parent if own else Path("/nonexistent")) / "content")
     return ChangelogService(
         own_file=own,
         entry_points=lambda group: [ep for ep in entry_points if ep.group == group],
@@ -434,7 +436,7 @@ class TestHighlights:
 
 
 class TestRoadmap:
-    def should_pass_the_status_and_components_of_planned_work_through(self, tmp_path):
+    def should_pass_the_status_and_components_of_planned_work_in_a_components_file_through(self, tmp_path):
         own = write(
             tmp_path / "own.json",
             "acex",
@@ -458,3 +460,104 @@ class TestRoadmap:
             ["acex", "acex-driver-juniper-junoscli"],
             "Q1 2027",
         )
+
+
+def write_content(directory, *, highlights=None, roadmap=None):
+    directory.mkdir(parents=True, exist_ok=True)
+    if highlights is not None:
+        (directory / "highlights.md").write_text(highlights, encoding="utf-8")
+    if roadmap is not None:
+        (directory / "roadmap.md").write_text(roadmap, encoding="utf-8")
+    return directory
+
+
+class TestContentFiles:
+    def should_serve_the_products_highlights_from_the_highlights_file(self, own, tmp_path):
+        content = write_content(
+            tmp_path / "content",
+            highlights=(
+                "<!-- a note -->\n\n"
+                "## 2026-09-01 Release notes\n\nShown in the product.\n\n"
+                "## 2026-10-09 ZTP for Cisco\n\nSwitches fetch their bootstrap.\n\n"
+                "## 2026-10-09 Alerts\n"
+            ),
+        )
+
+        highlights = service(own, content_dir=content).changelog().highlights
+
+        assert [(h.id, str(h.date), h.title) for h in highlights] == [
+            ("acex/20261009-alerts", "2026-10-09", "Alerts"),
+            ("acex/20261009-ztp-for-cisco", "2026-10-09", "ZTP for Cisco"),
+            ("acex/20260901-release-notes", "2026-09-01", "Release notes"),
+        ]
+        assert highlights[1].description == "Switches fetch their bootstrap."
+        assert all(h.components == [] for h in highlights)
+
+    def should_serve_the_roadmap_from_the_roadmap_file_in_the_product_section(self, tmp_path):
+        own = write(tmp_path / "own.json", "acex", "ACEX backend")
+        content = write_content(
+            tmp_path / "content",
+            roadmap="## Background jobs\n\nStatus: in progress\nWhen: Q4 2026\n\nWorkers.\n\n## Agent versions\n",
+        )
+
+        [product] = service(own, content_dir=content).changelog().sections
+
+        assert [(i.id, i.title, i.status, i.planned_date, i.description) for i in product.coming] == [
+            ("background-jobs", "Background jobs", "in_progress", "Q4 2026", "Workers."),
+            ("agent-versions", "Agent versions", "planned", None, None),
+        ]
+
+    def should_put_the_roadmap_ahead_of_planned_work_a_components_file_carries(self, tmp_path):
+        own = write(tmp_path / "own.json", "acex", "ACEX backend", coming=[{"id": "x", "title": "From the file"}])
+        content = write_content(tmp_path / "content", roadmap="## From the roadmap\n")
+
+        [product] = service(own, content_dir=content).changelog().sections
+
+        assert [i.title for i in product.coming] == ["From the roadmap", "From the file"]
+
+    def should_give_the_product_a_section_when_only_the_roadmap_exists(self, tmp_path):
+        content = write_content(tmp_path / "content", roadmap="## Background jobs\n")
+
+        [product] = service(tmp_path / "missing.json", content_dir=content).changelog().sections
+
+        assert (product.id, [i.title for i in product.coming]) == ("product", ["Background jobs"])
+
+    def should_skip_an_entry_that_cannot_be_read_and_keep_the_rest(self, tmp_path, caplog):
+        own = write(tmp_path / "own.json", "acex", "ACEX backend")
+        content = write_content(
+            tmp_path / "content",
+            highlights="## Not dated\n\nText.\n\n## 2026-10-09 Good\n",
+            roadmap="## Idea\n\nStatus: soon\n\n## Fine\n",
+        )
+
+        response = service(own, content_dir=content).changelog()
+
+        assert [h.title for h in response.highlights] == ["Good"]
+        assert [i.title for i in response.sections[0].coming] == ["Fine"]
+        assert caplog.text.count("content skipped") == 2
+
+    def should_read_the_files_again_on_every_request(self, own, tmp_path):
+        content = write_content(tmp_path / "content", highlights="## 2026-10-09 First\n")
+        notes = service(own, content_dir=content)
+        assert [h.title for h in notes.changelog().highlights] == ["First"]
+
+        write_content(content, highlights="## 2026-10-10 Second\n\n## 2026-10-09 First\n")
+
+        assert [h.title for h in notes.changelog().highlights] == ["Second", "First"]
+
+    def should_keep_the_highlights_a_components_file_still_carries(self, own, tmp_path):
+        data = json.loads(own.read_text())
+        data["highlights"] = [{"id": "old", "date": "2026-09-01", "title": "From the file"}]
+        own.write_text(json.dumps(data), encoding="utf-8")
+        content = write_content(tmp_path / "content", highlights="## 2026-10-09 From the content\n")
+
+        titles = [h.title for h in service(own, content_dir=content).changelog().highlights]
+
+        assert titles == ["From the content", "From the file"]
+
+    def should_serve_the_files_the_repository_ships(self):
+        response = ChangelogService(own_file=Path("/nonexistent"), now=lambda: NOW).changelog()
+
+        assert response.highlights and all(h.components == [] for h in response.highlights)
+        [product] = response.sections
+        assert product.coming

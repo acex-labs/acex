@@ -79,3 +79,13 @@ mcp/        — MCP server integration
 worker/     — Background worker
 scripts/    — Utility scripts
 ```
+
+## Release notes
+
+What's new (Settings > What's new) has three sources. Entries per change are fragments in each package's
+`changelog.d/`, added with the pull request. The product's highlights are one file,
+`backend/src/acex/changelog/content/highlights.md`, written once per release to `main` by the team together, not per
+package. The roadmap is `roadmap.md` next to it and is kept by one person: leave it alone unless asked.
+
+To write the highlights for a release, run `python scripts/changelog.py brief`, follow the brief it prints, add the
+entries to `highlights.md` and run `python scripts/changelog.py validate`. See `docs/guides/changelog.md`.

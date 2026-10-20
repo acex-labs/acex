@@ -17,10 +17,13 @@ cut (`release`), not typed by the author.
 backend serves and aggregates (see acex.changelog.service). A component is
 found by a `changelog.d/` directory beside a `pyproject.toml` (a Python
 package) or a `package.json` (the web interface, which ships its compiled
-file inside its bundle). Planned work goes
-in `changelog.d/coming/` with the same front matter and is compiled on every
-`build`; a fragment that says `completes: <coming-id>` removes the item it
-delivers.
+file inside its bundle).
+
+The product's highlights and roadmap are not fragments and not per package.
+They are two Markdown files in `backend/src/acex/changelog/content/`, read as
+they are by the backend (nothing is compiled): `highlights.md`, written
+together when a release is cut, and `roadmap.md`, kept by one person. `brief`
+prints what whoever writes the highlights needs.
 
 This module is deliberately standalone (standard library only, no imports from
 the rest of `acex`), so `scripts/changelog.py` can run it from a bare checkout
@@ -43,16 +46,27 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 FRAGMENT_DIR = "changelog.d"
-COMING_DIR = "coming"
-HIGHLIGHTS_DIR = "highlights"
 OUTPUT_NAME = "changelog.json"
+#: The product's highlights and roadmap, read as they are: not compiled, so editing one needs no tool.
+#: Relative to the repository root; the backend reads the same directory from its own package.
+CONTENT_PATH = Path("backend/src/acex/changelog/content")
+HIGHLIGHTS_FILE = "highlights.md"
+ROADMAP_FILE = "roadmap.md"
+ROADMAP_FIELDS = ("status", "when", "version", "refs")
 
 #: Kinds in the order they are shown. `internal` satisfies the pull request
 #: check without being published: for work users cannot notice.
 KINDS = ("security", "removed", "added", "changed", "fixed", "deprecated")
 INTERNAL = "internal"
 AUDIENCES = ("user", "admin", "developer")
-COMING_STATUSES = ("considering", "planned", "in_progress", "preview")
+#: How a roadmap status is written in roadmap.md (the words people use) and what the backend calls it.
+STATUS_WORDS = {
+    "considering": "considering",
+    "planned": "planned",
+    "in progress": "in_progress",
+    "in_progress": "in_progress",
+    "preview": "preview",
+}
 TITLE_MAX = 80
 SUMMARY_MAX = 200
 HIGHLIGHT_MAX = 400
@@ -68,6 +82,11 @@ SKIPPED_DIRS = {"node_modules", "dist", "build", "site", "__pycache__"}
 _JARGON = re.compile(r"^(feat|fix|chore|docs|refactor|ci|test|perf|build|style)\s*[(/:!]", re.IGNORECASE)
 _FRONT_MATTER = re.compile(r"\A---\r?\n(.*?)\r?\n---[ \t]*\r?\n?(.*)\Z", re.DOTALL)
 _SLUG = re.compile(r"[^a-z0-9]+")
+_HEADING = re.compile(r"^##[ \t]+(\S.*?)[ \t]*$")
+_DATED_HEADING = re.compile(r"^(\d{4}-\d{2}-\d{2})[ \t]*(?:[-–—:·][ \t]*)?(\S.*)$")
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+#: One word, a colon and a value: the shape of a `Status: planned` line in roadmap.md.
+_FIELD_LINE = re.compile(r"^[ \t]*([A-Za-z]+)[ \t]*:[ \t]*(.*?)[ \t]*$")
 #: The line that holds a component's version, by the name of its manifest.
 _VERSION_LINE = {
     "pyproject.toml": re.compile(r'^(version\s*=\s*")([^"]+)(")', re.MULTILINE),
@@ -76,7 +95,7 @@ _VERSION_LINE = {
 
 
 class FragmentError(ValueError):
-    """A fragment, coming item or compiled file that cannot be used, with the file named."""
+    """A fragment, content file or compiled file that cannot be used, with the file named."""
 
 
 @dataclass
@@ -96,14 +115,6 @@ class Component:
     @property
     def fragments_dir(self) -> Path:
         return self.root / FRAGMENT_DIR
-
-    @property
-    def coming_dir(self) -> Path:
-        return self.fragments_dir / COMING_DIR
-
-    @property
-    def highlights_dir(self) -> Path:
-        return self.fragments_dir / HIGHLIGHTS_DIR
 
     @property
     def manifest(self) -> Path:
@@ -247,15 +258,18 @@ def _flag(path: Path, meta: dict[str, str], key: str) -> bool:
     return value in ("true", "yes")
 
 
-def _title(path: Path, meta: dict[str, str]) -> str:
-    title = meta.get("title", "")
+def _check_title(title: str, where: str) -> str:
     if not title:
-        raise FragmentError(f"{path}: 'title' is required: one line a network engineer understands")
+        raise FragmentError(f"{where}: 'title' is required: one line a network engineer understands")
     if len(title) > TITLE_MAX:
-        raise FragmentError(f"{path}: title is {len(title)} characters, keep it under {TITLE_MAX}")
+        raise FragmentError(f"{where}: title is {len(title)} characters, keep it under {TITLE_MAX}")
     if _JARGON.match(title):
-        raise FragmentError(f"{path}: title '{title}' looks like a commit subject or branch name; describe the change")
+        raise FragmentError(f"{where}: title '{title}' looks like a commit subject or branch name; describe the change")
     return title
+
+
+def _title(path: Path, meta: dict[str, str]) -> str:
+    return _check_title(meta.get("title", ""), str(path))
 
 
 def parse_fragment(path: Path) -> dict:
@@ -267,7 +281,7 @@ def parse_fragment(path: Path) -> dict:
     audience = meta.get("audience", "user")
     if audience not in AUDIENCES:
         raise FragmentError(f"{path}: 'audience' must be one of {', '.join(AUDIENCES)}, not '{audience}'")
-    unknown = set(meta) - {"kind", "title", "audience", "breaking", "refs", "completes"}
+    unknown = set(meta) - {"kind", "title", "audience", "breaking", "refs"}
     if unknown:
         raise FragmentError(f"{path}: unknown front matter field(s): {', '.join(sorted(unknown))}")
     return {
@@ -278,44 +292,7 @@ def parse_fragment(path: Path) -> dict:
         "breaking": _flag(path, meta, "breaking"),
         "audience": audience,
         "refs": _refs(meta.get("refs", "")),
-        "completes": meta.get("completes") or None,
     }
-
-
-def parse_coming(path: Path) -> dict:
-    """One planned feature. Only what is worth telling users: no backlog dumps."""
-    meta, body = parse_front_matter(path)
-    status = meta.get("status", "planned")
-    if status not in COMING_STATUSES:
-        raise FragmentError(f"{path}: 'status' must be one of {', '.join(COMING_STATUSES)}, not '{status}'")
-    unknown = set(meta) - {"title", "status", "planned_version", "planned_date", "components", "refs"}
-    if unknown:
-        raise FragmentError(f"{path}: unknown front matter field(s): {', '.join(sorted(unknown))}")
-    return {
-        "id": path.stem,
-        "title": _title(path, meta),
-        "description": body or None,
-        "status": status,
-        "planned_version": meta.get("planned_version") or None,
-        "planned_date": meta.get("planned_date") or None,
-        "components": [c.strip() for c in meta.get("components", "").split(",") if c.strip()],
-        "refs": _refs(meta.get("refs", "")),
-    }
-
-
-def _components_of(value: str, path: Path) -> list[dict[str, str | None]]:
-    """`components: acex 6.27.0, acex-driver-cisco-ioscli 2.7.4` -> the components a highlight came in."""
-    found = []
-    for item in (part.strip() for part in value.split(",")):
-        if not item:
-            continue
-        parts = item.split()
-        if len(parts) > 2:
-            raise FragmentError(f"{path}: cannot read '{item}', expected 'component version'")
-        if len(parts) == 1 and parts[0][:1].isdigit():
-            raise FragmentError(f"{path}: '{item}' looks like a version; write 'component version'")
-        found.append({"component": parts[0], "version": parts[1] if len(parts) == 2 else None})
-    return found
 
 
 def parse_day(text: str, where: str) -> date:
@@ -335,24 +312,6 @@ def parse_day(text: str, where: str) -> date:
     return day
 
 
-def parse_highlight(path: Path) -> dict:
-    """One feature worth telling the product's users about. Written by hand when it ships, never consumed."""
-    meta, body = parse_front_matter(path)
-    unknown = set(meta) - {"title", "date", "components"}
-    if unknown:
-        raise FragmentError(f"{path}: unknown front matter field(s): {', '.join(sorted(unknown))}")
-    on = parse_day(meta.get("date", ""), str(path))
-    if len(body) > HIGHLIGHT_MAX:
-        raise FragmentError(f"{path}: the text is {len(body)} characters, keep it under {HIGHLIGHT_MAX}")
-    return {
-        "id": path.stem,
-        "date": on.isoformat(),
-        "title": _title(path, meta),
-        "description": body or None,
-        "components": _components_of(meta.get("components", ""), path),
-    }
-
-
 def _fragment_files(directory: Path) -> list[Path]:
     if not directory.is_dir():
         return []
@@ -363,27 +322,145 @@ def fragments(component: Component) -> list[dict]:
     return [parse_fragment(path) for path in _fragment_files(component.fragments_dir)]
 
 
-def highlights(component: Component) -> list[dict]:
-    """The component's highlights, newest first."""
-    found = sorted(
-        (parse_highlight(path) for path in _fragment_files(component.highlights_dir)),
-        key=lambda h: h["title"].casefold(),
-    )
-    found.sort(key=lambda h: h["date"], reverse=True)  # stable: the same day stays in title order
-    return found
-
-
-def coming(component: Component) -> list[dict]:
-    return [parse_coming(path) for path in _fragment_files(component.coming_dir)]
-
-
 def published(entries: list[dict]) -> list[dict]:
-    """Entries as they are written to the compiled file: no internal ones, no tool-only fields."""
+    """Entries as they are written to the compiled file: no internal ones."""
     order = {kind: index for index, kind in enumerate(KINDS)}
     kept = [dict(e) for e in entries if e["kind"] != INTERNAL]
-    for entry in kept:
-        entry.pop("completes", None)
     return sorted(kept, key=lambda e: (not e["breaking"], order[e["kind"]], e["title"].lower()))
+
+
+# ---------------------------------------------------------------------------
+# Highlights and roadmap: two files for the whole product
+# ---------------------------------------------------------------------------
+
+
+def _sections(text: str) -> list[tuple[str, str]]:
+    """The `## heading` blocks of a Markdown file as (heading, body).
+
+    What comes before the first heading is for whoever edits the file. HTML comments are left out everywhere,
+    so a note to the next editor can sit anywhere.
+    """
+    sections: list[tuple[str, list[str]]] = []
+    for line in _HTML_COMMENT.sub("", text).splitlines():
+        match = _HEADING.match(line)
+        if match:
+            sections.append((match.group(1), []))
+        elif sections:
+            sections[-1][1].append(line)
+    return [(heading, "\n".join(lines).strip()) for heading, lines in sections]
+
+
+def read_highlights(path: Path) -> tuple[list[dict], list[str]]:
+    """The product's highlights, newest first, and the problems that kept entries out (each names its heading).
+
+    A heading is the day the feature arrived and what people would call it: `## 2026-10-05 ZTP for Cisco
+    switches`. The text below is one or two sentences. No components or versions: the page leads from a
+    highlight to nothing, and the releases are listed under Details.
+    """
+    if not path.exists():
+        return [], []
+    found: list[dict] = []
+    problems: list[str] = []
+    seen: set[str] = set()
+    for heading, body in _sections(path.read_text(encoding="utf-8")):
+        where = f"{path}: '## {heading}'"
+        match = _DATED_HEADING.match(heading)
+        if match is None:
+            problems.append(f"{where} must start with the day it arrived, like '## 2026-10-05 ZTP for Cisco switches'")
+            continue
+        try:
+            day = parse_day(match.group(1), where)
+            title = _check_title(match.group(2).strip(), where)
+        except FragmentError as exc:
+            problems.append(str(exc))
+            continue
+        if len(body) > HIGHLIGHT_MAX:
+            problems.append(f"{where}: the text is {len(body)} characters, keep it under {HIGHLIGHT_MAX}")
+            continue
+        identity = f"{day:%Y%m%d}-{slugify(title)}"
+        if identity in seen:
+            problems.append(f"{where}: there is already a highlight with this date and title")
+            continue
+        seen.add(identity)
+        found.append(
+            {"id": identity, "date": day.isoformat(), "title": title, "description": body or None, "components": []}
+        )
+    found.sort(key=lambda h: h["title"].casefold())
+    found.sort(key=lambda h: h["date"], reverse=True)  # stable: the same day stays in title order
+    return found, problems
+
+
+def _roadmap_fields(body: str, where: str) -> tuple[dict[str, str], str]:
+    """The block of `Status: planned` style lines directly under a roadmap heading, and the text after it.
+
+    A first paragraph that is not made of such lines is all explanation. One that is, but names a field this
+    file does not have, is a typo worth stopping for (`Staus: planned`).
+    """
+    parts = re.split(r"\n[ \t]*\n", body, maxsplit=1)
+    first, rest = parts[0], parts[1] if len(parts) > 1 else ""
+    lines = [line for line in first.splitlines() if line.strip()]
+    shaped = [_FIELD_LINE.match(line) for line in lines]
+    if not lines or not all(shaped):
+        return {}, body
+    fields: dict[str, str] = {}
+    for match in shaped:
+        key = match.group(1).lower()
+        if key not in ROADMAP_FIELDS:
+            known = ", ".join(field.capitalize() for field in ROADMAP_FIELDS)
+            raise FragmentError(f"{where}: unknown field '{match.group(1)}' (known: {known})")
+        fields[key] = match.group(2)
+    return fields, rest.strip()
+
+
+def read_roadmap(path: Path) -> tuple[list[dict], list[str]]:
+    """The planned work in the order it is written, and the problems that kept entries out.
+
+    A heading names the feature. Directly below it an optional block of `Status:`, `When:`, `Version:` and
+    `Refs:` lines (the status is `planned` when left out), then the explanation, which is all that most
+    items need. Nothing per package: the roadmap is the product's.
+    """
+    if not path.exists():
+        return [], []
+    found: list[dict] = []
+    problems: list[str] = []
+    seen: set[str] = set()
+    for heading, body in _sections(path.read_text(encoding="utf-8")):
+        where = f"{path}: '## {heading}'"
+        try:
+            title = _check_title(heading, where)
+            fields, description = _roadmap_fields(body, where)
+        except FragmentError as exc:
+            problems.append(str(exc))
+            continue
+        word = fields.get("status", "planned").strip().lower()
+        status = STATUS_WORDS.get(word)
+        if status is None:
+            options = ", ".join(w for w in STATUS_WORDS if "_" not in w)
+            problems.append(f"{where}: Status must be one of {options}, not '{fields['status']}'")
+            continue
+        identity = slugify(title)
+        if identity in seen:
+            problems.append(f"{where}: there is already an item with this title")
+            continue
+        seen.add(identity)
+        found.append(
+            {
+                "id": identity,
+                "title": title,
+                "description": description or None,
+                "status": status,
+                "planned_version": fields.get("version") or None,
+                "planned_date": fields.get("when") or None,
+                "components": [],
+                "refs": _refs(fields.get("refs", "")),
+            }
+        )
+    return found, problems
+
+
+def content_problems(content: Path) -> list[str]:
+    """Everything wrong in the highlights and the roadmap, for `validate` and the pull request check."""
+    return [*read_highlights(content / HIGHLIGHTS_FILE)[1], *read_roadmap(content / ROADMAP_FILE)[1]]
 
 
 # ---------------------------------------------------------------------------
@@ -405,7 +482,10 @@ def read_compiled(component: Component) -> dict:
 
 
 def compiled(component: Component, *, include_unreleased: bool = False) -> dict:
-    """The compiled file as it should be: released entries kept, planned work refreshed."""
+    """The compiled file as it should be: released entries kept, and the pending ones when asked for.
+
+    `coming` and `highlights` stay in the file format, empty: the product's own are served from `content/`.
+    """
     data = read_compiled(component)
     releases = [r for r in data.get("releases", []) if r.get("version") is not None]
     if include_unreleased:
@@ -417,8 +497,8 @@ def compiled(component: Component, *, include_unreleased: bool = False) -> dict:
         "component": component.id,
         "name": component.name,
         "releases": releases,
-        "coming": coming(component),
-        "highlights": highlights(component),
+        "coming": [],
+        "highlights": [],
     }
 
 
@@ -467,57 +547,14 @@ def new_fragment(component: Component, *, kind: str, title: str, body: str = "",
     return path
 
 
-def new_highlight(
-    component: Component,
-    *,
-    title: str | None = None,
-    body: str = "",
-    on: date | None = None,
-    components: str = "",
-    slug: str | None = None,
-    completes: str | None = None,
-) -> Path:
-    """Create a highlight file and bring the compiled file up to date.
-
-    It stays: highlights are the product's history, and a release does not consume them. With `completes`, the
-    planned item it delivers is retired, and its title, text and components are the defaults.
-    """
-    planned = None
-    if completes:
-        planned = component.coming_dir / f"{completes}.md"
-        if not planned.exists():
-            raise FragmentError(f"no planned item '{completes}' in {component.coming_dir}")
-        item = parse_coming(planned)
-        title = title or item["title"]
-        body = body or item["description"] or ""
-        components = components or ", ".join(item["components"])
-    if not title:
-        raise FragmentError("a highlight needs a --title (or --completes, to take it from a planned item)")
-    day = on or date.today()
-    path = component.highlights_dir / f"{day:%Y%m%d}-{slugify(slug) if slug else slugify(title)}.md"
-    if path.exists():
-        raise FragmentError(f"{path} already exists; pass --slug to name this one differently")
-    component.highlights_dir.mkdir(parents=True, exist_ok=True)
-    lines = ["---", f"title: {title}", f"date: {day.isoformat()}"]
-    if components:
-        lines.append(f"components: {components}")
-    path.write_text("\n".join(lines) + f"\n---\n{body.strip()}\n", encoding="utf-8")
-    try:
-        parse_highlight(path)
-    except FragmentError:
-        path.unlink()
-        raise
-    if planned is not None:
-        planned.unlink()
-    write_compiled(component, compiled(component))
-    return path
-
-
-def validate(components: list[Component]) -> Report:
-    """Every fragment, coming item and compiled file of every component parses."""
+def validate(components: list[Component], content: Path | None = None) -> Report:
+    """Every fragment and compiled file of every component parses, and so do the highlights and the roadmap
+    in `content` (left alone when it is not given or the repository has none)."""
     report = Report()
+    if content is not None:
+        report.errors.extend(content_problems(content))
     for component in components:
-        for reader in (fragments, coming, highlights, read_compiled):
+        for reader in (fragments, read_compiled):
             try:
                 reader(component)
             except FragmentError as exc:
@@ -626,8 +663,6 @@ def release(
         return report
     entries = published(pending)
     data = read_compiled(component)
-    # Read what is kept before anything is changed, so a broken file stops the release with nothing done.
-    planned, kept_highlights = coming(component), highlights(component)
     if bump_how:
         version = bump(component.version, bump_how, entries)
         set_version(component, version)
@@ -640,13 +675,6 @@ def release(
         )
         return report
 
-    # A `completes` naming no planned item is fine: the item may have been removed by hand.
-    done = {e["completes"] for e in pending if e.get("completes")}
-    for item in planned:
-        if item["id"] in done:
-            (component.coming_dir / f"{item['id']}.md").unlink()
-            report.notes.append(f"removed planned item '{item['id']}', delivered in {version}")
-
     releases = [r for r in data.get("releases", []) if r.get("version") is not None]
     if entries:
         new_release = {"version": version, "date": (on or date.today()).isoformat()}
@@ -657,13 +685,7 @@ def release(
         report.notes.append(f"{component.id}: only internal fragments; {version} gets no entries")
         if summary:
             report.notes.append(f"{component.id}: the summary was not stored, there is nothing to summarise")
-    data.update(
-        component=component.id,
-        name=component.name,
-        releases=releases,
-        coming=[item for item in planned if item["id"] not in done],
-        highlights=kept_highlights,
-    )
+    data.update(component=component.id, name=component.name, releases=releases, coming=[], highlights=[])
     data["schema_version"] = SCHEMA_VERSION
     write_compiled(component, data)
     for path in _fragment_files(component.fragments_dir):
@@ -700,7 +722,7 @@ def check(
     version being published carries its notes. A component unknown to the
     target branch is about to be published for the first time.
     """
-    report = validate(components)
+    report = validate(components, content=repo / CONTENT_PATH)
     for component in components:
         try:
             root = component.root.resolve().relative_to(repo.resolve())
@@ -709,12 +731,14 @@ def check(
         touched = added_fragment = False
         for status, path in changed:
             relative = Path(path)
+            if relative.is_relative_to(CONTENT_PATH):
+                continue  # the highlights and the roadmap are edited on their own, with no entry for it
             if root != Path(".") and not relative.is_relative_to(root):
                 continue
             inside = relative.relative_to(root) if root != Path(".") else relative
-            if inside.parts[:1] == (FRAGMENT_DIR,) and inside.parts[1:2] not in ((COMING_DIR,), (HIGHLIGHTS_DIR,)):
-                # The README of the directory is not a change note.
-                if inside.suffix == ".md" and not inside.name.upper().startswith("README"):
+            if inside.parts[:1] == (FRAGMENT_DIR,):
+                # Only a file directly in the directory is a change note, and not its README.
+                if len(inside.parts) == 2 and inside.suffix == ".md" and not inside.name.upper().startswith("README"):
                     added_fragment |= status.startswith("A")
             elif not _is_exempt(inside, component.paths):
                 touched = True
@@ -782,6 +806,105 @@ def git_changed(repo: Path, base: str) -> list[tuple[str, str]]:
 
 
 # ---------------------------------------------------------------------------
+# Brief for whoever writes the highlights
+# ---------------------------------------------------------------------------
+
+BRIEF_GIST_MAX = 160
+
+
+def _gist(text: str | None) -> str:
+    """The first sentence of an entry's description, short enough to scan."""
+    if not text:
+        return ""
+    sentence = re.split(r"(?<=[.!?])\s", " ".join(text.split()), maxsplit=1)[0]
+    return sentence if len(sentence) <= BRIEF_GIST_MAX else sentence[: BRIEF_GIST_MAX - 1].rstrip() + "…"
+
+
+def _brief_entries(entries: list[dict]) -> list[str]:
+    lines = []
+    for entry in entries:
+        if entry.get("audience", "user") == "developer":
+            continue  # a highlight is for the people who use and run ACEX
+        gist = _gist(entry.get("description"))
+        flag = " (breaking)" if entry.get("breaking") else ""
+        lines.append(f"- [{entry['kind']}] {entry['title']}{flag}" + (f" - {gist}" if gist else ""))
+    return lines
+
+
+def brief(components: list[Component], content: Path, *, since: date | None = None) -> str:
+    """What whoever writes the highlights for a release needs, as Markdown: what a highlight is and how to
+    write one, what is already published, the planned work, and what changed since the newest highlight.
+
+    The tool only collects. A person, or the assistant they work with, writes the highlights from it.
+    """
+    published_highlights, _ = read_highlights(content / HIGHLIGHTS_FILE)
+    planned, _ = read_roadmap(content / ROADMAP_FILE)
+    start = since.isoformat() if since else (published_highlights[0]["date"] if published_highlights else None)
+    target = (CONTENT_PATH / HIGHLIGHTS_FILE).as_posix()
+    out = [
+        "# Highlights for the next release",
+        "",
+        f"Write the highlights for ACEX's What's new page and add them to `{target}`. Change nothing else.",
+        "",
+        "## What a highlight is",
+        "",
+        "- A feature or improvement that people who use or run ACEX would recognise, in their words:",
+        '  "ZTP for Cisco switches", not "ZTP script URL moved".',
+        f"- One or two sentences, at most {HIGHLIGHT_MAX} characters. No versions, package names or ticket numbers.",
+        "- Dated the day it arrived: the release date, unless the changes below say otherwise.",
+        "- Related changes make one highlight. Leave out fixes, internal work and what only developers see.",
+        "- Usually three to six per release. None is fine when nothing stands out.",
+        "",
+        "## Format",
+        "",
+        "```markdown",
+        "## 2026-10-05 ZTP for Cisco switches",
+        "",
+        "A new, unconfigured Cisco switch can download its bootstrap from ACEX and be given its rendered",
+        "configuration. The web interface has a ZTP section for following it.",
+        "```",
+        "",
+        "Newest first. When done, run `python scripts/changelog.py validate`.",
+        "",
+        "## Already published, newest first",
+        "",
+    ]
+    out += [f"- {h['date']} {h['title']}" for h in published_highlights[:8]] or ["- (none yet)"]
+    out += ["", "## On the roadmap", ""]
+    out += [f"- {item['title']} ({item['status'].replace('_', ' ')})" for item in planned] or ["- (empty)"]
+    out += [
+        "",
+        "If a highlight delivers one of these, say so in the pull request: the person who keeps the roadmap",
+        f"removes it from `{(CONTENT_PATH / ROADMAP_FILE).as_posix()}`.",
+        "",
+        f"## Changes since {start}" if start else "## All changes",
+        "",
+    ]
+    shown = False
+    for component in components:
+        sections: list[tuple[str, list[dict], str | None]] = []
+        pending = published(fragments(component))
+        if pending:
+            sections.append((f"{component.id} (not released yet)", pending, None))
+        for release_ in read_compiled(component).get("releases", []):
+            if release_.get("version") is None or (start and (release_.get("date") or "") < start):
+                continue
+            title = f"{component.id} {release_['version']} ({release_.get('date')})"
+            sections.append((title, release_.get("entries", []), release_.get("summary")))
+        for title, entries, summary in sections:
+            lines = _brief_entries(entries)
+            if not lines:
+                continue
+            shown = True
+            out += [f"### {title}", ""]
+            out += [f"_{summary}_", ""] if summary else []
+            out += [*lines, ""]
+    if not shown:
+        out += ["Nothing for users or administrators since then.", ""]
+    return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
 # Command line
 # ---------------------------------------------------------------------------
 
@@ -798,21 +921,13 @@ def _parser() -> argparse.ArgumentParser:
     new.add_argument("--body", default="", help="longer description, Markdown")
     new.add_argument("--slug", default=None, help="file name part (default: from the title)")
 
-    highlight = commands.add_parser("highlight", help="add a feature to the product's highlights")
-    highlight.add_argument("component", help="the component that keeps the highlights, usually the backend")
-    highlight.add_argument("--title", default=None, help="the feature, in the words of the people who use ACEX")
-    highlight.add_argument(
-        "--completes", default=None, help="the id of the planned item this delivers; it is retired, and gives defaults"
-    )
-    highlight.add_argument("--body", default="", help="one or two sentences, Markdown")
-    highlight.add_argument("--date", default=None, help="when it arrived, YYYY-MM-DD (default: today)")
-    highlight.add_argument(
-        "--components", default="", help="where it shipped: 'acex 6.27.0, acex-driver-cisco-ioscli 2.7.4'"
-    )
-    highlight.add_argument("--slug", default=None, help="file name part (default: from the title)")
-
-    commands.add_parser("validate", help="check every fragment and compiled file")
+    commands.add_parser("validate", help="check every fragment and compiled file, the highlights and the roadmap")
     commands.add_parser("list", help="show components and their pending fragments")
+
+    brief_cmd = commands.add_parser("brief", help="what to write the release's highlights from, as Markdown")
+    brief_cmd.add_argument(
+        "--since", default=None, help="changes from this day, YYYY-MM-DD (default: newest highlight)"
+    )
 
     build_cmd = commands.add_parser("build", help="regenerate the compiled changelog.json files")
     build_cmd.add_argument("--include-unreleased", action="store_true", help="add pending fragments as 'unreleased'")
@@ -849,18 +964,9 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
             path = new_fragment(component, kind=args.kind, title=args.title, body=args.body, slug=args.slug)
             print(f"created {path.relative_to(repo)}; edit it, then commit it with your change")
             return 0
-        if args.command == "highlight":
-            component = find(components, args.component)
-            path = new_highlight(
-                component,
-                title=args.title,
-                body=args.body,
-                on=parse_day(args.date, "--date") if args.date else None,
-                components=args.components,
-                slug=args.slug,
-                completes=args.completes,
-            )
-            print(f"created {path.relative_to(repo)} and updated {component.output.relative_to(repo)}; commit both")
+        if args.command == "brief":
+            since = parse_day(args.since, "--since") if args.since else None
+            print(brief(components, repo / CONTENT_PATH, since=since), end="")
             return 0
         if args.command == "list":
             for component in components:
@@ -872,7 +978,7 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
                     print(f"  [{entry['kind']}] {entry['title']}")
             return 0
         if args.command == "validate":
-            report = validate(components)
+            report = validate(components, content=repo / CONTENT_PATH)
             report.notes.append(f"{len(components)} component(s) checked")
             return _print(report)
         if args.command == "build":

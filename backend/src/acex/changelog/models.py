@@ -115,8 +115,9 @@ class HighlightComponent(BaseModel):
 class Highlight(BaseModel):
     """A feature worth telling the product's users about, with the date it arrived.
 
-    Written by hand when the feature ships, at the level of "ZTP for Cisco switches", and spanning
-    components: the releases it came in are named so the page can lead to their details.
+    Written by hand when a release is cut, at the level of "ZTP for Cisco switches": one list for the whole
+    product (`content/highlights.md`), not per package. `components` can name the releases a highlight came in
+    so that the page leads to their details; the product's own highlights leave it empty.
     """
 
     id: str

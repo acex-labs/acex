@@ -1,7 +1,10 @@
 """Where release notes come from, and how they are put together.
 
-Four sources, one schema:
+Five sources, one schema:
 
+- The product's highlights and roadmap: `content/highlights.md` and
+  `content/roadmap.md` in this package, read as they are on every request. They
+  belong to the product as a whole, not to a package, and nothing is compiled.
 - The backend's own `changelog.json`, compiled into the package at release.
 - Any installed package that declares an `acex.changelog` entry point whose
   value is the package holding its `changelog.json`. That is how a driver, a
@@ -31,12 +34,14 @@ from acex.changelog.models import (
     ChangelogComponent,
     ChangelogResponse,
     ChangelogSection,
+    ComingFeature,
     ComponentChangelog,
     ComponentRelease,
     Highlight,
     SectionInfo,
     SourceKind,
 )
+from acex.changelog.tool import HIGHLIGHTS_FILE, ROADMAP_FILE, read_highlights, read_roadmap
 from pydantic import ValidationError
 
 logger = logging.getLogger("acex.changelog")
@@ -44,6 +49,7 @@ logger = logging.getLogger("acex.changelog")
 CHANGELOG_GROUP = "acex.changelog"
 FILE_NAME = "changelog.json"
 BUNDLED_DIR = "changelog_components"
+CONTENT_DIR = Path(__file__).resolve().parent / "content"
 
 PRODUCT = SectionInfo(id="product", name="ACEX")
 
@@ -56,6 +62,7 @@ class ChangelogService:
         own_file: Path | None = None,
         bundled_dir: Path | None = None,
         extra_dir: Path | None = None,
+        content_dir: Path | None = None,
         entry_points: Callable[..., Iterable] = entry_points,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ):
@@ -63,6 +70,7 @@ class ChangelogService:
         self.own_file = own_file
         self.bundled_dir = bundled_dir
         self.extra_dir = extra_dir
+        self.content_dir = content_dir or CONTENT_DIR
         self.entry_points = entry_points
         self.now = now
         self._packaged: list[tuple[ComponentChangelog, SourceKind]] | None = None
@@ -113,12 +121,27 @@ class ChangelogService:
                 found.append((changelog, SourceKind.directory))
         return found
 
+    def curated(self) -> tuple[list[Highlight], list[ComingFeature]]:
+        """The product's highlights and roadmap from the two content files.
+
+        Read on every call: they are small, and a merged edit should be live without a compile step. An entry
+        that cannot be read is logged and skipped; it never takes the others with it.
+        """
+        found, problems = read_highlights(self.content_dir / HIGHLIGHTS_FILE)
+        planned, more = read_roadmap(self.content_dir / ROADMAP_FILE)
+        for problem in [*problems, *more]:
+            logger.warning(f"content skipped: {problem}")
+        highlights = [Highlight.model_validate({**item, "id": f"{self.package}/{item['id']}"}) for item in found]
+        return highlights, [ComingFeature.model_validate(item) for item in planned]
+
     # --- GET /changelog ------------------------------------------------------
 
     def changelog(self) -> ChangelogResponse:
         seen: set[str] = set()
-        highlights: list[Highlight] = []
+        highlights, roadmap = self.curated()
         sections: dict[str, tuple[SectionInfo, list[tuple[ComponentChangelog, SourceKind]]]] = {}
+        if roadmap:
+            sections[PRODUCT.id] = (PRODUCT, [])
         for changelog, source in [*self.packaged(), *self.deployment()]:
             if changelog.component in seen:
                 logger.warning(f"changelog for '{changelog.component}' found twice; keeping the first")
@@ -135,11 +158,11 @@ class ChangelogService:
         # The newest first; a deployment's own notes have none, so they are not part of the product's story.
         highlights.sort(key=lambda h: h.title.casefold())
         highlights.sort(key=lambda h: h.date, reverse=True)  # stable: the same day stays in title order
-        return ChangelogResponse(
-            generated_at=self.now(),
-            highlights=highlights,
-            sections=[_section(info, members) for info, members in ordered],
-        )
+        built = [_section(info, members) for info, members in ordered]
+        for section in built:
+            if section.id == PRODUCT.id:
+                section.coming = [*roadmap, *section.coming]
+        return ChangelogResponse(generated_at=self.now(), highlights=highlights, sections=built)
 
 
 def _package_file(package: str) -> Path | None:
