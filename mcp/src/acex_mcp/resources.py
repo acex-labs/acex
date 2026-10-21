@@ -16,7 +16,7 @@ from acex_devkit.models.asset import AssetResponse
 from acex_devkit.models.config_snapshot import ConfigSnapshotListItem
 from acex_devkit.models.lldp_neighbor import LldpNeighborResponse
 from acex_devkit.models.logical_node import LogicalNodeResponse
-from acex_devkit.models.node_response import NodeListItem, NodeResponse
+from acex_devkit.models.node_response import NodeInstance, NodeListItem
 from acex_devkit.models.region import RegionResponse
 from acex_devkit.models.site import SiteResponse
 from fastmcp import FastMCP
@@ -122,7 +122,7 @@ def _describe(model: type[BaseModel]) -> str:
 def _entity_reference() -> str:
     sections = [
         ("Node — one row of find_nodes()", NodeListItem),
-        ("Node — get_node() source record", NodeResponse),
+        ("Node — get_node() source record", NodeInstance),
         ("Logical node (the desired-config template)", LogicalNodeResponse),
         ("Asset (physical hardware)", AssetResponse),
         ("Site", SiteResponse),

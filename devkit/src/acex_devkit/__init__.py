@@ -1,6 +1,8 @@
 """ACE-X DevKit - Development kit for building ACE-X drivers and plugins."""
 
-__version__ = "1.0.0"
+import importlib.metadata
+
+__version__ = importlib.metadata.version("acex-devkit")
 
 from acex_devkit.drivers import (
     NetworkElementDriver,

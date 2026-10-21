@@ -19,9 +19,10 @@ from acex.models.credential import (
 )
 from acex.models.logical_node import LogicalNode
 from acex.models.node import Node
-from acex_devkit.models.credential import _validate_field_enums
+from acex_devkit.models.credential import CredentialRef, _validate_field_enums
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
+from sqlmodel import delete, select
 
 
 class CredentialManager:
@@ -94,7 +95,7 @@ class CredentialManager:
         )
 
     def _remove_credential_link(self, session, model, filters: list) -> None:
-        deleted = session.query(model).filter(*filters).delete()
+        deleted = session.exec(delete(model).where(*filters)).rowcount
         if not deleted:
             raise HTTPException(status_code=404, detail="Assignment not found")
         session.commit()
@@ -144,14 +145,14 @@ class CredentialManager:
 
     def query(self, name: str | None = None) -> list[CredentialResponse]:
         with self._session() as session:
-            query = session.query(Credential)
+            query = select(Credential)
             if name:
-                query = query.filter(Credential.name.ilike(f"{name}%"))
-            creds = query.order_by(Credential.name).all()
+                query = query.where(Credential.name.ilike(f"{name}%"))
+            creds = session.exec(query.order_by(Credential.name)).all()
 
             result = []
             for cred in creds:
-                fields = session.query(CredentialField).filter(CredentialField.credential_id == cred.id).all()
+                fields = session.exec(select(CredentialField).where(CredentialField.credential_id == cred.id)).all()
                 result.append(self._build_response(cred, fields))
             return result
 
@@ -160,7 +161,7 @@ class CredentialManager:
             cred = session.get(Credential, id)
             if not cred:
                 raise HTTPException(status_code=404, detail="Credential not found")
-            fields = session.query(CredentialField).filter(CredentialField.credential_id == cred.id).all()
+            fields = session.exec(select(CredentialField).where(CredentialField.credential_id == cred.id)).all()
             return self._build_response(cred, fields)
 
     def update(self, id: int, payload: CredentialUpdate) -> CredentialResponse:
@@ -178,10 +179,10 @@ class CredentialManager:
 
             if payload.fields is not None:
                 self._validate_fields(cred.credential_type, payload.fields)
-                session.query(CredentialField).filter(CredentialField.credential_id == cred.id).delete()
+                session.exec(delete(CredentialField).where(CredentialField.credential_id == cred.id))
                 db_fields = self._save_fields(session, cred.id, cred.credential_type, payload.fields)
             else:
-                db_fields = session.query(CredentialField).filter(CredentialField.credential_id == cred.id).all()
+                db_fields = session.exec(select(CredentialField).where(CredentialField.credential_id == cred.id)).all()
 
             session.commit()
             session.refresh(cred)
@@ -192,9 +193,9 @@ class CredentialManager:
             cred = session.get(Credential, id)
             if not cred:
                 raise HTTPException(status_code=404, detail="Credential not found")
-            session.query(CredentialField).filter(CredentialField.credential_id == cred.id).delete()
-            session.query(NodeCredential).filter(NodeCredential.credential_id == cred.id).delete()
-            session.query(SiteCredential).filter(SiteCredential.credential_id == cred.id).delete()
+            session.exec(delete(CredentialField).where(CredentialField.credential_id == cred.id))
+            session.exec(delete(NodeCredential).where(NodeCredential.credential_id == cred.id))
+            session.exec(delete(SiteCredential).where(SiteCredential.credential_id == cred.id))
             session.delete(cred)
             session.commit()
 
@@ -207,7 +208,7 @@ class CredentialManager:
             if cred.source == "vault":
                 return self._get_vault_secret(cred)
 
-            fields = session.query(CredentialField).filter(CredentialField.credential_id == cred.id).all()
+            fields = session.exec(select(CredentialField).where(CredentialField.credential_id == cred.id)).all()
 
             return CredentialSecret(
                 id=cred.id,
@@ -247,14 +248,12 @@ class CredentialManager:
             if not cred:
                 raise HTTPException(status_code=404, detail="Credential not found")
 
-            existing = (
-                session.query(NodeCredential)
-                .filter(
+            existing = session.exec(
+                select(NodeCredential).where(
                     NodeCredential.node_id == node_id,
                     NodeCredential.credential_id == payload.credential_id,
                 )
-                .first()
-            )
+            ).first()
             if existing:
                 raise HTTPException(status_code=409, detail="Credential already assigned to this node")
 
@@ -272,7 +271,7 @@ class CredentialManager:
 
     def list_node_credentials(self, node_id: int) -> builtins.list[NodeCredentialResponse]:
         with self._session() as session:
-            links = session.query(NodeCredential).filter(NodeCredential.node_id == node_id).all()
+            links = session.exec(select(NodeCredential).where(NodeCredential.node_id == node_id)).all()
             result = []
             for link in links:
                 cred = session.get(Credential, link.credential_id)
@@ -286,6 +285,16 @@ class CredentialManager:
                     )
                 )
             return result
+
+    def node_credential_refs(self, node_id: int) -> builtins.list[CredentialRef]:
+        with self._session() as session:
+            creds = (
+                session.query(Credential)
+                .join(NodeCredential, NodeCredential.credential_id == Credential.id)
+                .filter(NodeCredential.node_id == node_id)
+                .all()
+            )
+            return [CredentialRef(id=c.id, name=c.name, credential_type=c.credential_type) for c in creds]
 
     def remove_node_credential(self, node_id: int, credential_id: int) -> None:
         with self._session() as session:
@@ -301,7 +310,7 @@ class CredentialManager:
     def get_node_credentials_for_manifest(self, node_ids: builtins.list[int]) -> dict:
         """Returns {node_id: {credential_type: credential_id}} for manifest generation."""
         with self._session() as session:
-            links = session.query(NodeCredential).filter(NodeCredential.node_id.in_(node_ids)).all()
+            links = session.exec(select(NodeCredential).where(NodeCredential.node_id.in_(node_ids))).all()
             result = {}
             for link in links:
                 cred = session.get(Credential, link.credential_id)
@@ -317,14 +326,12 @@ class CredentialManager:
             if not cred:
                 raise HTTPException(status_code=404, detail="Credential not found")
 
-            existing = (
-                session.query(SiteCredential)
-                .filter(
+            existing = session.exec(
+                select(SiteCredential).where(
                     SiteCredential.site_name == site_name,
                     SiteCredential.credential_id == payload.credential_id,
                 )
-                .first()
-            )
+            ).first()
             if existing:
                 raise HTTPException(status_code=409, detail="Credential already assigned to this site")
 
@@ -342,7 +349,7 @@ class CredentialManager:
 
     def list_site_credentials(self, site_name: str) -> builtins.list[SiteCredentialResponse]:
         with self._session() as session:
-            links = session.query(SiteCredential).filter(SiteCredential.site_name == site_name).all()
+            links = session.exec(select(SiteCredential).where(SiteCredential.site_name == site_name)).all()
             result = []
             for link in links:
                 cred = session.get(Credential, link.credential_id)
@@ -371,17 +378,12 @@ class CredentialManager:
     def get_node_community(self, node_id: int) -> str | None:
         """Return the SNMP community string assigned to a node, or None if not set."""
         with self._session() as session:
-            link = (
-                session.query(NodeCredential)
-                .filter(
-                    NodeCredential.node_id == node_id,
-                )
+            link = session.exec(
+                select(NodeCredential)
+                .where(NodeCredential.node_id == node_id)
                 .join(Credential, Credential.id == NodeCredential.credential_id)
-                .filter(
-                    Credential.credential_type == "snmp_community",
-                )
-                .first()
-            )
+                .where(Credential.credential_type == "snmp_community")
+            ).first()
             if link is None:
                 return None
             secret = self.get_secret(link.credential_id)
@@ -390,17 +392,12 @@ class CredentialManager:
     def get_site_community(self, site_name: str) -> str:
         """Return the SNMP community string assigned to a site, or 'public' if none."""
         with self._session() as session:
-            link = (
-                session.query(SiteCredential)
-                .filter(
-                    SiteCredential.site_name == site_name,
-                )
+            link = session.exec(
+                select(SiteCredential)
+                .where(SiteCredential.site_name == site_name)
                 .join(Credential, Credential.id == SiteCredential.credential_id)
-                .filter(
-                    Credential.credential_type == "snmp_community",
-                )
-                .first()
-            )
+                .where(Credential.credential_type == "snmp_community")
+            ).first()
             if link is None:
                 return "public"
             secret = self.get_secret(link.credential_id)
@@ -412,32 +409,22 @@ class CredentialManager:
         Checks for assignment only — never decrypts or returns the secret value.
         """
         with self._session() as session:
-            node_link = (
-                session.query(NodeCredential)
-                .filter(
-                    NodeCredential.node_id == node_id,
-                )
+            node_link = session.exec(
+                select(NodeCredential)
+                .where(NodeCredential.node_id == node_id)
                 .join(Credential, Credential.id == NodeCredential.credential_id)
-                .filter(
-                    Credential.credential_type == "snmp_community",
-                )
-                .first()
-            )
+                .where(Credential.credential_type == "snmp_community")
+            ).first()
             if node_link is not None:
                 return "node"
 
             if site is not None:
-                site_link = (
-                    session.query(SiteCredential)
-                    .filter(
-                        SiteCredential.site_name == site,
-                    )
+                site_link = session.exec(
+                    select(SiteCredential)
+                    .where(SiteCredential.site_name == site)
                     .join(Credential, Credential.id == SiteCredential.credential_id)
-                    .filter(
-                        Credential.credential_type == "snmp_community",
-                    )
-                    .first()
-                )
+                    .where(Credential.credential_type == "snmp_community")
+                ).first()
                 if site_link is not None:
                     return "site"
 
