@@ -11,8 +11,8 @@ from acex_devkit.models.config_snapshot import (
 )
 from acex_devkit.models.node_response import (
     NodeCreate,
+    NodeInstance,
     NodeListItem,
-    NodeResponse,
     NodeUpdate,
 )
 
@@ -46,7 +46,7 @@ class NodeInstances(
     ActionMixin,
 ):
     path = "/inventory/node_instances"
-    response_model = NodeResponse
+    response_model = NodeInstance
     list_model = NodeListItem
     create_model = NodeCreate
     update_model = NodeUpdate

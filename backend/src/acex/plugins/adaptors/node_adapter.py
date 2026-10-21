@@ -1,4 +1,4 @@
-from acex.models import Node, NodeResponse
+from acex.models import Node, NodeInstance
 from sqlalchemy.orm import joinedload, selectinload
 
 from .adapter_base import AdapterBase
@@ -9,7 +9,7 @@ class NodeAdapter(AdapterBase):
         if hasattr(self.plugin, "create"):
             return self.plugin.create(node)
 
-    def get(self, id: str) -> NodeResponse:
+    def get(self, id: str) -> NodeInstance:
         if hasattr(self.plugin, "get"):
             return self.plugin.get(id)
 

@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Optional
 from acex_devkit.models.node_response import (
     AssetRefType,
     NodeAdminStatus,
+    NodeInstance,
     NodeProvisionStatus,
-    NodeResponse,
 )
 from acex_devkit.models.node_response import (
     NodeListItem as NodeListResponse,
@@ -42,6 +42,6 @@ __all__ = [
     "NodeAdminStatus",
     "NodeProvisionStatus",
     "AssetRefType",
-    "NodeResponse",
+    "NodeInstance",
     "NodeListResponse",
 ]

@@ -8,8 +8,8 @@ from acex.models import (
     ManagementConnection,
     ManagementConnectionResponse,
     Node,
+    NodeInstance,
     NodeListResponse,
-    NodeResponse,
     PaginatedResponse,
 )
 from acex.models.node import AssetRefType, NodeAdminStatus, NodeProvisionStatus
@@ -65,7 +65,7 @@ class NodeService:
             node["regions"] = ln.regions if ln.regions else []
         if self.inventory.credential_manager is not None:
             node["credentials"] = self.inventory.credential_manager.node_credential_refs(node["id"])
-        return NodeResponse(**node)
+        return NodeInstance(**node)
 
     async def get_rendered_config(self, id: str):
         """
@@ -102,7 +102,7 @@ class NodeService:
             config = ""
         return config
 
-    async def create(self, logical_node: Node) -> NodeResponse:
+    async def create(self, logical_node: Node) -> NodeInstance:
         if logical_node.asset_ref_type == "asset_cluster":
             self.inventory.asset_cluster_manager.get_cluster(logical_node.asset_ref_id)  # raises 404 itself
         else:
@@ -115,7 +115,7 @@ class NodeService:
             self.inventory.telemetry_agent_manager.bump_revisions_for_node(node_id)
         return await self._enrich_data(result)
 
-    async def get(self, id: str) -> NodeResponse:
+    async def get(self, id: str) -> NodeInstance:
         result = await self._call_method(self.adapter.get, id)
         if result is None:
             raise HTTPException(status_code=404, detail=f"Node instance {id} not found")
@@ -308,7 +308,7 @@ class NodeService:
 
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
-    async def update(self, id: str, logical_node: Node) -> NodeResponse:
+    async def update(self, id: str, logical_node: Node) -> NodeInstance:
         """Update the node instance and answer it as `get` does, so a client can read both the same way."""
         logical_node.updated_at = datetime.now(UTC)
         # admin_status, provision_status and logical_node_id affect telemetry rule matching.
