@@ -9,6 +9,7 @@ from acex_devkit.models.asset import (
     AssetResponse,
 )
 from acex_devkit.models.base import PersistedResponse
+from acex_devkit.models.credential import CredentialRef
 from acex_devkit.models.logical_node import LogicalNodeResponse
 from acex_devkit.models.management_connection import ManagementConnectionResponse
 
@@ -78,6 +79,7 @@ class NodeUpdate(BaseModel):
 class NodeResponse(PersistedResponse, NodeBase):
     asset: Annotated[AssetResponse | AssetClusterResponse, Field(discriminator="type")]
     logical_node: LogicalNodeResponse
+    credentials: list[CredentialRef] = []
     regions: list[str] = []
     created_at: datetime
     updated_at: datetime | None = None

@@ -63,6 +63,8 @@ class NodeService:
         if ln is not None:
             node["logical_node"] = ln.model_dump()
             node["regions"] = ln.regions if ln.regions else []
+        if self.inventory.credential_manager is not None:
+            node["credentials"] = self.inventory.credential_manager.node_credential_refs(node["id"])
         return NodeResponse(**node)
 
     async def get_rendered_config(self, id: str):
