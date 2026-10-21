@@ -120,9 +120,9 @@ from .node_response import (
     AssetRefType,
     NodeAdminStatus,
     NodeCreate,
+    NodeInstance,
     NodeListItem,
     NodeProvisionStatus,
-    NodeResponse,
     NodeUpdate,
 )
 from .pagination import PaginatedResponse
@@ -167,7 +167,7 @@ __all__ = [
     "LogicalNodeResponse",
     "LogicalNodeConfigResponse",
     "NodeCreate",
-    "NodeResponse",
+    "NodeInstance",
     "NodeListItem",
     "NodeUpdate",
     "AssetRefType",

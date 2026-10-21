@@ -76,7 +76,7 @@ class NodeUpdate(BaseModel):
     provision_status: NodeProvisionStatus | None = None
 
 
-class NodeResponse(PersistedResponse, NodeBase):
+class NodeInstance(PersistedResponse, NodeBase):
     asset: Annotated[AssetResponse | AssetClusterResponse, Field(discriminator="type")]
     logical_node: LogicalNodeResponse
     credentials: list[CredentialRef] = []
@@ -92,5 +92,5 @@ __all__ = [
     "NodeProvisionStatus",
     "NodeBase",
     "NodeListItem",
-    "NodeResponse",
+    "NodeInstance",
 ]
