@@ -167,6 +167,7 @@ class AutomationEngine:
         self.settings.check()
         self._build_credential_manager()
         self.inventory.telemetry_registry.credential_manager = self.credential_manager
+        self.inventory.credential_manager = self.credential_manager
         if not hasattr(self, "ai_ops_manager") and self.settings.ai_ops.enabled:
             from acex.ai_ops import AIOpsManager
 

@@ -19,7 +19,7 @@ from acex.models.credential import (
 )
 from acex.models.logical_node import LogicalNode
 from acex.models.node import Node
-from acex_devkit.models.credential import _validate_field_enums
+from acex_devkit.models.credential import CredentialRef, _validate_field_enums
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
 from sqlmodel import delete, select
@@ -285,6 +285,16 @@ class CredentialManager:
                     )
                 )
             return result
+
+    def node_credential_refs(self, node_id: int) -> builtins.list[CredentialRef]:
+        with self._session() as session:
+            creds = (
+                session.query(Credential)
+                .join(NodeCredential, NodeCredential.credential_id == Credential.id)
+                .filter(NodeCredential.node_id == node_id)
+                .all()
+            )
+            return [CredentialRef(id=c.id, name=c.name, credential_type=c.credential_type) for c in creds]
 
     def remove_node_credential(self, node_id: int, credential_id: int) -> None:
         with self._session() as session:
