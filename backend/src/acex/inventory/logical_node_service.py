@@ -9,7 +9,7 @@ from acex.models import (
 )
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
-from sqlalchemy import select
+from sqlmodel import select
 
 
 class LogicalNodeService:
@@ -47,7 +47,7 @@ class LogicalNodeService:
             return []
         session = next(self.db_manager.get_session())
         try:
-            assignments = session.query(SiteRegionAssignment).filter(SiteRegionAssignment.site_name == site).all()
+            assignments = session.exec(select(SiteRegionAssignment).where(SiteRegionAssignment.site_name == site)).all()
             return [a.region_name for a in assignments]
         finally:
             session.close()
@@ -88,12 +88,13 @@ class LogicalNodeService:
         if region and self.db_manager:
             session = next(self.db_manager.get_session())
             try:
-                site_names = [
-                    row[0]
-                    for row in session.query(SiteRegionAssignment.site_name)
-                    .filter(SiteRegionAssignment.region_name.ilike(f"%{region}%"))
-                    .all()
-                ]
+                site_names = list(
+                    session.exec(
+                        select(SiteRegionAssignment.site_name).where(
+                            SiteRegionAssignment.region_name.ilike(f"%{region}%")
+                        )
+                    ).all()
+                )
             finally:
                 session.close()
             if not site_names:
@@ -122,11 +123,9 @@ class LogicalNodeService:
             if unique_sites:
                 session = next(self.db_manager.get_session())
                 try:
-                    assignments = (
-                        session.query(SiteRegionAssignment)
-                        .filter(SiteRegionAssignment.site_name.in_(unique_sites))
-                        .all()
-                    )
+                    assignments = session.exec(
+                        select(SiteRegionAssignment).where(SiteRegionAssignment.site_name.in_(unique_sites))
+                    ).all()
                     for a in assignments:
                         site_region_map.setdefault(a.site_name, []).append(a.region_name)
                 finally:
