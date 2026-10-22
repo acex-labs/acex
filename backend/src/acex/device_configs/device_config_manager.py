@@ -47,6 +47,7 @@ class DeviceConfigManager:
                 StoredDeviceConfig.id,
                 StoredDeviceConfig.hash,
                 StoredDeviceConfig.created_at,
+                StoredDeviceConfig.last_collected_at,
                 StoredDeviceConfig.node_instance_id,
             ).where(StoredDeviceConfig.node_instance_id == node_instance_id)
 
@@ -60,6 +61,7 @@ class DeviceConfigManager:
                     "id": result.id,
                     "hash": result.hash,
                     "created_at": result.created_at,
+                    "last_collected_at": result.last_collected_at,
                     "node_instance_id": result.node_instance_id,
                 }
                 for result in results
@@ -350,18 +352,30 @@ class DeviceConfigManager:
                 .order_by(StoredDeviceConfig.created_at.desc())
             ).first()
 
+            now = datetime.now(UTC)
             if latest and latest.hash == config_hash:
+                # The device was polled and nothing changed, so only the time it was last seen moves
+                last_change = str(latest.created_at)
+                latest.last_collected_at = now
+                session.add(latest)
+                session.commit()
                 raise HTTPException(
                     status_code=409,
                     detail={
                         "message": "Config not changed since last time",
                         "last_hash": config_hash,
-                        "last_change": str(latest.created_at),
+                        "last_change": last_change,
                         "node_instance_id": payload.node_instance_id,
                     },
                 )
 
-            save_this = StoredDeviceConfig(node_instance_id=payload.node_instance_id, hash=config_hash, content=content)
+            save_this = StoredDeviceConfig(
+                node_instance_id=payload.node_instance_id,
+                hash=config_hash,
+                content=content,
+                created_at=now,
+                last_collected_at=now,
+            )
 
             session.add(save_this)
             session.commit()

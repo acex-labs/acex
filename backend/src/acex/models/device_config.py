@@ -19,6 +19,7 @@ class StoredDeviceConfig(DeviceConfigBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     hash: str = Field(index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
+    last_collected_at: datetime | None = Field(default=None)
 
 
 class DeviceConfigResponse(BaseModel):
@@ -28,3 +29,4 @@ class DeviceConfigResponse(BaseModel):
     content: str | ComposedConfiguration
     hash: str
     created_at: datetime
+    last_collected_at: datetime | None = None
