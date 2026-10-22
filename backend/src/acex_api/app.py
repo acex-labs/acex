@@ -1,8 +1,12 @@
 """Assembles and serves the ACE-X API."""
 
+import logging.config
+
 import uvicorn
 from acex import AutomationEngine
 from acex.settings import Settings, UnsafeConfiguration
+
+from .logging_config import build_logging_config
 
 
 def create_engine(settings: Settings | None = None) -> AutomationEngine:
@@ -40,6 +44,8 @@ def run(settings: Settings | None = None):
     # Checked here as well as in create_app() so that a refused start fails
     # before uvicorn, and the reloader, are started.
     settings.check()
+    log_config = build_logging_config(dev=settings.dev)
+    logging.config.dictConfig(log_config)
     _announce(settings)
 
     server = settings.server
@@ -50,6 +56,7 @@ def run(settings: Settings | None = None):
         # for (X-Forwarded-For), not the proxy's own.
         "proxy_headers": True,
         "forwarded_allow_ips": server.forwarded_allow_ips,
+        "log_config": log_config,
     }
     if server.reload:
         # The reloader re-imports in a subprocess, so hand it a factory to call
