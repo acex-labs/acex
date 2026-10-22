@@ -5,7 +5,6 @@ from typing import Any
 
 from acex_devkit.configdiffer import Diff
 from acex_devkit.configdiffer.command import Command, Context
-from acex_devkit.drivers import RendererBase
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
@@ -45,7 +44,7 @@ PORT_PREFIX_BY_SPEED = {
 }
 
 
-class JunosCLIRenderer(RendererBase):
+class JunosCLIRenderer:
     def _load_template_file(self) -> str:
         path = Path(__file__).parent
         env = Environment(loader=FileSystemLoader(path), undefined=StrictUndefined)

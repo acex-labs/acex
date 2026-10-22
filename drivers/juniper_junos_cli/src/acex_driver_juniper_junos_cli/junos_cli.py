@@ -1,138 +1,149 @@
-from contextlib import contextmanager
-from typing import Any
+import asyncio
+import re
 
 from acex_devkit.configdiffer import Diff
-from acex_devkit.drivers import NetworkElementDriver, TransportBase
+from acex_devkit.drivers import Codec, NetworkElementDriver, State, Transport
+from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout, DriverException
 from acex_devkit.models.composed_configuration import ComposedConfiguration
-from acex_devkit.models.node_response import NodeListItem
+from acex_devkit.models.lldp_neighbor import LldpNeighborEntry
+from acex_devkit.models.management_connection import ConnectionType
+from acex_devkit.models.ned import Platform
+from acex_devkit.models.node_response import NodeInstance
+from acex_devkit.models.platform import OS, Vendor
+from acex_devkit.models.state import DeviceFacts
 from netmiko import ConnectHandler
+from netmiko.exceptions import NetmikoAuthenticationException, NetmikoTimeoutException
 
-from .parser import JunosCLIParser
+from .normalizer import JunosNormalizer
 from .renderer import JunosCLIRenderer
 
 
-class JunosCLITransport(TransportBase):
-    def __init__(self):
-        self._session_conn: ConnectHandler | None = None
+class JunosCLITransport(Transport[str]):
+    """SSH to Junos via netmiko, which is synchronous, so every call runs in a thread.
 
-    def _open_connection(self, target_ip: str, **kwargs) -> ConnectHandler:
-        username = kwargs.get("username")
-        password = kwargs.get("password")
-        if not username or not password:
-            raise ValueError("Credentials required: username and password must be provided")
+    Payloads are `set` / `delete` lines, one per line, committed as one change.
+    """
+
+    connection_types = {ConnectionType.ssh}
+
+    PORT = 22
+
+    async def open(self) -> None:
+        login = self.credential("userpass")
         device = {
             "device_type": "juniper_junos",
-            "host": target_ip,
-            "username": username,
-            "password": password,
-            "port": 22,
+            "host": self.address,
+            "username": login.fields["username"],
+            "password": login.fields["password"],
+            "port": self.PORT,
             "conn_timeout": 30,
         }
-        return ConnectHandler(**device)
-
-    @contextmanager
-    def session(self, target_ip: str, **kwargs):
-        """Hold one SSH session open for the duration of the block."""
-        conn = self._open_connection(target_ip, **kwargs)
-        self._session_conn = conn
         try:
-            yield self
-        finally:
-            self._session_conn = None
-            try:
-                conn.disconnect()
-            except Exception:
-                pass
+            self.conn = await asyncio.to_thread(ConnectHandler, **device)
+        except NetmikoAuthenticationException as e:
+            raise AuthenticationFailed(f"Authentication to {self.address} failed") from e
+        except NetmikoTimeoutException as e:
+            raise ConnectionTimeout(f"Connection to {self.address} timed out") from e
 
-    @contextmanager
-    def _conn(self, target_ip: str, **kwargs):
-        """Yield active session conn or open a one-shot, closing what we own."""
-        if self._session_conn is not None:
-            yield self._session_conn
-            return
-        conn = self._open_connection(target_ip, **kwargs)
+    async def close(self) -> None:
         try:
-            yield conn
-        finally:
-            try:
-                conn.disconnect()
-            except Exception:
-                pass
+            await asyncio.to_thread(self.conn.disconnect)
+        except Exception:
+            pass
 
-    def get_config(self, node: NodeListItem, target_ip: str, **kwargs) -> str:
-        with self._conn(target_ip, **kwargs) as conn:
-            # `display set` flattens hierarchical config into reproducible
-            # `set` lines; `no-more` disables paging.
-            return conn.send_command(
-                "show configuration | display set | no-more",
-                read_timeout=120,
-            )
+    async def get_config(self) -> str:
+        # `display set` flattens the hierarchy into reproducible `set` lines; `no-more` disables paging.
+        command = "show configuration | display set | no-more"
+        return await asyncio.to_thread(self.conn.send_command, command, read_timeout=120)
 
-    def send_config(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> str:
-        # netmiko's juniper_junos handler enters configure mode, sends the
-        # commands, commits, and exits — driven by send_config_set.
-        with self._conn(target_ip, **kwargs) as conn:
-            return conn.send_config_set(commands)
+    async def apply(self, payload: str) -> str:
+        commands = [line.strip() for line in payload.splitlines() if line.strip()]
+        if not commands:
+            return ""
+        return await asyncio.to_thread(self.commit, commands)
 
-    def execute(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> list[str]:
-        with self._conn(target_ip, **kwargs) as conn:
-            return [conn.send_command(cmd, read_timeout=120) for cmd in commands]
+    async def execute(self, request: list[str]) -> list[str]:
+        return await asyncio.to_thread(self.send_commands, request)
 
-    def get_lldp_neighbors(self, node: NodeListItem, target_ip: str, **kwargs) -> list[dict]:
-        with self._conn(target_ip, **kwargs) as conn:
-            try:
-                raw = conn.send_command("show lldp neighbors", read_timeout=60)
-            except Exception:
-                return []
-            return self._parse_lldp_table(raw)
+    def commit(self, commands: list[str]) -> str:
+        """Load the commands and commit them. Without the commit, leaving configure mode discards them."""
+        output = self.conn.send_config_set(commands, exit_config_mode=False)
+        return output + self.conn.commit(and_quit=True)
+
+    def send_commands(self, commands: list[str]) -> list[str]:
+        return [self.conn.send_command(command, read_timeout=120) for command in commands]
+
+
+class JunosCodec(Codec[str]):
+    """Junos `set` syntax. Configuration and patches render to `set` / `delete` lines."""
+
+    normalizer = JunosNormalizer()
+
+    def render(self, config: ComposedConfiguration, node: NodeInstance) -> str:
+        return JunosCLIRenderer().render(config, node.asset)
+
+    def parse(self, raw: str, node: NodeInstance) -> ComposedConfiguration:
+        raise DriverException("Parsing Junos configuration is not implemented yet")
+
+    def render_patch(self, diff: Diff, node: NodeInstance) -> str:
+        return JunosCLIRenderer().render_patch(diff, node)
+
+    def normalize(self, raw: str) -> str:
+        return self.normalizer.normalize(raw).config
+
+    def mask(self, raw: str) -> str:
+        return self.normalizer.mask(raw).config
+
+
+class JunosState(State):
+    async def get_facts(self, transport: JunosCLITransport) -> DeviceFacts:
+        version, hardware = await transport.execute(["show version", "show chassis hardware"])
+        chassis = re.search(r"^Chassis\s+(\S+)\s+(\S+)", hardware, re.MULTILINE)
+        return DeviceFacts(
+            vendor=Vendor.juniper,
+            os=OS.juniper_junos,
+            os_version=self.find(r"^Junos:\s*(\S+)", version),
+            hardware_model=self.find(r"^Model:\s*(\S+)", version) or (chassis.group(2) if chassis else None),
+            serial_number=chassis.group(1) if chassis else None,
+        )
+
+    async def get_lldp_neighbors(self, transport: JunosCLITransport) -> list[LldpNeighborEntry]:
+        try:
+            raw = (await transport.execute(["show lldp neighbors"]))[0]
+        except Exception:
+            return []
+        return self.parse_lldp_table(raw)
 
     @staticmethod
-    def _parse_lldp_table(raw: str) -> list[dict]:
-        # `show lldp neighbors` returns a fixed-width table:
-        # Local Interface  Parent Interface  Chassis Id         Port info  System Name
-        # ge-0/0/0         -                 00:11:22:33:44:55  ge-0/0/1   peer-switch
-        neighbors = []
-        lines = [ln.rstrip() for ln in raw.splitlines() if ln.strip()]
-        # Skip header line if present
-        for line in lines:
-            if line.lower().startswith("local interface"):
-                continue
-            parts = line.split()
-            # Expected at minimum: local, parent, chassis_id, port_id, sysname
-            if len(parts) < 5:
-                continue
-            local_iface = parts[0]
-            remote_port = parts[-2]
-            remote_dev = parts[-1]
-            neighbors.append(
-                {
-                    "local_interface": local_iface,
-                    "remote_device": remote_dev,
-                    "remote_interface": remote_port,
-                    "discovery_protocol": "lldp",
-                }
+    def find(pattern: str, text: str) -> str | None:
+        match = re.search(pattern, text, re.MULTILINE)
+        return match.group(1) if match else None
+
+    @staticmethod
+    def parse_lldp_table(raw: str) -> list[LldpNeighborEntry]:
+        """Parse the fixed-width table:
+
+        Local Interface  Parent Interface  Chassis Id         Port info  System Name
+        ge-0/0/0         -                 00:11:22:33:44:55  ge-0/0/1   peer-switch
+        """
+        return [
+            LldpNeighborEntry(
+                local_interface=parts[0],
+                remote_device=parts[-1],
+                remote_interface=parts[-2],
+                discovery_protocol="lldp",
             )
-        return neighbors
+            for line in raw.splitlines()
+            if line.strip() and not line.lower().startswith("local interface")
+            if len(parts := line.split()) >= 5
+        ]
 
 
 class JunosCLI(NetworkElementDriver):
     """Juniper Junos CLI driver."""
 
-    version = "1.0.0"
-    renderer_class = JunosCLIRenderer
+    codec_class = JunosCodec
     transport_class = JunosCLITransport
-    parser_class = JunosCLIParser
+    state_class = JunosState
 
-    def render(self, configuration: ComposedConfiguration, asset):
-        return self.renderer.render(configuration, asset)
-
-    def parse(self, configuration: str) -> ComposedConfiguration:
-        return self.parser.parse(configuration)
-
-    def render_patch(self, diff: Diff, node_instance: Any):
-        return self.renderer.render_patch(diff, node_instance)
-
-    def apply_patch(self, diff: Diff, node_instance, node: NodeListItem, target_ip: str, **kwargs):
-        rendered = self.render_patch(diff, node_instance=node_instance)
-        commands = [c.strip() for c in rendered.splitlines() if c.strip()]
-        return self.transport.send_config(node, target_ip, commands, **kwargs)
+    platforms = [Platform(vendor=Vendor.juniper, os=OS.juniper_junos)]

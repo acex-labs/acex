@@ -8,6 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from acex_devkit.drivers import NetworkElementDriver
 from acex_devkit.models.ned import Ned
 
 from acex_client.exceptions import AcexNedInstallError
@@ -60,6 +61,10 @@ class Neds(Resource, ActionMixin):
     list_model = Ned  # type: ignore
     create_model = None  # type: ignore
     update_model = None  # type: ignore
+
+    def __init__(self, rest):
+        super().__init__(rest)
+        self._loaded: dict[str, NetworkElementDriver] = {}
 
     @action("GET", "")
     def query(self) -> list[Ned]: ...
@@ -153,6 +158,26 @@ class Neds(Resource, ActionMixin):
             )
 
         return not stale_modules
+
+    def load(self, ned_id: str | None) -> NetworkElementDriver:
+        """Return a driver for ned_id at the version the backend serves, installing or
+        upgrading it from the backend first if needed.
+
+        The version is checked against the backend on every call. Drivers are stateless,
+        so one instance per ned_id is cached for the process. Raises AcexNedInstallError
+        if ned_id is empty, the install fails, or a newer version can only take effect
+        after a restart.
+        """
+        if not ned_id:
+            raise AcexNedInstallError("No NED assigned")
+
+        ned = self.get(ned_id=ned_id)
+        if self.installed_version(ned_id) != ned.version and not self.install(ned):
+            raise AcexNedInstallError(f"{ned_id} upgraded to {ned.version}, restart the process to load it")
+
+        if ned_id not in self._loaded:
+            self._loaded[ned_id] = self.get_driver_instance(ned_id)
+        return self._loaded[ned_id]
 
     def get_driver_instance(self, ned_id: str):
         """Return an instantiated NED driver class by its class name.
