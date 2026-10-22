@@ -15,7 +15,6 @@ packages = [
 python = "^3.13"
 scrapli = {version = "^2024.1.30", extras = ["asyncssh"]}
 asyncssh = "^2.14"
-pyyaml = "^6.0.2"
 acex-devkit = { path = "../../devkit", develop = true }
 
 [build-system]
