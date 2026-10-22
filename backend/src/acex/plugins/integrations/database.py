@@ -2,6 +2,8 @@ from enum import Enum
 
 from acex.database import DatabaseManager
 from pydantic import BaseModel
+from sqlalchemy import func
+from sqlmodel import select
 
 from .integration_plugin_base import IntegrationPluginBase
 
@@ -50,10 +52,7 @@ class DatabasePlugin(IntegrationPluginBase):
         session_gen = self.db.get_session()
         session = next(session_gen)
         try:
-            query = session.query(self.table)
-            if options:
-                for opt in options:
-                    query = query.options(opt)
+            query = select(self.table)
             joined_tables = set()
             if filters:
                 for key, value in filters.items():
@@ -66,27 +65,27 @@ class DatabasePlugin(IntegrationPluginBase):
                             joined_tables.add(related_table)
                         col = getattr(related_table, col_name)
                         if isinstance(value, list):
-                            query = query.filter(col.in_(value))
+                            query = query.where(col.in_(value))
                         elif isinstance(value, Enum):
-                            query = query.filter(col == value)
+                            query = query.where(col == value)
                         elif isinstance(value, str):
-                            query = query.filter(col.ilike(f"%{value}%"))
+                            query = query.where(col.ilike(f"%{value}%"))
                         else:
-                            query = query.filter(col == value)
+                            query = query.where(col == value)
                     else:
                         col = getattr(self.table, key)
                         if isinstance(value, list):
-                            query = query.filter(col.in_(value))
+                            query = query.where(col.in_(value))
                         elif isinstance(value, Enum):
-                            query = query.filter(col == value)
+                            query = query.where(col == value)
                         elif isinstance(value, str):
-                            query = query.filter(col.ilike(f"%{value}%"))
+                            query = query.where(col.ilike(f"%{value}%"))
                         else:
-                            query = query.filter(col == value)
+                            query = query.where(col == value)
             if extra_filters:
                 for f in extra_filters:
-                    query = query.filter(f)
-            total = query.count()
+                    query = query.where(f)
+            total = session.exec(select(func.count()).select_from(query.subquery())).one()
             if sort is not None:
                 if not isinstance(sort, str):
                     sort_col = sort
@@ -105,7 +104,10 @@ class DatabasePlugin(IntegrationPluginBase):
                 pk_col = getattr(self.table, "id", None)
                 if pk_col is not None and not (isinstance(sort, str) and sort == "id"):
                     query = query.order_by(pk_col)
-            items = query.offset(offset).limit(limit).all()
+            # Loader options only shape how items load, so they are left out of the count above.
+            for opt in options or ():
+                query = query.options(opt)
+            items = session.exec(query.offset(offset).limit(limit)).all()
             return {"items": items, "total": total}
         finally:
             session.close()

@@ -7,6 +7,7 @@ from acex.models.asset import (
     AssetClusterUpdate,
 )
 from fastapi import HTTPException
+from sqlmodel import select
 
 
 class AssetClusterManager:
@@ -15,7 +16,7 @@ class AssetClusterManager:
 
     def _check_assets_available(self, session, asset_ids: list[int], exclude_cluster_id: int | None = None) -> None:
         for asset_id in asset_ids:
-            link = session.query(AssetClusterLink).filter(AssetClusterLink.asset_id == asset_id).first()
+            link = session.exec(select(AssetClusterLink).where(AssetClusterLink.asset_id == asset_id)).first()
             if link and link.cluster_id != exclude_cluster_id:
                 raise HTTPException(
                     status_code=409,
@@ -43,7 +44,7 @@ class AssetClusterManager:
     def list_clusters(self) -> list[AssetCluster]:
         session = next(self.db.get_session())
         try:
-            return session.query(AssetCluster).all()
+            return session.exec(select(AssetCluster)).all()
         finally:
             session.close()
 
@@ -54,7 +55,7 @@ class AssetClusterManager:
             if not cluster:
                 raise HTTPException(status_code=404, detail="AssetCluster not found")
 
-            links = session.query(AssetClusterLink).filter(AssetClusterLink.cluster_id == id).all()
+            links = session.exec(select(AssetClusterLink).where(AssetClusterLink.cluster_id == id)).all()
             order_map = {link.asset_id: link.order for link in links}
 
             assets = [

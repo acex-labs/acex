@@ -10,6 +10,7 @@ from acex.models.node import Node
 from acex.plugins.neds.manager import NEDManager
 from fastapi import HTTPException
 from sqlalchemy import func
+from sqlmodel import select
 
 
 class ConfigOutput(StrEnum):
@@ -42,17 +43,17 @@ class DeviceConfigManager:
         session = next(self.db.get_session())
         try:
             # Bygg upp query med specifika kolumner (exkluderar content)
-            query = session.query(
+            statement = select(
                 StoredDeviceConfig.id,
                 StoredDeviceConfig.hash,
                 StoredDeviceConfig.created_at,
                 StoredDeviceConfig.node_instance_id,
-            ).filter(StoredDeviceConfig.node_instance_id == node_instance_id)
+            ).where(StoredDeviceConfig.node_instance_id == node_instance_id)
 
             if point_in_time is not None:
-                query = query.filter(StoredDeviceConfig.created_at <= point_in_time)
+                statement = statement.where(StoredDeviceConfig.created_at <= point_in_time)
 
-            results = query.order_by(StoredDeviceConfig.created_at.desc()).limit(limit).all()
+            results = session.exec(statement.order_by(StoredDeviceConfig.created_at.desc()).limit(limit)).all()
 
             return [
                 {
@@ -98,17 +99,17 @@ class DeviceConfigManager:
             # Pre-resolve matching node ids if any node-attribute filter is set
             matching_ids: list[str] | None = None
             if site or role or hostname:
-                q = session.query(Node.id).join(
+                q = select(Node.id).join(
                     LogicalNode,
                     LogicalNode.id == Node.logical_node_id,
                 )
                 if site:
-                    q = q.filter(LogicalNode.site.ilike(f"%{site}%"))
+                    q = q.where(LogicalNode.site.ilike(f"%{site}%"))
                 if role:
-                    q = q.filter(LogicalNode.role.ilike(f"%{role}%"))
+                    q = q.where(LogicalNode.role.ilike(f"%{role}%"))
                 if hostname:
-                    q = q.filter(LogicalNode.hostname.ilike(f"%{hostname}%"))
-                matching_ids = [str(r.id) for r in q.all()]
+                    q = q.where(LogicalNode.hostname.ilike(f"%{hostname}%"))
+                matching_ids = [str(node_id) for node_id in session.exec(q).all()]
                 if not matching_ids:
                     return []
 
@@ -130,7 +131,7 @@ class DeviceConfigManager:
             )
 
             sub = (
-                session.query(
+                select(
                     StoredDeviceConfig.id,
                     StoredDeviceConfig.hash,
                     StoredDeviceConfig.created_at,
@@ -138,21 +139,22 @@ class DeviceConfigManager:
                     prev_hash,
                     prev_created,
                 )
-                .filter(
+                .where(
                     StoredDeviceConfig.created_at <= until_value,
                 )
                 .subquery()
             )
 
-            outer = session.query(sub)
+            # Every column of the subquery, so rows keep their named fields.
+            outer = select(*sub.c)
             if since is not None:
-                outer = outer.filter(sub.c.created_at >= since)
+                outer = outer.where(sub.c.created_at >= since)
             if matching_ids is not None:
-                outer = outer.filter(sub.c.node_instance_id.in_(matching_ids))
+                outer = outer.where(sub.c.node_instance_id.in_(matching_ids))
 
             time_order = sub.c.created_at.asc() if sort_order_norm == "asc" else sub.c.created_at.desc()
             outer = outer.order_by(time_order)
-            rows = outer.limit(limit).all()
+            rows = session.exec(outer.limit(limit)).all()
 
             # Batch-resolve hostname/site/role per node_instance_id
             node_id_strs = list({r.node_instance_id for r in rows})
@@ -165,9 +167,11 @@ class DeviceConfigManager:
 
             meta_map: dict[str, dict] = {}
             if int_ids:
-                nodes = session.query(Node).filter(Node.id.in_(int_ids)).all()
+                nodes = session.exec(select(Node).where(Node.id.in_(int_ids))).all()
                 ln_ids = [n.logical_node_id for n in nodes]
-                logical_nodes = session.query(LogicalNode).filter(LogicalNode.id.in_(ln_ids)).all() if ln_ids else []
+                logical_nodes = (
+                    session.exec(select(LogicalNode).where(LogicalNode.id.in_(ln_ids))).all() if ln_ids else []
+                )
                 ln_map = {ln.id: ln for ln in logical_nodes}
                 for n in nodes:
                     ln = ln_map.get(n.logical_node_id)
@@ -205,14 +209,12 @@ class DeviceConfigManager:
 
         session = next(self.db.get_session())
         try:
-            existing = (
-                session.query(StoredDeviceConfig)
-                .filter(
+            existing = session.exec(
+                select(StoredDeviceConfig).where(
                     StoredDeviceConfig.id == config_id,
                     StoredDeviceConfig.node_instance_id == node_instance_id,
                 )
-                .first()
-            )
+            ).first()
             return existing
         finally:
             session.close()
@@ -223,12 +225,11 @@ class DeviceConfigManager:
 
         session = next(self.db.get_session())
         try:
-            existing = (
-                session.query(StoredDeviceConfig)
-                .filter(StoredDeviceConfig.node_instance_id == node_instance_id)
+            existing = session.exec(
+                select(StoredDeviceConfig)
+                .where(StoredDeviceConfig.node_instance_id == node_instance_id)
                 .order_by(StoredDeviceConfig.created_at.desc())
-                .first()
-            )
+            ).first()
 
             if output == ConfigOutput.PARSED:
                 if existing is None:
@@ -263,16 +264,16 @@ class DeviceConfigManager:
         """
         session = next(self.db.get_session())
         try:
-            cfg_a = (
-                session.query(StoredDeviceConfig)
-                .filter(StoredDeviceConfig.id == a, StoredDeviceConfig.node_instance_id == node_instance_id)
-                .first()
-            )
-            cfg_b = (
-                session.query(StoredDeviceConfig)
-                .filter(StoredDeviceConfig.id == b, StoredDeviceConfig.node_instance_id == node_instance_id)
-                .first()
-            )
+            cfg_a = session.exec(
+                select(StoredDeviceConfig).where(
+                    StoredDeviceConfig.id == a, StoredDeviceConfig.node_instance_id == node_instance_id
+                )
+            ).first()
+            cfg_b = session.exec(
+                select(StoredDeviceConfig).where(
+                    StoredDeviceConfig.id == b, StoredDeviceConfig.node_instance_id == node_instance_id
+                )
+            ).first()
 
             if not cfg_a:
                 raise HTTPException(status_code=404, detail=f"Config not found: {a}")
@@ -343,12 +344,11 @@ class DeviceConfigManager:
         session = next(self.db.get_session())
         try:
             # Skippa om senaste configen har samma hash (ingen faktisk ändring)
-            latest = (
-                session.query(StoredDeviceConfig)
-                .filter(StoredDeviceConfig.node_instance_id == payload.node_instance_id)
+            latest = session.exec(
+                select(StoredDeviceConfig)
+                .where(StoredDeviceConfig.node_instance_id == payload.node_instance_id)
                 .order_by(StoredDeviceConfig.created_at.desc())
-                .first()
-            )
+            ).first()
 
             if latest and latest.hash == config_hash:
                 raise HTTPException(
