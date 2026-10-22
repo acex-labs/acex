@@ -1,0 +1,442 @@
+{
+  "schema_version": 1,
+  "component": "acex-collection-agent",
+  "name": "ACEX collection agent",
+  "releases": [
+    {
+      "version": "0.15.0",
+      "date": "2026-09-25",
+      "summary": "The agent finds itself by name, picks up new drivers without a restart and no longer bundles the Cisco IOS driver.",
+      "entries": [
+        {
+          "id": "04-container-image-no-longer-bundles-the-ci",
+          "kind": "changed",
+          "title": "Container image no longer bundles the Cisco IOS driver; it is downloaded",
+          "description": "The image contains no device drivers. The agent downloads the ones it needs from the API and installs them, so the container must be able to reach a package index for the drivers' own dependencies.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#277",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-agent-finds-itself-by-name-with-collecti",
+          "kind": "added",
+          "title": "Agent finds itself by name with COLLECTION_AGENT_NAME",
+          "description": "Set `COLLECTION_AGENT_NAME` to the agent's name in ACEX and it looks up its own id at startup. If the API is not reachable or the agent does not exist yet it logs and retries every 60 seconds instead of exiting. Names are not unique in ACEX: if several agents share the name it logs an error and keeps retrying until one is renamed.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-new-or-updated-device-drivers-are-picked",
+          "kind": "changed",
+          "title": "New or updated device drivers are picked up without restarting the agent",
+          "description": "The agent now checks for missing or outdated drivers before every collection cycle instead of only at startup. A driver that was already loaded at an older version is replaced on disk but keeps running the old code until the agent is restarted; the log says so.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#277",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-collection-agent-id-is-deprecated-in-fav",
+          "kind": "deprecated",
+          "title": "COLLECTION_AGENT_ID is deprecated in favour of COLLECTION_AGENT_NAME",
+          "description": "`COLLECTION_AGENT_ID` still works but only when `COLLECTION_AGENT_NAME` is unset, and logs a deprecation warning. If both are set the name wins and a differing id is ignored with a warning. Switch deployments to `COLLECTION_AGENT_NAME`.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.14.1",
+      "date": "2026-09-03",
+      "entries": [
+        {
+          "id": "01-container-image-comes-with-the-cisco-ios",
+          "kind": "changed",
+          "title": "Container image comes with the Cisco IOS driver installed",
+          "description": "The image now includes the Cisco IOS CLI driver, so it no longer has to be downloaded and installed on first start. This avoids version conflicts with the bundled devkit at runtime.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#241",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.13.0",
+      "date": "2026-08-21",
+      "entries": [
+        {
+          "id": "01-agent-fetches-its-manifest-and-credentia",
+          "kind": "fixed",
+          "title": "Agent fetches its manifest and credentials correctly with the updated client",
+          "description": "The agent now passes the agent id and credential id the way the updated `acex-client` expects, and builds device connections that pass its validation. Without this the agent could fail to fetch its manifest, acknowledge it or read device credentials after the client update.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#225",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.11.0",
+      "date": "2026-08-13",
+      "entries": [
+        {
+          "id": "01-collected-configurations-are-uploaded-as",
+          "kind": "changed",
+          "title": "Collected configurations are uploaded as the node's observed configuration",
+          "description": "The agent now talks to ACEX through the `acex-client` library and uploads each collected configuration to the node instance's observed-configuration endpoint, instead of the old device-configs endpoint. The API must serve that endpoint. An unchanged configuration is still reported as unchanged.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-failed-uploads-of-configurations-and-lld",
+          "kind": "changed",
+          "title": "Failed uploads of configurations and LLDP neighbours report the reason",
+          "description": "A configuration upload that fails for a reason other than an HTTP status (for example a connection error) is now reported per node as `Upload failed: <reason>` instead of stopping the run. The same applies to LLDP neighbour uploads, which log a warning with the reason.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.10.0",
+      "date": "2026-06-03",
+      "entries": [
+        {
+          "id": "01-parallel-collection-can-be-limited-with-",
+          "kind": "added",
+          "title": "Parallel collection can be limited with COLLECTION_MAX_CONCURRENT",
+          "description": "Set `COLLECTION_MAX_CONCURRENT` to the number of devices the agent collects from at the same time. The default is 20 and values above 250 are lowered to 250 with a warning. The startup log shows the value in use.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#175",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.9.0",
+      "date": "2026-06-03",
+      "entries": [
+        {
+          "id": "01-agent-collects-from-at-most-20-devices-a",
+          "kind": "changed",
+          "title": "Agent collects from at most 20 devices at a time",
+          "description": "Collection runs are now throttled to 20 devices in parallel instead of starting all devices at once. Large inventories take longer per run but put less load on the agent and the devices.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#174",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-authentication-failures-and-timeouts-are",
+          "kind": "changed",
+          "title": "Authentication failures and timeouts are logged per device with a clear reason",
+          "description": "When a device cannot be reached or rejects the login, the agent logs `Authentication failed` or `Connection timed out` with the device name at once, and other errors with their message. The per-device list of failures after the run is gone; the error summary with counts remains.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#174",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.4",
+      "date": "2026-05-28",
+      "entries": [
+        {
+          "id": "01-each-collection-run-ends-with-an-error-s",
+          "kind": "added",
+          "title": "Each collection run ends with an error summary grouped by message",
+          "description": "After a run the agent logs how many devices failed with each error message, for example `12x  Connection timed out`, so a common cause is visible at a glance. The run line still shows how many were collected, unchanged and failed.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#171",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.3",
+      "date": "2026-05-28",
+      "entries": [
+        {
+          "id": "01-failed-devices-are-logged-with-their-hos",
+          "kind": "changed",
+          "title": "Failed devices are logged with their host name as well as node number",
+          "description": "The per-device failure lines after a collection run now read `Node #<id> (<name>): <message>`, so a failing device can be found without looking up the node number.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#170",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.1",
+      "date": "2026-05-28",
+      "entries": [
+        {
+          "id": "01-less-log-noise-from-the-ssh-libraries",
+          "kind": "changed",
+          "title": "Less log noise from the SSH libraries",
+          "description": "Log output from `scrapli` and `asyncssh`, the libraries used to talk to devices, is now limited to warnings and errors.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#167",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.0",
+      "date": "2026-05-27",
+      "entries": [
+        {
+          "id": "01-devices-are-collected-in-parallel-instea",
+          "kind": "changed",
+          "title": "Devices are collected in parallel instead of one after another",
+          "description": "A collection run now works on all devices in the manifest concurrently, so a run with many devices finishes much sooner and one slow device no longer holds up the rest. Drivers that are written for asynchronous use are supported as well as the existing ones.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#165",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.7.0",
+      "date": "2026-05-27",
+      "entries": [
+        {
+          "id": "01-collection-runs-log-when-they-start-and-",
+          "kind": "changed",
+          "title": "Collection runs log when they start and how long they took",
+          "description": "The agent now logs `Starting collection for <n> nodes` at the start of a run and the duration in the summary line (`Collection complete in <s>s: ...`). Log messages from `paramiko` are limited to warnings.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#162",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-04-28",
+      "entries": [
+        {
+          "id": "01-driver-downloads-follow-the-acex-verify-",
+          "kind": "fixed",
+          "title": "Driver downloads follow the ACEX_VERIFY_SSL setting",
+          "description": "When the agent installs a device driver from the API it now applies the `ACEX_VERIFY_SSL` setting to that download, like for its other API requests. Deployments where the API is reached over a certificate the container does not trust no longer fail at driver installation.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "add9d0b",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.5.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-one-ssh-session-per-device-is-used-for-b",
+          "kind": "changed",
+          "title": "One SSH session per device is used for both configuration and LLDP neighbours",
+          "description": "The agent now keeps a single connection to a device open while it collects the configuration and the LLDP/CDP neighbours, instead of connecting once per command. Drivers that support it also use the enable password from the privilege-escalation credential.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#137",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.4.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-agent-installs-missing-or-outdated-devic",
+          "kind": "changed",
+          "title": "Agent installs missing or outdated device drivers once at startup",
+          "description": "At startup the agent asks the API which drivers are missing or at the wrong version and installs them, logging `All NEDs up to date` when nothing is needed. This replaces the check that ran before each collection. To roll out a driver update, restart the agent.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#136",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-agent-logs-in-to-devices-with-the-creden",
+          "kind": "added",
+          "title": "Agent logs in to devices with the credentials assigned to them in ACEX",
+          "description": "For each device the agent reads the `userpass` credential, and the `privilege_escalation` credential as enable password if one is assigned, from ACEX and passes them to the driver. A device whose credential cannot be fetched is reported as `Failed to fetch credentials`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-lldp-cdp-neighbours-are-collected-and-up",
+          "kind": "added",
+          "title": "LLDP/CDP neighbours are collected and uploaded together with the configuration",
+          "description": "After a device's configuration is uploaded the agent asks the driver for its LLDP/CDP neighbours and uploads them to ACEX. Drivers without neighbour support are skipped silently; a failure is logged as a warning and does not fail the device.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-04-26",
+      "entries": [
+        {
+          "id": "01-config-agent-is-renamed-to-collection-ag",
+          "kind": "changed",
+          "title": "Config agent is renamed to collection agent; deployments must be updated",
+          "description": "The package, command and container image are now `acex-collection-agent` and the environment variable is `COLLECTION_AGENT_ID` (was `CONFIG_AGENT_ID`). The agent talks to the `collection_agents` API paths, so the API must be the matching version. Update image names and environment variables of existing deployments.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#133",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-agent-confirms-to-acex-which-manifest-re",
+          "kind": "added",
+          "title": "Agent confirms to ACEX which manifest revision it has received",
+          "description": "After each successful manifest fetch the agent reports the revision number back to ACEX, so ACEX can tell which configuration revision the agent is running. A failed acknowledgement is logged as a warning only.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#133",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-agent-polls-every-minute-and-collects-on",
+          "kind": "added",
+          "title": "Agent polls every minute and collects on an interval or on configuration change",
+          "description": "The agent fetches its manifest every 60 seconds and collects configurations at the manifest's interval (6 hours if none is given) and whenever the manifest's revision changes. A failed manifest request is retried after 60 seconds. Configurations the API already has are reported as unchanged.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#133",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": [],
+  "highlights": []
+}

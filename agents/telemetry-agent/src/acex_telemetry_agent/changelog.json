@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "component": "acex-telemetry-agent",
+  "name": "ACEX telemetry agent",
+  "releases": [
+    {
+      "version": "0.8.0",
+      "date": "2026-09-25",
+      "entries": [
+        {
+          "id": "01-agent-can-find-itself-by-name-with-telem",
+          "kind": "added",
+          "title": "Agent can find itself by name with `TELEMETRY_AGENT_NAME`",
+          "description": "Set `TELEMETRY_AGENT_NAME` to the agent's exact name and it looks up its own id at startup, retrying every `POLL_INTERVAL_SECONDS` until the API answers and the agent exists. If several agents share the name it logs an error and keeps retrying, so rename one or use `TELEMETRY_AGENT_ID`. When both variables are set, the name wins.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-telemetry-agent-id-is-deprecated-in-favo",
+          "kind": "deprecated",
+          "title": "`TELEMETRY_AGENT_ID` is deprecated in favour of the agent name",
+          "description": "`TELEMETRY_AGENT_ID` still works when `TELEMETRY_AGENT_NAME` is not set, but the agent logs a deprecation warning. Switch to `TELEMETRY_AGENT_NAME`; if both are set and the id does not match the named agent, the id is ignored with a warning.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-08-27",
+      "summary": "Outputs are no longer defined per agent, and InfluxDB output defaults to version 3.",
+      "entries": [
+        {
+          "id": "01-outputs-can-no-longer-be-defined-per-tel",
+          "kind": "removed",
+          "title": "Outputs can no longer be defined per telemetry agent",
+          "description": "The generated `telegraf.conf` now takes its InfluxDB outputs only from the backend-wide InfluxDB settings (`ACEX_INFLUXDB_*` variables or `set_influxdb`/`add_influxdb`), and the per-agent output API is gone. Outputs previously created on a single agent are no longer written, so move them into the backend settings.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-influxdb-output-defaults-to-version-3-wh",
+          "kind": "changed",
+          "title": "InfluxDB output defaults to version 3 when no version is set",
+          "description": "When the backend InfluxDB settings do not name a version, the generated output block is now InfluxDB v3 instead of v2. If your InfluxDB is v2 and you did not set `ACEX_INFLUXDB_VERSION`, set it to `v2` explicitly.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-agent-requests-the-full-configuration-in",
+          "kind": "changed",
+          "title": "Agent requests the full configuration, including secret values",
+          "description": "The API now shows secret values (InfluxDB token and password, SNMP trap community and auth/priv passwords) as `«redacted»` unless asked for them. The telemetry agent asks for them, so the `telegraf.conf` it writes is complete and works as before; no action needed.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.4.1",
+      "date": "2026-08-14",
+      "entries": [
+        {
+          "id": "01-acknowledged-revisions-are-no-longer-rep",
+          "kind": "fixed",
+          "title": "Acknowledged revisions are no longer reported as failed",
+          "description": "After applying a revision, the agent acknowledges it to the API, but the client rejected the API's reply with `Field required: id`, so every acknowledgement was logged as a warning. The reply now has the shape the client expects. Use this image so the warning disappears.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#222",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.4.0",
+      "date": "2026-08-14",
+      "entries": [
+        {
+          "id": "01-telegraf-config-can-receive-snmp-traps-a",
+          "kind": "added",
+          "title": "Telegraf config can receive SNMP traps and syslog messages",
+          "description": "An agent granted the `snmp_trap` or `syslog_rfc5424` capability now gets an SNMP trap listener (UDP 162 by default, v2c unless set to v3 or both) or a syslog listener (RFC 5424, UDP 514 by default) in its `telegraf.conf`. Ports and SNMP credentials are set on the agent in ACEX; publish the UDP ports from the Telegraf container.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#219",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "date": "2026-08-13",
+      "entries": [
+        {
+          "id": "01-acex-verify-ssl-now-defaults-to-true",
+          "kind": "changed",
+          "title": "`ACEX_VERIFY_SSL` now defaults to `true`",
+          "description": "The agent now verifies the API's TLS certificate unless `ACEX_VERIFY_SSL` says otherwise; before, verification was off by default. If your API uses a self-signed or privately issued certificate that the container does not trust, set `ACEX_VERIFY_SSL=false` or the agent will fail to reach the API.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2026-06-09",
+      "entries": [
+        {
+          "id": "01-acex-api-url-works-with-or-without-a-tra",
+          "kind": "fixed",
+          "title": "`ACEX_API_URL` works with or without a trailing slash",
+          "description": "The agent now normalises the API address to end in exactly one slash before using it, instead of using the value as written.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#150",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-05-03",
+      "entries": [
+        {
+          "id": "03-agent-acknowledges-each-revision-and-kee",
+          "kind": "added",
+          "title": "Agent acknowledges each revision and keeps polling when the API fails",
+          "description": "After every poll the agent reports the revision it has seen back to the API, so ACEX can tell which revision each agent is on. If the API is unreachable or answers with an error, the agent logs it, keeps the existing `telegraf.conf` and tries again after `POLL_INTERVAL_SECONDS`.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#146",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-agent-is-configured-with-environment-var",
+          "kind": "added",
+          "title": "Agent is configured with environment variables",
+          "description": "`ACEX_API_URL` (required) is the API address and `TELEMETRY_AGENT_ID` (required) is the agent to follow. Optional: `TELEGRAF_CONFIG_PATH` (default `/etc/telegraf/telegraf.conf`), `POLL_INTERVAL_SECONDS` (default `60`) and `ACEX_VERIFY_SSL` (default `false`, set `true` to verify the API's TLS certificate).",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#146",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-telemetry-agent-keeps-telegraf-conf-in-s",
+          "kind": "added",
+          "title": "Telemetry agent keeps `telegraf.conf` in step with the ACEX configuration",
+          "description": "New sidecar that runs next to Telegraf, polls the ACEX observability API and writes the rendered `telegraf.conf` when the configuration revision changes (and on first start). The file is replaced atomically; Telegraf must reload it itself, for example via SIGHUP or `--watch-config`. Published as a container image.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#146",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": [],
+  "highlights": []
+}

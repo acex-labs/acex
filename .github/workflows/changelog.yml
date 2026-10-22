@@ -1,0 +1,36 @@
+name: Changelog
+
+# Every pull request that changes a component carries a changelog fragment
+# (for example backend/changelog.d/<date>-<slug>.md), written for the people
+# who use ACEX. See docs/guides/changelog.md. Label a pull request
+# `no-changelog` to skip the check, or add a `kind: internal` fragment.
+
+on:
+  pull_request:
+    branches: [main, stage, dev]
+
+jobs:
+  fragments:
+    name: Changelog entry
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+    steps:
+      - name: Checkout (full history, for the diff against the target branch)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Changed components have an entry, and entries are well-formed
+        env:
+          BASE: origin/${{ github.base_ref }}
+          # Into main, a version that is about to be published must carry its notes.
+          RELEASE_READY: ${{ github.base_ref == 'main' && '--release-ready' || '' }}
+        run: python scripts/changelog.py check --base "$BASE" $RELEASE_READY
+
+      - name: Compiled changelog files are current
+        run: python scripts/changelog.py build --check

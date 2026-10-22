@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "component": "acex-driver-juniper-junoscli",
+  "name": "Juniper Junos CLI driver",
+  "releases": [
+    {
+      "version": "1.0.3",
+      "date": "2026-08-21",
+      "entries": [
+        {
+          "id": "01-driver-works-with-the-current-acex-devki",
+          "kind": "fixed",
+          "title": "Driver works with the current ACEX devkit instead of the legacy plugin package",
+          "description": "The Junos driver's renderer and parser now take their base classes from the ACEX devkit rather than the older ACEX plugin package. Installations without that older package could not load the driver before; the commands it renders are unchanged.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#225",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "date": "2026-05-01",
+      "entries": [
+        {
+          "id": "01-rendering-no-longer-fails-for-configurat",
+          "kind": "fixed",
+          "title": "Rendering no longer fails for configurations without link aggregation",
+          "description": "Rendering a full Junos configuration could fail when the node had no aggregated (LAG) interfaces, or a LAG whose member ports carry no LACP settings. The driver now always supplies those values, so such configurations render; with no LAG the `set chassis aggregated-devices ...` line is simply not sent.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "784251b6b028",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-05-01",
+      "entries": [
+        {
+          "id": "06-a-device-s-configuration-cannot-be-read-",
+          "kind": "added",
+          "title": "A device's configuration cannot be read back yet",
+          "description": "The parser is a stub: asking the driver to parse a device's configuration fails with 'JunosCLIParser.parse is not yet implemented'. ACEX therefore cannot report differences between wanted and actual configuration for Junos devices in this release.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "b1edd42704b8",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-deploys-over-ssh-configuration-is-sent-a",
+          "kind": "added",
+          "title": "Deploys over SSH: configuration is sent and committed in one session",
+          "description": "The driver logs in over SSH (port 22, 30 s connect timeout) with the username and password it is given, and fails at once if either is missing. It sends the `set` commands in configuration mode and commits. The running configuration is read with `show configuration | display set | no-more`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "b1edd42704b8",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-device-wide-settings-are-rendered-as-jun",
+          "kind": "added",
+          "title": "Device-wide settings are rendered as Junos set commands",
+          "description": "Host name, domain name, location, contact, DNS servers and NTP servers (with `prefer`) become `set system ...` lines. SSH is enabled with `set system services ssh` (plus `idle-timeout`) when SSH is enabled in the configuration; `set system services netconf ssh` is always sent.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "b1edd42704b8",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-incremental-updates-cover-only-the-host-",
+          "kind": "added",
+          "title": "Incremental updates cover only the host name; interfaces get a placeholder",
+          "description": "When ACEX sends only the differences, a changed or removed system host name becomes `set system host-name` or `delete system host-name`. A change on any interface produces the placeholder `set interfaces TODO description \"TODO\"` instead of the real change; all other differences are ignored.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "b1edd42704b8",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-interfaces-are-rendered-with-junos-names",
+          "kind": "added",
+          "title": "Interfaces are rendered with Junos names, VLAN modes and LAGs",
+          "description": "Ethernet ports are named ge-, xe- or et- by speed (1G or unknown, 10G, 25/40/100G) as `<stack>/<module>/<port>`; the management port is `me0`, loopbacks are `lo0 unit N`, LAGs are `ae<N>`. Description, MTU, IPv4 address, access/trunk VLANs, native VLAN, `disable` and LAG membership are sent; LACP mode and interval set on member ports are applied to the `ae` interface.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "b1edd42704b8",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "07-lldp-neighbours-are-discovered-from-the-",
+          "kind": "added",
+          "title": "LLDP neighbours are discovered from the device's neighbour table",
+          "description": "The driver runs `show lldp neighbors` and reports, per neighbour, the local interface, remote device name and remote port, marked as lldp. If the command fails it returns no neighbours; CDP is not supported. The columns are read by position, so unusual table layouts may be misread.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "b1edd42704b8",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-vlans-static-routes-and-snmp-communities",
+          "kind": "added",
+          "title": "VLANs, static routes and SNMP communities are rendered",
+          "description": "VLANs become `set vlans <name> vlan-id <id>`, static routes become `set routing-options static route ... next-hop ...` (under `routing-instances` for non-global instances), and SNMP communities get read-only or read-write authorization. Client prefixes from the Juniper SNMP community clients augment are sent as `set snmp community <name> clients <prefix>`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "b1edd42704b8",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": [],
+  "highlights": []
+}

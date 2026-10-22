@@ -27,6 +27,13 @@ pytest-asyncio = "^0.23.0"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+[tool.poetry.plugins."acex.changelog"]
+acex-mcp = "acex_mcp"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX MCP server"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

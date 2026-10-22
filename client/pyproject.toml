@@ -21,6 +21,13 @@ pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
 respx = "^0.22.0"
 
+[tool.poetry.plugins."acex.changelog"]
+acex-client = "acex_client"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX client"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
