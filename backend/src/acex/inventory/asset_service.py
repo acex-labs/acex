@@ -1,4 +1,5 @@
 import inspect
+from typing import Literal
 
 from acex.models import Asset, AssetResponse, AssetUpdate, PaginatedResponse
 from acex.models.node import AssetRefType, Node
@@ -9,6 +10,16 @@ from sqlalchemy import select
 
 class AssetService:
     """Service layer för Asset business logic."""
+
+    SORTABLE_COLUMNS = {
+        "id": "id",
+        "vendor": "vendor",
+        "os": "os",
+        "hardware_model": "hardware_model",
+        "serial_number": "serial_number",
+        "ned_id": "ned_id",
+        "os_version": "os_version",
+    }
 
     def __init__(self, adapter):
         self.adapter = adapter
@@ -38,6 +49,8 @@ class AssetService:
         assigned: bool | None = None,
         limit: int = 100,
         offset: int = 0,
+        sort: str | None = None,
+        order: Literal["asc", "desc"] = "asc",
     ) -> PaginatedResponse[AssetResponse]:
 
         query_filters = {
@@ -59,9 +72,22 @@ class AssetService:
                 extra_filters.append(Asset.id.in_(assigned_ids))
             else:
                 extra_filters.append(~Asset.id.in_(assigned_ids))
-
+        sort_column = None
+        if sort is not None:
+            sort_column = self.SORTABLE_COLUMNS.get(sort)
+            if sort_column is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid sort field '{sort}'. Valid: {sorted(self.SORTABLE_COLUMNS)}",
+                )
         result = await self._call_method(
-            self.adapter.query, filters=query_filters, extra_filters=extra_filters or None, limit=limit, offset=offset
+            self.adapter.query,
+            filters=query_filters,
+            extra_filters=extra_filters or None,
+            limit=limit,
+            offset=offset,
+            sort=sort_column,
+            order=order,
         )
         return PaginatedResponse(items=result["items"], total=result["total"], limit=limit, offset=offset)
 
