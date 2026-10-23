@@ -5,7 +5,7 @@ from acex_devkit.models.codec_result import ParseResult, RenderResult
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.node_response import NodeInstance
 
-from acex_driver_cisco_ioscli.naming import CiscoInterfaceNaming
+from acex_driver_cisco_ioscli.context import CiscoContext
 from acex_driver_cisco_ioscli.normalizer import CiscoIOSNormalizer
 from acex_driver_cisco_ioscli.syntax import BLOCKS
 
@@ -18,10 +18,10 @@ class CiscoIOSCodec(Codec[str]):
     normalizer = CiscoIOSNormalizer()
 
     def render(self, config: ComposedConfiguration, node: NodeInstance) -> RenderResult[str]:
-        return self.mapper.render(config, CiscoInterfaceNaming(node))
+        return self.mapper.render(config, CiscoContext(node))
 
     def parse(self, raw: str, node: NodeInstance) -> ParseResult:
-        return self.mapper.parse(self.normalize(raw), CiscoInterfaceNaming(node))
+        return self.mapper.parse(self.normalize(raw), CiscoContext(node))
 
     def render_patch(self, diff: Diff, node: NodeInstance) -> str:
         raise NotImplementedError(f"{type(self).__name__} does not implement render_patch yet")

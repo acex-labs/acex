@@ -11,6 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from acex_devkit.drivers.mapper.context import Context
 from acex_devkit.drivers.mapper.tokens import TOKENS, Range, Token
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.reference import Reference
@@ -147,12 +148,27 @@ class Pattern:
 
 class Item:
     """One line-level entry in a body, setting fields on the enclosing component. `only` limits it to
-    some component types, for a field whose syntax differs between types sharing it."""
+    some component types, for a field whose syntax differs between types sharing it.
+
+    `since` and `until` bind it to the OS releases that write it this way (at least `since`, below
+    `until`), so a field spelled differently across releases is declared once per spelling. With the
+    device's version unknown, every variant is read and the newest (no `until`) is written."""
 
     fields: tuple[str, ...] = ()
 
-    def __init__(self, only: type | tuple[type, ...] | None = None):
+    def __init__(self, only: type | tuple[type, ...] | None = None, since: str | None = None, until: str | None = None):
         self.only = only
+        self.since = since
+        self.until = until
+
+    def admits(self, context: Any, rendering: bool) -> bool:
+        """Whether this variant applies to the device in `context`."""
+        if self.since is None and self.until is None:
+            return True
+        within = context.within(self.since, self.until) if isinstance(context, Context) else None
+        if within is not None:
+            return within
+        return not rendering or self.until is None
 
     def applies_to(self, component_type: type[BaseModel], params: frozenset[str] = frozenset()) -> bool:
         """Whether every field is the component's own, or one of the enclosing block's path `params`."""
@@ -175,30 +191,26 @@ class Item:
 
 class Line(Item):
     """A line pattern for one or more fields: `Line("switchport access vlan {access_vlan:int}")`.
-    `aliases` are other spellings of the same line, read but never written (`ip domain name` beside
-    `ip domain-name`). Keyword arguments other than `only` and `aliases` are per-field tokens."""
+    Keyword arguments other than `only`, `since` and `until` are per-field tokens."""
 
     def __init__(
         self,
         pattern: str,
         only: type | tuple[type, ...] | None = None,
-        aliases: tuple[str, ...] = (),
+        since: str | None = None,
+        until: str | None = None,
         **tokens: Token,
     ):
-        super().__init__(only)
+        super().__init__(only, since, until)
         self.pattern = Pattern(pattern, tokens)
         self.fields = tuple(self.pattern.fields)
-        self.aliases = tuple(Pattern(alias, tokens) for alias in aliases)
-        for alias in self.aliases:
-            if set(alias.fields) != set(self.fields):
-                raise ValueError(f"{alias.text!r}: an alias must set the same fields as {pattern!r}")
 
     def render(self, values: dict[str, Any]) -> list[str]:
         line = self.pattern.render(values)
         return [] if line is None else [line]
 
     def match(self, text: str) -> dict[str, Any] | None:
-        return next((m for p in (self.pattern, *self.aliases) if (m := p.match(text)) is not None), None)
+        return self.pattern.match(text)
 
 
 class Flag(Item):
@@ -212,8 +224,10 @@ class Flag(Item):
         off: str | None = None,
         default: bool | None = None,
         only: type | tuple[type, ...] | None = None,
+        since: str | None = None,
+        until: str | None = None,
     ):
-        super().__init__(only)
+        super().__init__(only, since, until)
         self.name = name
         self.fields = (name,)
         self.lines = {value: line for value, line in ((True, on), (False, off)) if line is not None}
@@ -238,8 +252,16 @@ class Multiline(Item):
     """A text field spanning lines between a start line and a delimiter, e.g. `banner motd ^C ... ^C`.
     `start` holds one `{delim}`: parse reads whatever delimiter the config uses, render writes `delimiter`."""
 
-    def __init__(self, name: str, start: str, delimiter: str = "^C", only: type | tuple[type, ...] | None = None):
-        super().__init__(only)
+    def __init__(
+        self,
+        name: str,
+        start: str,
+        delimiter: str = "^C",
+        only: type | tuple[type, ...] | None = None,
+        since: str | None = None,
+        until: str | None = None,
+    ):
+        super().__init__(only, since, until)
         self.name = name
         self.fields = (name,)
         self.delimiter = delimiter

@@ -1,5 +1,6 @@
 from .interfaces import (
     FrontpanelPort,
+    HsrpGroup,
     Interface,
     InterfaceTemplate,
     LagInterface,
@@ -7,6 +8,7 @@ from .interfaces import (
     ManagementPort,
     Subinterface,
     Svi,
+    VrrpGroup,
 )
 
 __all__ = [
@@ -18,4 +20,6 @@ __all__ = [
     "Svi",
     "Loopback",
     "Subinterface",
+    "HsrpGroup",
+    "VrrpGroup",
 ]

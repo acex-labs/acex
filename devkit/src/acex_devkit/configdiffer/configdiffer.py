@@ -8,6 +8,7 @@ from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.container_entry import ContainerEntry
 from acex_devkit.models.reference import Reference
+from acex_devkit.normalizer import MASK
 
 
 class ConfigDiffer:
@@ -70,7 +71,8 @@ class ConfigDiffer:
     def _attribute_changes(self, before: BaseModel, after: BaseModel) -> list[AttributeChange]:
         """Compare an observed (before) and a desired (after) component and return the changed attributes."""
         changes = []
-        all_fields = set(before.model_fields.keys()) | set(after.model_fields.keys())
+        derived = set(getattr(before, "derived_fields", ())) | set(getattr(after, "derived_fields", ()))
+        all_fields = (set(before.model_fields.keys()) | set(after.model_fields.keys())) - derived
         for field_name in all_fields:
             b = getattr(before, field_name, None)
             a = getattr(after, field_name, None)
@@ -79,7 +81,10 @@ class ConfigDiffer:
         return changes
 
     def _same(self, observed: Any, desired: Any) -> bool:
-        """References are equal when they point at the same place, whatever path spells it out."""
+        """References are equal when they point at the same place, whatever path spells it out. A secret
+        masked in the observed configuration can't be compared, so it matches any desired value."""
+        if isinstance(observed, AttributeValue) and observed.value == MASK:
+            return desired is not None
         if isinstance(observed, Reference) and isinstance(desired, Reference):
             return self._position(self.observed, observed.pointer) == self._position(self.desired, desired.pointer)
         if self._is_references(observed) and self._is_references(desired):

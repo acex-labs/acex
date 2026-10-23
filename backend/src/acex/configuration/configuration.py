@@ -11,12 +11,14 @@ from acex.configuration.components.cdp import (
 from acex.configuration.components.interfaces import (
     # Physical,
     FrontpanelPort,
+    HsrpGroup,
     InterfaceTemplate,
     LagInterface,
     Loopback,
     ManagementPort,
     Subinterface,
     Svi,
+    VrrpGroup,
 )
 from acex.configuration.components.lacp import LacpConfig
 from acex.configuration.components.lldp import (
@@ -50,6 +52,7 @@ from acex.configuration.components.system import (
     SystemConfig,
 )
 from acex.configuration.components.system.aaa import (
+    LocalUser,
     aaaAccountingConfig,
     aaaAccountingEvents,
     aaaAccountingMethods,
@@ -135,6 +138,7 @@ class Configuration:
         aaaTacacs: Template("system.aaa.server_groups.${server_group}.tacacs"),
         aaaRadius: Template("system.aaa.server_groups.${server_group}.radius"),
         aaaAuthenticationConfig: "system.aaa.authentication.config",
+        LocalUser: "system.aaa.authentication.users",
         aaaAuthenticationMethods: "system.aaa.authentication.config.methods",
         aaaAuthorizationConfig: "system.aaa.authorization.config",
         aaaAuthorizationMethods: "system.aaa.authorization.config.methods",
@@ -161,6 +165,8 @@ class Configuration:
             "network_instances.${network_instance}.protocols.static_routes.${static_route}.next_hops"
         ),
         Svi: Template("interfaces"),
+        HsrpGroup: Template("interfaces.${interface}.hsrp_groups"),
+        VrrpGroup: Template("interfaces.${interface}.vrrp_groups"),
         NtpServer: "system.ntp.servers",
         SshServer: "system.ssh.config",
         SpanningTreeGlobal: "stp.config",
@@ -254,6 +260,7 @@ class Configuration:
         {
             "ConfigComponent",
             "Interface",
+            "FirstHopGroup",
             "Augment",
             "Routing",
         }

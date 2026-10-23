@@ -1,7 +1,9 @@
 """Block shapes beyond header-and-body: lines that carry their key, path parameters, and ranged keys."""
 
+from types import SimpleNamespace as NS
+
 import pytest
-from acex_devkit.drivers.mapper import Block, Choice, Keyword, Line, Mapper
+from acex_devkit.drivers.mapper import Block, Choice, Context, Keyword, Line, Mapper
 from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
     HsrpGroup,
@@ -12,12 +14,16 @@ from acex_devkit.models.composed_configuration import (
     authenticationUser,
 )
 from acex_devkit.models.logging import VtyLine
+from acex_devkit.models.platform import OS
 
 
 class SystemSyntax(Block):
     path = "system.config"
     component = SystemConfig
-    body = (Line("ip domain-name {domain_name}", aliases=("ip domain name {domain_name}",)),)
+    body = (
+        Line("ip domain-name {domain_name}", until="16"),
+        Line("ip domain name {domain_name}", since="16"),
+    )
 
 
 class UserSyntax(Block):
@@ -95,9 +101,16 @@ def parsed() -> ComposedConfiguration:
     return result.configuration
 
 
-def test_aliases_parse_but_never_render(parsed):
-    assert parsed.system.config.domain_name.value == "example.com"
-    assert "ip domain-name example.com" in MAPPER.render(parsed).payload.splitlines()
+def test_version_variants_follow_the_device_release(parsed):
+    assert parsed.system.config.domain_name.value == "example.com"  # unknown release: every variant reads
+    assert "ip domain name example.com" in MAPPER.render(parsed).payload.splitlines()  # and the newest writes
+
+    old = Context(NS(asset=NS(type="asset", os=OS.cisco_ios, os_version="15.2(7)E3")))
+    assert "ip domain-name example.com" in MAPPER.render(parsed, old).payload.splitlines()
+    assert MAPPER.parse("ip domain name example.com", old).metadata.unmatched  # not how 15.2 writes it
+
+    new = Context(NS(asset=NS(type="asset", os=OS.cisco_iosxe, os_version="17.9.4a")))
+    assert "ip domain name example.com" in MAPPER.render(parsed, new).payload.splitlines()
 
 
 def test_choice_maps_typed_values(parsed):

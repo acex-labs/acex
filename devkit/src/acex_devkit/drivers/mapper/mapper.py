@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from acex_devkit.drivers.mapper.syntax import Block, Capture, Mount, Section, Tree
+from acex_devkit.drivers.mapper.syntax import Block, Capture, Item, Mount, Section, Tree
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.codec_result import (
     ParseMetadata,
@@ -139,6 +139,8 @@ class Renderer:
         indent = self.mapper.indent * depth
         text = Text()
         for entry in entries:
+            if isinstance(entry, Item) and not entry.admits(self.context, rendering=True):
+                continue
             if isinstance(entry, Block):
                 for chunk in self.chunks(entry, component, values, path, depth):
                     text.extend(chunk)
@@ -330,6 +332,8 @@ class ParseRun:
             return self.lines(entry, frame, text) if entry.flat else self.inline(entry, frame, text)
         if isinstance(entry, Section):
             return self.section(entry, frame, text, depth)
+        if not entry.admits(self.context, rendering=False):
+            return False
         result = entry.match(text)
         if result is None:
             return False
@@ -369,7 +373,7 @@ class ParseRun:
 
     def inline(self, block: Block, frame: Frame, text: str) -> bool:
         for entry in block.entries[block.types[0]]:
-            result = entry.match(text)
+            result = entry.match(text) if entry.admits(self.context, rendering=False) else None
             if result is None:
                 continue
             target = block.locate(frame.target, create=True)
@@ -385,7 +389,7 @@ class ParseRun:
     def lines(self, block: Block, frame: Frame, text: str) -> bool:
         """A line carrying its component's key, and its path parameters, among its fields."""
         for entry in block.entries[block.types[0]]:
-            result = entry.match(text)
+            result = entry.match(text) if entry.admits(self.context, rendering=False) else None
             if result is None or isinstance(result, Capture):
                 continue
             binding = {param: result.pop(param, block.implied.get(param)) for param in block.param_names}

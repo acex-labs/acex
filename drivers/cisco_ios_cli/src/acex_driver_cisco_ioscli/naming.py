@@ -78,6 +78,8 @@ class CiscoInterfaceNaming:
             return None
         numbers = [int(n) for n in match["numbers"].split("/")]
         stack, module, port = (numbers[0] - 1, *numbers[1:]) if len(numbers) == 3 else (0, *numbers)
+        if port < 1 or stack < 0:
+            return None  # ports number from 1; a 0 is the management port (GigabitEthernet0/0), not front panel
         fields: dict[str, Any] = {"module_index": module, "index": port - 1}
         if stack:
             fields["stack_index"] = stack

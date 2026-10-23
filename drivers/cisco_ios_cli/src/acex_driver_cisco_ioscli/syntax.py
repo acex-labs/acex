@@ -18,6 +18,7 @@ from acex_devkit.models.composed_configuration import (
     SubInterface,
     SystemConfig,
     Vlan,
+    VrrpGroup,
     aaaGlobalAttributes,
     aaaRadiusAttributes,
     aaaServerGroupAttributes,
@@ -26,7 +27,7 @@ from acex_devkit.models.composed_configuration import (
 )
 from acex_devkit.models.logging import VtyLine
 
-from acex_driver_cisco_ioscli.naming import CiscoInterfaceNaming
+from acex_driver_cisco_ioscli.context import CiscoContext
 
 
 class Pps(Token):
@@ -50,8 +51,9 @@ class SystemConfigSyntax(Block):
     component = SystemConfig
     body = (
         Line("hostname {hostname}"),
-        # IOS-XE 16 and later show `ip domain name`; the hyphenated form is accepted by every release.
-        Line("ip domain-name {domain_name}", aliases=("ip domain name {domain_name}",)),
+        # IOS-XE 16 renamed the command; each release writes it only its own way.
+        Line("ip domain-name {domain_name}", until="16"),
+        Line("ip domain name {domain_name}", since="16"),
         Line("ip default-gateway {default_gateway}"),
         Line("snmp-server contact {contact:rest}"),
         Line("snmp-server location {location:rest}"),
@@ -140,6 +142,20 @@ class HsrpSyntax(Block):
     )
 
 
+class VrrpSyntax(Block):
+    """IOS VRRP (version 2). Preemption is on by default, so the device writes only turning it off."""
+
+    path = "vrrp_groups"
+    key = "group"
+    component = VrrpGroup
+    body = (
+        Line("vrrp {group:int} ip {virtual_address}"),
+        Line("vrrp {group:int} priority {priority:int}"),
+        Line("vrrp {group:int} {preempt}", preempt=Choice({True: "preempt"})),
+        Line("no vrrp {group:int} {preempt}", preempt=Choice({False: "preempt"})),
+    )
+
+
 class StormControlSyntax(Block):
     path = "storm_control"
     component = StormControlAttributes
@@ -180,6 +196,7 @@ class InterfaceSyntax(Block):
         Flag("redirects", off="no ip redirects"),
         Flag("proxy_arp", off="no ip proxy-arp"),
         HsrpSyntax(),
+        VrrpSyntax(),
         Line("mtu {mtu:int}"),
         Line("duplex {duplex}", duplex=Choice("full", "half", "auto")),
         Flag("negotiation", on="negotiation auto", off="no negotiation auto"),
@@ -204,26 +221,32 @@ class InterfaceSyntax(Block):
         Flag("enabled", on="no shutdown", off="shutdown", default=True),
     )
 
-    def derive(self, values: dict[str, Any], context: CiscoInterfaceNaming) -> dict[str, Any] | None:
-        """Loopbacks and SVIs are named by their number, physical ports by their place on the hardware."""
+    def derive(self, values: dict[str, Any], context: CiscoContext) -> dict[str, Any] | None:
+        """Loopbacks, SVIs and port-channels are named by their number, physical ports by their place on the
+        hardware. Subinterfaces and management ports keep the name the model gives them."""
         if values["type"] == "softwareLoopback":
             return {**values, "name": f"Loopback{values['index']}"}
         if values["type"] == "l3ipvlan":
             return {**values, "name": f"Vlan{values['vlan_id']}"} if values.get("vlan_id") is not None else None
-        if values["type"] == "ethernetCsmacd" and context.known:
-            name = context.name(values)
+        if values["type"] == "ieee8023adLag":
+            aggregate = values.get("aggregate_id")
+            return {**values, "name": f"Port-channel{aggregate}"} if aggregate is not None else None
+        if values["type"] == "ethernetCsmacd" and context.naming.known:
+            name = context.naming.name(values)
             return None if name is None else {**values, "name": name}
         return values
 
-    def complete(self, fields: dict[str, Any], position: int, context: CiscoInterfaceNaming) -> dict[str, Any]:
+    def complete(self, fields: dict[str, Any], position: int, context: CiscoContext) -> dict[str, Any]:
         name, component_type = str(fields["name"]), self.type_for(fields)
         derived: dict[str, Any] = {}
         if component_type is SoftwareLoopbackInterface:
             derived = {"index": int(name.removeprefix("Loopback"))}
         elif component_type is L3IpvlanInterface:
             derived = {"vlan_id": int(name.removeprefix("Vlan"))}
+        elif component_type is Ieee8023adLagInterface:
+            derived = {"aggregate_id": int(name.removeprefix("Port-channel"))}
         elif component_type is EthernetCsmacdInterface:
-            derived = context.position(name) or {}
+            derived = context.naming.position(name) or {}
         return {"index": position, **fields, **derived}
 
 
