@@ -6,11 +6,9 @@ class SetHostname(ConfigMap):
     def compile(self, context):
 
         role_map = {
-            "lan_asw": "asw",
-            "lan_distribution": "dsw",
-            "lan_csw": "csw",
-            "lan_ccore": "csw",
-            "lan_core": "csw",
+            "access": "asw",
+            "distribution": "dsw",
+            "core": "csw",
         }
 
         ln = context.logical_node
@@ -30,7 +28,7 @@ class SetHostname(ConfigMap):
 
 config = SetHostname()
 config.filters = (
-    FilterAttribute("role").eq("lan_asw")
-    | FilterAttribute("role").eq("lan_distribution")
-    | FilterAttribute("role").eq("lan_csw")
+    FilterAttribute("role").eq("access")
+    | FilterAttribute("role").eq("distribution")
+    | FilterAttribute("role").eq("core")
 )

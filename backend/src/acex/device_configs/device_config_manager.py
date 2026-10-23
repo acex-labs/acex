@@ -240,11 +240,17 @@ class DeviceConfigManager:
                 node_instance = await self.inventory.node_instances.get(node_instance_id)
                 ned = await self._get_ned(node_instance)
 
-                if ned is not None:
-                    existing.content = ned.parse(existing.content)
-                else:
+                if ned is None:
                     existing.content = ""
-                return existing
+                    return existing
+                parsed = ned.parse(existing.content, node_instance)
+                return DeviceConfigResponse(
+                    node_instance_id=existing.node_instance_id,
+                    content=parsed.configuration,
+                    hash=existing.hash,
+                    created_at=existing.created_at,
+                    metadata=parsed.metadata,
+                )
             else:
                 return existing
         finally:

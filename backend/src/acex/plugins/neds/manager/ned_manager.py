@@ -1,7 +1,7 @@
 from importlib.metadata import entry_points
 from pathlib import Path
 
-from acex.plugins.neds.core import NetworkElementDriver
+from acex_devkit.drivers.base import NetworkElementDriver
 
 from .wheels import built_wheels
 

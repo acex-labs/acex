@@ -141,12 +141,20 @@ def test_the_history_shows_when_each_snapshot_was_last_collected(manager, clock)
     assert (as_utc(oldest["created_at"]), as_utc(oldest["last_collected_at"])) == (START, LATER)
 
 
-def test_the_observed_endpoints_return_last_collected_at(manager, clock):
-    async def get_rendered_config(id: str):
-        return ""
+class _NodeInstances:
+    """Stands in for the node instance plugin: no CRUD routes, and any other endpoint the router asks for."""
 
-    node_instances = SimpleNamespace(capabilities=[], get_rendered_config=get_rendered_config)
-    engine = SimpleNamespace(inventory=SimpleNamespace(node_instances=node_instances), device_config_manager=manager)
+    capabilities = []
+
+    def __getattr__(self, name):
+        async def endpoint(id: str):
+            return ""
+
+        return endpoint
+
+
+def test_the_observed_endpoints_return_last_collected_at(manager, clock):
+    engine = SimpleNamespace(inventory=SimpleNamespace(node_instances=_NodeInstances()), device_config_manager=manager)
     app = FastAPI()
     app.include_router(create_router(engine))
     client = TestClient(app)

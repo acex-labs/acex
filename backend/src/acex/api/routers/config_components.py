@@ -1051,7 +1051,8 @@ def create_router(automation_engine):
             # IOS templates trigger Record on "!" — without it the last block is dropped.
             stripped = request.config_text.rstrip()
             config_text = stripped if stripped.endswith("!") else stripped + "\n!"
-            parsed_config = driver.parse(config_text)
+            # No node: a pasted config isn't tied to hardware, so interfaces keep the names they have.
+            parsed_config = driver.parse(config_text, None).configuration
         except Exception as e:
             raise HTTPException(status_code=422, detail=f"Parse error: {e}") from e
 

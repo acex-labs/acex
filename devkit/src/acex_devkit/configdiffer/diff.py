@@ -9,7 +9,12 @@ to render device-specific command patches based on the component changes.
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field, computed_field, field_serializer
+from pydantic import BaseModel, Field, FieldSerializationInfo, computed_field, field_serializer
+
+from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.codec_result import UnmatchedLine
+from acex_devkit.models.config_origin import ComponentOrigin
+from acex_devkit.models.reference import Reference
 
 
 class ComponentDiffOp(StrEnum):
@@ -21,13 +26,37 @@ class ComponentDiffOp(StrEnum):
 
 
 class AttributeChange(BaseModel):
-    """Represents a change to a single attribute within a component"""
+    """Represents a change to a single attribute within a component. `before` and `after` hold the
+    tree's own objects for drivers; serialized, they are plain values for people to read."""
 
     model_config = {"arbitrary_types_allowed": True}
 
     attribute_name: str
     before: Any | None = None
     after: Any | None = None
+    # The config component placed at the attribute itself (e.g. HostName at system.config.hostname), when
+    # it isn't the component's own.
+    origin: ComponentOrigin | None = None
+
+    @field_serializer("before", "after")
+    def serialize_value(self, value: Any) -> Any:
+        return self.plain(value)
+
+    @classmethod
+    def plain(cls, value: Any) -> Any:
+        """An attribute value as data: an AttributeValue as its value, a Reference as what it points at,
+        a sub-model as its set fields."""
+        if isinstance(value, AttributeValue):
+            return value.model_dump(mode="json")["value"]
+        if isinstance(value, Reference):
+            return value.pointer
+        if isinstance(value, BaseModel):
+            return {k: cls.plain(v) for k, v in value if v not in (None, {}, [])}
+        if isinstance(value, dict):
+            return {k: cls.plain(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [cls.plain(v) for v in value]
+        return value
 
 
 class ComponentChange(BaseModel):
@@ -60,11 +89,20 @@ class ComponentChange(BaseModel):
     # For CHANGE operations: list of changed attributes
     changed_attributes: list[AttributeChange] = Field(default_factory=list)
 
+    # The config component behind a declared component: the one placed at or above its path
+    origin: ComponentOrigin | None = None
+
     model_config = {"arbitrary_types_allowed": True}
 
     @field_serializer("component_type")
     def serialize_component_type(self, v: type[Any]) -> str:
         return v.__name__
+
+    @field_serializer("before_dict", "after_dict")
+    def serialize_component(self, value: dict[str, Any] | None, info: FieldSerializationInfo) -> dict[str, Any] | None:
+        """The component as plain values, its unset fields left out."""
+        component = self.before if info.field_name == "before_dict" else self.after
+        return AttributeChange.plain(component) if isinstance(component, BaseModel) else value
 
     @property
     def component_type_name(self) -> str:
@@ -92,6 +130,22 @@ class Diff(BaseModel):
     total_desired: int = 0
     total_observed: int = 0
 
+    # Observed lines the driver couldn't parse, so they're in neither tree. They say how far the driver
+    # covers the device's configuration, not whether the device is compliant.
+    unparsed: list[UnmatchedLine] = Field(default_factory=list)
+
+    @computed_field
+    @property
+    def undeclared_count(self) -> int:
+        """Components on the device that the desired configuration doesn't declare. Not counted in
+        compliance; they are what a full-ownership apply would remove."""
+        return len(self.removed)
+
+    @computed_field
+    @property
+    def unparsed_count(self) -> int:
+        return len(self.unparsed)
+
     @computed_field
     @property
     def compliant_count(self) -> int:
@@ -104,13 +158,13 @@ class Diff(BaseModel):
 
     @computed_field
     @property
-    def compliance_percentage(self) -> float:
+    def compliance_percentage(self) -> float | None:
         """
         Percentage of desired config points that are compliant.
-        Returns 100.0 when there are no desired config points.
+        None when nothing is desired: there is nothing to be compliant with.
         """
         if self.total_desired == 0:
-            return 100.0
+            return None
         return round(self.compliant_count / self.total_desired * 100, 2)
 
     def is_empty(self) -> bool:
@@ -128,6 +182,8 @@ class Diff(BaseModel):
             "total_observed": self.total_observed,
             "compliant_count": self.compliant_count,
             "compliance_percentage": self.compliance_percentage,
+            "undeclared_count": self.undeclared_count,
+            "unparsed_count": self.unparsed_count,
         }
 
     def get_all_changes(self) -> list[ComponentChange]:
