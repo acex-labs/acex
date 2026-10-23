@@ -1,160 +1,309 @@
-"""Driver base classes for ACE-X network element drivers."""
+"""The NED interface: what a network element driver implements and what callers use.
 
+A NED is an adapter for one device type. Callers only see `NetworkElementDriver` and the
+`Session` it opens; the facades below are what a driver author writes:
+
+- `Codec`     configuration syntax in both directions, no device, independent of transport
+- `Transport` talks to the device (CLI, NETCONF, REST, ...), one instance per session
+- `State`     reads operational state into devkit models, opt-in per method
+- `Actions`   runs actions such as ping, opt-in per method
+
+Codec and transport share a payload type: what `Codec.render` and `Codec.render_patch`
+return is what `Transport.apply` sends, e.g. `Codec[str]` with `Transport[str]` for CLI text.
+"""
+
+import asyncio
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
-from typing import Any
+from typing import Any, ClassVar, TypeVar, get_args, get_origin, get_type_hints
 
-from acex_devkit.models.node_response import NodeListItem
+from pydantic import TypeAdapter
+
+from acex_devkit.configdiffer import Diff
+from acex_devkit.exceptions import DriverException
+from acex_devkit.models.actions import PingParams, PingResult
+from acex_devkit.models.asset import Asset
+from acex_devkit.models.composed_configuration import ComposedConfiguration
+from acex_devkit.models.credential import CredentialSecret
+from acex_devkit.models.lldp_neighbor import LldpNeighborEntry
+from acex_devkit.models.management_connection import ConnectionType
+from acex_devkit.models.ned import Capabilities, Platform
+from acex_devkit.models.node_response import NodeInstance
+from acex_devkit.models.state import ArpEntry, DeviceFacts, StateKind
 
 
-class ParserBase(ABC):
-    """Base class for configuration parsers."""
+class Facade:
+    """Detects which optional methods a facade implements, so capabilities are never declared by hand."""
+
+    validate_results: ClassVar[bool] = False  # check results against the base class's declared return type
+
+    @staticmethod
+    def optional(method):
+        method.__acex_optional__ = True
+        return method
+
+    @classmethod
+    def implemented(cls) -> list[str]:
+        names = {name for c in cls.__mro__ for name, v in vars(c).items() if getattr(v, "__acex_optional__", False)}
+        return sorted(name for name in names if not getattr(getattr(cls, name), "__acex_optional__", False))
+
+    @classmethod
+    def payload_type(cls) -> Any:
+        """The `Payload` a codec or transport is parametrized with, or None when left generic."""
+        for base in cls.__mro__:
+            for orig in getattr(base, "__orig_bases__", ()):
+                if get_origin(orig) in (Codec, Transport) and not isinstance(arg := get_args(orig)[0], TypeVar):
+                    return arg
+        return None
+
+    def require(self, method: str) -> None:
+        if method not in self.implemented():
+            raise DriverException(f"{type(self).__name__} does not implement {method}")
+
+    def check(self, method: str, result: Any) -> Any:
+        if not self.validate_results:
+            return result
+        # Validate against the return type the base class declares, not the driver's override.
+        base = next(c for c in type(self).__mro__ if getattr(vars(c).get(method), "__acex_optional__", False))
+        return TypeAdapter(get_type_hints(vars(base)[method])["return"]).validate_python(result)
+
+
+class Codec[Payload](Facade, ABC):
+    """Configuration syntax in both directions. Pure: no device, no transport."""
+
+    mapper: Any = None  # a devkit Mapper; its components are reported as capabilities
 
     @abstractmethod
-    def parse(self, configuration: str) -> Any:
-        """Parse device configuration into a structured model.
-
-        Args:
-            configuration: Raw configuration string from device
-
-        Returns:
-            Parsed configuration model
-        """
-        pass
-
-
-class RendererBase(ABC):
-    """Base class for configuration renderers."""
+    def render(self, config: ComposedConfiguration, node: NodeInstance) -> Payload:
+        """Full configuration, sendable with `Transport.apply`."""
 
     @abstractmethod
-    def render(self, model: dict[str, Any], asset: Any = None) -> Any:
-        """Render configuration model to device-specific format.
+    def parse(self, raw: Any, node: NodeInstance) -> ComposedConfiguration: ...
 
-        Args:
-            model: Device-agnostic configuration model
-            asset: Optional asset context
+    @abstractmethod
+    def render_patch(self, diff: Diff, node: NodeInstance) -> Payload:
+        """The changes in `diff`, sendable with `Transport.apply`."""
 
-        Returns:
-            Device-specific configuration (e.g., string, XML tree)
-        """
-        pass
+    @abstractmethod
+    def mask(self, raw: Any) -> Any:
+        """Replace secrets. Must be idempotent: mask(mask(x)) == mask(x)."""
+
+    def normalize(self, raw: Any) -> Any:
+        return raw
 
 
-class TransportBase(ABC):
-    """Base class for device transport/communication.
+class Transport[Payload](Facade, ABC):
+    """Talks to one device. Created per session; the only part holding device state.
 
-    Each method is self-contained, but transports may also expose
-    `session()` as a context manager so a caller can run multiple
-    operations against the same physical connection.
-
-    Args:
-        node: The node instance (identity, hostname, vendor, os, ned_id)
-        target_ip: Management IP or hostname of the device
-        **kwargs: Future use (credentials, options, etc.)
+    `node` is None when the session was opened against a raw address, e.g. for discovery.
     """
 
-    @contextmanager
-    def session(self, target_ip: str, **kwargs):
-        """Open a reusable session for multiple ops on one device.
+    connection_types: ClassVar[set[ConnectionType] | None] = None  # management connections it can use; None = any
 
-        Default is a no-op: methods continue to open/close per call.
-        Drivers that benefit from connection reuse override this to
-        hold a single connection open for the duration of the block.
-        """
-        yield self
+    def __init__(self, address: str, credentials: list[CredentialSecret], node: NodeInstance | None = None):
+        self.address = address
+        self.credentials = credentials
+        self.node = node
 
-    @abstractmethod
-    def get_config(self, node: NodeListItem, target_ip: str, **kwargs) -> str:
-        """Fetch the full running configuration from a device."""
-        pass
+    def credential(self, credential_type: str, required: bool = True) -> CredentialSecret | None:
+        credential = next((c for c in self.credentials if c.credential_type == credential_type), None)
+        if credential is None and required:
+            raise DriverException(f"{self.address} has no {credential_type} credential")
+        return credential
 
     @abstractmethod
-    def send_config(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> str:
-        """Apply configuration commands to a device."""
-        pass
+    async def open(self) -> None: ...
 
-    def execute(self, node: NodeListItem, target_ip: str, commands: list[str], **kwargs) -> list[str]:
-        """Run arbitrary commands and return output per command. Opt-in per driver."""
-        raise NotImplementedError(f"{self.__class__.__name__} does not implement execute()")
+    @abstractmethod
+    async def close(self) -> None: ...
 
-    def get_lldp_neighbors(self, node: NodeListItem, target_ip: str, **kwargs) -> list[dict]:
-        """Fetch LLDP/CDP neighbor table from a device.
+    @Facade.optional
+    async def get_config(self) -> Any:
+        raise NotImplementedError
 
-        Returns list of dicts with keys:
-            local_interface, remote_device, remote_interface, discovery_protocol
-        """
-        raise NotImplementedError(f"{self.__class__.__name__} does not implement get_lldp_neighbors()")
+    @Facade.optional
+    async def apply(self, payload: Payload) -> Any:
+        """Send what `Codec.render` or `Codec.render_patch` returned."""
+        raise NotImplementedError
+
+    @Facade.optional
+    async def execute(self, request: Any) -> Any:
+        raise NotImplementedError
+
+
+class State(Facade):
+    """Operational state. Implement `get_<kind>` for each supported StateKind."""
+
+    validate_results = True
+
+    @classmethod
+    def kinds(cls) -> list[StateKind]:
+        return [StateKind(name.removeprefix("get_")) for name in cls.implemented()]
+
+    @Facade.optional
+    async def get_facts(self, transport: Transport) -> DeviceFacts:
+        raise NotImplementedError
+
+    @Facade.optional
+    async def get_lldp_neighbors(self, transport: Transport) -> list[LldpNeighborEntry]:
+        raise NotImplementedError
+
+    @Facade.optional
+    async def get_arp_table(self, transport: Transport) -> list[ArpEntry]:
+        raise NotImplementedError
+
+
+class Actions(Facade):
+    """Actions run from the device. Implement one method per action."""
+
+    validate_results = True
+
+    @Facade.optional
+    async def ping(self, transport: Transport, params: PingParams) -> PingResult:
+        raise NotImplementedError
+
+
+class Session:
+    """One connection to one device. Calls run one at a time, in the order they are made."""
+
+    def __init__(self, transport: Transport, state: State | None, actions: Actions | None):
+        self.transport = transport
+        self.state = state
+        self.actions = actions
+        self.lock = asyncio.Lock()
+
+    async def __aenter__(self) -> "Session":
+        await self.transport.open()
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        await self.transport.close()
+
+    async def get_config(self) -> Any:
+        """Raw and unmasked."""
+        return await self.call(self.transport, "get_config")
+
+    async def apply(self, payload: Any) -> Any:
+        return await self.call(self.transport, "apply", payload)
+
+    async def execute(self, request: Any) -> Any:
+        """Raw, vendor-specific and unmasked."""
+        return await self.call(self.transport, "execute", request)
+
+    async def get_facts(self) -> DeviceFacts:
+        return await self.call(self.state, "get_facts", self.transport)
+
+    async def get_lldp_neighbors(self) -> list[LldpNeighborEntry]:
+        return await self.call(self.state, "get_lldp_neighbors", self.transport)
+
+    async def get_arp_table(self) -> list[ArpEntry]:
+        return await self.call(self.state, "get_arp_table", self.transport)
+
+    async def ping(self, params: PingParams) -> PingResult:
+        return await self.call(self.actions, "ping", self.transport, params)
+
+    async def call(self, facade: Facade | None, method: str, *args) -> Any:
+        if facade is None:
+            raise DriverException(f"Driver does not support {method}")
+        facade.require(method)
+        async with self.lock:
+            result = await getattr(facade, method)(*args)
+        return facade.check(method, result)
 
 
 class NetworkElementDriver:
     """Base class for network element drivers.
 
-    Combines renderer, transport, and parser to provide complete
-    configuration management for network devices.
-
-    Attributes:
-        renderer_class: Renderer class to use (must be set in subclass)
-        transport_class: Transport class to use (must be set in subclass)
-        parser_class: Parser class to use (must be set in subclass)
-        normalizer_class: Optional normalizer class for stripping
-            non-intent config and masking secrets
+    A driver declares its facades and the platforms it supports. Everything else,
+    including which functions it implements, comes from this class.
     """
 
-    renderer_class = None
-    transport_class = None
-    parser_class = None
-    normalizer_class = None
+    codec_class: ClassVar[type[Codec] | None] = None
+    transport_class: ClassVar[type[Transport] | None] = None
+    state_class: ClassVar[type[State] | None] = None
+    actions_class: ClassVar[type[Actions] | None] = None
+
+    platforms: ClassVar[list[Platform]] = []
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.codec_class is None or cls.transport_class is None:
+            return
+        codec, transport = cls.codec_class.payload_type(), cls.transport_class.payload_type()
+        if codec is not None and transport is not None and codec != transport:
+            raise TypeError(
+                f"{cls.__name__}: {cls.codec_class.__name__} renders {codec}, "
+                f"but {cls.transport_class.__name__} applies {transport}"
+            )
 
     def __init__(self):
-        """Initialize driver with renderer, transport, and parser instances."""
-        if self.renderer_class is None or self.transport_class is None or self.parser_class is None:
-            raise NotImplementedError("renderer_class, transport_class, and parser_class must be set in subclass")
-        self.renderer = self.renderer_class()
-        self.transport = self.transport_class()
-        self.parser = self.parser_class()
-        self.normalizer = self.normalizer_class() if self.normalizer_class else None
+        self.codec = self.codec_class() if self.codec_class else None
+        self.state = self.state_class() if self.state_class else None
+        self.actions = self.actions_class() if self.actions_class else None
 
-    @abstractmethod
-    def render(self, logical_node: Any, asset: Any = None) -> Any:
-        """Render logical node to device configuration.
+    @property
+    def capabilities(self) -> Capabilities:
+        return Capabilities(
+            platforms=self.platforms,
+            configuration=self.codec.mapper.supported_components() if self.codec and self.codec.mapper else [],
+            operations=self.transport_class.implemented() if self.transport_class else [],
+            state=self.state_class.kinds() if self.state_class else [],
+            actions=self.actions_class.implemented() if self.actions_class else [],
+        )
 
-        Args:
-            logical_node: Logical node containing configuration
-            asset: Optional asset context
+    def supports(self, asset: Asset) -> bool:
+        return any(platform.matches(asset) for platform in self.platforms)
 
-        Returns:
-            Rendered configuration
+    def render(self, config: ComposedConfiguration, node: NodeInstance) -> Any:
+        return self.require_codec().render(config, node)
+
+    def parse(self, raw: Any, node: NodeInstance) -> ComposedConfiguration:
+        return self.require_codec().parse(raw, node)
+
+    def render_patch(self, diff: Diff, node: NodeInstance) -> Any:
+        return self.require_codec().render_patch(diff, node)
+
+    def normalize(self, raw: Any) -> Any:
+        return self.require_codec().normalize(raw)
+
+    def mask(self, raw: Any) -> Any:
+        return self.require_codec().mask(raw)
+
+    def session(self, node: NodeInstance, credentials: list[CredentialSecret]) -> Session:
+        """A session to a node instance, at the management connection its transport can use.
+
+        Among the connections of a type the transport handles, the primary one wins, otherwise the oldest.
         """
-        return self.renderer.render(logical_node.model_dump(), asset)
+        types = self.require_transport().connection_types
+        usable = [
+            c for c in node.management_connections if c.target_ip and (types is None or c.connection_type in types)
+        ]
+        if not usable:
+            kinds = ", ".join(sorted(types)) if types else "any"
+            raise DriverException(f"{node.logical_node.hostname} has no management connection of type {kinds}")
+        connection = min(usable, key=lambda c: (not c.primary, c.id))
+        return self.connect(connection.target_ip, credentials, node)
 
-    @abstractmethod
-    def parse(self, configuration: str) -> Any:
-        """Parse device configuration.
+    def connect(self, address: str, credentials: list[CredentialSecret], node: NodeInstance | None = None) -> Session:
+        """A session to an explicit address, e.g. a raw asset during discovery.
 
-        Args:
-            configuration: Raw device configuration
-
-        Returns:
-            Parsed configuration model
+        With a node instance its platform is checked; without one, e.g. before the node exists, it is not.
         """
-        return self.parser.parse(configuration)
+        transport_class = self.require_transport()
+        if node is not None:
+            assets = node.asset.assets if node.asset.type == "asset_cluster" else [node.asset]
+            unsupported = [
+                f"{a.os} {a.hardware_model} {a.os_version or ''}".strip() for a in assets if not self.supports(a)
+            ]
+            if unsupported:
+                raise DriverException(f"{type(self).__name__} does not support {', '.join(unsupported)}")
+        return Session(transport_class(address, credentials, node), self.state, self.actions)
 
-    def normalize(self, raw: str) -> str:
-        """Strip non-intent data (timestamps, auto-generated certs, etc.).
+    def require_transport(self) -> type[Transport]:
+        if self.transport_class is None:
+            raise DriverException(f"{type(self).__name__} has no transport")
+        return self.transport_class
 
-        Returns the cleaned config string. If no normalizer is configured
-        the input is returned unchanged.
-        """
-        if self.normalizer is None:
-            return raw
-        return self.normalizer.normalize(raw).config
-
-    def mask(self, raw: str) -> str:
-        """Replace secrets with <REDACTED>.
-
-        Returns the masked config string. If no normalizer is configured
-        the input is returned unchanged.
-        """
-        if self.normalizer is None:
-            return raw
-        return self.normalizer.mask(raw).config
+    def require_codec(self) -> Codec:
+        if self.codec is None:
+            raise DriverException(f"{type(self).__name__} has no codec")
+        return self.codec

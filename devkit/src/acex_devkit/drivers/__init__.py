@@ -1,15 +1,19 @@
-"""Base classes for ACE-X network element drivers."""
+"""The NED interface for ACE-X network element drivers."""
 
 from acex_devkit.drivers.base import (
+    Actions,
+    Codec,
     NetworkElementDriver,
-    ParserBase,
-    RendererBase,
-    TransportBase,
+    Session,
+    State,
+    Transport,
 )
 
 __all__ = [
     "NetworkElementDriver",
-    "TransportBase",
-    "RendererBase",
-    "ParserBase",
+    "Session",
+    "Codec",
+    "Transport",
+    "State",
+    "Actions",
 ]

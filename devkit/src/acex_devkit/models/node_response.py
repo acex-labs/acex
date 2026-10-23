@@ -79,6 +79,7 @@ class NodeUpdate(BaseModel):
 class NodeInstance(PersistedResponse, NodeBase):
     asset: Annotated[AssetResponse | AssetClusterResponse, Field(discriminator="type")]
     logical_node: LogicalNodeResponse
+    management_connections: list[ManagementConnectionResponse] = []
     credentials: list[CredentialRef] = []
     regions: list[str] = []
     created_at: datetime
