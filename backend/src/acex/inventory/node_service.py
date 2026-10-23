@@ -83,7 +83,7 @@ class NodeService:
         if ned is None:
             return "error: NED not found"
         try:
-            config = ned.render(configuration=composed_config, asset=asset)
+            config = ned.render(composed_config, ni)
         except Exception as e:
             # Skriver ut felmeddelandet
             print("Fel:", e)

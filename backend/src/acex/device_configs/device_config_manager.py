@@ -239,7 +239,7 @@ class DeviceConfigManager:
                 ned = await self._get_ned(node_instance)
 
                 if ned is not None:
-                    existing.content = ned.parse(existing.content)
+                    existing.content = ned.parse(existing.content, node_instance)
                 else:
                     existing.content = ""
                 return existing
