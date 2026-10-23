@@ -19,6 +19,7 @@ class ConfigSnapshotListItem(BaseModel):
     id: int
     hash: str
     created_at: datetime
+    last_collected_at: datetime | None = None
     node_instance_id: str
 
 
@@ -28,12 +29,17 @@ class ConfigSnapshotDetail(BaseModel):
     Returned by `GET .../observed/latest` and `GET .../observed/{config_id}`.
     The client transparently base64-decodes string content before returning;
     callers always receive plain text.
+
+    `created_at` is when this configuration was first seen, `last_collected_at`
+    the last time the node was polled and still had it. It is empty for a
+    configuration stored before the field existed, until the node is polled again.
     """
 
     node_instance_id: str
     content: str | ComposedConfiguration
     hash: str
     created_at: datetime
+    last_collected_at: datetime | None = None
 
 
 class ConfigDiffSide(BaseModel):
