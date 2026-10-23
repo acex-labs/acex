@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from acex_devkit.drivers.mapper.syntax import Block, Capture, Mount, Section
+from acex_devkit.drivers.mapper.syntax import Block, Capture, Mount, Section, Tree
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.reference import Reference
@@ -27,6 +27,7 @@ class Mapper:
         self.blocks = tuple(blocks)
         self.indent = indent
         self.separator = separator
+        self.keyed = tuple(block for block in self.blocks if block.header is not None)
         root = ComposedConfiguration()
         for block in self.blocks:
             if isinstance(block.locate(root, {}), dict) != (block.header is not None):
@@ -42,19 +43,22 @@ class Mapper:
     def depth(self, line: str) -> int:
         return len(line) - len(line.lstrip(self.indent)) if self.indent else 0
 
-    def render(self, root: ComposedConfiguration) -> str:
-        return Renderer(self, root).render()
+    def render(self, root: ComposedConfiguration, context: Any = None) -> str:
+        """`context` reaches every block's `derive` hook, e.g. the node whose hardware names the interfaces."""
+        return Renderer(self, root, context).render()
 
-    def parse(self, text: str) -> ParseResult:
-        return ParseRun(self).run(text)
+    def parse(self, text: str, context: Any = None) -> ParseResult:
+        """`context` reaches every block's `complete` hook."""
+        return ParseRun(self, context).run(text)
 
 
 class Renderer:
     """One render of a configuration tree into text."""
 
-    def __init__(self, mapper: Mapper, root: ComposedConfiguration):
+    def __init__(self, mapper: Mapper, root: ComposedConfiguration, context: Any):
         self.mapper = mapper
         self.root = root
+        self.context = context
 
     def render(self) -> str:
         chunks = [
@@ -72,7 +76,9 @@ class Renderer:
     def component(
         self, block: Block, key: str | None, component: BaseModel, path: tuple, parent: dict[str, Any], depth: int
     ) -> list[str]:
-        values = block.values(component, key)
+        values = block.derive(self.canonical(block.values(component, key)), self.context)
+        if values is None:
+            return []
         path = path + block.resolve(parent) + (() if key is None else (key,))
         if block.header is None:
             return self.body(block.entries[type(component)], component, values, path, key, depth)
@@ -98,10 +104,38 @@ class Renderer:
                     lines += [indent + header, *section] + ([indent + entry.footer] if entry.footer else [])
             elif isinstance(entry, Mount):
                 bindings = entry.bindings(self.root, key, ".".join(path))
-                lines += [indent + entry.pattern.render(b) for b in bindings if b != entry.default]
+                lines += [indent + entry.pattern.render(self.named(entry, b)) for b in bindings if b != entry.default]
             else:
                 lines += [indent + line for line in entry.render(values)]
         return lines
+
+    def pointer(self, pointer: str) -> str:
+        """`pointer` with its target addressed by the name it renders under rather than its dict key.
+        A desired tree keys components by config-component name; the text uses the device's name."""
+        for block in self.mapper.keyed:
+            prefix = f"{block.path}."
+            if not pointer.startswith(prefix):
+                continue
+            key = pointer.removeprefix(prefix)
+            target = Tree.get(block.locate(self.root, {}), key)
+            if type(target) not in block.types:
+                continue
+            values = block.derive(block.values(target, key), self.context)
+            if values and values.get(block.key) is not None:
+                return prefix + str(values[block.key])
+        return pointer
+
+    def canonical(self, values: dict[str, Any]) -> dict[str, Any]:
+        return {
+            k: Reference(pointer=self.pointer(v.pointer)) if isinstance(v, Reference) else v for k, v in values.items()
+        }
+
+    def named(self, mount: Mount, binding: dict[str, str]) -> dict[str, str]:
+        """A membership's keys as the names their components render under."""
+        return {
+            name: self.pointer(f"{mount.prefix(name)}.{key}").removeprefix(f"{mount.prefix(name)}.")
+            for name, key in binding.items()
+        }
 
 
 @dataclass
@@ -125,8 +159,9 @@ class ParseRun:
     and mounted as soon as its header is read, and each body line sets fields on it. Memberships
     (`Mount`) are applied after the last line, when every collection they point into exists."""
 
-    def __init__(self, mapper: Mapper):
+    def __init__(self, mapper: Mapper, context: Any):
         self.mapper = mapper
+        self.context = context
         self.root = ComposedConfiguration()
         self.stack = [Frame(mapper.blocks, self.root, None, None, (), -1)]
         self.capture: tuple[Capture, Any] | None = None
@@ -194,7 +229,7 @@ class ParseRun:
             return False
         key = str(fields[block.key])
         if key not in collection:
-            collection[key] = block.create(component_type, fields, len(collection))
+            collection[key] = block.create(component_type, fields, len(collection), self.context)
         component = collection[key]
         path = frame.path + block.resolve(values) + (key,)
         entries = block.entries[type(component)]

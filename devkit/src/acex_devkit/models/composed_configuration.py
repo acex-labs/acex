@@ -60,6 +60,7 @@ class SystemConfig(Augmentable):
     domain_name: AttributeValue[str] | None = None
     hostname: AttributeValue[str] | None = None
     location: AttributeValue[str] | None = None
+    default_gateway: AttributeValue[str] | None = None
     login_banner: AttributeValue[str] | None = None
     motd_banner: AttributeValue[str] | None = None
 
@@ -258,6 +259,8 @@ class Interface(ContainerEntry, Augmentable):
 class EthernetCsmacdInterface(Interface):
     "Physical Interface"
 
+    # A port's position on the hardware; module and stack member tell apart ports sharing an index.
+    identity_fields: ClassVar[tuple[str, ...]] = ("index", "module_index", "stack_index", "type")
     type: Literal["ethernetCsmacd"] = "ethernetCsmacd"
 
     # Egenskaper för fysiska interface
@@ -891,8 +894,7 @@ class VTP(BaseModel):
 
 class DHCPSnoopingAttributes(Augmentable):
     enabled: AttributeValue[bool] | None = None
-    # VLANs where DHCP snooping is enabled, key is VLAN ID, value is reference to VLAN
-    vlans: dict[str, Reference] | None = {}
+    vlans: AttributeValue[list[int]] | None = None  # VLAN IDs where DHCP snooping is enabled
     # Interfaces that are trusted for DHCP snooping, key is interface name, value is reference to interface
     trust_interfaces: dict[str, Reference] | None = {}
     option82: AttributeValue[bool] | None = None  # Whether DHCP snooping option 82 is enabled

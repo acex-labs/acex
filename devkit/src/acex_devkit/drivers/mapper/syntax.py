@@ -275,6 +275,10 @@ class Mount(Item):
     def match(self, text: str) -> dict[str, Any] | None:
         return self.pattern.match(text)
 
+    def prefix(self, name: str) -> str:
+        """The dotted path to the collection whose keys `{name}` takes."""
+        return ".".join(self.at[: self.at.index(f"{{{name}}}")])
+
     def collection(self, root: BaseModel, binding: dict[str, str]) -> Any:
         return Tree.walk(root, tuple(segment.format(**binding) for segment in self.at))
 
@@ -344,7 +348,8 @@ class Block:
 
     A body holds `Item`s, nested `Block`s and `Section`s; declaration order is render order. `when`
     limits a nested block to enclosing components with those values. Subclasses may override
-    `complete` to fill fields the text doesn't carry, and `includes` to leave components unrendered.
+    `complete` to fill fields the text doesn't carry, `derive` to fill values the model doesn't carry,
+    and `includes` to leave components unrendered.
     """
 
     path: str
@@ -403,10 +408,15 @@ class Block:
     def active(self, values: dict[str, Any]) -> bool:
         return all(values.get(name) == value for name, value in self.when.items())
 
-    def complete(self, fields: dict[str, Any], position: int) -> dict[str, Any]:
+    def complete(self, fields: dict[str, Any], position: int, context: Any) -> dict[str, Any]:
         """Fill fields the text doesn't carry before the component is created. `position` is how many
-        components the collection already holds."""
+        components the collection already holds; `context` is what was passed to `Mapper.parse`."""
         return fields
+
+    def derive(self, values: dict[str, Any], context: Any) -> dict[str, Any] | None:
+        """Fill values the model doesn't carry before the component is rendered, e.g. a name computed
+        from hardware. `context` is what was passed to `Mapper.render`; None leaves the component out."""
+        return values
 
     def includes(self, key: str | None, component: BaseModel) -> bool:
         """Whether a component in the tree is rendered."""
@@ -442,9 +452,9 @@ class Block:
             return [(None, target)] if self.includes(None, target) else []
         return [(k, c) for k, c in target.items() if type(c) in self.types and self.includes(k, c)]
 
-    def create(self, component_type: type[BaseModel], fields: dict[str, Any], position: int) -> BaseModel:
-        known = {k: v for k, v in fields.items() if k in component_type.model_fields}
-        return component_type(**self.complete({**self.defaults[component_type], **known}, position))
+    def create(self, component_type: type[BaseModel], fields: dict[str, Any], position: int, context: Any) -> BaseModel:
+        fields = self.complete({**self.defaults[component_type], **fields}, position, context)
+        return component_type(**{k: v for k, v in fields.items() if k in component_type.model_fields})
 
     def values(self, component: BaseModel, key: str | None) -> dict[str, Any]:
         """The component's field values, unwrapped, plus its key under the key field's name."""

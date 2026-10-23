@@ -96,7 +96,7 @@ class InterfaceSyntax(Block):
         Flag("enabled", on="no shutdown", off="shutdown", default=True),
     )
 
-    def complete(self, fields, position):
+    def complete(self, fields, position, context):
         return {"index": position, **fields}
 
 
