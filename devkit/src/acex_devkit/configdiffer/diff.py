@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, FieldSerializationInfo, computed_field, f
 
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.codec_result import UnmatchedLine
+from acex_devkit.models.config_origin import ComponentOrigin
 from acex_devkit.models.reference import Reference
 
 
@@ -33,6 +34,9 @@ class AttributeChange(BaseModel):
     attribute_name: str
     before: Any | None = None
     after: Any | None = None
+    # The config component placed at the attribute itself (e.g. HostName at system.config.hostname), when
+    # it isn't the component's own.
+    origin: ComponentOrigin | None = None
 
     @field_serializer("before", "after")
     def serialize_value(self, value: Any) -> Any:
@@ -84,6 +88,9 @@ class ComponentChange(BaseModel):
 
     # For CHANGE operations: list of changed attributes
     changed_attributes: list[AttributeChange] = Field(default_factory=list)
+
+    # The config component behind a declared component: the one placed at or above its path
+    origin: ComponentOrigin | None = None
 
     model_config = {"arbitrary_types_allowed": True}
 

@@ -96,12 +96,12 @@ class NodeService:
         result = ned.render(compiled.config_response.configuration, ni)
         origins = compiled.configuration.origins()  # read after config_response, which places the components
         spans = [
-            OriginSpan(**span.model_dump(), origin=self._origin(span.path, origins)) for span in result.metadata.spans
+            OriginSpan(**span.model_dump(), origin=self.origin(span.path, origins)) for span in result.metadata.spans
         ]
         return AnnotatedConfigResponse(content=result.payload, spans=spans)
 
     @staticmethod
-    def _origin(path: list[str], origins: list[ComponentOrigin]) -> ComponentOrigin | None:
+    def origin(path: list[str], origins: list[ComponentOrigin]) -> ComponentOrigin | None:
         """The component whose path is the longest prefix of `path`: a line belongs to the most specific
         component placed at or above it."""
         matches = [o for o in origins if path[: len(o.path)] == o.path]
