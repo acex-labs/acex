@@ -42,4 +42,4 @@ class VlanSviConfigMap(ConfigMap):
 
 
 vlan_svi_config = VlanSviConfigMap()
-vlan_svi_config.filters = FilterAttribute("site").eq("lan_asw")
+vlan_svi_config.filters = FilterAttribute("role").eq("access")

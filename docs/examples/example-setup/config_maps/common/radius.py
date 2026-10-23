@@ -31,8 +31,8 @@ class SetRadiusConfig(ConfigMap):
 
 config = SetRadiusConfig()
 config.filters = (
-    FilterAttribute("role").eq("lan_asw")
-    | FilterAttribute("role").eq("lan_distribution")
-    | FilterAttribute("role").eq("lan_csw")
+    FilterAttribute("role").eq("access")
+    | FilterAttribute("role").eq("distribution")
+    | FilterAttribute("role").eq("core")
 )
 
