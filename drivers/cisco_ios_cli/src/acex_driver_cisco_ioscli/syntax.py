@@ -6,20 +6,25 @@ from acex_devkit.drivers.mapper import Block, Choice, Dispatch, Flag, Keyword, L
 from acex_devkit.drivers.mapper.tokens import Token
 from acex_devkit.models.composed_configuration import (
     EthernetCsmacdInterface,
+    HsrpGroup,
     Ieee8023adLagInterface,
     L3IpvlanInterface,
     NetworkInstance,
     NtpServer,
     SoftwareLoopbackInterface,
     SshServer,
+    StaticRouteNextHop,
     StormControlAttributes,
     SubInterface,
     SystemConfig,
+    Vlan,
     aaaGlobalAttributes,
     aaaRadiusAttributes,
     aaaServerGroupAttributes,
     aaaTacacsAttributes,
+    authenticationUser,
 )
+from acex_devkit.models.logging import VtyLine
 
 from acex_driver_cisco_ioscli.naming import CiscoInterfaceNaming
 
@@ -45,7 +50,9 @@ class SystemConfigSyntax(Block):
     component = SystemConfig
     body = (
         Line("hostname {hostname}"),
-        Line("ip domain name {domain_name}"),
+        # IOS-XE 16 and later show `ip domain name`; the hyphenated form is accepted by every release.
+        Line("ip domain-name {domain_name}", aliases=("ip domain name {domain_name}",)),
+        Line("ip default-gateway {default_gateway}"),
         Line("snmp-server contact {contact:rest}"),
         Line("snmp-server location {location:rest}"),
         Multiline("login_banner", "banner login {delim}"),
@@ -101,6 +108,38 @@ class AaaServerGroupSyntax(Block):
         return bool(component.enable and component.enable.value)
 
 
+class UserSyntax(Block):
+    path = "system.aaa.authentication.users"
+    header = Line(
+        "username {username}[ privilege {privilege:int}]"
+        "[ {password_hash_type} {password_hashed}][ secret 0 {password}]",
+        # `secret` takes a one-way hash; `password 7` is IOS's reversible scheme.
+        password_hash_type=Choice({5: "secret 5", 8: "secret 8", 9: "secret 9", 7: "password 7"}),
+    )
+    component = authenticationUser
+
+
+class VlanSyntax(Block):
+    path = "network_instances.global.vlans"
+    header = Line("vlan {vlan_id:int}")
+    component = Vlan
+    body = (Line("name {vlan_name:rest}"),)
+
+    def complete(self, fields: dict[str, Any], position: int, context: Any) -> dict[str, Any]:
+        return {"name": str(fields["vlan_id"]), **fields}  # the model's own name; the device's is vlan_name
+
+
+class HsrpSyntax(Block):
+    path = "hsrp_groups"
+    key = "group"
+    component = HsrpGroup
+    body = (
+        Line("standby {group:int} ip {virtual_address}"),
+        Line("standby {group:int} priority {priority:int}"),
+        Line("standby {group:int} {preempt}", preempt=Keyword("preempt")),
+    )
+
+
 class StormControlSyntax(Block):
     path = "storm_control"
     component = StormControlAttributes
@@ -140,6 +179,7 @@ class InterfaceSyntax(Block):
         Line("ip address {ipv4:ipv4_mask}"),
         Flag("redirects", off="no ip redirects"),
         Flag("proxy_arp", off="no ip proxy-arp"),
+        HsrpSyntax(),
         Line("mtu {mtu:int}"),
         Line("duplex {duplex}", duplex=Choice("full", "half", "auto")),
         Flag("negotiation", on="negotiation auto", off="no negotiation auto"),
@@ -187,6 +227,14 @@ class InterfaceSyntax(Block):
         return {"index": position, **fields, **derived}
 
 
+class StaticRouteSyntax(Block):
+    path = "network_instances.{vrf:name}.protocols.static_routes.{prefix}.next_hops"
+    key = "next_hop"
+    implied = {"vrf": "global"}
+    component = StaticRouteNextHop
+    body = (Line("ip route[ vrf {vrf}] {prefix:ipv4_mask} {next_hop}[ {metric:int}]"),)
+
+
 class SshSyntax(Block):
     path = "system.ssh.config"
     component = SshServer
@@ -195,6 +243,21 @@ class SshSyntax(Block):
         Line("ip ssh time-out {timeout:int}"),
         Line("ip ssh authentication-retries {auth_retries:int}"),
         Line("ip ssh source-interface {source_interface}", source_interface=Pointer("interfaces")),
+    )
+
+
+class VtyLineSyntax(Block):
+    path = "system.logging.vty.lines"
+    header = Line("line vty {line_number:range}")
+    component = VtyLine
+    body = (
+        Line(
+            "access-class {ipv4acl} {acl_direction}",
+            ipv4acl=Pointer("acl.ipv4_acls"),
+            acl_direction=Choice("in", "out"),
+        ),
+        Flag("logging_synchronous", on="logging synchronous"),
+        Line("transport input {transport_input:rest}"),
     )
 
 
@@ -209,8 +272,12 @@ BLOCKS = [
     VrfSyntax(),
     AaaSyntax(),
     AaaServerGroupSyntax(),
+    UserSyntax(),
+    VlanSyntax(),
     InterfaceSyntax(),
+    StaticRouteSyntax(),
     SshSyntax(),
+    VtyLineSyntax(),
     NtpServerSyntax(),
 ]
 """Top-level blocks in running-config order."""

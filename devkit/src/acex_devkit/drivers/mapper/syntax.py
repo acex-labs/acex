@@ -3,13 +3,15 @@ bind items to components in `ComposedConfiguration`. Every declaration works in 
 one declaration drives both render and parse."""
 
 import re
+import types
+import typing
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
-from acex_devkit.drivers.mapper.tokens import TOKENS, Token
+from acex_devkit.drivers.mapper.tokens import TOKENS, Range, Token
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.reference import Reference
 
@@ -35,6 +37,28 @@ class Tree:
                 return None
             node = Tree.get(node, segment)
         return node
+
+    @staticmethod
+    def value(node: Any, field: str) -> Any:
+        value = getattr(node, field, None)
+        return value.get_value() if isinstance(value, AttributeValue) else value
+
+    @staticmethod
+    def schema(owner: type[BaseModel], field: str) -> Any:
+        """The declared type of `owner.field`, without its `| None`."""
+        annotation = owner.model_fields[field].annotation
+        if typing.get_origin(annotation) in (typing.Union, types.UnionType):
+            present = [arg for arg in typing.get_args(annotation) if arg is not type(None)]
+            annotation = present[0] if len(present) == 1 else annotation
+        return annotation
+
+    @staticmethod
+    def create(owner: BaseModel, field: str) -> Any:
+        """An empty value for a field left unset: a dict for a collection, a default model for a sub-model."""
+        schema = Tree.schema(type(owner), field)
+        if typing.get_origin(schema) is dict:
+            return {}
+        return schema() if isinstance(schema, type) and issubclass(schema, BaseModel) else None
 
 
 @dataclass(frozen=True)
@@ -130,10 +154,11 @@ class Item:
     def __init__(self, only: type | tuple[type, ...] | None = None):
         self.only = only
 
-    def applies_to(self, component_type: type[BaseModel]) -> bool:
+    def applies_to(self, component_type: type[BaseModel], params: frozenset[str] = frozenset()) -> bool:
+        """Whether every field is the component's own, or one of the enclosing block's path `params`."""
         if self.only is not None and not issubclass(component_type, self.only):
             return False
-        return set(self.fields) <= component_type.model_fields.keys()
+        return set(self.fields) - params <= component_type.model_fields.keys()
 
     def render(self, values: dict[str, Any]) -> list[str]:
         raise NotImplementedError
@@ -150,19 +175,30 @@ class Item:
 
 class Line(Item):
     """A line pattern for one or more fields: `Line("switchport access vlan {access_vlan:int}")`.
-    Keyword arguments other than `only` are per-field tokens."""
+    `aliases` are other spellings of the same line, read but never written (`ip domain name` beside
+    `ip domain-name`). Keyword arguments other than `only` and `aliases` are per-field tokens."""
 
-    def __init__(self, pattern: str, only: type | tuple[type, ...] | None = None, **tokens: Token):
+    def __init__(
+        self,
+        pattern: str,
+        only: type | tuple[type, ...] | None = None,
+        aliases: tuple[str, ...] = (),
+        **tokens: Token,
+    ):
         super().__init__(only)
         self.pattern = Pattern(pattern, tokens)
         self.fields = tuple(self.pattern.fields)
+        self.aliases = tuple(Pattern(alias, tokens) for alias in aliases)
+        for alias in self.aliases:
+            if set(alias.fields) != set(self.fields):
+                raise ValueError(f"{alias.text!r}: an alias must set the same fields as {pattern!r}")
 
     def render(self, values: dict[str, Any]) -> list[str]:
         line = self.pattern.render(values)
         return [] if line is None else [line]
 
     def match(self, text: str) -> dict[str, Any] | None:
-        return self.pattern.match(text)
+        return next((m for p in (self.pattern, *self.aliases) if (m := p.match(text)) is not None), None)
 
 
 class Flag(Item):
@@ -337,14 +373,21 @@ class Dispatch:
 
 class Block:
     """Syntax for one component type, or a family of them via `Dispatch`, at `path` below the
-    enclosing component (the root for a top-level block). `path` is dotted; a `{field}` segment takes
-    the enclosing component's value, and a segment may be a dict key (`network_instances.global.vlans`).
+    enclosing component (the root for a top-level block). `path` is dotted, and a segment may be a dict
+    key (`network_instances.global.vlans`). A block takes one of three shapes:
 
-    With a `header`, `path` is a keyed collection: the header line opens one component and its body
-    follows one indent level deeper. `key` names the header field used as the dict key (default: the
-    first); it may be a key-only field that the model doesn't carry. Without a header, `path` is a single
-    object whose body lines sit at the enclosing level — a top-level singleton, or a sub-model like
-    an interface's storm-control settings.
+    - With a `header`, `path` is a keyed collection. The header line opens one component and its body
+      follows one indent level deeper. `key` names the header field used as the dict key (default: the
+      first); it may be a key-only field the model doesn't carry. When the key's token reads a `Range`
+      (`line vty 0 4`), the header opens every component in it, and consecutive components that render
+      alike are written as one range.
+    - With a `key` but no header, `path` is a keyed collection whose lines each carry the key and sit at
+      the enclosing level (`standby 1 ip …`); lines with the same key build one component. Such a path
+      may hold `{param}` segments: dict levels bound per line from the line's field of that name, matched
+      against the entry's field of the same name, or the one named after a colon (`{vrf:name}`).
+      `implied` holds what a line leaving a parameter out stands for, and that value is never written.
+    - With neither, `path` is a single object whose lines sit at the enclosing level: a top-level
+      singleton, or a sub-model like an interface's storm-control settings.
 
     A body holds `Item`s, nested `Block`s and `Section`s; declaration order is render order. `when`
     limits a nested block to enclosing components with those values. Subclasses may override
@@ -356,19 +399,27 @@ class Block:
     component: type[BaseModel] | Dispatch
     header: Line | None = None
     key: str | None = None
+    implied: dict[str, Any] = {}
     when: dict[str, Any] = {}
     body: tuple = ()
 
     def __init__(self):
         name = type(self).__name__
         self.segments = tuple(self.path.split("."))
+        self.params = {i: self._param(segment) for i, segment in enumerate(self.segments) if segment.startswith("{")}
+        self.param_names = frozenset(param for param, _ in self.params.values())
         self.dispatch = self.component if isinstance(self.component, Dispatch) else None
         self.types = self.dispatch.types if self.dispatch else (self.component,)
+        self.flat = self.header is None and self.key is not None
+        self.keyed = self.header is not None or self.flat
         if self.header is not None:
             self.key = self.key or self.header.fields[0]
-        self.entries = {t: tuple(entry for entry in self.body if entry.applies_to(t)) for t in self.types}
+        self.ranged = self.header is not None and isinstance(self.header.pattern.fields.get(self.key), Range)
+        self.entries = {t: tuple(entry for entry in self.body if self._fits(entry, t)) for t in self.types}
         self.defaults = {t: self._defaults(self.entries[t], t) for t in self.types}
 
+        if self.params and not self.flat:
+            raise ValueError(f"{name}: only a block whose lines carry their key binds path parameters")
         if self.header is None:
             if self.dispatch is not None:
                 raise ValueError(f"{name}: a block without a header has a single component type")
@@ -381,9 +432,22 @@ class Block:
                 missing = set(self.header.fields) - {self.key} - t.model_fields.keys()
                 if missing:
                     raise ValueError(f"{name}: header fields {sorted(missing)} are not on {t.__name__}")
+        if self.flat and self.key not in self.types[0].model_fields:
+            raise ValueError(f"{name}: key {self.key!r} is not on {self.types[0].__name__}")
         for entry in self.body:
-            if not any(entry.applies_to(t) for t in self.types):
+            if not any(self._fits(entry, t) for t in self.types):
                 raise ValueError(f"{name}: {type(entry).__name__} {self._describe(entry)} fits none of {self.types}")
+
+    def _param(self, segment: str) -> tuple[str, str]:
+        param, _, field = segment[1:-1].partition(":")
+        return param, field or param
+
+    def _fits(self, entry: Any, component_type: type[BaseModel]) -> bool:
+        return (
+            entry.applies_to(component_type, self.param_names)
+            if isinstance(entry, Item)
+            else entry.applies_to(component_type)
+        )
 
     def _defaults(self, entries: tuple, component_type: type[BaseModel]) -> dict[str, Any]:
         defaults: dict[str, Any] = {}
@@ -402,8 +466,7 @@ class Block:
         return str(entry.fields)
 
     def applies_to(self, component_type: type[BaseModel]) -> bool:
-        first = self.segments[0]
-        return first.startswith("{") or first in component_type.model_fields
+        return self.segments[0] in component_type.model_fields
 
     def active(self, values: dict[str, Any]) -> bool:
         return all(values.get(name) == value for name, value in self.when.items())
@@ -425,30 +488,74 @@ class Block:
     def type_for(self, fields: dict[str, Any]) -> type[BaseModel] | None:
         return self.dispatch.resolve(fields) if self.dispatch else self.types[0]
 
-    def resolve(self, values: dict[str, Any]) -> tuple[str, ...]:
-        """`path` with its `{field}` segments filled from the enclosing component's values."""
-        return tuple(segment.format(**values) if segment.startswith("{") else segment for segment in self.segments)
-
-    def locate(self, parent: Any, values: dict[str, Any], create: bool = False) -> Any:
-        """The collection (with a header) or object (without) this block covers below `parent`.
-        `create` makes the last step if it's missing."""
-        segments = self.resolve(values)
-        node = Tree.walk(parent, segments[:-1])
+    def locate(self, parent: Any, create: bool = False) -> Any:
+        """The collection (keyed) or object (not) this block covers below `parent`, for a path without
+        parameters. `create` makes the last step if it's missing."""
+        node = Tree.walk(parent, self.segments[:-1])
         if node is None:
             return None
-        target = Tree.get(node, segments[-1])
+        target = Tree.get(node, self.segments[-1])
         if target is None and create:
-            target = {} if self.header else self.types[0](**self.defaults[self.types[0]])
-            Tree.put(node, segments[-1], target)
+            target = {} if self.keyed else self.types[0](**self.defaults[self.types[0]])
+            Tree.put(node, self.segments[-1], target)
         return target
+
+    def placements(self, parent: Any) -> Iterator[tuple[dict[str, Any], tuple[str, ...], dict]]:
+        """Every collection the path reaches below `parent`: the parameters bound on the way, the
+        segments walked, and the collection."""
+        yield from self._placements(parent, 0, {}, ())
+
+    def _placements(self, node: Any, i: int, binding: dict, walked: tuple) -> Iterator[tuple[dict, tuple, dict]]:
+        if node is None:
+            return
+        if i == len(self.segments):
+            if isinstance(node, dict):
+                yield binding, walked, node
+            return
+        if i not in self.params:
+            yield from self._placements(Tree.get(node, self.segments[i]), i + 1, binding, walked + (self.segments[i],))
+            return
+        param, field = self.params[i]
+        for key, entry in node.items():
+            value = Tree.value(entry, field)
+            yield from self._placements(
+                entry, i + 1, {**binding, param: key if value is None else value}, walked + (key,)
+            )
+
+    def place(self, parent: Any, binding: dict[str, Any]) -> tuple[dict, tuple[str, ...]] | None:
+        """The collection a line with path parameters `binding` belongs in and the segments leading to it.
+        Missing levels are created where the schema allows; None when one can't be, e.g. an entry that
+        needs more fields than the bound one."""
+        node, walked, schema = parent, (), None
+        for i, segment in enumerate(self.segments):
+            if i in self.params:
+                param, field = self.params[i]
+                value = binding[param]
+                key = next((k for k, entry in node.items() if Tree.value(entry, field) == value), str(value))
+                if key not in node:
+                    try:
+                        node[key] = typing.get_args(schema)[1](**{field: value})
+                    except ValidationError:
+                        return None
+                node, walked = node[key], walked + (key,)
+                continue
+            child = Tree.get(node, segment)
+            if child is None:
+                child = Tree.create(node, segment)
+                if child is None:
+                    return None
+                Tree.put(node, segment, child)
+            schema = Tree.schema(type(node), segment) if isinstance(node, BaseModel) else None
+            node, walked = child, walked + (segment,)
+        return node, walked
 
     def components(self, parent: Any, values: dict[str, Any]) -> list[tuple[str | None, BaseModel]]:
         if not self.active(values):
             return []
-        target = self.locate(parent, values)
+        target = self.locate(parent)
         if target is None:
             return []
-        if self.header is None:
+        if not self.keyed:
             return [(None, target)] if self.includes(None, target) else []
         return [(k, c) for k, c in target.items() if type(c) in self.types and self.includes(k, c)]
 

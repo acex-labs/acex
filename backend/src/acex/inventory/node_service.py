@@ -1,4 +1,5 @@
 import inspect
+import logging
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -14,9 +15,12 @@ from acex.models import (
 )
 from acex.models.node import AssetRefType, NodeAdminStatus, NodeProvisionStatus
 from acex.plugins.neds.manager.ned_manager import NEDManager
+from acex_devkit.models.config_origin import AnnotatedConfigResponse, ComponentOrigin, OriginSpan
 from fastapi import HTTPException
 from sqlalchemy import Integer, case, cast, func, select
 from sqlalchemy.dialects.postgresql import INET
+
+log = logging.getLogger(__name__)
 
 
 class NodeService:
@@ -72,35 +76,36 @@ class NodeService:
         Renderar konfigurationen för en nod instans.
         """
         ni = await self.get(id)
-        ln_config = await self.inventory.logical_nodes.get_configuration(ni.logical_node_id)
-        composed_config = ln_config.configuration
-
-        asset = ni.asset
-
-        ned_manager = NEDManager()
-        ned = ned_manager.get_driver_instance(asset.ned_id)
-
+        compiled = await self.inventory.logical_nodes.compile(ni.logical_node_id)
+        ned = NEDManager().get_driver_instance(ni.asset.ned_id)
         if ned is None:
             return "error: NED not found"
         try:
-            config = ned.render(composed_config, ni)
-        except Exception as e:
-            # Skriver ut felmeddelandet
-            print("Fel:", e)
-            # Skriver ut hela tracebacken
-            import traceback
+            return ned.render(compiled.config_response.configuration, ni).payload
+        except Exception:
+            log.exception(f"Rendering configuration for node instance {id} failed")
+            return ""
 
-            traceback.print_exc()
-            # Todo, printa ut mer info från vilken render och vad som pajjat
-            # Fel: render trasig
-            # Render XYZ trasig
-            # Node ID X triggade fel
-            # På den här filen kommer tracen
-            # Här kommer traceback mannen:
-            # tracen
+    async def get_annotated_config(self, id: str) -> AnnotatedConfigResponse:
+        """The rendered configuration with each block of text tied to the config component behind it."""
+        ni = await self.get(id)
+        compiled = await self.inventory.logical_nodes.compile(ni.logical_node_id)
+        ned = NEDManager().get_driver_instance(ni.asset.ned_id)
+        if ned is None:
+            raise HTTPException(status_code=404, detail=f"No NED configured for node instance {id}")
+        result = ned.render(compiled.config_response.configuration, ni)
+        origins = compiled.configuration.origins()  # read after config_response, which places the components
+        spans = [
+            OriginSpan(**span.model_dump(), origin=self._origin(span.path, origins)) for span in result.metadata.spans
+        ]
+        return AnnotatedConfigResponse(content=result.payload, spans=spans)
 
-            config = ""
-        return config
+    @staticmethod
+    def _origin(path: list[str], origins: list[ComponentOrigin]) -> ComponentOrigin | None:
+        """The component whose path is the longest prefix of `path`: a line belongs to the most specific
+        component placed at or above it."""
+        matches = [o for o in origins if path[: len(o.path)] == o.path]
+        return max(matches, key=lambda o: len(o.path), default=None)
 
     async def create(self, logical_node: Node) -> NodeInstance:
         if logical_node.asset_ref_type == "asset_cluster":

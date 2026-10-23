@@ -55,6 +55,19 @@ class Vlans(Token):
         return ",".join(str(a) if a == b else f"{a}-{b}" for a, b in ranges) or None
 
 
+class Range(Token):
+    """A run of numbers written as its first and last: `0 4` <-> [0, 1, 2, 3, 4]. One number is a run of one."""
+
+    regex = r"\d+(?: \d+)?"
+
+    def parse(self, text: str) -> list[int]:
+        first, _, last = text.partition(" ")
+        return list(range(int(first), int(last or first) + 1))
+
+    def render(self, value: list[int]) -> str | None:
+        return f"{value[0]} {value[-1]}" if len(value) > 1 else str(value[0])
+
+
 class Ipv4Mask(Token):
     """An IPv4 interface address as address and netmask: `10.0.0.1 255.255.255.0` <-> `10.0.0.1/24`."""
 
@@ -69,18 +82,22 @@ class Ipv4Mask(Token):
 
 
 class Choice(Token):
-    """A closed set of words, optionally spelled differently on the device than in the model:
-    `Choice("active", "passive")`, `Choice(fast="fast", slow="normal")`. Words outside the set don't match."""
+    """A closed set of values, optionally spelled differently on the device than in the model:
+    `Choice("active", "passive")`, `Choice(fast="fast", slow="normal")`, `Choice({7: "password 7"})`.
+    Text outside the set doesn't match."""
 
-    def __init__(self, *words: str, **renamed: str):
-        self.texts = {word: word for word in words} | renamed
+    def __init__(self, *words: Any, **renamed: str):
+        self.texts: dict[Any, str] = {}
+        for word in words:
+            self.texts |= word if isinstance(word, dict) else {word: str(word)}
+        self.texts |= renamed
         self.values = {text: value for value, text in self.texts.items()}
         self.regex = "|".join(re.escape(text) for text in sorted(self.values, key=len, reverse=True))
 
-    def parse(self, text: str) -> str:
+    def parse(self, text: str) -> Any:
         return self.values[text]
 
-    def render(self, value: str) -> str | None:
+    def render(self, value: Any) -> str | None:
         return self.texts.get(value)
 
 
@@ -119,5 +136,6 @@ TOKENS: dict[str, Token] = {
     "int": Int(),
     "vlans": Vlans(),
     "ipv4_mask": Ipv4Mask(),
+    "range": Range(),
 }
 """Tokens addressable by name in a pattern, `{field:name}`. Parameterised tokens are passed to `Line` instead."""

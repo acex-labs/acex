@@ -31,17 +31,17 @@ composed_config = ComposedConfiguration(
 )
 
 # The codec does not use the node, so a local round-trip runs without one.
-out = ned.render(composed_config, None)
+out = ned.render(composed_config, None).payload
 
 print("--- rendered ---")
 print(out)
 
-result = ned.parse(out, None)
+result = ned.parse(out, None).configuration
 
 print("\n--- parsed back ---")
 print(result.model_dump_json(indent=2, exclude_none=True))
 
-reparsed_out = ned.render(result, None)
+reparsed_out = ned.render(result, None).payload
 
 print("\n--- re-rendered from parsed tree ---")
 print(reparsed_out)

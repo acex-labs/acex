@@ -162,7 +162,7 @@ class ConfigCompiler:
             session.close()
 
     async def compile(self, logical_node, integrations, resolve: bool = False) -> dict:
-        configuration = Configuration(logical_node.id)  # Instanciates a config object
+        configuration = Configuration(logical_node.id, source_roots=self.config_map_paths)
         self.ln = CompiledLogicalNode(configuration, logical_node, integrations)
         self._find_processors_for_ln()
         await self.ln.compile()

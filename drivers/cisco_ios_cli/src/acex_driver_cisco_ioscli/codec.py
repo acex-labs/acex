@@ -1,6 +1,7 @@
 from acex_devkit.configdiffer import Diff
 from acex_devkit.drivers import Codec
 from acex_devkit.drivers.mapper import Mapper
+from acex_devkit.models.codec_result import ParseResult, RenderResult
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.node_response import NodeInstance
 
@@ -16,11 +17,11 @@ class CiscoIOSCodec(Codec[str]):
     mapper = Mapper(BLOCKS, indent=" ", separator="!")
     normalizer = CiscoIOSNormalizer()
 
-    def render(self, config: ComposedConfiguration, node: NodeInstance) -> str:
+    def render(self, config: ComposedConfiguration, node: NodeInstance) -> RenderResult[str]:
         return self.mapper.render(config, CiscoInterfaceNaming(node))
 
-    def parse(self, raw: str, node: NodeInstance) -> ComposedConfiguration:
-        return self.mapper.parse(self.normalize(raw), CiscoInterfaceNaming(node)).configuration
+    def parse(self, raw: str, node: NodeInstance) -> ParseResult:
+        return self.mapper.parse(self.normalize(raw), CiscoInterfaceNaming(node))
 
     def render_patch(self, diff: Diff, node: NodeInstance) -> str:
         raise NotImplementedError(f"{type(self).__name__} does not implement render_patch yet")

@@ -107,7 +107,7 @@ class Ntp(BaseModel):
 
 class SshServer(Augmentable):
     enable: AttributeValue[bool] | None = None
-    protocol_version: AttributeValue[int] | None = AttributeValue(value=2)
+    protocol_version: AttributeValue[int] | None = None
     timeout: AttributeValue[int] | None = None
     auth_retries: AttributeValue[int] | None = None
     source_interface: Reference | None = None
@@ -229,6 +229,16 @@ class InterfaceTemplateAttributes(ContainerEntry, Augmentable):
     lacp_interval: AttributeValue[Literal["fast", "slow"]] | None = None
 
 
+class HsrpGroup(ContainerEntry, BaseModel):
+    "A first-hop redundancy group sharing a virtual gateway address between routers."
+
+    identity_fields: ClassVar[tuple[str, ...]] = ("group",)
+    group: AttributeValue[int]
+    virtual_address: AttributeValue[str] | None = None
+    priority: AttributeValue[int] | None = None
+    preempt: AttributeValue[bool] | None = None
+
+
 class Interface(ContainerEntry, Augmentable):
     "Base class for all interfaces"
 
@@ -248,6 +258,7 @@ class Interface(ContainerEntry, Augmentable):
     logging_link_status: AttributeValue[bool] | None = None  # Default on; False suppresses link-state log events
     snmp_link_status_trap: AttributeValue[bool] | None = None  # Default on; False suppresses link-state SNMP traps
     storm_control: StormControlAttributes | None = None
+    hsrp_groups: dict[str, HsrpGroup] | None = {}
 
     type: Literal[
         "ethernetCsmacd", "ieee8023adLag", "l3ipvlan", "softwareLoopback", "subinterface", "managementInterface"
@@ -745,14 +756,12 @@ class aaaAuthenticationMethods(aaaBaseClass):
 class authenticationUser(aaaBaseClass):
     identity_fields: ClassVar[tuple[str, ...]] = ("username",)
     username: AttributeValue[str] | None = None
-    password: AttributeValue[str] | None = None
-    password_hahsed: AttributeValue[str] | None = None
+    privilege: AttributeValue[int] | None = None
+    password: AttributeValue[str] | None = None  # clear text, hashed by the device
+    password_hashed: AttributeValue[str] | None = None
+    password_hash_type: AttributeValue[int] | None = None  # the device's scheme for password_hashed, e.g. Cisco 9
     ssh_key: AttributeValue[str] | None = None
     role: AttributeValue[str] | None = None
-
-
-class aaaAuthenticationUsers(aaaBaseClass):
-    username: dict[str, authenticationUser] | None = {}
 
 
 class adminUser(aaaBaseClass):
@@ -775,7 +784,7 @@ class aaaAuthentication(BaseModel):
     # config: Optional[Dict[str, aaaAuthenticationMethods]] = {}
     config: aaaAuthenticationConfig = aaaAuthenticationConfig()
     admin_user: dict[str, aaaAuthenticationAdminUsers] | None = {}
-    users: dict[str, aaaAuthenticationUsers] | None = {}
+    users: dict[str, authenticationUser] | None = {}
 
 
 # Authorization Models

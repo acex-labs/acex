@@ -6,7 +6,7 @@ express its fields. Each declaration — `Line`, `Flag`, `Multiline`, `Mount`, `
 directions over the top-level blocks.
 """
 
-from acex_devkit.drivers.mapper.mapper import Mapper, ParseResult
+from acex_devkit.drivers.mapper.mapper import Mapper
 from acex_devkit.drivers.mapper.syntax import Block, Dispatch, Flag, Item, Line, Mount, Multiline, Pattern, Section
 from acex_devkit.drivers.mapper.tokens import TOKENS, Choice, Int, Ipv4Mask, Keyword, Pointer, Rest, Token, Vlans
 
@@ -23,7 +23,6 @@ __all__ = [
     "Mapper",
     "Mount",
     "Multiline",
-    "ParseResult",
     "Pattern",
     "Pointer",
     "Rest",

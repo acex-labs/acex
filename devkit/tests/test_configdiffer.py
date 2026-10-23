@@ -1,4 +1,5 @@
 from acex_devkit.configdiffer import ConfigDiffer
+from acex_devkit.models.codec_result import UnmatchedLine
 from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
     EthernetCsmacdInterface,
@@ -6,6 +7,7 @@ from acex_devkit.models.composed_configuration import (
     Ssh,
     SshServer,
     System,
+    SystemConfig,
 )
 from acex_devkit.models.reference import Reference
 
@@ -52,3 +54,29 @@ def test_unresolved_references_compare_by_pointer():
     desired = config({"a": 0}, source="missing", members=[])
     observed = config({"b": 0}, source="missing", members=[])
     assert changed(desired, observed) == []
+
+
+def test_an_empty_desired_tree_declares_nothing():
+    observed = ComposedConfiguration(system=System(config=SystemConfig(hostname="SW1")))
+    diff = ConfigDiffer().diff(desired_config=ComposedConfiguration(), observed_config=observed)
+    assert diff.total_desired == 0
+    assert diff.compliance_percentage is None  # nothing to be compliant with
+    assert diff.changed == [] and [c.path for c in diff.removed] == [["system", "config"]]
+
+
+def test_compliance_counts_only_declared_components():
+    desired = ComposedConfiguration(system=System(config=SystemConfig(hostname="SW1")))
+    observed = ComposedConfiguration(system=System(config=SystemConfig(hostname="SW2")))
+    diff = ConfigDiffer().diff(desired_config=desired, observed_config=observed)
+    assert (diff.total_desired, diff.compliance_percentage) == (1, 0.0)
+
+
+def test_undeclared_and_unparsed_are_reported_but_not_scored():
+    desired = ComposedConfiguration(system=System(config=SystemConfig(hostname="SW1")))
+    observed = config({"Gi1": 0}, source="Gi1", members=[])
+    observed.system.config = SystemConfig(hostname="SW1")
+    diff = ConfigDiffer().diff(desired_config=desired, observed_config=observed)
+    diff.unparsed = [UnmatchedLine(line="line vty 0 4")]
+    assert diff.compliance_percentage == 100.0
+    assert diff.undeclared_count == len(diff.removed) > 0
+    assert diff.summary()["unparsed_count"] == 1

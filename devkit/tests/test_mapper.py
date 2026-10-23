@@ -231,7 +231,7 @@ def test_parse_references():
 
 
 def test_unmatched_lines():
-    unmatched = [line.strip() for line in MAPPER.parse(RUNNING).unmatched]
+    unmatched = [u.line.strip() for u in MAPPER.parse(RUNNING).metadata.unmatched]
     assert unmatched == [
         "line vty 0 4",
         "description not an interface",  # the vty body is never read as anything else
@@ -242,8 +242,8 @@ def test_unmatched_lines():
 
 def test_render_parse_round_trip():
     config = MAPPER.parse(RUNNING).configuration
-    rendered = MAPPER.render(config)
-    assert MAPPER.render(MAPPER.parse(rendered).configuration) == rendered
+    rendered = MAPPER.render(config).payload
+    assert MAPPER.render(MAPPER.parse(rendered).configuration).payload == rendered
     assert ComposedConfiguration.model_validate(config.model_dump())
 
     lines = rendered.splitlines()
@@ -283,3 +283,37 @@ def test_supported_components():
         "system.ntp.servers",
         "system.ssh.config",
     ]
+
+
+def test_unmatched_lines_carry_their_block_headers():
+    parents = {u.line.strip(): u.parents for u in MAPPER.parse(RUNNING).metadata.unmatched}
+    assert parents["line vty 0 4"] == []
+    assert parents["description not an interface"] == ["line vty 0 4"]  # an unmodelled block's own header
+    assert parents["speed 1000"] == ["interface GigabitEthernet0/1"]
+    assert parents["vrf forwarding MISSING"] == ["interface Vlan10"]
+
+
+def test_parse_spans_tie_lines_to_tree_paths():
+    spans = {".".join(s.path): (s.start, s.end) for s in MAPPER.parse(RUNNING).metadata.spans}
+    assert spans["system.config"] == (1, 4)  # hostname and the whole banner
+    assert spans["network_instances.MGMT"] == (6, 10)  # sections and their footer belong to the VRF
+    assert spans["system.aaa.server_groups.TAC"] == (12, 14)
+    assert spans["system.aaa.server_groups.TAC.tacacs.ise2"] == (14, 14)
+    assert spans["interfaces.GigabitEthernet0/1"] == (29, 34)  # unparsed lines in the block still count
+    assert spans["interfaces.GigabitEthernet0/1.storm_control"] == (33, 33)
+    assert spans["system.ssh.config"] == (45, 45)
+
+
+def test_render_spans_tie_lines_to_tree_paths():
+    config = MAPPER.parse(RUNNING).configuration
+    config.interfaces = {"uplink": config.interfaces["GigabitEthernet0/1"]}  # keyed like a desired tree
+    result = MAPPER.render(config)
+    lines = result.payload.splitlines()
+    spans = {".".join(s.path): (s.start, s.end) for s in result.metadata.spans}
+
+    start, end = spans["interfaces.uplink"]
+    assert lines[start - 1] == "interface GigabitEthernet0/1" and lines[end - 1].startswith(" ")
+    assert lines[end] == "!" or end == len(lines)
+    start, end = spans["interfaces.uplink.storm_control"]
+    assert lines[start - 1 : end] == [" storm-control broadcast level pps 2000"]
+    assert spans["system.config"][0] == 1

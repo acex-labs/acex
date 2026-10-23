@@ -11,6 +11,13 @@ from acex_devkit.models.reference import Reference
 
 
 class ConfigDiffer:
+    """Diffs desired against observed configuration, component by component.
+
+    Only declared components take part: one identical to what an empty `ComposedConfiguration` already
+    holds at its path (an empty container, the default `global` network instance) states no intent and
+    is left out on both sides.
+    """
+
     def _is_leaf(self, model: BaseModel) -> bool:
         """A model is a leaf if it has at least one direct AttributeValue field."""
         for field_info in model.model_fields.values():
@@ -103,6 +110,10 @@ class ConfigDiffer:
                     return ("unresolved", pointer)
                 position.append(segment)
         return tuple(position)
+
+    def _declared(self, flat: dict[tuple, BaseModel], defaults: dict[tuple, BaseModel]) -> dict[tuple, BaseModel]:
+        """The leaves that state something: those differing from the empty tree's leaf at their path."""
+        return {path: model for path, model in flat.items() if defaults.get(path) != model}
 
     def _identity_key(self, model: BaseModel) -> tuple:
         """Extract identity values from a ContainerEntry for matching.
@@ -235,8 +246,9 @@ class ConfigDiffer:
         handling cases where keys differ (e.g. "Gi0/0/1" vs "GigabitEthernet0/0/1").
         """
         self.desired, self.observed = desired_config, observed_config
-        flat_desired = self._flatten(desired_config)
-        flat_observed = self._flatten(observed_config)
+        defaults = self._flatten(ComposedConfiguration())
+        flat_desired = self._declared(self._flatten(desired_config), defaults)
+        flat_observed = self._declared(self._flatten(observed_config), defaults)
 
         # Split into singletons (path-matched) and entries (identity-matched)
         singleton_d = {p: m for p, m in flat_desired.items() if not isinstance(m, ContainerEntry)}

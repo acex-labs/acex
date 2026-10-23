@@ -5,6 +5,7 @@ import re
 from acex_devkit.configdiffer import Diff
 from acex_devkit.drivers import Actions, Codec, NetworkElementDriver, State, Transport
 from acex_devkit.models.actions import PingParams, PingResult
+from acex_devkit.models.codec_result import ParseResult, RenderResult
 from acex_devkit.models.composed_configuration import ComposedConfiguration, System, SystemConfig
 from acex_devkit.models.ned import Platform
 from acex_devkit.models.node_response import NodeInstance
@@ -45,12 +46,13 @@ class FakeCliTransport(Transport[str]):
 class ExampleCodec(Codec[str]):
     """Handles hostname only."""
 
-    def render(self, config: ComposedConfiguration, node: NodeInstance) -> str:
-        return f"hostname {config.system.config.hostname.value}\n"
+    def render(self, config: ComposedConfiguration, node: NodeInstance) -> RenderResult[str]:
+        return RenderResult(payload=f"hostname {config.system.config.hostname.value}\n")
 
-    def parse(self, raw: str, node: NodeInstance) -> ComposedConfiguration:
+    def parse(self, raw: str, node: NodeInstance) -> ParseResult:
         match = re.search(r"^hostname (\S+)", raw, re.MULTILINE)
-        return ComposedConfiguration(system=System(config=SystemConfig(hostname=match.group(1) if match else None)))
+        hostname = match.group(1) if match else None
+        return ParseResult(configuration=ComposedConfiguration(system=System(config=SystemConfig(hostname=hostname))))
 
     def render_patch(self, diff: Diff, node: NodeInstance) -> str:
         return "".join(
