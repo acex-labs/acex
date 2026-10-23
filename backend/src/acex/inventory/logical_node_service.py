@@ -57,10 +57,14 @@ class LogicalNodeService:
         regions = await self._get_regions(ln.site if ln else None)
         return LogicalNodeResponse(**ln.model_dump(), regions=regions)
 
-    async def get_configuration(self, id: str, resolve: bool = False) -> LogicalNodeConfigResponse:
+    async def compile(self, id: str, resolve: bool = False):
+        """The logical node compiled: its composed configuration and the components behind it."""
         ln = await self._call_method(self.adapter.get, id)
-        compiled = await self._apply_compilation(ln, resolve=resolve)
-        regions = await self._get_regions(ln.site if ln else None)
+        return await self._apply_compilation(ln, resolve=resolve)
+
+    async def get_configuration(self, id: str, resolve: bool = False) -> LogicalNodeConfigResponse:
+        compiled = await self.compile(id, resolve=resolve)
+        regions = await self._get_regions(compiled.logical_node.site if compiled.logical_node else None)
         return compiled.config_response.model_copy(update={"regions": regions})
 
     async def query(

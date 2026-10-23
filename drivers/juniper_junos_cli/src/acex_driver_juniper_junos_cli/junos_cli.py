@@ -4,6 +4,7 @@ import re
 from acex_devkit.configdiffer import Diff
 from acex_devkit.drivers import Codec, NetworkElementDriver, State, Transport
 from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout, DriverException
+from acex_devkit.models.codec_result import ParseResult, RenderResult
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry
 from acex_devkit.models.management_connection import ConnectionType
@@ -79,10 +80,10 @@ class JunosCodec(Codec[str]):
 
     normalizer = JunosNormalizer()
 
-    def render(self, config: ComposedConfiguration, node: NodeInstance) -> str:
-        return JunosCLIRenderer().render(config, node.asset)
+    def render(self, config: ComposedConfiguration, node: NodeInstance) -> RenderResult[str]:
+        return RenderResult(payload=JunosCLIRenderer().render(config, node.asset))
 
-    def parse(self, raw: str, node: NodeInstance) -> ComposedConfiguration:
+    def parse(self, raw: str, node: NodeInstance) -> ParseResult:
         raise DriverException("Parsing Junos configuration is not implemented yet")
 
     def render_patch(self, diff: Diff, node: NodeInstance) -> str:

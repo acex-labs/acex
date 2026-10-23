@@ -25,4 +25,4 @@ class SetDhcpConfig(ConfigMap):
 
 
 core_dhcp = SetDhcpConfig()
-core_dhcp.filters = (FilterAttribute("role").eq("lan_csw"))
+core_dhcp.filters = (FilterAttribute("role").eq("core"))

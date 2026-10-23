@@ -22,6 +22,7 @@ from acex_devkit.configdiffer import Diff
 from acex_devkit.exceptions import DriverException
 from acex_devkit.models.actions import PingParams, PingResult
 from acex_devkit.models.asset import Asset
+from acex_devkit.models.codec_result import ParseResult, RenderResult
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry
@@ -73,11 +74,11 @@ class Codec[Payload](Facade, ABC):
     mapper: Any = None  # a devkit Mapper; its components are reported as capabilities
 
     @abstractmethod
-    def render(self, config: ComposedConfiguration, node: NodeInstance) -> Payload:
-        """Full configuration, sendable with `Transport.apply`."""
+    def render(self, config: ComposedConfiguration, node: NodeInstance) -> RenderResult[Payload]:
+        """Full configuration; its `payload` is sendable with `Transport.apply`."""
 
     @abstractmethod
-    def parse(self, raw: Any, node: NodeInstance) -> ComposedConfiguration: ...
+    def parse(self, raw: Any, node: NodeInstance) -> ParseResult: ...
 
     @abstractmethod
     def render_patch(self, diff: Diff, node: NodeInstance) -> Payload:
@@ -253,10 +254,10 @@ class NetworkElementDriver:
     def supports(self, asset: Asset) -> bool:
         return any(platform.matches(asset) for platform in self.platforms)
 
-    def render(self, config: ComposedConfiguration, node: NodeInstance) -> Any:
+    def render(self, config: ComposedConfiguration, node: NodeInstance) -> RenderResult:
         return self.require_codec().render(config, node)
 
-    def parse(self, raw: Any, node: NodeInstance) -> ComposedConfiguration:
+    def parse(self, raw: Any, node: NodeInstance) -> ParseResult:
         return self.require_codec().parse(raw, node)
 
     def render_patch(self, diff: Diff, node: NodeInstance) -> Any:
