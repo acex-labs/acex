@@ -66,3 +66,7 @@ class CiscoIOSTransport(Transport[str]):
 
     async def execute(self, request: list[str]) -> list[str]:
         return [r.result for r in await self.conn.send_commands(request, timeout_ops=120)]
+
+    async def send(self, command: str, timeout: float) -> str:
+        """One command that may take longer than the usual operation timeout, e.g. a long ping."""
+        return (await self.conn.send_command(command, timeout_ops=timeout)).result

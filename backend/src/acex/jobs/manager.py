@@ -78,10 +78,13 @@ class JobManager:
         finally:
             session.close()
 
-    def enqueue_batch(self, job_type: str, items: list[BaseModel | dict], *, created_by: str) -> JobResponse:
+    def enqueue_batch(
+        self, job_type: str, items: list[BaseModel | dict], *, created_by: str, request: BaseModel | None = None
+    ) -> JobResponse:
         """Create one job per item under a parent, and publish them.
 
-        The parent stands for the request as a whole and is not queued itself.
+        The parent stands for the request as a whole and is not queued itself; `request`, the batch as
+        it was asked for, is kept as its data.
         A job that cannot be published is marked failed and the rest still go
         out, so the parent reports the outcome rather than this raising.
         """
@@ -91,7 +94,8 @@ class JobManager:
         session = next(self.db.get_session())
         try:
             children = [self._new_job(spec, item, created_by=created_by) for item in items]
-            parent = Job(type=job_type, created_by=created_by)
+            data = request.model_dump(mode="json") if request is not None else None
+            parent = Job(type=job_type, created_by=created_by, data=data)
             session.add(parent)
             session.flush()
             for child in children:
@@ -118,6 +122,7 @@ class JobManager:
         *,
         state: JobState | None = None,
         type: str | None = None,
+        type_prefix: str | None = None,
         parent_id: int | None = None,
         subject_type: JobSubjectType | None = None,
         subject_id: int | None = None,
@@ -136,6 +141,8 @@ class JobManager:
             filters += [Job.state == state, ~has_children]
         if type is not None:
             filters.append(Job.type == type)
+        if type_prefix is not None:
+            filters.append(Job.type.startswith(type_prefix))
         if subject_type is not None:
             filters.append(Job.subject_type == subject_type)
         if subject_id is not None:
@@ -156,6 +163,15 @@ class JobManager:
                     summary.state = derive_state(counts[job.id])
                 items.append(summary)
             return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
+        finally:
+            session.close()
+
+    def children(self, parent_id: int) -> list[JobResponse]:
+        """A batch's jobs in full, data and result included, oldest first."""
+        session = next(self.db.get_session())
+        try:
+            jobs = session.exec(select(Job).where(Job.parent_id == parent_id).order_by(Job.id)).all()
+            return [JobResponse.model_validate(job) for job in jobs]
         finally:
             session.close()
 

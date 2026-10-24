@@ -7,14 +7,6 @@ from acex_devkit.models.platform import OS, Vendor
 from acex_devkit.models.state import StateKind
 
 
-class Ned(BaseModel):
-    name: str
-    package_name: str
-    version: str
-    description: str
-    filename: str
-
-
 class Platform(BaseModel):
     """A platform a NED declares support for. Versions and models are checked against devkit."""
 
@@ -55,3 +47,13 @@ class Capabilities(BaseModel):
     operations: list[str] = []  # transport operations: get_config, apply, execute
     state: list[StateKind] = []
     actions: list[str] = []
+
+
+class Ned(BaseModel):
+    name: str
+    package_name: str
+    version: str
+    description: str
+    filename: str
+    #: What the NED supports; None where it could not be loaded.
+    capabilities: Capabilities | None = None

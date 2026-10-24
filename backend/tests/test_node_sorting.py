@@ -117,3 +117,29 @@ def test_an_unknown_sort_column_is_a_400(service):
 
     assert error.value.status_code == 400
     assert "'bogus'" in error.value.detail
+
+
+def test_a_node_read_on_its_own_carries_its_management_connections(db):
+    # Drivers open a session at a node's management connection, so a single read must hold them,
+    # primary first as in a listing.
+    add_node(db, "lab-1", connections=[("10.0.0.2", False), ("10.0.0.1", True)])
+
+    async def get_asset(asset_id):
+        with Session(db.connection.engine) as session:
+            asset = session.get(Asset, asset_id)
+            asset.os_version = None  # the shared fixture's "17.9" is no full IOS-XE version
+            return asset
+
+    async def get_logical_node(logical_node_id):
+        with Session(db.connection.engine) as session:
+            logical_node = session.get(LogicalNode, logical_node_id)
+            return SimpleNamespace(model_dump=logical_node.model_dump, regions=[])
+
+    inventory = SimpleNamespace(
+        assets=SimpleNamespace(get=get_asset),
+        logical_nodes=SimpleNamespace(get=get_logical_node),
+        credential_manager=None,
+    )
+    node = asyncio.run(NodeService(NodeAdapter(DatabasePlugin(db, Node)), inventory).get("1"))
+
+    assert [(c.target_ip, c.primary) for c in node.management_connections] == [("10.0.0.1", True), ("10.0.0.2", False)]
