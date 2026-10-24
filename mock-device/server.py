@@ -13,6 +13,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("mock-device")
 
 HOSTNAME = os.environ.get("MOCK_HOSTNAME", "mock-router")
+# The address to listen on, e.g. a loopback alias like 127.0.0.2 to run several devices on one host.
+BIND = os.environ.get("MOCK_BIND", "")
 SSH_PORT = int(os.environ.get("SSH_PORT", "22"))
 USERNAME = os.environ.get("SSH_USERNAME", "admin")
 PASSWORD = os.environ.get("SSH_PASSWORD", "admin")
@@ -28,8 +30,13 @@ BASE_MAC = "70:18:a7:" + ":".join(_HOST_HASH[i : i + 2].lower() for i in (12, 14
 START_TIME = time.monotonic()
 
 CONFIG_DIR = pathlib.Path("/configs")
-CONFIG_FILE = CONFIG_DIR / f"{HOSTNAME}.txt"
+# The running-config to serve; by default the hostname's file in /configs, else default.txt there.
+CONFIG_FILE = pathlib.Path(os.environ.get("MOCK_CONFIG", CONFIG_DIR / f"{HOSTNAME}.txt"))
 FALLBACK_CONFIG = CONFIG_DIR / "default.txt"
+# Each device on a host needs its own key file, somewhere it may write.
+HOST_KEY = pathlib.Path(os.environ.get("MOCK_HOST_KEY", "/etc/ssh/mock_host_key"))
+# Ping targets that never answer, comma separated; every other target answers every packet.
+UNREACHABLE = {t.strip() for t in os.environ.get("MOCK_UNREACHABLE", "").split(",") if t.strip()}
 
 SHOW_VERSION_TEMPLATE = (pathlib.Path(__file__).parent / "show_version.txt").read_text()
 
@@ -75,6 +82,29 @@ def _show_version() -> str:
     )
 
 
+def _ping(cmd: str) -> str:
+    """`ping [vrf X] target [repeat N] [size S] [df-bit] [timeout T] ...` answered as IOS does."""
+    words = cmd.split()[1:]
+    if words[:1] == ["vrf"]:
+        words = words[2:]
+    if not words:
+        return "% Incomplete command."
+    target, options = words[0], dict(zip(words[1::2], words[2::2], strict=False))
+    count, size, timeout = int(options.get("repeat", 5)), options.get("size", "100"), options.get("timeout", "2")
+    answers = 0 if target in UNREACHABLE else count
+    summary = f"Success rate is {answers * 100 // count} percent ({answers}/{count})"
+    if answers:
+        summary += ", round-trip min/avg/max = 1/2/4 ms"
+    return (
+        "Type escape sequence to abort.\n"
+        f"Sending {count}, {size}-byte ICMP Echos to {target}, timeout is {timeout} seconds:\n"
+        + "!" * answers
+        + "." * (count - answers)
+        + "\n"
+        + summary
+    )
+
+
 def _is_show_version(cmd: str) -> bool:
     words = cmd.split()
     return (
@@ -93,6 +123,8 @@ def _handle(cmd: str) -> str:
         return PROMPT
     elif _is_show_version(cmd):
         return _show_version().rstrip("\n") + PROMPT
+    elif cmd.split()[0] == "ping":
+        return _ping(cmd) + PROMPT
     elif "lldp neighbors" in cmd:
         return LLDP_EMPTY + PROMPT
     elif "cdp neighbors" in cmd:
@@ -204,7 +236,7 @@ class MockSSHServer(asyncssh.SSHServer):
 
 
 async def main():
-    key_path = pathlib.Path("/etc/ssh/mock_host_key")
+    key_path = HOST_KEY
     if not key_path.exists():
         key = asyncssh.generate_private_key("ssh-rsa")
         key.write_private_key(str(key_path))
@@ -213,12 +245,12 @@ async def main():
 
     await asyncssh.create_server(
         MockSSHServer,
-        host="",
+        host=BIND,
         port=SSH_PORT,
         server_host_keys=[server_key],
         process_factory=handle_client,
     )
-    log.info(f"Mock IOS XE device '{HOSTNAME}' listening on port {SSH_PORT}")
+    log.info(f"Mock IOS XE device '{HOSTNAME}' listening on {BIND or '*'}:{SSH_PORT}, serving {CONFIG_FILE}")
     await asyncio.get_event_loop().create_future()
 
 
