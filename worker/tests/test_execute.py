@@ -64,7 +64,8 @@ def client() -> SimpleNamespace:
     secret = CredentialSecret(id=5, credential_type="userpass", fields={"username": "u", "password": "p"})
     inventory = SimpleNamespace(
         node_instances=SimpleNamespace(get=lambda node_id: node),
-        credentials=SimpleNamespace(secret=lambda credential_id: secret),
+        # Keyword-only, like the client's actions.
+        credentials=SimpleNamespace(secret=lambda *, id: secret),
     )
     return SimpleNamespace(inventory=inventory)
 

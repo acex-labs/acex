@@ -29,7 +29,8 @@ class NodeOperation(Handler):
         data = self.data.model_validate(job.data)
         node = client.inventory.node_instances.get(data.node_id)
         driver = load_ned(client, node.asset.ned_id)
-        credentials = [client.inventory.credentials.secret(credential.id) for credential in node.credentials]
+        # Client actions take keyword arguments only.
+        credentials = [client.inventory.credentials.secret(id=credential.id) for credential in node.credentials]
         log.info(f"Job {job.id}: {job.type} on node {node.id}")
         return asyncio.run(self.run(driver, driver.session(node, credentials), data))
 

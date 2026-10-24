@@ -54,7 +54,10 @@ class NodeService:
         if node is None:
             return None
 
+        # A relationship, so model_dump() leaves it out; primary first, as nodes are listed.
+        connections = sorted(getattr(node, "management_connections", None) or [], key=lambda c: (not c.primary, c.id))
         node = node.model_dump()
+        node["management_connections"] = [c.model_dump() for c in connections]
         if node.get("asset_ref_type") == "asset_cluster":
             node["asset"] = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"]).model_dump()
         else:

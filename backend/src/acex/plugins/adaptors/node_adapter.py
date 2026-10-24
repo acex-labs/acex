@@ -11,7 +11,7 @@ class NodeAdapter(AdapterBase):
 
     def get(self, id: str) -> NodeInstance:
         if hasattr(self.plugin, "get"):
-            return self.plugin.get(id)
+            return self.plugin.get(id, options=[selectinload(Node.management_connections)])
 
     def query(
         self,

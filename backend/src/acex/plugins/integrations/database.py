@@ -29,12 +29,12 @@ class DatabasePlugin(IntegrationPluginBase):
             session.close()
         return data
 
-    def get(self, id: str, *args, **kwargs):
+    def get(self, id: str, *args, options: list | None = None, **kwargs):
         session_gen = self.db.get_session()
         session = next(session_gen)
         try:
             # Anta att tabellens modellklass är tillgänglig via self.table_model
-            result = session.get(self.table, id)
+            result = session.get(self.table, id, options=options or [])
             return result
         finally:
             session.close()
