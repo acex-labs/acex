@@ -410,6 +410,8 @@ class Block:
       `implied` holds what a line leaving a parameter out stands for, and that value is never written.
     - With neither, `path` is a single object whose lines sit at the enclosing level: a top-level
       singleton, or a sub-model like an interface's storm-control settings.
+    - With a header and `single`, `path` is a single object the header opens (`line con 0`). It exists
+      only once its header is read.
 
     A body holds `Item`s, nested `Block`s and `Section`s; declaration order is render order. `when`
     limits a nested block to enclosing components with those values. Subclasses may override
@@ -420,6 +422,7 @@ class Block:
     path: str
     component: type[BaseModel] | Dispatch
     header: Line | None = None
+    single: bool = False
     key: str | None = None
     implied: dict[str, Any] = {}
     when: dict[str, Any] = {}
@@ -433,8 +436,8 @@ class Block:
         self.dispatch = self.component if isinstance(self.component, Dispatch) else None
         self.types = self.dispatch.types if self.dispatch else (self.component,)
         self.flat = self.header is None and self.key is not None
-        self.keyed = self.header is not None or self.flat
-        if self.header is not None:
+        self.keyed = (self.header is not None and not self.single) or self.flat
+        if self.header is not None and not self.single:
             self.key = self.key or self.header.fields[0]
         self.ranged = self.header is not None and isinstance(self.header.pattern.fields.get(self.key), Range)
         self.entries = {t: tuple(entry for entry in self.body if self._fits(entry, t)) for t in self.types}

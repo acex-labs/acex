@@ -50,6 +50,7 @@ class Ipv4AclEntryAttributes(IpAclOptions):
       either as its IP protocol number, or by a defined identity.
     """
 
+    derived_fields: ClassVar[tuple[str, ...]] = ("ipv4_acl",)  # placement
     source_address: AttributeValue[IPv4Network | Literal["any"]] | None = None  # Source IPv4 address prefix.
     destination_address: AttributeValue[IPv4Network | Literal["any"]] | None = None  # Destination IPv4 address prefix.
     ipv4_acl: AttributeValue[str] | None = None  # Reference to the ACL Set this entry belongs to.

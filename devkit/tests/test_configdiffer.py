@@ -114,3 +114,14 @@ def test_a_masked_observed_secret_matches_any_desired_value():
     observed.system.aaa.authentication.users["admin"].privilege = AttributeValue(value=15)
     changed = ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed
     assert [a.attribute_name for a in changed[0].changed_attributes] == ["privilege"]
+
+
+def test_an_entry_known_only_by_a_masked_secret_matches_a_desired_one():
+    from acex_devkit.models.composed_configuration import SnmpCommunity
+
+    desired = ComposedConfiguration()
+    desired.system.snmp.communities = {"ro": SnmpCommunity(name="ro", community="s3cret")}
+    observed = ComposedConfiguration()
+    observed.system.snmp.communities = {MASK: SnmpCommunity(name=MASK, community=MASK)}
+    diff = ConfigDiffer().diff(desired_config=desired, observed_config=observed)
+    assert (diff.added, diff.changed, diff.removed) == ([], [], [])

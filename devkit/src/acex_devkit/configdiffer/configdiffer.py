@@ -120,6 +120,20 @@ class ConfigDiffer:
         """The leaves that state something: those differing from the empty tree's leaf at their path."""
         return {path: model for path, model in flat.items() if defaults.get(path) != model}
 
+    def _masked_match(
+        self, desired: BaseModel, observed: dict[str, BaseModel], taken: set[str]
+    ) -> tuple[str, BaseModel] | None:
+        """An observed entry of the same type known only by a masked secret (an SNMP community string):
+        it can't be told apart, so it stands in for the first desired entry left without a match."""
+        return next(
+            (
+                (key, model)
+                for key, model in observed.items()
+                if key not in taken and type(model) is type(desired) and MASK in self._identity_key(model)
+            ),
+            None,
+        )
+
     def _identity_key(self, model: BaseModel) -> tuple:
         """Extract identity values from a ContainerEntry for matching.
         Returns a tuple of raw values (unwrapped from AttributeValue) from identity_fields."""
@@ -201,7 +215,7 @@ class ConfigDiffer:
 
                 if d_identity:
                     # Match by identity field values (e.g. same address, same vlan_id)
-                    match = o_by_identity.get(d_identity)
+                    match = o_by_identity.get(d_identity) or self._masked_match(d_model, o_components, matched_o_keys)
                     if match:
                         o_key, o_model = match
                 else:

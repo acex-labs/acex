@@ -1,16 +1,25 @@
 """Cisco IOS syntax for ComposedConfiguration components. Each block renders and parses the same lines."""
 
+import ipaddress
 from typing import Any
 
 from acex_devkit.drivers.mapper import Block, Choice, Dispatch, Flag, Keyword, Line, Mount, Multiline, Pointer, Section
 from acex_devkit.drivers.mapper.tokens import Token
+from acex_devkit.models.acl_model import AclProtoclOptions, Ipv4AclAttributes, Ipv4AclEntryAttributes
 from acex_devkit.models.composed_configuration import (
+    DHCPSnoopingAttributes,
     EthernetCsmacdInterface,
     HsrpGroup,
     Ieee8023adLagInterface,
     L3IpvlanInterface,
+    LacpConfig,
     NetworkInstance,
     NtpServer,
+    ServicesAttributes,
+    SnmpCommunity,
+    SnmpSecurityLevel,
+    SnmpServer,
+    SnmpView,
     SoftwareLoopbackInterface,
     SshServer,
     StaticRouteNextHop,
@@ -19,13 +28,14 @@ from acex_devkit.models.composed_configuration import (
     SystemConfig,
     Vlan,
     VrrpGroup,
+    VTPAttributes,
     aaaGlobalAttributes,
     aaaRadiusAttributes,
     aaaServerGroupAttributes,
     aaaTacacsAttributes,
     authenticationUser,
 )
-from acex_devkit.models.logging import VtyLine
+from acex_devkit.models.logging import Console, LoggingConfig, LoggingSeverity, RemoteServer, VtyLine
 
 from acex_driver_cisco_ioscli.context import CiscoContext
 
@@ -44,6 +54,71 @@ class Pps(Token):
             if value >= unit and value % unit == 0:
                 return f"{value // unit}{suffix}"
         return str(value)
+
+
+class AclAddress(Token):
+    """An ACL address as IOS writes it, `any`, a host or a network with a wildcard mask, read as
+    "any" or an IPv4 network. Extended ACLs mark a host with `host`; standard ACLs write it bare."""
+
+    def __init__(self, host_keyword: bool):
+        self.host_keyword = host_keyword
+        self.regex = r"any|host \S+|\d+\.\d+\.\d+\.\d+(?: \d+\.\d+\.\d+\.\d+)?"
+
+    def parse(self, text: str) -> Any:
+        if text == "any":
+            return "any"
+        address, _, wildcard = text.removeprefix("host ").partition(" ")
+        if not wildcard:
+            return ipaddress.IPv4Network(f"{address}/32")
+        mask = ipaddress.IPv4Address(int(ipaddress.IPv4Address(wildcard)) ^ 0xFFFFFFFF)
+        return ipaddress.IPv4Network(f"{address}/{mask}", strict=False)
+
+    def render(self, value: Any) -> str | None:
+        if value == "any":
+            return "any"
+        network = ipaddress.IPv4Network(value)
+        if network.prefixlen == 32:
+            return f"host {network.network_address}" if self.host_keyword else str(network.network_address)
+        return f"{network.network_address} {network.hostmask}"
+
+
+class AclPort(Token):
+    """A port match, `eq 443` <-> "443" and `range 100 200` <-> "100-200"."""
+
+    regex = r"eq \S+|range \S+ \S+"
+
+    def parse(self, text: str) -> str:
+        operator, _, ports = text.partition(" ")
+        return ports.replace(" ", "-") if operator == "range" else ports
+
+    def render(self, value: str) -> str | None:
+        return f"range {value.replace('-', ' ')}" if "-" in value else f"eq {value}"
+
+
+class LoadBalance(Token):
+    """`port-channel load-balance` with one hashing input: `src-dst-ip` <-> ["src-dst-ip"]."""
+
+    regex = r"(?:src|dst|src-dst)-(?:mac|ip|port)"
+
+    def parse(self, text: str) -> list[str]:
+        return [text]
+
+    def render(self, value: list[str]) -> str | None:
+        return value[0] if len(value) == 1 else None
+
+
+SEVERITIES = Choice(
+    {
+        LoggingSeverity.EMERGENCY: "emergencies",
+        LoggingSeverity.ALERT: "alerts",
+        LoggingSeverity.CRITICAL: "critical",
+        LoggingSeverity.ERROR: "errors",
+        LoggingSeverity.WARNING: "warnings",
+        LoggingSeverity.NOTICE: "notifications",
+        LoggingSeverity.INFORMATIONAL: "informational",
+        LoggingSeverity.DEBUG: "debugging",
+    }
+)
 
 
 class SystemConfigSyntax(Block):
@@ -192,6 +267,7 @@ class InterfaceSyntax(Block):
         Flag("dtp_negotiation", off="switchport nonegotiate"),
         # vrf forwarding clears the interface's addresses on IOS, so it renders before them.
         Mount("vrf forwarding {vrf}", at="network_instances.{vrf}.interfaces", default={"vrf": "global"}),
+        Mount("ip dhcp snooping trust", at="system.dhcp.snooping.trust_interfaces"),
         Line("ip address {ipv4:ipv4_mask}"),
         Flag("redirects", off="no ip redirects"),
         Flag("proxy_arp", off="no ip proxy-arp"),
@@ -258,6 +334,173 @@ class StaticRouteSyntax(Block):
     body = (Line("ip route[ vrf {vrf}] {prefix:ipv4_mask} {next_hop}[ {metric:int}]"),)
 
 
+class LoggingSyntax(Block):
+    path = "system.logging.config"
+    component = LoggingConfig
+    body = (
+        Line("logging buffered {buffer_size:int}"),
+        Line("logging trap {severity}", severity=SEVERITIES),  # what reaches the remote servers
+    )
+
+
+class LoggingHostSyntax(Block):
+    path = "system.logging.remote_servers.servers"
+    key = "host"
+    component = RemoteServer
+    body = (Line("logging host {host}[ transport {transport} port {port:int}]", transport=Choice("udp", "tcp")),)
+
+
+class SnmpCommunitySyntax(Block):
+    path = "system.snmp.communities"
+    key = "community"
+    component = SnmpCommunity
+    # Only read-only communities are modelled; RO is what the device writes when none is given.
+    body = (Line("snmp-server community {community}[ RO][ {ipv4acl}]", ipv4acl=Pointer("acl.ipv4_acls")),)
+
+    def complete(self, fields: dict[str, Any], position: int, context: Any) -> dict[str, Any]:
+        return {"name": fields["community"], **fields}
+
+
+class SnmpHostSyntax(Block):
+    path = "system.snmp.trap_servers"
+    key = "address"
+    component = SnmpServer
+    body = (
+        Line(
+            "snmp-server host {address}[ vrf {network_instance}] version {version} {community}",
+            version=Choice(v2c="2c"),
+        ),
+        Line(
+            "snmp-server host {address}[ vrf {network_instance}] version {version} {security_level} {username}",
+            version=Choice(v3="3"),
+            security_level=Choice(
+                {
+                    SnmpSecurityLevel.NO_AUTH_NO_PRIV: "noauth",
+                    SnmpSecurityLevel.AUTH_NO_PRIV: "auth",
+                    SnmpSecurityLevel.AUTH_PRIV: "priv",
+                }
+            ),
+        ),
+    )
+
+    def derive(self, values: dict[str, Any], context: Any) -> dict[str, Any] | None:
+        # The default instance is where a host without `vrf` lives; it's never written.
+        return {**values, "network_instance": None} if values.get("network_instance") == "global" else values
+
+    def includes(self, key: str | None, component: SnmpServer) -> bool:
+        return component.enabled is None or bool(component.enabled.value)
+
+
+class SnmpViewSyntax(Block):
+    path = "system.snmp.views.{view:name}.oids"
+    key = "oid"
+    component = SnmpView
+    body = (Line("snmp-server view {view} {oid} {included}", included=Choice({True: "included", False: "excluded"})),)
+
+    def complete(self, fields: dict[str, Any], position: int, context: Any) -> dict[str, Any]:
+        return {"name": fields["oid"], **fields}
+
+
+class VtpSyntax(Block):
+    path = "system.vtp.config"
+    component = VTPAttributes
+    body = (
+        Line("vtp domain {domain_name}"),
+        Line("vtp mode {mode}", mode=Choice("server", "client", "transparent", "off")),
+        Line("vtp version {version}", version=Choice(1, 2, 3)),
+        Line("vtp password {password_hashed} hidden"),
+        Line("vtp password {password}"),
+    )
+
+
+class LacpSyntax(Block):
+    path = "lacp.config"
+    component = LacpConfig
+    body = (
+        Line("lacp system-priority {system_priority:int}"),
+        Line("port-channel load-balance {load_balance_algorithm}", load_balance_algorithm=LoadBalance()),
+    )
+
+
+class DhcpSnoopingSyntax(Block):
+    path = "system.dhcp.snooping"
+    component = DHCPSnoopingAttributes
+    body = (
+        Flag("enabled", on="ip dhcp snooping"),
+        Line("ip dhcp snooping vlan {vlans:vlans}"),
+        Flag("option82", off="no ip dhcp snooping information option"),
+    )
+
+
+class HttpSyntax(Block):
+    path = "system.services.config"
+    component = ServicesAttributes
+    body = (
+        Flag("http", on="ip http server", off="no ip http server"),
+        Flag("https", on="ip http secure-server", off="no ip http secure-server"),
+    )
+
+
+class ConsoleSyntax(Block):
+    path = "system.logging.console"
+    header = Line("line con {line_number:int}")
+    single = True
+    component = Console
+    body = (Flag("logging_synchronous", on="logging synchronous"),)
+
+
+ACTIONS = Choice("permit", "deny")
+EXTENDED_FIELDS = ("protocol", "destination_address", "source_port", "destination_port", "log", "dscp")
+
+
+class StandardAclEntrySyntax(Block):
+    path = "acl_entries"
+    key = "sequence_id"
+    component = Ipv4AclEntryAttributes
+    body = (Line("{sequence_id:int} {action} {source_address}", action=ACTIONS, source_address=AclAddress(False)),)
+
+
+class ExtendedAclEntrySyntax(Block):
+    path = "acl_entries"
+    key = "sequence_id"
+    component = Ipv4AclEntryAttributes
+    body = (
+        Line(
+            "{sequence_id:int} {action} {protocol} {source_address}[ {source_port}]"
+            " {destination_address}[ {destination_port}][ {log}]",
+            action=ACTIONS,
+            protocol=Choice(*AclProtoclOptions),
+            source_address=AclAddress(True),
+            destination_address=AclAddress(True),
+            source_port=AclPort(),
+            destination_port=AclPort(),
+            log=Keyword("log"),
+        ),
+    )
+
+
+class StandardAclSyntax(Block):
+    """An IPv4 ACL whose entries match on source only. The model doesn't say standard or extended;
+    what its entries match on does."""
+
+    path = "acl.ipv4_acls"
+    header = Line("ip access-list standard {name}")
+    component = Ipv4AclAttributes
+    body = (StandardAclEntrySyntax(),)
+
+    def includes(self, key: str | None, component: Ipv4AclAttributes) -> bool:
+        entries = (component.acl_entries or {}).values()
+        return not any(getattr(entry, name) is not None for entry in entries for name in EXTENDED_FIELDS)
+
+
+class ExtendedAclSyntax(StandardAclSyntax):
+    header = Line("ip access-list extended {name}")
+    body = (ExtendedAclEntrySyntax(),)
+
+    def includes(self, key: str | None, component: Ipv4AclAttributes) -> bool:
+        return not super().includes(key, component)
+
+
 class SshSyntax(Block):
     path = "system.ssh.config"
     component = SshServer
@@ -296,10 +539,22 @@ BLOCKS = [
     AaaSyntax(),
     AaaServerGroupSyntax(),
     UserSyntax(),
+    LoggingSyntax(),
+    VtpSyntax(),
+    DhcpSnoopingSyntax(),
+    LacpSyntax(),
     VlanSyntax(),
     InterfaceSyntax(),
+    HttpSyntax(),
     StaticRouteSyntax(),
+    StandardAclSyntax(),
+    ExtendedAclSyntax(),
     SshSyntax(),
+    SnmpCommunitySyntax(),
+    SnmpViewSyntax(),
+    SnmpHostSyntax(),
+    LoggingHostSyntax(),
+    ConsoleSyntax(),
     VtyLineSyntax(),
     NtpServerSyntax(),
 ]

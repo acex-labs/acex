@@ -168,7 +168,8 @@ class Renderer:
             for key, component in collection.items():
                 if type(component) not in block.types or not block.includes(key, component):
                     continue
-                values = block.derive(self.canonical({**shown, **block.values(component, key)}), self.context)
+                # The path parameters win over a same-named field the component leaves unset.
+                values = block.derive(self.canonical({**block.values(component, key), **shown}), self.context)
                 if values is not None:
                     own = path + walked + (key,)
                     text.extend(self.body(block.entries[type(component)], component, values, own, key, depth).span(own))
@@ -266,7 +267,7 @@ class ParseRun:
 
     def run(self, text: str) -> ParseResult:
         for block in self.stack[0].entries:
-            if not block.keyed:
+            if not block.keyed and block.header is None:
                 self.assign(block.locate(self.root, create=True), block.defaults[block.types[0]])
         for number, raw in enumerate(text.splitlines(), start=1):
             self.feed(number, raw)
@@ -353,6 +354,12 @@ class ParseRun:
         collection = block.locate(frame.target, create=True)
         if collection is None:
             return False
+        if block.single:
+            self.assign(collection, fields)
+            path = frame.path + block.segments
+            entries = block.entries[type(collection)]
+            self.stack.append(Frame(entries, collection, block, None, path, depth, self.raw, self.number, self.number))
+            return True
         # A ranged header opens every component in its range; its body lines then write to all of them.
         keys = [str(value) for value in (fields[block.key] if block.ranged else [fields[block.key]])]
         for key, value in zip(keys, fields[block.key] if block.ranged else [fields[block.key]], strict=True):

@@ -508,7 +508,8 @@ class SnmpConfig(ContainerEntry, BaseModel):
 
 
 class SnmpCommunity(ContainerEntry, Augmentable):
-    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    identity_fields: ClassVar[tuple[str, ...]] = ("community",)  # what the device knows it by
+    derived_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     community: AttributeValue[str] | None = None  # Community string
     # access: Optional[AttributeValue[SnmpAccess]] = AttributeValue(value=SnmpAccess.READ_ONLY)
@@ -540,7 +541,8 @@ class SnmpUser(ContainerEntry, BaseModel):
 
 
 class SnmpView(ContainerEntry, BaseModel):
-    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    identity_fields: ClassVar[tuple[str, ...]] = ("oid",)  # one view's entries differ by OID
+    derived_fields: ClassVar[tuple[str, ...]] = ("name", "view")
     name: AttributeValue[str]
     oid: AttributeValue[str]
     included: AttributeValue[bool] | None = AttributeValue(value=True)
@@ -555,6 +557,7 @@ class SnmpViewAttributes(ContainerEntry, BaseModel):
 
 class SnmpServer(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str] | None = None
     address: AttributeValue[str] | None = None
     port: AttributeValue[int] | None = AttributeValue(value=162)
