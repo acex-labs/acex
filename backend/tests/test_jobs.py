@@ -86,8 +86,20 @@ class TestProducer:
     def should_declare_durable_queues(self):
         # Workers declare the same queues; RabbitMQ refuses a second declaration
         # with different arguments, so this is part of the contract with them.
-        [queue] = JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues
-        assert (queue.name, queue.durable, queue.queue_arguments) == ("acex.ztp", True, None)
+        queues = JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues
+        assert [(q.name, q.durable, q.queue_arguments) for q in queues] == [
+            ("acex.ztp", True, None),
+            ("acex.operations", True, None),
+        ]
+
+    def should_declare_every_queue_without_publishing(self):
+        # At startup, so a queue exists before its first job and before any worker consumes it.
+        Channel.queues.clear()
+        producer = JobProducer(RabbitMQSettings(host="rabbitmq"))
+        producer._app.conf.broker_url = "memory://"
+
+        assert producer.declare_queues() == ["acex.ztp", "acex.operations"]
+        assert sorted(Channel.queues) == ["acex.operations", "acex.ztp"]
 
     def should_send_the_job_id_to_its_queue(self):
         # Through Celery's whole publish path, on kombu's in-memory broker.

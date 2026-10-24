@@ -70,6 +70,7 @@ class NEDManager:
             "package_name": ned.get("package_name"),
             "description": type(ned_instance).__doc__,
             "filename": filename,
+            "capabilities": ned_instance.capabilities,
         }
 
         return response
@@ -88,15 +89,18 @@ class NEDManager:
                 if cached:
                     description = type(cached["instance"]).__doc__ or "n/a"
                     filename = self._driver_filename(class_name)
+                    capabilities = cached["instance"].capabilities
                 else:
                     klass = ep.load()
                     description = klass.__doc__ or "n/a"
                     filename = None
+                    capabilities = None
             except Exception:
                 version = "n/a"
                 package_name = "n/a"
                 description = "n/a"
                 filename = None
+                capabilities = None
             result.append(
                 {
                     "name": class_name,
@@ -104,6 +108,7 @@ class NEDManager:
                     "package_name": package_name,
                     "description": description,
                     "filename": filename,
+                    "capabilities": capabilities,
                 }
             )
         return result

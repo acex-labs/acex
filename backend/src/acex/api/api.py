@@ -40,6 +40,13 @@ class Api:
                     print(f"OIDC: fetched {len(keys)} JWKS key(s) from {_auth.OIDC_ISSUER_URL}")
                 except Exception as exc:
                     print(f"OIDC: failed to fetch JWKS — {exc}")
+            producer = automation_engine.jobs.producer
+            if producer.configured:
+                # A broker that is down must not stop the API: publishing declares a job's queue anyway.
+                try:
+                    print(f"RabbitMQ: declared queues {', '.join(producer.declare_queues())}")
+                except Exception as exc:
+                    print(f"RabbitMQ: could not declare queues — {exc}")
             yield
 
         Api = FastAPI(
