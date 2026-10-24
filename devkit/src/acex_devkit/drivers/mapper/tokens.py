@@ -68,6 +68,19 @@ class Range(Token):
         return f"{value[0]} {value[-1]}" if len(value) > 1 else str(value[0])
 
 
+class Words(Token):
+    """Space-separated words: `1.1.1.1 8.8.8.8` <-> ["1.1.1.1", "8.8.8.8"]. As a block's key it stands for
+    one entry per word; one entry's key renders on its own."""
+
+    regex = r"\S+(?: \S+)*"
+
+    def parse(self, text: str) -> list[str]:
+        return text.split(" ")
+
+    def render(self, value: Any) -> str | None:
+        return " ".join(value) if isinstance(value, list) else str(value)
+
+
 class Ipv4Mask(Token):
     """An IPv4 interface address as address and netmask: `10.0.0.1 255.255.255.0` <-> `10.0.0.1/24`."""
 
@@ -137,5 +150,6 @@ TOKENS: dict[str, Token] = {
     "vlans": Vlans(),
     "ipv4_mask": Ipv4Mask(),
     "range": Range(),
+    "words": Words(),
 }
 """Tokens addressable by name in a pattern, `{field:name}`. Parameterised tokens are passed to `Line` instead."""

@@ -6,13 +6,39 @@ express its fields. Each declaration — `Line`, `Flag`, `Multiline`, `Mount`, `
 directions over the top-level blocks.
 """
 
+from acex_devkit.drivers.mapper.context import Context
 from acex_devkit.drivers.mapper.mapper import Mapper
-from acex_devkit.drivers.mapper.syntax import Block, Dispatch, Flag, Item, Line, Mount, Multiline, Pattern, Section
-from acex_devkit.drivers.mapper.tokens import TOKENS, Choice, Int, Ipv4Mask, Keyword, Pointer, Rest, Token, Vlans
+from acex_devkit.drivers.mapper.syntax import (
+    Augment,
+    Block,
+    Dispatch,
+    Flag,
+    Item,
+    Line,
+    Mount,
+    Multiline,
+    Pattern,
+    Section,
+)
+from acex_devkit.drivers.mapper.tokens import (
+    TOKENS,
+    Choice,
+    Int,
+    Ipv4Mask,
+    Keyword,
+    Pointer,
+    Range,
+    Rest,
+    Token,
+    Vlans,
+    Words,
+)
 
 __all__ = [
+    "Augment",
     "Block",
     "Choice",
+    "Context",
     "Dispatch",
     "Flag",
     "Int",
@@ -25,9 +51,11 @@ __all__ = [
     "Multiline",
     "Pattern",
     "Pointer",
+    "Range",
     "Rest",
     "Section",
     "TOKENS",
     "Token",
     "Vlans",
+    "Words",
 ]

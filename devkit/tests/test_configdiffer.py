@@ -1,15 +1,19 @@
 from acex_devkit.configdiffer import ConfigDiffer
+from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.codec_result import UnmatchedLine
 from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
     EthernetCsmacdInterface,
+    L3IpvlanInterface,
     NetworkInstance,
     Ssh,
     SshServer,
     System,
     SystemConfig,
+    authenticationUser,
 )
 from acex_devkit.models.reference import Reference
+from acex_devkit.normalizer import MASK
 
 
 def config(keys: dict[str, int], source: str, members: list[str]) -> ComposedConfiguration:
@@ -80,3 +84,53 @@ def test_undeclared_and_unparsed_are_reported_but_not_scored():
     assert diff.compliance_percentage == 100.0
     assert diff.undeclared_count == len(diff.removed) > 0
     assert diff.summary()["unparsed_count"] == 1
+
+
+def test_svis_match_on_vlan_and_ignore_the_derived_name():
+    """Desired SVIs share index 0 and carry the integrator's name; observed ones are named by the device."""
+    desired = ComposedConfiguration(
+        interfaces={
+            "svi10": L3IpvlanInterface(index=0, name="svi10", vlan_id=10, description="data"),
+            "svi20": L3IpvlanInterface(index=0, name="svi20", vlan_id=20, description="voice"),
+        }
+    )
+    observed = ComposedConfiguration(
+        interfaces={
+            "Vlan20": L3IpvlanInterface(index=0, name="Vlan20", vlan_id=20, description="voice"),
+            "Vlan10": L3IpvlanInterface(index=1, name="Vlan10", vlan_id=10, description="data"),
+        }
+    )
+    diff = ConfigDiffer().diff(desired_config=desired, observed_config=observed)
+    assert (diff.added, diff.changed, diff.removed) == ([], [], [])
+
+
+def test_a_masked_observed_secret_matches_any_desired_value():
+    desired = ComposedConfiguration()
+    desired.system.aaa.authentication.users = {"admin": authenticationUser(username="admin", password_hashed="$9$abc")}
+    observed = ComposedConfiguration()
+    observed.system.aaa.authentication.users = {"admin": authenticationUser(username="admin", password_hashed=MASK)}
+    assert ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed == []
+
+    desired.system.aaa.authentication.users["admin"].privilege = AttributeValue(value=15)
+    observed.system.aaa.authentication.users["admin"].privilege = AttributeValue(value=1)
+    changed = ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed
+    assert [a.attribute_name for a in changed[0].changed_attributes] == ["privilege"]
+
+
+def test_an_attribute_desired_leaves_unset_states_no_intent():
+    desired = ComposedConfiguration(interfaces={"uplink": EthernetCsmacdInterface(index=0, module_index=0, name="x")})
+    observed = ComposedConfiguration(
+        interfaces={"Gi1": EthernetCsmacdInterface(index=0, module_index=0, name="Gi1", enabled=True, mtu=9000)}
+    )
+    assert ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed == []
+
+
+def test_an_entry_known_only_by_a_masked_secret_matches_a_desired_one():
+    from acex_devkit.models.composed_configuration import SnmpCommunity
+
+    desired = ComposedConfiguration()
+    desired.system.snmp.communities = {"ro": SnmpCommunity(name="ro", community="s3cret")}
+    observed = ComposedConfiguration()
+    observed.system.snmp.communities = {MASK: SnmpCommunity(name=MASK, community=MASK)}
+    diff = ConfigDiffer().diff(desired_config=desired, observed_config=observed)
+    assert (diff.added, diff.changed, diff.removed) == ([], [], [])

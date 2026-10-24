@@ -1,23 +1,32 @@
 """Block shapes beyond header-and-body: lines that carry their key, path parameters, and ranged keys."""
 
+from types import SimpleNamespace as NS
+
 import pytest
-from acex_devkit.drivers.mapper import Block, Choice, Keyword, Line, Mapper
+from acex_devkit.drivers.mapper import Block, Choice, Context, Flag, Keyword, Line, Mapper, Mount
 from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
+    DnsServerAttributes,
     HsrpGroup,
     L3IpvlanInterface,
     NetworkInstance,
     StaticRouteNextHop,
     SystemConfig,
+    aaaServerGroupAttributes,
+    aaaTacacsAttributes,
     authenticationUser,
 )
-from acex_devkit.models.logging import VtyLine
+from acex_devkit.models.logging import Console, VtyLine
+from acex_devkit.models.platform import OS
 
 
 class SystemSyntax(Block):
     path = "system.config"
     component = SystemConfig
-    body = (Line("ip domain-name {domain_name}", aliases=("ip domain name {domain_name}",)),)
+    body = (
+        Line("ip domain-name {domain_name}", until="16"),
+        Line("ip domain name {domain_name}", since="16"),
+    )
 
 
 class UserSyntax(Block):
@@ -95,9 +104,16 @@ def parsed() -> ComposedConfiguration:
     return result.configuration
 
 
-def test_aliases_parse_but_never_render(parsed):
-    assert parsed.system.config.domain_name.value == "example.com"
-    assert "ip domain-name example.com" in MAPPER.render(parsed).payload.splitlines()
+def test_version_variants_follow_the_device_release(parsed):
+    assert parsed.system.config.domain_name.value == "example.com"  # unknown release: every variant reads
+    assert "ip domain name example.com" in MAPPER.render(parsed).payload.splitlines()  # and the newest writes
+
+    old = Context(NS(asset=NS(type="asset", os=OS.cisco_ios, os_version="15.2(7)E3")))
+    assert "ip domain-name example.com" in MAPPER.render(parsed, old).payload.splitlines()
+    assert MAPPER.parse("ip domain name example.com", old).metadata.unmatched  # not how 15.2 writes it
+
+    new = Context(NS(asset=NS(type="asset", os=OS.cisco_iosxe, os_version="17.9.4a")))
+    assert "ip domain name example.com" in MAPPER.render(parsed, new).payload.splitlines()
 
 
 def test_choice_maps_typed_values(parsed):
@@ -156,3 +172,105 @@ def test_path_parameters_need_lines_that_carry_their_key():
 
     with pytest.raises(ValueError, match="carry their key"):
         Headed()
+
+
+class ConsoleSyntax(Block):
+    path = "system.logging.console"
+    header = Line("line con {line_number:int}")
+    single = True
+    component = Console
+    body = (Flag("logging_synchronous", on="logging synchronous"),)
+
+
+class TacacsMemberSyntax(Block):
+    path = "tacacs"
+    header = Line("server name {name}")
+    component = aaaTacacsAttributes
+
+
+class ServerGroupSyntax(Block):
+    path = "system.aaa.server_groups"
+    header = Line("aaa group server tacacs+ {name}")
+    component = aaaServerGroupAttributes
+    body = (TacacsMemberSyntax(),)
+
+
+class TacacsServerSyntax(Block):
+    path = "system.aaa.server_groups.{group}.tacacs"
+    header = Line("tacacs server {name}")
+    key = "name"
+    shared = True
+    component = aaaTacacsAttributes
+    body = (Line("address ipv4 {address}"),)
+
+
+SHAPES = Mapper([ServerGroupSyntax(), TacacsServerSyntax(), ConsoleSyntax()], indent=" ", separator="!")
+
+SHAPES_RUNNING = """\
+aaa group server tacacs+ A
+ server name ISE1
+aaa group server tacacs+ B
+ server name ISE1
+tacacs server ISE1
+ address ipv4 10.0.0.1
+tacacs server NOWHERE
+ address ipv4 10.0.0.9
+line con 0
+ logging synchronous
+"""
+
+
+def test_a_single_object_exists_once_its_header_is_read():
+    assert MAPPER.parse("hostname x").configuration.system.logging.console is None
+    console = SHAPES.parse(SHAPES_RUNNING).configuration.system.logging.console
+    assert (console.line_number.value, console.logging_synchronous.value) == (0, True)
+
+
+def test_a_shared_header_writes_every_entry_with_its_key_and_renders_it_once():
+    result = SHAPES.parse(SHAPES_RUNNING)
+    groups = result.configuration.system.aaa.server_groups
+    assert groups["A"].tacacs["ISE1"].address.value == groups["B"].tacacs["ISE1"].address.value == "10.0.0.1"
+    assert [u.line.strip() for u in result.metadata.unmatched] == ["tacacs server NOWHERE", "address ipv4 10.0.0.9"]
+    assert SHAPES.render(result.configuration).payload.count("tacacs server ISE1") == 1
+
+
+class NameServerSyntax(Block):
+    path = "system.dns.dns_servers"
+    key = "address"
+    component = DnsServerAttributes
+    body = (Line("ip name-server {address:words}"),)
+
+
+class RelayInterfaceSyntax(Block):
+    path = "interfaces"
+    header = Line("interface {name}")
+    component = L3IpvlanInterface
+    body = (
+        Mount(
+            "ip helper-address {server}", at="system.dhcp.relay.relay_servers.{server:address}.interfaces", creates=True
+        ),
+    )
+
+    def complete(self, fields, position, context):
+        return {"index": position, **fields}
+
+
+SERVICES = Mapper([NameServerSyntax(), RelayInterfaceSyntax()], indent=" ")
+
+
+def test_a_line_carrying_several_keys_builds_one_entry_per_key():
+    servers = SERVICES.parse("ip name-server 1.1.1.1 8.8.8.8").configuration.system.dns.dns_servers
+    assert sorted(servers) == ["1.1.1.1", "8.8.8.8"]
+
+
+def test_every_membership_line_counts_and_creates_what_it_names():
+    text = "interface Vlan10\n ip helper-address 10.0.0.50\n ip helper-address 10.0.0.51\n"
+    relays = SERVICES.parse(text).configuration.system.dhcp.relay.relay_servers
+    assert {key: list(relay.interfaces) for key, relay in relays.items()} == {
+        "10.0.0.50": ["Vlan10"],
+        "10.0.0.51": ["Vlan10"],
+    }
+    assert SERVICES.render(SERVICES.parse(text).configuration).payload.splitlines()[1:] == [
+        " ip helper-address 10.0.0.50",
+        " ip helper-address 10.0.0.51",
+    ]

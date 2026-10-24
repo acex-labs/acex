@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from acex_devkit.drivers.mapper.syntax import Block, Capture, Mount, Section, Tree
+from acex_devkit.drivers.mapper.syntax import Block, Capture, Item, Mount, Section, Tree
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.codec_result import (
     ParseMetadata,
@@ -110,21 +110,31 @@ class Renderer:
             return []
         if block.flat:
             return [self.lines(block, parent, path, depth)]
+        if block.shared:
+            return self.shared(block, parent, path, depth)
         components = block.components(parent, values)
         if block.ranged:
             return [self.ranges(block, components, path, depth)]
         return [self.component(block, key, component, path, depth) for key, component in components]
 
     def component(
-        self, block: Block, key: str | None, component: BaseModel, path: tuple, depth: int, keys: list | None = None
+        self,
+        block: Block,
+        key: str | None,
+        component: BaseModel,
+        path: tuple,
+        depth: int,
+        keys: list | None = None,
+        walked: tuple | None = None,
     ) -> Text:
-        """One component's text; `keys` writes a run of components that render alike under one header."""
+        """One component's text; `keys` writes a run of components that render alike under one header, and
+        `walked` is the path to a component reached through path parameters."""
         values = block.derive(self.canonical(block.values(component, key)), self.context)
         if values is None:
             return Text()
         if keys is not None:
             values[block.key] = keys
-        path = path + block.segments + (() if key is None else (key,))
+        path = path + (block.segments if walked is None else walked) + (() if key is None else (key,))
         if block.header is None:
             return self.body(block.entries[type(component)], component, values, path, key, depth).span(path)
         header = block.header.pattern.render(values)
@@ -139,6 +149,8 @@ class Renderer:
         indent = self.mapper.indent * depth
         text = Text()
         for entry in entries:
+            if isinstance(entry, Item) and not entry.admits(self.context, rendering=True):
+                continue
             if isinstance(entry, Block):
                 for chunk in self.chunks(entry, component, values, path, depth):
                     text.extend(chunk)
@@ -166,11 +178,22 @@ class Renderer:
             for key, component in collection.items():
                 if type(component) not in block.types or not block.includes(key, component):
                     continue
-                values = block.derive(self.canonical({**shown, **block.values(component, key)}), self.context)
+                # The path parameters win over a same-named field the component leaves unset.
+                values = block.derive(self.canonical({**block.values(component, key), **shown}), self.context)
                 if values is not None:
                     own = path + walked + (key,)
                     text.extend(self.body(block.entries[type(component)], component, values, own, key, depth).span(own))
         return text
+
+    def shared(self, block: Block, parent: Any, path: tuple, depth: int) -> list[Text]:
+        """Entries held in several places under one key, written once each, from where they're first found."""
+        chunks, seen = [], set()
+        for _, walked, collection in block.placements(parent):
+            for key, component in collection.items():
+                if key not in seen and type(component) in block.types and block.includes(key, component):
+                    seen.add(key)
+                    chunks.append(self.component(block, key, component, path, depth, walked=walked))
+        return chunks
 
     def ranges(self, block: Block, components: list[tuple[str, BaseModel]], path: tuple, depth: int) -> Text:
         """Components keyed by a number, consecutive ones whose bodies render alike written as one range."""
@@ -254,7 +277,9 @@ class ParseRun:
         # An open multiline field: the capture, the component it writes to, and the span path its lines
         # count toward when no open frame already spans them.
         self.capture: tuple[Capture, Any, tuple[str, ...] | None] | None = None
-        self.mounts: dict[tuple[tuple[str, ...], int], tuple[Mount, dict, str, UnmatchedLine | None]] = {}
+        # Memberships per component and Mount: the lines read, and the default standing in when there are none.
+        self.mounts: dict[tuple[tuple[str, ...], int], list[tuple[Mount, dict, str, UnmatchedLine]]] = {}
+        self.mount_defaults: dict[tuple[tuple[str, ...], int], tuple[Mount, dict, str]] = {}
         self.unmatched: list[UnmatchedLine] = []
         self.orphans: list[tuple[int, str]] = []  # unmatched lines whose deeper lines read as their body
         self.spans: list[tuple[int, int, tuple[str, ...]]] = []
@@ -264,7 +289,7 @@ class ParseRun:
 
     def run(self, text: str) -> ParseResult:
         for block in self.stack[0].entries:
-            if not block.keyed:
+            if not block.keyed and block.header is None and block.preexists:
                 self.assign(block.locate(self.root, create=True), block.defaults[block.types[0]])
         for number, raw in enumerate(text.splitlines(), start=1):
             self.feed(number, raw)
@@ -330,11 +355,15 @@ class ParseRun:
             return self.lines(entry, frame, text) if entry.flat else self.inline(entry, frame, text)
         if isinstance(entry, Section):
             return self.section(entry, frame, text, depth)
+        if not entry.admits(self.context, rendering=False):
+            return False
         result = entry.match(text)
         if result is None:
             return False
         if isinstance(entry, Mount):
-            self.mounts[(frame.path, id(entry))] = (entry, result, frame.key, self.unmatched_line())
+            self.mounts.setdefault((frame.path, id(entry)), []).append(
+                (entry, result, frame.key, self.unmatched_line())
+            )
         elif isinstance(result, Capture):
             self.capture = (result, frame.target, None)
         else:
@@ -346,9 +375,17 @@ class ParseRun:
         component_type = None if fields is None else block.type_for(fields)
         if component_type is None:
             return False
+        if block.shared:
+            return self.open_shared(block, frame, fields, depth)
         collection = block.locate(frame.target, create=True)
         if collection is None:
             return False
+        if block.single:
+            self.assign(collection, fields)
+            path = frame.path + block.segments
+            entries = block.entries[type(collection)]
+            self.stack.append(Frame(entries, collection, block, None, path, depth, self.raw, self.number, self.number))
+            return True
         # A ranged header opens every component in its range; its body lines then write to all of them.
         keys = [str(value) for value in (fields[block.key] if block.ranged else [fields[block.key]])]
         for key, value in zip(keys, fields[block.key] if block.ranged else [fields[block.key]], strict=True):
@@ -364,28 +401,44 @@ class ParseRun:
         self.stack.append(Frame(entries, target, block, key, path, depth, self.raw, self.number, self.number))
         for entry in entries:
             if isinstance(entry, Mount) and entry.default is not None:
-                self.mounts.setdefault((path, id(entry)), (entry, entry.default, key, None))
+                self.mount_defaults[(path, id(entry))] = (entry, entry.default, key)
+        return True
+
+    def open_shared(self, block: Block, frame: Frame, fields: dict[str, Any], depth: int) -> bool:
+        key = str(fields[block.key])
+        found = [
+            (walked, collection[key]) for _, walked, collection in block.placements(frame.target) if key in collection
+        ]
+        if not found:
+            return False
+        components = [component for _, component in found]
+        self.assign(components, {k: v for k, v in fields.items() if k != block.key})
+        path = frame.path + found[0][0] + (key,)
+        entries = block.entries[type(components[0])]
+        self.stack.append(Frame(entries, components, block, key, path, depth, self.raw, self.number, self.number))
         return True
 
     def inline(self, block: Block, frame: Frame, text: str) -> bool:
         for entry in block.entries[block.types[0]]:
-            result = entry.match(text)
+            result = entry.match(text) if entry.admits(self.context, rendering=False) else None
             if result is None:
                 continue
-            target = block.locate(frame.target, create=True)
+            # Under a ranged header the frame holds every component in the range; each gets its own.
+            owners = frame.target if isinstance(frame.target, list) else [frame.target]
+            targets = [block.locate(owner, create=True) for owner in owners]
             path = frame.path + block.segments
             self.mark(path)
             if isinstance(result, Capture):
-                self.capture = (result, target, path)
+                self.capture = (result, targets, path)
             else:
-                self.assign(target, result)
+                self.assign(targets, result)
             return True
         return False
 
     def lines(self, block: Block, frame: Frame, text: str) -> bool:
         """A line carrying its component's key, and its path parameters, among its fields."""
         for entry in block.entries[block.types[0]]:
-            result = entry.match(text)
+            result = entry.match(text) if entry.admits(self.context, rendering=False) else None
             if result is None or isinstance(result, Capture):
                 continue
             binding = {param: result.pop(param, block.implied.get(param)) for param in block.param_names}
@@ -393,13 +446,14 @@ class ParseRun:
             if placed is None:
                 return False
             collection, walked = placed
-            key = str(result[block.key])
-            if key not in collection:
-                collection[key] = block.create(
-                    block.types[0], {block.key: result[block.key]}, len(collection), self.context
-                )
-            self.mark(frame.path + walked + (key,))
-            self.assign(collection[key], {k: v for k, v in result.items() if k != block.key})
+            # A key token reading a list (`ip name-server 1.1.1.1 8.8.8.8`) stands for one entry per value.
+            values = result[block.key] if isinstance(result[block.key], list) else [result[block.key]]
+            for value in values:
+                key = str(value)
+                if key not in collection:
+                    collection[key] = block.create(block.types[0], {block.key: value}, len(collection), self.context)
+                self.mark(frame.path + walked + (key,))
+                self.assign(collection[key], {k: v for k, v in result.items() if k != block.key})
             return True
         return False
 
@@ -422,9 +476,16 @@ class ParseRun:
                 setattr(component, name, value if isinstance(value, BaseModel) else AttributeValue(value=value))
 
     def apply_mounts(self) -> None:
-        for (path, _), (mount, binding, key, line) in self.mounts.items():
-            collection = mount.collection(self.root, binding)
-            if isinstance(collection, dict):
-                collection[key] = Reference(pointer=".".join(path))
-            elif line is not None:
-                self.unmatched.append(line)
+        for slot, (mount, binding, key) in self.mount_defaults.items():
+            if slot not in self.mounts:
+                self.mount(mount, binding, key, slot[0], None)
+        for (path, _), lines in self.mounts.items():
+            for mount, binding, key, line in lines:
+                self.mount(mount, binding, key, path, line)
+
+    def mount(self, mount: Mount, binding: dict, key: str, path: tuple[str, ...], line: UnmatchedLine | None) -> None:
+        collection = mount.collection(self.root, binding)
+        if isinstance(collection, dict):
+            collection[key] = Reference(pointer=".".join(path))
+        elif line is not None:
+            self.unmatched.append(line)

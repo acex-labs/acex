@@ -11,8 +11,10 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from acex_devkit.drivers.mapper.context import Context
 from acex_devkit.drivers.mapper.tokens import TOKENS, Range, Token
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.augment import AugmentAttributes
 from acex_devkit.models.reference import Reference
 
 
@@ -44,6 +46,13 @@ class Tree:
         return value.get_value() if isinstance(value, AttributeValue) else value
 
     @staticmethod
+    def unwrap(value: Any) -> Any:
+        """A value as an `AttributeValue` holds it, whether it's one or its JSON form."""
+        if isinstance(value, AttributeValue):
+            return value.get_value()
+        return value["value"] if isinstance(value, dict) and "value" in value else value
+
+    @staticmethod
     def schema(owner: type[BaseModel], field: str) -> Any:
         """The declared type of `owner.field`, without its `| None`."""
         annotation = owner.model_fields[field].annotation
@@ -59,6 +68,73 @@ class Tree:
         if typing.get_origin(schema) is dict:
             return {}
         return schema() if isinstance(schema, type) and issubclass(schema, BaseModel) else None
+
+
+class TreePath:
+    """A dotted path through the tree whose `{param}` segments are dict levels bound by value: the entry
+    whose field holds the value — the field named after a colon (`{vrf:name}`), else the param's own
+    name — or, when no entry has that field, the entry keyed by the value."""
+
+    def __init__(self, path: str):
+        self.segments = tuple(path.split("."))
+        self.params = {i: self.param(segment) for i, segment in enumerate(self.segments) if segment.startswith("{")}
+        self.names = frozenset(param for param, _ in self.params.values())
+
+    @staticmethod
+    def param(segment: str) -> tuple[str, str]:
+        param, _, field = segment[1:-1].partition(":")
+        return param, field or param
+
+    def placements(self, parent: Any) -> Iterator[tuple[dict[str, Any], tuple[str, ...], dict]]:
+        """Every collection the path reaches below `parent`: the parameters bound on the way, the
+        segments walked, and the collection."""
+        yield from self._placements(parent, 0, {}, ())
+
+    def _placements(self, node: Any, i: int, binding: dict, walked: tuple) -> Iterator[tuple[dict, tuple, dict]]:
+        if node is None:
+            return
+        if i == len(self.segments):
+            if isinstance(node, dict):
+                yield binding, walked, node
+            return
+        if i not in self.params:
+            yield from self._placements(Tree.get(node, self.segments[i]), i + 1, binding, walked + (self.segments[i],))
+            return
+        param, field = self.params[i]
+        for key, entry in node.items():
+            value = Tree.value(entry, field)
+            yield from self._placements(
+                entry, i + 1, {**binding, param: key if value is None else value}, walked + (key,)
+            )
+
+    def place(self, parent: Any, binding: dict[str, Any], create: bool = True) -> tuple[Any, tuple[str, ...]] | None:
+        """The node the path leads to with its parameters bound to `binding`, and the segments leading to it.
+        With `create`, missing levels are made where the schema allows; None when one is missing and can't
+        or mustn't be, e.g. an entry that needs more fields than the bound one."""
+        node, walked, schema = parent, (), None
+        for i, segment in enumerate(self.segments):
+            if i in self.params:
+                param, field = self.params[i]
+                value = binding[param]
+                key = next((k for k, entry in node.items() if Tree.value(entry, field) == value), str(value))
+                if key not in node:
+                    if not create:
+                        return None
+                    try:
+                        node[key] = typing.get_args(schema)[1](**{field: value})
+                    except ValidationError:
+                        return None
+                node, walked = node[key], walked + (key,)
+                continue
+            child = Tree.get(node, segment)
+            if child is None:
+                child = Tree.create(node, segment) if create else None
+                if child is None:
+                    return None
+                Tree.put(node, segment, child)
+            schema = Tree.schema(type(node), segment) if isinstance(node, BaseModel) else None
+            node, walked = child, walked + (segment,)
+        return node, walked
 
 
 @dataclass(frozen=True)
@@ -147,17 +223,35 @@ class Pattern:
 
 class Item:
     """One line-level entry in a body, setting fields on the enclosing component. `only` limits it to
-    some component types, for a field whose syntax differs between types sharing it."""
+    some component types, for a field whose syntax differs between types sharing it.
+
+    `since` and `until` bind it to the OS releases that write it this way (at least `since`, below
+    `until`), so a field spelled differently across releases is declared once per spelling. With the
+    device's version unknown, every variant is read and the newest (no `until`) is written."""
 
     fields: tuple[str, ...] = ()
 
-    def __init__(self, only: type | tuple[type, ...] | None = None):
+    def __init__(self, only: type | tuple[type, ...] | None = None, since: str | None = None, until: str | None = None):
         self.only = only
+        self.since = since
+        self.until = until
+
+    def admits(self, context: Any, rendering: bool) -> bool:
+        """Whether this variant applies to the device in `context`."""
+        if self.since is None and self.until is None:
+            return True
+        within = context.within(self.since, self.until) if isinstance(context, Context) else None
+        if within is not None:
+            return within
+        return not rendering or self.until is None
 
     def applies_to(self, component_type: type[BaseModel], params: frozenset[str] = frozenset()) -> bool:
-        """Whether every field is the component's own, or one of the enclosing block's path `params`."""
+        """Whether every field is the component's own, or one of the enclosing block's path `params`. A
+        model taking undeclared fields (an augment) takes any."""
         if self.only is not None and not issubclass(component_type, self.only):
             return False
+        if component_type.model_config.get("extra") == "allow":
+            return True
         return set(self.fields) - params <= component_type.model_fields.keys()
 
     def render(self, values: dict[str, Any]) -> list[str]:
@@ -175,30 +269,26 @@ class Item:
 
 class Line(Item):
     """A line pattern for one or more fields: `Line("switchport access vlan {access_vlan:int}")`.
-    `aliases` are other spellings of the same line, read but never written (`ip domain name` beside
-    `ip domain-name`). Keyword arguments other than `only` and `aliases` are per-field tokens."""
+    Keyword arguments other than `only`, `since` and `until` are per-field tokens."""
 
     def __init__(
         self,
         pattern: str,
         only: type | tuple[type, ...] | None = None,
-        aliases: tuple[str, ...] = (),
+        since: str | None = None,
+        until: str | None = None,
         **tokens: Token,
     ):
-        super().__init__(only)
+        super().__init__(only, since, until)
         self.pattern = Pattern(pattern, tokens)
         self.fields = tuple(self.pattern.fields)
-        self.aliases = tuple(Pattern(alias, tokens) for alias in aliases)
-        for alias in self.aliases:
-            if set(alias.fields) != set(self.fields):
-                raise ValueError(f"{alias.text!r}: an alias must set the same fields as {pattern!r}")
 
     def render(self, values: dict[str, Any]) -> list[str]:
         line = self.pattern.render(values)
         return [] if line is None else [line]
 
     def match(self, text: str) -> dict[str, Any] | None:
-        return next((m for p in (self.pattern, *self.aliases) if (m := p.match(text)) is not None), None)
+        return self.pattern.match(text)
 
 
 class Flag(Item):
@@ -212,8 +302,10 @@ class Flag(Item):
         off: str | None = None,
         default: bool | None = None,
         only: type | tuple[type, ...] | None = None,
+        since: str | None = None,
+        until: str | None = None,
     ):
-        super().__init__(only)
+        super().__init__(only, since, until)
         self.name = name
         self.fields = (name,)
         self.lines = {value: line for value, line in ((True, on), (False, off)) if line is not None}
@@ -238,8 +330,16 @@ class Multiline(Item):
     """A text field spanning lines between a start line and a delimiter, e.g. `banner motd ^C ... ^C`.
     `start` holds one `{delim}`: parse reads whatever delimiter the config uses, render writes `delimiter`."""
 
-    def __init__(self, name: str, start: str, delimiter: str = "^C", only: type | tuple[type, ...] | None = None):
-        super().__init__(only)
+    def __init__(
+        self,
+        name: str,
+        start: str,
+        delimiter: str = "^C",
+        only: type | tuple[type, ...] | None = None,
+        since: str | None = None,
+        until: str | None = None,
+    ):
+        super().__init__(only, since, until)
         self.name = name
         self.fields = (name,)
         self.delimiter = delimiter
@@ -282,9 +382,11 @@ class Mount(Item):
     membership is stored there as a `Reference` back to the component, keyed by the component's own
     key — the shape a backend `ReferenceFrom` produces.
 
-    `at` is a dotted path from the root to that collection; its `{field}` segments are dict keys taken
-    from the line. `default` is the membership when no line is present (an interface without
-    `vrf forwarding` belongs to `global`), and renders nothing.
+    `at` is a `TreePath` from the root to that collection; its `{param}` segments are bound from the
+    line's fields of the same name. `default` is the membership when no line is present (an interface
+    without `vrf forwarding` belongs to `global`), and renders nothing. `creates` makes a missing level
+    (a DHCP relay server first named by an interface's helper address); without it, a membership in
+    something not configured is not this line's.
     """
 
     def __init__(
@@ -292,17 +394,18 @@ class Mount(Item):
         pattern: str,
         at: str,
         default: dict[str, str] | None = None,
+        creates: bool = False,
         only: type | tuple[type, ...] | None = None,
         **tokens: Token,
     ):
         super().__init__(only)
         self.pattern = Pattern(pattern, tokens)
-        self.at = tuple(at.split("."))
+        self.at = TreePath(at)
         self.default = default
-        params = {segment[1:-1] for segment in self.at if segment.startswith("{")}
-        if params != set(self.pattern.fields):
+        self.creates = creates
+        if self.at.names != set(self.pattern.fields):
             raise ValueError(
-                f"{pattern!r}: fields {sorted(self.pattern.fields)} must be the `at` keys {sorted(params)}"
+                f"{pattern!r}: fields {sorted(self.pattern.fields)} must be the `at` params {sorted(self.at.names)}"
             )
 
     def render(self, values: dict[str, Any]) -> list[str]:
@@ -312,30 +415,21 @@ class Mount(Item):
         return self.pattern.match(text)
 
     def prefix(self, name: str) -> str:
-        """The dotted path to the collection whose keys `{name}` takes."""
-        return ".".join(self.at[: self.at.index(f"{{{name}}}")])
+        """The dotted path to the collection whose entries `{name}` picks between."""
+        index = next(i for i, (param, _) in self.at.params.items() if param == name)
+        return ".".join(self.at.segments[:index])
 
-    def collection(self, root: BaseModel, binding: dict[str, str]) -> Any:
-        return Tree.walk(root, tuple(segment.format(**binding) for segment in self.at))
+    def collection(self, root: BaseModel, binding: dict[str, Any]) -> Any:
+        placed = self.at.place(root, binding, create=self.creates)
+        return None if placed is None else placed[0]
 
-    def bindings(self, root: BaseModel, key: str, pointer: str) -> list[dict[str, str]]:
+    def bindings(self, root: BaseModel, key: str, pointer: str) -> list[dict[str, Any]]:
         """Every binding of `at` whose collection holds a reference to `pointer` under `key`."""
-        return list(self._bindings(root, self.at, {}, key, pointer))
-
-    def _bindings(self, node: Any, segments: tuple[str, ...], binding: dict, key: str, pointer: str) -> Iterator[dict]:
-        if node is None:
-            return
-        if not segments:
-            reference = node.get(key) if isinstance(node, dict) else None
-            if isinstance(reference, Reference) and reference.pointer == pointer:
-                yield binding
-            return
-        head, rest = segments[0], segments[1:]
-        if head.startswith("{"):
-            for name, child in (node or {}).items():
-                yield from self._bindings(child, rest, {**binding, head[1:-1]: name}, key, pointer)
-        else:
-            yield from self._bindings(Tree.get(node, head), rest, binding, key, pointer)
+        return [
+            binding
+            for binding, _, node in self.at.placements(root)
+            if isinstance(node.get(key), Reference) and node[key].pointer == pointer
+        ]
 
 
 class Section:
@@ -388,6 +482,12 @@ class Block:
       `implied` holds what a line leaving a parameter out stands for, and that value is never written.
     - With neither, `path` is a single object whose lines sit at the enclosing level: a top-level
       singleton, or a sub-model like an interface's storm-control settings.
+    - With a header and `single`, `path` is a single object the header opens (`line con 0`). It exists
+      only once its header is read.
+    - With a header and `shared`, the header names entries that already exist wherever the path's
+      `{param}` levels reach, and writes to every one of them: a server defined once and referenced by
+      several groups (`tacacs server ISE1` for each group's `server name ISE1`). Each key renders once.
+      A header naming no existing entry is not this block's line.
 
     A body holds `Item`s, nested `Block`s and `Section`s; declaration order is render order. `when`
     limits a nested block to enclosing components with those values. Subclasses may override
@@ -398,6 +498,10 @@ class Block:
     path: str
     component: type[BaseModel] | Dispatch
     header: Line | None = None
+    single: bool = False
+    shared: bool = False
+    preexists: bool = True
+    """A single object without a header is one the tree always holds; parse fills its defaults up front."""
     key: str | None = None
     implied: dict[str, Any] = {}
     when: dict[str, Any] = {}
@@ -405,21 +509,20 @@ class Block:
 
     def __init__(self):
         name = type(self).__name__
-        self.segments = tuple(self.path.split("."))
-        self.params = {i: self._param(segment) for i, segment in enumerate(self.segments) if segment.startswith("{")}
-        self.param_names = frozenset(param for param, _ in self.params.values())
+        self.tree = TreePath(self.path)
+        self.segments, self.params, self.param_names = self.tree.segments, self.tree.params, self.tree.names
         self.dispatch = self.component if isinstance(self.component, Dispatch) else None
         self.types = self.dispatch.types if self.dispatch else (self.component,)
         self.flat = self.header is None and self.key is not None
-        self.keyed = self.header is not None or self.flat
-        if self.header is not None:
+        self.keyed = (self.header is not None and not self.single) or self.flat
+        if self.header is not None and not self.single:
             self.key = self.key or self.header.fields[0]
         self.ranged = self.header is not None and isinstance(self.header.pattern.fields.get(self.key), Range)
         self.entries = {t: tuple(entry for entry in self.body if self._fits(entry, t)) for t in self.types}
         self.defaults = {t: self._defaults(self.entries[t], t) for t in self.types}
 
-        if self.params and not self.flat:
-            raise ValueError(f"{name}: only a block whose lines carry their key binds path parameters")
+        if self.params and not (self.flat or self.shared):
+            raise ValueError(f"{name}: only a block whose lines carry their key, or a shared one, has path parameters")
         if self.header is None:
             if self.dispatch is not None:
                 raise ValueError(f"{name}: a block without a header has a single component type")
@@ -437,10 +540,6 @@ class Block:
         for entry in self.body:
             if not any(self._fits(entry, t) for t in self.types):
                 raise ValueError(f"{name}: {type(entry).__name__} {self._describe(entry)} fits none of {self.types}")
-
-    def _param(self, segment: str) -> tuple[str, str]:
-        param, _, field = segment[1:-1].partition(":")
-        return param, field or param
 
     def _fits(self, entry: Any, component_type: type[BaseModel]) -> bool:
         return (
@@ -501,53 +600,11 @@ class Block:
         return target
 
     def placements(self, parent: Any) -> Iterator[tuple[dict[str, Any], tuple[str, ...], dict]]:
-        """Every collection the path reaches below `parent`: the parameters bound on the way, the
-        segments walked, and the collection."""
-        yield from self._placements(parent, 0, {}, ())
-
-    def _placements(self, node: Any, i: int, binding: dict, walked: tuple) -> Iterator[tuple[dict, tuple, dict]]:
-        if node is None:
-            return
-        if i == len(self.segments):
-            if isinstance(node, dict):
-                yield binding, walked, node
-            return
-        if i not in self.params:
-            yield from self._placements(Tree.get(node, self.segments[i]), i + 1, binding, walked + (self.segments[i],))
-            return
-        param, field = self.params[i]
-        for key, entry in node.items():
-            value = Tree.value(entry, field)
-            yield from self._placements(
-                entry, i + 1, {**binding, param: key if value is None else value}, walked + (key,)
-            )
+        return self.tree.placements(parent)
 
     def place(self, parent: Any, binding: dict[str, Any]) -> tuple[dict, tuple[str, ...]] | None:
-        """The collection a line with path parameters `binding` belongs in and the segments leading to it.
-        Missing levels are created where the schema allows; None when one can't be, e.g. an entry that
-        needs more fields than the bound one."""
-        node, walked, schema = parent, (), None
-        for i, segment in enumerate(self.segments):
-            if i in self.params:
-                param, field = self.params[i]
-                value = binding[param]
-                key = next((k for k, entry in node.items() if Tree.value(entry, field) == value), str(value))
-                if key not in node:
-                    try:
-                        node[key] = typing.get_args(schema)[1](**{field: value})
-                    except ValidationError:
-                        return None
-                node, walked = node[key], walked + (key,)
-                continue
-            child = Tree.get(node, segment)
-            if child is None:
-                child = Tree.create(node, segment)
-                if child is None:
-                    return None
-                Tree.put(node, segment, child)
-            schema = Tree.schema(type(node), segment) if isinstance(node, BaseModel) else None
-            node, walked = child, walked + (segment,)
-        return node, walked
+        """The collection a line with path parameters `binding` belongs in, made where it's missing."""
+        return self.tree.place(parent, binding)
 
     def components(self, parent: Any, values: dict[str, Any]) -> list[tuple[str | None, BaseModel]]:
         if not self.active(values):
@@ -564,8 +621,30 @@ class Block:
         return component_type(**{k: v for k, v in fields.items() if k in component_type.model_fields})
 
     def values(self, component: BaseModel, key: str | None) -> dict[str, Any]:
-        """The component's field values, unwrapped, plus its key under the key field's name."""
-        values = {k: v.get_value() if isinstance(v, AttributeValue) else v for k, v in component}
+        """The component's field values, unwrapped, plus its key under the key field's name. An undeclared
+        field read back from JSON is a plain `{"value": ...}` dict, and unwraps the same way."""
+        extra = component.model_extra or {}
+        values = {k: Tree.unwrap(v) if k in extra else v for k, v in component}
+        values = {k: v.get_value() if isinstance(v, AttributeValue) else v for k, v in values.items()}
         if key is not None:
             values.setdefault(self.key, key)
         return values
+
+
+class Augment(Block):
+    """A vendor augment on the component at `path` (its `augments`), found by its `type` whatever key
+    it's stored under, and created under its type when one of its lines is read. Subclasses set `augment`
+    to the type and `body` to its lines; an augment takes any field."""
+
+    augment: str
+    component = AugmentAttributes
+    preexists = False
+
+    def locate(self, parent: Any, create: bool = False) -> Any:
+        augments = Tree.walk(parent, self.segments)
+        if augments is None:
+            return None
+        found = next((a for a in augments.values() if Tree.value(a, "type") == self.augment), None)
+        if found is None and create:
+            found = augments[self.augment] = AugmentAttributes(type=self.augment)
+        return found

@@ -9,7 +9,9 @@ from acex_devkit.models.composed_configuration import (
     ReferenceTo,
     SoftwareLoopbackInterface,
 )
+from acex_devkit.models.composed_configuration import HsrpGroup as HsrpGroupAttributes
 from acex_devkit.models.composed_configuration import SubInterface as SubInterfaceModel
+from acex_devkit.models.composed_configuration import VrrpGroup as VrrpGroupAttributes
 
 
 class InterfaceTemplate(ConfigComponent):
@@ -165,3 +167,21 @@ class Subinterface(Interface):
         self.kwargs["vlan_id"] = vlan.model.vlan_id.value
         self._add_template()
         self._add_vrf()
+
+
+class FirstHopGroup(ConfigComponent):
+    """A first-hop redundancy group on an interface, given as the interface component or its name."""
+
+    def pre_init(self):
+        interface = self.kwargs.pop("interface")
+        self.kwargs["interface"] = interface if isinstance(interface, str) else interface.name
+
+
+class HsrpGroup(FirstHopGroup):
+    type = "hsrp_group"
+    model_cls = HsrpGroupAttributes
+
+
+class VrrpGroup(FirstHopGroup):
+    type = "vrrp_group"
+    model_cls = VrrpGroupAttributes

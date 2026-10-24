@@ -5,9 +5,11 @@ from pydantic import BaseModel
 
 from acex_devkit.configdiffer.diff import AttributeChange, ComponentChange, ComponentDiffOp, Diff
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.augment import AugmentAttributes
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.container_entry import ContainerEntry
 from acex_devkit.models.reference import Reference
+from acex_devkit.normalizer import MASK
 
 
 class ConfigDiffer:
@@ -68,24 +70,52 @@ class ConfigDiffer:
         return result
 
     def _attribute_changes(self, before: BaseModel, after: BaseModel) -> list[AttributeChange]:
-        """Compare an observed (before) and a desired (after) component and return the changed attributes."""
+        """Compare an observed (before) and a desired (after) component and return the changed attributes.
+        Only what desired declares is compared: an attribute it leaves unset states no intent, whatever
+        the device holds there (often the device's own default)."""
         changes = []
-        all_fields = set(before.model_fields.keys()) | set(after.model_fields.keys())
+        derived = set(getattr(before, "derived_fields", ())) | set(getattr(after, "derived_fields", ()))
+        all_fields = (set(before.model_fields.keys()) | set(after.model_fields.keys())) - derived
         for field_name in all_fields:
             b = getattr(before, field_name, None)
             a = getattr(after, field_name, None)
+            if a is None or a == {} or a == []:
+                continue
             if not self._same(b, a):
                 changes.append(AttributeChange(attribute_name=field_name, before=b, after=a))
         return changes
 
     def _same(self, observed: Any, desired: Any) -> bool:
-        """References are equal when they point at the same place, whatever path spells it out."""
+        """References are equal when they point at the same place, whatever path spells it out. A secret
+        masked in the observed configuration can't be compared, so it matches any desired value."""
+        if isinstance(observed, AttributeValue) and observed.value == MASK:
+            return desired is not None
+        if self._is_augments(observed) and self._is_augments(desired):
+            return self._augment_contents(observed) == self._augment_contents(desired)
         if isinstance(observed, Reference) and isinstance(desired, Reference):
             return self._position(self.observed, observed.pointer) == self._position(self.desired, desired.pointer)
         if self._is_references(observed) and self._is_references(desired):
             observed_targets = {self._position(self.observed, r.pointer) for r in observed.values()}
             return observed_targets == {self._position(self.desired, r.pointer) for r in desired.values()}
         return observed == desired
+
+    def _is_augments(self, value: Any) -> bool:
+        return isinstance(value, dict) and all(isinstance(v, AugmentAttributes) for v in value.values())
+
+    def _augment_contents(self, augments: dict[str, AugmentAttributes]) -> list[str]:
+        """Augments as what they say, whatever they're keyed under and whether their fields are typed or
+        read back from JSON: each one's type and set fields."""
+        contents = []
+        for augment in augments.values():
+            # `name` is the integrator's handle for the augment, not something the device holds.
+            fields = {k: self._plain(v) for k, v in augment if k not in ("type", "name")}
+            contents.append(repr((augment.type, sorted((k, repr(v)) for k, v in fields.items() if v is not None))))
+        return sorted(contents)
+
+    def _plain(self, value: Any) -> Any:
+        if isinstance(value, AttributeValue):
+            return value.get_value()
+        return value["value"] if isinstance(value, dict) and "value" in value else value
 
     def _is_references(self, value: Any) -> bool:
         return isinstance(value, dict) and all(isinstance(v, Reference) for v in value.values())
@@ -114,6 +144,20 @@ class ConfigDiffer:
     def _declared(self, flat: dict[tuple, BaseModel], defaults: dict[tuple, BaseModel]) -> dict[tuple, BaseModel]:
         """The leaves that state something: those differing from the empty tree's leaf at their path."""
         return {path: model for path, model in flat.items() if defaults.get(path) != model}
+
+    def _masked_match(
+        self, desired: BaseModel, observed: dict[str, BaseModel], taken: set[str]
+    ) -> tuple[str, BaseModel] | None:
+        """An observed entry of the same type known only by a masked secret (an SNMP community string):
+        it can't be told apart, so it stands in for the first desired entry left without a match."""
+        return next(
+            (
+                (key, model)
+                for key, model in observed.items()
+                if key not in taken and type(model) is type(desired) and MASK in self._identity_key(model)
+            ),
+            None,
+        )
 
     def _identity_key(self, model: BaseModel) -> tuple:
         """Extract identity values from a ContainerEntry for matching.
@@ -196,7 +240,7 @@ class ConfigDiffer:
 
                 if d_identity:
                     # Match by identity field values (e.g. same address, same vlan_id)
-                    match = o_by_identity.get(d_identity)
+                    match = o_by_identity.get(d_identity) or self._masked_match(d_model, o_components, matched_o_keys)
                     if match:
                         o_key, o_model = match
                 else:

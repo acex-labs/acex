@@ -1,7 +1,7 @@
 """Configuration normalizer — vendor-agnostic engine for stripping
 runtime noise and masking secrets from device configurations."""
 
-from acex_devkit.normalizer.base import BaseNormalizer
+from acex_devkit.normalizer.base import MASK, BaseNormalizer
 from acex_devkit.normalizer.engine import (
     BlockRule,
     LineRule,
@@ -12,6 +12,7 @@ from acex_devkit.normalizer.engine import (
 )
 
 __all__ = [
+    "MASK",
     "LineRule",
     "BlockRule",
     "RewriteRule",

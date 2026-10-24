@@ -57,6 +57,7 @@ class Console(ContainerEntry, Augmentable):
 
 class RemoteServer(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("host",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str] | None = None
     host: AttributeValue[str] | None = None
     port: AttributeValue[int] | None = None
