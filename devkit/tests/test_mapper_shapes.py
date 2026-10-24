@@ -3,9 +3,10 @@
 from types import SimpleNamespace as NS
 
 import pytest
-from acex_devkit.drivers.mapper import Block, Choice, Context, Flag, Keyword, Line, Mapper
+from acex_devkit.drivers.mapper import Block, Choice, Context, Flag, Keyword, Line, Mapper, Mount
 from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
+    DnsServerAttributes,
     HsrpGroup,
     L3IpvlanInterface,
     NetworkInstance,
@@ -231,3 +232,45 @@ def test_a_shared_header_writes_every_entry_with_its_key_and_renders_it_once():
     assert groups["A"].tacacs["ISE1"].address.value == groups["B"].tacacs["ISE1"].address.value == "10.0.0.1"
     assert [u.line.strip() for u in result.metadata.unmatched] == ["tacacs server NOWHERE", "address ipv4 10.0.0.9"]
     assert SHAPES.render(result.configuration).payload.count("tacacs server ISE1") == 1
+
+
+class NameServerSyntax(Block):
+    path = "system.dns.dns_servers"
+    key = "address"
+    component = DnsServerAttributes
+    body = (Line("ip name-server {address:words}"),)
+
+
+class RelayInterfaceSyntax(Block):
+    path = "interfaces"
+    header = Line("interface {name}")
+    component = L3IpvlanInterface
+    body = (
+        Mount(
+            "ip helper-address {server}", at="system.dhcp.relay.relay_servers.{server:address}.interfaces", creates=True
+        ),
+    )
+
+    def complete(self, fields, position, context):
+        return {"index": position, **fields}
+
+
+SERVICES = Mapper([NameServerSyntax(), RelayInterfaceSyntax()], indent=" ")
+
+
+def test_a_line_carrying_several_keys_builds_one_entry_per_key():
+    servers = SERVICES.parse("ip name-server 1.1.1.1 8.8.8.8").configuration.system.dns.dns_servers
+    assert sorted(servers) == ["1.1.1.1", "8.8.8.8"]
+
+
+def test_every_membership_line_counts_and_creates_what_it_names():
+    text = "interface Vlan10\n ip helper-address 10.0.0.50\n ip helper-address 10.0.0.51\n"
+    relays = SERVICES.parse(text).configuration.system.dhcp.relay.relay_servers
+    assert {key: list(relay.interfaces) for key, relay in relays.items()} == {
+        "10.0.0.50": ["Vlan10"],
+        "10.0.0.51": ["Vlan10"],
+    }
+    assert SERVICES.render(SERVICES.parse(text).configuration).payload.splitlines()[1:] == [
+        " ip helper-address 10.0.0.50",
+        " ip helper-address 10.0.0.51",
+    ]

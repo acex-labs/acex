@@ -62,6 +62,73 @@ class Tree:
         return schema() if isinstance(schema, type) and issubclass(schema, BaseModel) else None
 
 
+class TreePath:
+    """A dotted path through the tree whose `{param}` segments are dict levels bound by value: the entry
+    whose field holds the value — the field named after a colon (`{vrf:name}`), else the param's own
+    name — or, when no entry has that field, the entry keyed by the value."""
+
+    def __init__(self, path: str):
+        self.segments = tuple(path.split("."))
+        self.params = {i: self.param(segment) for i, segment in enumerate(self.segments) if segment.startswith("{")}
+        self.names = frozenset(param for param, _ in self.params.values())
+
+    @staticmethod
+    def param(segment: str) -> tuple[str, str]:
+        param, _, field = segment[1:-1].partition(":")
+        return param, field or param
+
+    def placements(self, parent: Any) -> Iterator[tuple[dict[str, Any], tuple[str, ...], dict]]:
+        """Every collection the path reaches below `parent`: the parameters bound on the way, the
+        segments walked, and the collection."""
+        yield from self._placements(parent, 0, {}, ())
+
+    def _placements(self, node: Any, i: int, binding: dict, walked: tuple) -> Iterator[tuple[dict, tuple, dict]]:
+        if node is None:
+            return
+        if i == len(self.segments):
+            if isinstance(node, dict):
+                yield binding, walked, node
+            return
+        if i not in self.params:
+            yield from self._placements(Tree.get(node, self.segments[i]), i + 1, binding, walked + (self.segments[i],))
+            return
+        param, field = self.params[i]
+        for key, entry in node.items():
+            value = Tree.value(entry, field)
+            yield from self._placements(
+                entry, i + 1, {**binding, param: key if value is None else value}, walked + (key,)
+            )
+
+    def place(self, parent: Any, binding: dict[str, Any], create: bool = True) -> tuple[Any, tuple[str, ...]] | None:
+        """The node the path leads to with its parameters bound to `binding`, and the segments leading to it.
+        With `create`, missing levels are made where the schema allows; None when one is missing and can't
+        or mustn't be, e.g. an entry that needs more fields than the bound one."""
+        node, walked, schema = parent, (), None
+        for i, segment in enumerate(self.segments):
+            if i in self.params:
+                param, field = self.params[i]
+                value = binding[param]
+                key = next((k for k, entry in node.items() if Tree.value(entry, field) == value), str(value))
+                if key not in node:
+                    if not create:
+                        return None
+                    try:
+                        node[key] = typing.get_args(schema)[1](**{field: value})
+                    except ValidationError:
+                        return None
+                node, walked = node[key], walked + (key,)
+                continue
+            child = Tree.get(node, segment)
+            if child is None:
+                child = Tree.create(node, segment) if create else None
+                if child is None:
+                    return None
+                Tree.put(node, segment, child)
+            schema = Tree.schema(type(node), segment) if isinstance(node, BaseModel) else None
+            node, walked = child, walked + (segment,)
+        return node, walked
+
+
 @dataclass(frozen=True)
 class Field:
     name: str
@@ -304,9 +371,11 @@ class Mount(Item):
     membership is stored there as a `Reference` back to the component, keyed by the component's own
     key — the shape a backend `ReferenceFrom` produces.
 
-    `at` is a dotted path from the root to that collection; its `{field}` segments are dict keys taken
-    from the line. `default` is the membership when no line is present (an interface without
-    `vrf forwarding` belongs to `global`), and renders nothing.
+    `at` is a `TreePath` from the root to that collection; its `{param}` segments are bound from the
+    line's fields of the same name. `default` is the membership when no line is present (an interface
+    without `vrf forwarding` belongs to `global`), and renders nothing. `creates` makes a missing level
+    (a DHCP relay server first named by an interface's helper address); without it, a membership in
+    something not configured is not this line's.
     """
 
     def __init__(
@@ -314,17 +383,18 @@ class Mount(Item):
         pattern: str,
         at: str,
         default: dict[str, str] | None = None,
+        creates: bool = False,
         only: type | tuple[type, ...] | None = None,
         **tokens: Token,
     ):
         super().__init__(only)
         self.pattern = Pattern(pattern, tokens)
-        self.at = tuple(at.split("."))
+        self.at = TreePath(at)
         self.default = default
-        params = {segment[1:-1] for segment in self.at if segment.startswith("{")}
-        if params != set(self.pattern.fields):
+        self.creates = creates
+        if self.at.names != set(self.pattern.fields):
             raise ValueError(
-                f"{pattern!r}: fields {sorted(self.pattern.fields)} must be the `at` keys {sorted(params)}"
+                f"{pattern!r}: fields {sorted(self.pattern.fields)} must be the `at` params {sorted(self.at.names)}"
             )
 
     def render(self, values: dict[str, Any]) -> list[str]:
@@ -334,30 +404,21 @@ class Mount(Item):
         return self.pattern.match(text)
 
     def prefix(self, name: str) -> str:
-        """The dotted path to the collection whose keys `{name}` takes."""
-        return ".".join(self.at[: self.at.index(f"{{{name}}}")])
+        """The dotted path to the collection whose entries `{name}` picks between."""
+        index = next(i for i, (param, _) in self.at.params.items() if param == name)
+        return ".".join(self.at.segments[:index])
 
-    def collection(self, root: BaseModel, binding: dict[str, str]) -> Any:
-        return Tree.walk(root, tuple(segment.format(**binding) for segment in self.at))
+    def collection(self, root: BaseModel, binding: dict[str, Any]) -> Any:
+        placed = self.at.place(root, binding, create=self.creates)
+        return None if placed is None else placed[0]
 
-    def bindings(self, root: BaseModel, key: str, pointer: str) -> list[dict[str, str]]:
+    def bindings(self, root: BaseModel, key: str, pointer: str) -> list[dict[str, Any]]:
         """Every binding of `at` whose collection holds a reference to `pointer` under `key`."""
-        return list(self._bindings(root, self.at, {}, key, pointer))
-
-    def _bindings(self, node: Any, segments: tuple[str, ...], binding: dict, key: str, pointer: str) -> Iterator[dict]:
-        if node is None:
-            return
-        if not segments:
-            reference = node.get(key) if isinstance(node, dict) else None
-            if isinstance(reference, Reference) and reference.pointer == pointer:
-                yield binding
-            return
-        head, rest = segments[0], segments[1:]
-        if head.startswith("{"):
-            for name, child in (node or {}).items():
-                yield from self._bindings(child, rest, {**binding, head[1:-1]: name}, key, pointer)
-        else:
-            yield from self._bindings(Tree.get(node, head), rest, binding, key, pointer)
+        return [
+            binding
+            for binding, _, node in self.at.placements(root)
+            if isinstance(node.get(key), Reference) and node[key].pointer == pointer
+        ]
 
 
 class Section:
@@ -435,9 +496,8 @@ class Block:
 
     def __init__(self):
         name = type(self).__name__
-        self.segments = tuple(self.path.split("."))
-        self.params = {i: self._param(segment) for i, segment in enumerate(self.segments) if segment.startswith("{")}
-        self.param_names = frozenset(param for param, _ in self.params.values())
+        self.tree = TreePath(self.path)
+        self.segments, self.params, self.param_names = self.tree.segments, self.tree.params, self.tree.names
         self.dispatch = self.component if isinstance(self.component, Dispatch) else None
         self.types = self.dispatch.types if self.dispatch else (self.component,)
         self.flat = self.header is None and self.key is not None
@@ -467,10 +527,6 @@ class Block:
         for entry in self.body:
             if not any(self._fits(entry, t) for t in self.types):
                 raise ValueError(f"{name}: {type(entry).__name__} {self._describe(entry)} fits none of {self.types}")
-
-    def _param(self, segment: str) -> tuple[str, str]:
-        param, _, field = segment[1:-1].partition(":")
-        return param, field or param
 
     def _fits(self, entry: Any, component_type: type[BaseModel]) -> bool:
         return (
@@ -531,53 +587,11 @@ class Block:
         return target
 
     def placements(self, parent: Any) -> Iterator[tuple[dict[str, Any], tuple[str, ...], dict]]:
-        """Every collection the path reaches below `parent`: the parameters bound on the way, the
-        segments walked, and the collection."""
-        yield from self._placements(parent, 0, {}, ())
-
-    def _placements(self, node: Any, i: int, binding: dict, walked: tuple) -> Iterator[tuple[dict, tuple, dict]]:
-        if node is None:
-            return
-        if i == len(self.segments):
-            if isinstance(node, dict):
-                yield binding, walked, node
-            return
-        if i not in self.params:
-            yield from self._placements(Tree.get(node, self.segments[i]), i + 1, binding, walked + (self.segments[i],))
-            return
-        param, field = self.params[i]
-        for key, entry in node.items():
-            value = Tree.value(entry, field)
-            yield from self._placements(
-                entry, i + 1, {**binding, param: key if value is None else value}, walked + (key,)
-            )
+        return self.tree.placements(parent)
 
     def place(self, parent: Any, binding: dict[str, Any]) -> tuple[dict, tuple[str, ...]] | None:
-        """The collection a line with path parameters `binding` belongs in and the segments leading to it.
-        Missing levels are created where the schema allows; None when one can't be, e.g. an entry that
-        needs more fields than the bound one."""
-        node, walked, schema = parent, (), None
-        for i, segment in enumerate(self.segments):
-            if i in self.params:
-                param, field = self.params[i]
-                value = binding[param]
-                key = next((k for k, entry in node.items() if Tree.value(entry, field) == value), str(value))
-                if key not in node:
-                    try:
-                        node[key] = typing.get_args(schema)[1](**{field: value})
-                    except ValidationError:
-                        return None
-                node, walked = node[key], walked + (key,)
-                continue
-            child = Tree.get(node, segment)
-            if child is None:
-                child = Tree.create(node, segment)
-                if child is None:
-                    return None
-                Tree.put(node, segment, child)
-            schema = Tree.schema(type(node), segment) if isinstance(node, BaseModel) else None
-            node, walked = child, walked + (segment,)
-        return node, walked
+        """The collection a line with path parameters `binding` belongs in, made where it's missing."""
+        return self.tree.place(parent, binding)
 
     def components(self, parent: Any, values: dict[str, Any]) -> list[tuple[str | None, BaseModel]]:
         if not self.active(values):

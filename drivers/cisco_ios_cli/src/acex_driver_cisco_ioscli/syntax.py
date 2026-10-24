@@ -8,9 +8,11 @@ from acex_devkit.drivers.mapper.tokens import Token
 from acex_devkit.models.acl_model import AclProtoclOptions, Ipv4AclAttributes, Ipv4AclEntryAttributes
 from acex_devkit.models.composed_configuration import (
     DHCPSnoopingAttributes,
+    DnsServerAttributes,
     EthernetCsmacdInterface,
     HsrpGroup,
     Ieee8023adLagInterface,
+    InterfaceTemplateAttributes,
     L3IpvlanInterface,
     LacpConfig,
     NetworkInstance,
@@ -291,6 +293,7 @@ class InterfaceSyntax(Block):
     )
     body = (
         Line("description {description:rest}"),
+        Line("source template {interface_template}", interface_template=Pointer("interface_templates")),
         Line("encapsulation dot1Q {vlan_id:int}", only=SubInterface),
         Flag("switchport", on="switchport", off="no switchport"),
         Line("switchport mode {switchport_mode}", switchport_mode=Choice("access", "trunk")),
@@ -303,6 +306,9 @@ class InterfaceSyntax(Block):
         Mount("vrf forwarding {vrf}", at="network_instances.{vrf}.interfaces", default={"vrf": "global"}),
         Mount("ip dhcp snooping trust", at="system.dhcp.snooping.trust_interfaces"),
         Line("ip address {ipv4:ipv4_mask}"),
+        Mount(
+            "ip helper-address {server}", at="system.dhcp.relay.relay_servers.{server:address}.interfaces", creates=True
+        ),
         Flag("redirects", off="no ip redirects"),
         Flag("proxy_arp", off="no ip proxy-arp"),
         HsrpSyntax(),
@@ -358,6 +364,23 @@ class InterfaceSyntax(Block):
         elif component_type is EthernetCsmacdInterface:
             derived = context.naming.position(name) or {}
         return {"index": position, **fields, **derived}
+
+
+class InterfaceTemplateSyntax(Block):
+    """A named set of interface settings, written with the interface lines it shares. Memberships and the
+    interface's own defaults don't apply to a template, and a template doesn't name another."""
+
+    path = "interface_templates"
+    header = Line("template {name}")
+    component = InterfaceTemplateAttributes
+    body = tuple(
+        entry
+        for entry in InterfaceSyntax.body
+        if entry.applies_to(InterfaceTemplateAttributes)
+        and not isinstance(entry, Mount)
+        and not (isinstance(entry, Flag) and entry.default is not None)
+        and "interface_template" not in getattr(entry, "fields", ())
+    ) + (Flag("enabled", off="shutdown"),)
 
 
 class StaticRouteSyntax(Block):
@@ -535,6 +558,20 @@ class ExtendedAclSyntax(StandardAclSyntax):
         return not super().includes(key, component)
 
 
+class NameServerSyntax(Block):
+    """DNS servers. IOS writes every server of one instance on one line; each renders on its own here,
+    which the device merges back into one."""
+
+    path = "system.dns.dns_servers"
+    key = "address"
+    component = DnsServerAttributes
+    body = (Line("ip name-server[ vrf {network_instance}] {address:words}"),)
+
+    def derive(self, values: dict[str, Any], context: Any) -> dict[str, Any] | None:
+        # The default instance is where a server without `vrf` lives; it's never written.
+        return {**values, "network_instance": None} if values.get("network_instance") == "global" else values
+
+
 class SshSyntax(Block):
     path = "system.ssh.config"
     component = SshServer
@@ -580,8 +617,10 @@ BLOCKS = [
     DhcpSnoopingSyntax(),
     LacpSyntax(),
     VlanSyntax(),
+    InterfaceTemplateSyntax(),
     InterfaceSyntax(),
     HttpSyntax(),
+    NameServerSyntax(),
     StaticRouteSyntax(),
     StandardAclSyntax(),
     ExtendedAclSyntax(),

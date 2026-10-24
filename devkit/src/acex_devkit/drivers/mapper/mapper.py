@@ -277,7 +277,9 @@ class ParseRun:
         # An open multiline field: the capture, the component it writes to, and the span path its lines
         # count toward when no open frame already spans them.
         self.capture: tuple[Capture, Any, tuple[str, ...] | None] | None = None
-        self.mounts: dict[tuple[tuple[str, ...], int], tuple[Mount, dict, str, UnmatchedLine | None]] = {}
+        # Memberships per component and Mount: the lines read, and the default standing in when there are none.
+        self.mounts: dict[tuple[tuple[str, ...], int], list[tuple[Mount, dict, str, UnmatchedLine]]] = {}
+        self.mount_defaults: dict[tuple[tuple[str, ...], int], tuple[Mount, dict, str]] = {}
         self.unmatched: list[UnmatchedLine] = []
         self.orphans: list[tuple[int, str]] = []  # unmatched lines whose deeper lines read as their body
         self.spans: list[tuple[int, int, tuple[str, ...]]] = []
@@ -359,7 +361,9 @@ class ParseRun:
         if result is None:
             return False
         if isinstance(entry, Mount):
-            self.mounts[(frame.path, id(entry))] = (entry, result, frame.key, self.unmatched_line())
+            self.mounts.setdefault((frame.path, id(entry)), []).append(
+                (entry, result, frame.key, self.unmatched_line())
+            )
         elif isinstance(result, Capture):
             self.capture = (result, frame.target, None)
         else:
@@ -397,7 +401,7 @@ class ParseRun:
         self.stack.append(Frame(entries, target, block, key, path, depth, self.raw, self.number, self.number))
         for entry in entries:
             if isinstance(entry, Mount) and entry.default is not None:
-                self.mounts.setdefault((path, id(entry)), (entry, entry.default, key, None))
+                self.mount_defaults[(path, id(entry))] = (entry, entry.default, key)
         return True
 
     def open_shared(self, block: Block, frame: Frame, fields: dict[str, Any], depth: int) -> bool:
@@ -440,13 +444,14 @@ class ParseRun:
             if placed is None:
                 return False
             collection, walked = placed
-            key = str(result[block.key])
-            if key not in collection:
-                collection[key] = block.create(
-                    block.types[0], {block.key: result[block.key]}, len(collection), self.context
-                )
-            self.mark(frame.path + walked + (key,))
-            self.assign(collection[key], {k: v for k, v in result.items() if k != block.key})
+            # A key token reading a list (`ip name-server 1.1.1.1 8.8.8.8`) stands for one entry per value.
+            values = result[block.key] if isinstance(result[block.key], list) else [result[block.key]]
+            for value in values:
+                key = str(value)
+                if key not in collection:
+                    collection[key] = block.create(block.types[0], {block.key: value}, len(collection), self.context)
+                self.mark(frame.path + walked + (key,))
+                self.assign(collection[key], {k: v for k, v in result.items() if k != block.key})
             return True
         return False
 
@@ -469,9 +474,16 @@ class ParseRun:
                 setattr(component, name, value if isinstance(value, BaseModel) else AttributeValue(value=value))
 
     def apply_mounts(self) -> None:
-        for (path, _), (mount, binding, key, line) in self.mounts.items():
-            collection = mount.collection(self.root, binding)
-            if isinstance(collection, dict):
-                collection[key] = Reference(pointer=".".join(path))
-            elif line is not None:
-                self.unmatched.append(line)
+        for slot, (mount, binding, key) in self.mount_defaults.items():
+            if slot not in self.mounts:
+                self.mount(mount, binding, key, slot[0], None)
+        for (path, _), lines in self.mounts.items():
+            for mount, binding, key, line in lines:
+                self.mount(mount, binding, key, path, line)
+
+    def mount(self, mount: Mount, binding: dict, key: str, path: tuple[str, ...], line: UnmatchedLine | None) -> None:
+        collection = mount.collection(self.root, binding)
+        if isinstance(collection, dict):
+            collection[key] = Reference(pointer=".".join(path))
+        elif line is not None:
+            self.unmatched.append(line)
