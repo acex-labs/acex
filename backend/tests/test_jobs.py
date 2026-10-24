@@ -8,6 +8,7 @@ from acex.jobs import JobManager, JobPublishError, JobType, JobTypeRegistry, Unk
 from acex.messaging import JobProducer, MessagingNotConfigured, UnroutedJobType, queue_for
 from acex.models.job import Job, JobState, JobSubjectType
 from acex.settings import RabbitMQSettings
+from acex_devkit.models.job import JobUpdate
 from kombu.transport.memory import Channel
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.pool import StaticPool
@@ -209,6 +210,20 @@ class TestBatch:
         assert parent.children[JobState.failed] == 1
         assert parent.children[JobState.queued] == 2
         assert parent.state == JobState.running
+
+    def should_finish_when_its_last_job_does(self, db):
+        manager = JobManager(db, _Producer(), _registry())
+        parent = manager.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="a")
+        first, second = [job.id for job in _jobs(db) if job.parent_id == parent.id]
+        for job_id in (first, second):
+            manager.update(job_id, JobUpdate(state=JobState.running), worker="w")
+        manager.update(first, JobUpdate(state=JobState.succeeded), worker="w")
+        assert manager.get(parent.id).finished_at is None
+        manager.update(second, JobUpdate(state=JobState.failed, error="unreachable"), worker="w")
+        last = max(job.finished_at for job in _jobs(db) if job.parent_id == parent.id)
+        assert manager.get(parent.id).finished_at == last
+        [summary] = manager.list_jobs().items
+        assert summary.finished_at == last
 
     def should_refuse_an_empty_batch(self, db):
         with pytest.raises(ValueError):

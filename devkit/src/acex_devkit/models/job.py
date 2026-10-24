@@ -38,7 +38,7 @@ class JobBase(BaseModel):
     state: JobState = JobState.queued
     attempts: int = 0
     error: str | None = None
-    #: The user's `sub`, or "system" for jobs the backend creates itself.
+    #: The user's username (`sub` when the token has none), or "system" for jobs the backend creates itself.
     created_by: str
     claimed_by: str | None = None
     #: The `sub` of whoever cancelled the job.

@@ -60,6 +60,7 @@ class OperationRuns:
             request=request or None,
             created_by=batch.created_by,
             created_at=batch.created_at,
+            finished_at=batch.finished_at,
         )
 
     def list(self, kind: str | None, limit: int, offset: int) -> PaginatedResponse[Run]:
