@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse, Response
 
 
 def _who(user: dict) -> str:
-    return user.get("sub") or "anonymous"
+    return user.get("preferred_username") or user.get("sub") or "anonymous"
 
 
 def create_router(automation_engine):

@@ -154,13 +154,14 @@ class JobManager:
             jobs = session.exec(
                 select(Job).where(*filters).order_by(Job.created_at.desc(), Job.id.desc()).offset(offset).limit(limit)
             ).all()
-            counts = self._children_by_parent(session, [job.id for job in jobs])
+            ids = [job.id for job in jobs]
+            counts = self._children_by_parent(session, ids)
+            finished = self._finished_by_parent(session, ids) if counts else {}
             items = []
             for job in jobs:
                 summary = JobSummary.model_validate(job)
                 if job.id in counts:
-                    summary.children = {each: counts[job.id][each] for each in JobState}
-                    summary.state = derive_state(counts[job.id])
+                    self._as_batch(summary, counts[job.id], finished.get(job.id))
                 items.append(summary)
             return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
         finally:
@@ -419,10 +420,24 @@ class JobManager:
             counts.setdefault(parent_id, Counter())[JobState(state)] = count
         return counts
 
+    def _finished_by_parent(self, session, job_ids: list[int]) -> dict[int, datetime]:
+        if not job_ids:
+            return {}
+        rows = session.exec(
+            select(Job.parent_id, func.max(Job.finished_at)).where(Job.parent_id.in_(job_ids)).group_by(Job.parent_id)
+        ).all()
+        return {parent_id: finished_at for parent_id, finished_at in rows if finished_at is not None}
+
+    def _as_batch(self, item: JobResponse | JobSummary, children: Counter, finished_at: datetime | None) -> None:
+        """Give a batch's parent what is derived from its jobs: their counts, its state, and once every
+        one has finished, when the last one did."""
+        item.children = {state: children[state] for state in JobState}
+        item.state = derive_state(children)
+        item.finished_at = None if item.state in (JobState.queued, JobState.running) else finished_at
+
     def _response(self, session, job: Job) -> JobResponse:
         response = JobResponse.model_validate(job)
         children = self._children_by_parent(session, [job.id]).get(job.id)
         if children:
-            response.children = {state: children[state] for state in JobState}
-            response.state = derive_state(children)
+            self._as_batch(response, children, self._finished_by_parent(session, [job.id]).get(job.id))
         return response

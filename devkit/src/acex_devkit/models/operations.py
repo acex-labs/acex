@@ -79,6 +79,8 @@ class Run(BaseModel):
     request: dict | None = None
     created_by: str
     created_at: datetime
+    #: When the last of its jobs finished, once every one has; None while any is queued or running.
+    finished_at: datetime | None = None
 
 
 class NodeResponse(BaseModel):
