@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from acex_devkit.configdiffer.diff import AttributeChange, ComponentChange, ComponentDiffOp, Diff
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.augment import AugmentAttributes
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.container_entry import ContainerEntry
 from acex_devkit.models.reference import Reference
@@ -69,13 +70,17 @@ class ConfigDiffer:
         return result
 
     def _attribute_changes(self, before: BaseModel, after: BaseModel) -> list[AttributeChange]:
-        """Compare an observed (before) and a desired (after) component and return the changed attributes."""
+        """Compare an observed (before) and a desired (after) component and return the changed attributes.
+        Only what desired declares is compared: an attribute it leaves unset states no intent, whatever
+        the device holds there (often the device's own default)."""
         changes = []
         derived = set(getattr(before, "derived_fields", ())) | set(getattr(after, "derived_fields", ()))
         all_fields = (set(before.model_fields.keys()) | set(after.model_fields.keys())) - derived
         for field_name in all_fields:
             b = getattr(before, field_name, None)
             a = getattr(after, field_name, None)
+            if a is None or a == {} or a == []:
+                continue
             if not self._same(b, a):
                 changes.append(AttributeChange(attribute_name=field_name, before=b, after=a))
         return changes
@@ -85,12 +90,32 @@ class ConfigDiffer:
         masked in the observed configuration can't be compared, so it matches any desired value."""
         if isinstance(observed, AttributeValue) and observed.value == MASK:
             return desired is not None
+        if self._is_augments(observed) and self._is_augments(desired):
+            return self._augment_contents(observed) == self._augment_contents(desired)
         if isinstance(observed, Reference) and isinstance(desired, Reference):
             return self._position(self.observed, observed.pointer) == self._position(self.desired, desired.pointer)
         if self._is_references(observed) and self._is_references(desired):
             observed_targets = {self._position(self.observed, r.pointer) for r in observed.values()}
             return observed_targets == {self._position(self.desired, r.pointer) for r in desired.values()}
         return observed == desired
+
+    def _is_augments(self, value: Any) -> bool:
+        return isinstance(value, dict) and all(isinstance(v, AugmentAttributes) for v in value.values())
+
+    def _augment_contents(self, augments: dict[str, AugmentAttributes]) -> list[str]:
+        """Augments as what they say, whatever they're keyed under and whether their fields are typed or
+        read back from JSON: each one's type and set fields."""
+        contents = []
+        for augment in augments.values():
+            # `name` is the integrator's handle for the augment, not something the device holds.
+            fields = {k: self._plain(v) for k, v in augment if k not in ("type", "name")}
+            contents.append(repr((augment.type, sorted((k, repr(v)) for k, v in fields.items() if v is not None))))
+        return sorted(contents)
+
+    def _plain(self, value: Any) -> Any:
+        if isinstance(value, AttributeValue):
+            return value.get_value()
+        return value["value"] if isinstance(value, dict) and "value" in value else value
 
     def _is_references(self, value: Any) -> bool:
         return isinstance(value, dict) and all(isinstance(v, Reference) for v in value.values())

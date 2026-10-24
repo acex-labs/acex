@@ -3,7 +3,19 @@
 import ipaddress
 from typing import Any
 
-from acex_devkit.drivers.mapper import Block, Choice, Dispatch, Flag, Keyword, Line, Mount, Multiline, Pointer, Section
+from acex_devkit.drivers.mapper import (
+    Augment,
+    Block,
+    Choice,
+    Dispatch,
+    Flag,
+    Keyword,
+    Line,
+    Mount,
+    Multiline,
+    Pointer,
+    Section,
+)
 from acex_devkit.drivers.mapper.tokens import Token
 from acex_devkit.models.acl_model import AclProtoclOptions, Ipv4AclAttributes, Ipv4AclEntryAttributes
 from acex_devkit.models.composed_configuration import (
@@ -121,6 +133,79 @@ SEVERITIES = Choice(
         LoggingSeverity.DEBUG: "debugging",
     }
 )
+
+
+class PasswordEncryptionSyntax(Augment):
+    path = "system.config.augments"
+    augment = "cisco_service_password_encryption"
+    body = (Flag("enabled", on="service password-encryption", off="no service password-encryption"),)
+
+
+class TrapLoggingSyntax(Augment):
+    path = "system.logging.config.augments"
+    augment = "cisco.trap_logging"
+    body = (Line("logging trap {severity}", severity=SEVERITIES),)
+
+
+class ConsoleLoggingSyntax(Augment):
+    path = "system.logging.config.augments"
+    augment = "cisco.console_logging"
+    body = (Flag("enabled", on="logging console", off="no logging console"),)
+
+
+class SshLoggingSyntax(Augment):
+    path = "system.logging.config.augments"
+    augment = "cisco.ssh_logging"
+    body = (Flag("enabled", on="ip ssh logging events"),)
+
+
+class SshDhSyntax(Augment):
+    path = "system.ssh.config.augments"
+    augment = "cisco_dh_min_size"
+    body = (Line("ip ssh dh min size {dh_min_size:int}"),)
+
+
+class DhcpTrackSyntax(Augment):
+    path = "system.dhcp.snooping.augments"
+    augment = "cisco_dhcp_snooping_track_server"
+    body = (Line("ip dhcp snooping track server[ {all_dhcp_acks}]", all_dhcp_acks=Keyword("all-dhcp-acks")),)
+
+
+class DeviceTrackingSyntax(Augment):
+    path = "augments"
+    augment = "cisco_device_tracking_policy"
+    body = (Line("device-tracking attach-policy {policy_name}"),)
+
+
+class ServicePolicySyntax(Augment):
+    path = "augments"
+    augment = "cisco_service_policy"
+    body = (
+        Line("service-policy input {input_policy}"),
+        Line("service-policy output {output_policy}"),
+    )
+
+
+class LineAaaSyntax(Augment):
+    """Login and authorization lists on a console or vty line. Commands are authorized per privilege
+    level; one list covers the levels IOS has, so it's written for each."""
+
+    path = "augments"
+    body = (
+        Line("login authentication {login_authentication}"),
+        Line("authorization exec {authorization_exec}"),
+        Line("authorization commands 0 {authorization_commands}"),
+        Line("authorization commands 1 {authorization_commands}"),
+        Line("authorization commands 15 {authorization_commands}"),
+    )
+
+
+class ConsoleAaaSyntax(LineAaaSyntax):
+    augment = "cisco_console_aaa"
+
+
+class VtyAaaSyntax(LineAaaSyntax):
+    augment = "cisco_vty_aaa"
 
 
 class SystemConfigSyntax(Block):
@@ -309,6 +394,8 @@ class InterfaceSyntax(Block):
         Mount(
             "ip helper-address {server}", at="system.dhcp.relay.relay_servers.{server:address}.interfaces", creates=True
         ),
+        DeviceTrackingSyntax(),
+        ServicePolicySyntax(),
         Flag("redirects", off="no ip redirects"),
         Flag("proxy_arp", off="no ip proxy-arp"),
         HsrpSyntax(),
@@ -394,10 +481,8 @@ class StaticRouteSyntax(Block):
 class LoggingSyntax(Block):
     path = "system.logging.config"
     component = LoggingConfig
-    body = (
-        Line("logging buffered {buffer_size:int}"),
-        Line("logging trap {severity}", severity=SEVERITIES),  # what reaches the remote servers
-    )
+    # `logging trap` is the cisco.trap_logging augment, which is what config maps set.
+    body = (Line("logging buffered {buffer_size:int}"),)
 
 
 class LoggingHostSyntax(Block):
@@ -503,7 +588,7 @@ class ConsoleSyntax(Block):
     header = Line("line con {line_number:int}")
     single = True
     component = Console
-    body = (Flag("logging_synchronous", on="logging synchronous"),)
+    body = (Flag("logging_synchronous", on="logging synchronous"), ConsoleAaaSyntax())
 
 
 ACTIONS = Choice("permit", "deny")
@@ -595,6 +680,7 @@ class VtyLineSyntax(Block):
         ),
         Flag("logging_synchronous", on="logging synchronous"),
         Line("transport input {transport_input:rest}"),
+        VtyAaaSyntax(),
     )
 
 
@@ -605,6 +691,7 @@ class NtpServerSyntax(Block):
 
 
 BLOCKS = [
+    PasswordEncryptionSyntax(),
     SystemConfigSyntax(),
     VrfSyntax(),
     AaaSyntax(),
@@ -613,8 +700,11 @@ BLOCKS = [
     RadiusServerSyntax(),
     UserSyntax(),
     LoggingSyntax(),
+    TrapLoggingSyntax(),
+    ConsoleLoggingSyntax(),
     VtpSyntax(),
     DhcpSnoopingSyntax(),
+    DhcpTrackSyntax(),
     LacpSyntax(),
     VlanSyntax(),
     InterfaceTemplateSyntax(),
@@ -625,6 +715,8 @@ BLOCKS = [
     StandardAclSyntax(),
     ExtendedAclSyntax(),
     SshSyntax(),
+    SshLoggingSyntax(),
+    SshDhSyntax(),
     SnmpCommunitySyntax(),
     SnmpViewSyntax(),
     SnmpHostSyntax(),

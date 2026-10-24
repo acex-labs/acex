@@ -289,7 +289,7 @@ class ParseRun:
 
     def run(self, text: str) -> ParseResult:
         for block in self.stack[0].entries:
-            if not block.keyed and block.header is None:
+            if not block.keyed and block.header is None and block.preexists:
                 self.assign(block.locate(self.root, create=True), block.defaults[block.types[0]])
         for number, raw in enumerate(text.splitlines(), start=1):
             self.feed(number, raw)
@@ -423,13 +423,15 @@ class ParseRun:
             result = entry.match(text) if entry.admits(self.context, rendering=False) else None
             if result is None:
                 continue
-            target = block.locate(frame.target, create=True)
+            # Under a ranged header the frame holds every component in the range; each gets its own.
+            owners = frame.target if isinstance(frame.target, list) else [frame.target]
+            targets = [block.locate(owner, create=True) for owner in owners]
             path = frame.path + block.segments
             self.mark(path)
             if isinstance(result, Capture):
-                self.capture = (result, target, path)
+                self.capture = (result, targets, path)
             else:
-                self.assign(target, result)
+                self.assign(targets, result)
             return True
         return False
 

@@ -14,6 +14,7 @@ from pydantic import BaseModel, ValidationError
 from acex_devkit.drivers.mapper.context import Context
 from acex_devkit.drivers.mapper.tokens import TOKENS, Range, Token
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.augment import AugmentAttributes
 from acex_devkit.models.reference import Reference
 
 
@@ -43,6 +44,13 @@ class Tree:
     def value(node: Any, field: str) -> Any:
         value = getattr(node, field, None)
         return value.get_value() if isinstance(value, AttributeValue) else value
+
+    @staticmethod
+    def unwrap(value: Any) -> Any:
+        """A value as an `AttributeValue` holds it, whether it's one or its JSON form."""
+        if isinstance(value, AttributeValue):
+            return value.get_value()
+        return value["value"] if isinstance(value, dict) and "value" in value else value
 
     @staticmethod
     def schema(owner: type[BaseModel], field: str) -> Any:
@@ -238,9 +246,12 @@ class Item:
         return not rendering or self.until is None
 
     def applies_to(self, component_type: type[BaseModel], params: frozenset[str] = frozenset()) -> bool:
-        """Whether every field is the component's own, or one of the enclosing block's path `params`."""
+        """Whether every field is the component's own, or one of the enclosing block's path `params`. A
+        model taking undeclared fields (an augment) takes any."""
         if self.only is not None and not issubclass(component_type, self.only):
             return False
+        if component_type.model_config.get("extra") == "allow":
+            return True
         return set(self.fields) - params <= component_type.model_fields.keys()
 
     def render(self, values: dict[str, Any]) -> list[str]:
@@ -489,6 +500,8 @@ class Block:
     header: Line | None = None
     single: bool = False
     shared: bool = False
+    preexists: bool = True
+    """A single object without a header is one the tree always holds; parse fills its defaults up front."""
     key: str | None = None
     implied: dict[str, Any] = {}
     when: dict[str, Any] = {}
@@ -608,8 +621,30 @@ class Block:
         return component_type(**{k: v for k, v in fields.items() if k in component_type.model_fields})
 
     def values(self, component: BaseModel, key: str | None) -> dict[str, Any]:
-        """The component's field values, unwrapped, plus its key under the key field's name."""
-        values = {k: v.get_value() if isinstance(v, AttributeValue) else v for k, v in component}
+        """The component's field values, unwrapped, plus its key under the key field's name. An undeclared
+        field read back from JSON is a plain `{"value": ...}` dict, and unwraps the same way."""
+        extra = component.model_extra or {}
+        values = {k: Tree.unwrap(v) if k in extra else v for k, v in component}
+        values = {k: v.get_value() if isinstance(v, AttributeValue) else v for k, v in values.items()}
         if key is not None:
             values.setdefault(self.key, key)
         return values
+
+
+class Augment(Block):
+    """A vendor augment on the component at `path` (its `augments`), found by its `type` whatever key
+    it's stored under, and created under its type when one of its lines is read. Subclasses set `augment`
+    to the type and `body` to its lines; an augment takes any field."""
+
+    augment: str
+    component = AugmentAttributes
+    preexists = False
+
+    def locate(self, parent: Any, create: bool = False) -> Any:
+        augments = Tree.walk(parent, self.segments)
+        if augments is None:
+            return None
+        found = next((a for a in augments.values() if Tree.value(a, "type") == self.augment), None)
+        if found is None and create:
+            found = augments[self.augment] = AugmentAttributes(type=self.augment)
+        return found

@@ -8,7 +8,18 @@ directions over the top-level blocks.
 
 from acex_devkit.drivers.mapper.context import Context
 from acex_devkit.drivers.mapper.mapper import Mapper
-from acex_devkit.drivers.mapper.syntax import Block, Dispatch, Flag, Item, Line, Mount, Multiline, Pattern, Section
+from acex_devkit.drivers.mapper.syntax import (
+    Augment,
+    Block,
+    Dispatch,
+    Flag,
+    Item,
+    Line,
+    Mount,
+    Multiline,
+    Pattern,
+    Section,
+)
 from acex_devkit.drivers.mapper.tokens import (
     TOKENS,
     Choice,
@@ -24,6 +35,7 @@ from acex_devkit.drivers.mapper.tokens import (
 )
 
 __all__ = [
+    "Augment",
     "Block",
     "Choice",
     "Context",

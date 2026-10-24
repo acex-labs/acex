@@ -111,9 +111,18 @@ def test_a_masked_observed_secret_matches_any_desired_value():
     observed.system.aaa.authentication.users = {"admin": authenticationUser(username="admin", password_hashed=MASK)}
     assert ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed == []
 
-    observed.system.aaa.authentication.users["admin"].privilege = AttributeValue(value=15)
+    desired.system.aaa.authentication.users["admin"].privilege = AttributeValue(value=15)
+    observed.system.aaa.authentication.users["admin"].privilege = AttributeValue(value=1)
     changed = ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed
     assert [a.attribute_name for a in changed[0].changed_attributes] == ["privilege"]
+
+
+def test_an_attribute_desired_leaves_unset_states_no_intent():
+    desired = ComposedConfiguration(interfaces={"uplink": EthernetCsmacdInterface(index=0, module_index=0, name="x")})
+    observed = ComposedConfiguration(
+        interfaces={"Gi1": EthernetCsmacdInterface(index=0, module_index=0, name="Gi1", enabled=True, mtu=9000)}
+    )
+    assert ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed == []
 
 
 def test_an_entry_known_only_by_a_masked_secret_matches_a_desired_one():
