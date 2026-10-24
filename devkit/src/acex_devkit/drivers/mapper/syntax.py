@@ -412,6 +412,10 @@ class Block:
       singleton, or a sub-model like an interface's storm-control settings.
     - With a header and `single`, `path` is a single object the header opens (`line con 0`). It exists
       only once its header is read.
+    - With a header and `shared`, the header names entries that already exist wherever the path's
+      `{param}` levels reach, and writes to every one of them: a server defined once and referenced by
+      several groups (`tacacs server ISE1` for each group's `server name ISE1`). Each key renders once.
+      A header naming no existing entry is not this block's line.
 
     A body holds `Item`s, nested `Block`s and `Section`s; declaration order is render order. `when`
     limits a nested block to enclosing components with those values. Subclasses may override
@@ -423,6 +427,7 @@ class Block:
     component: type[BaseModel] | Dispatch
     header: Line | None = None
     single: bool = False
+    shared: bool = False
     key: str | None = None
     implied: dict[str, Any] = {}
     when: dict[str, Any] = {}
@@ -443,8 +448,8 @@ class Block:
         self.entries = {t: tuple(entry for entry in self.body if self._fits(entry, t)) for t in self.types}
         self.defaults = {t: self._defaults(self.entries[t], t) for t in self.types}
 
-        if self.params and not self.flat:
-            raise ValueError(f"{name}: only a block whose lines carry their key binds path parameters")
+        if self.params and not (self.flat or self.shared):
+            raise ValueError(f"{name}: only a block whose lines carry their key, or a shared one, has path parameters")
         if self.header is None:
             if self.dispatch is not None:
                 raise ValueError(f"{name}: a block without a header has a single component type")

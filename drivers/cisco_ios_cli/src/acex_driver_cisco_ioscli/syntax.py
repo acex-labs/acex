@@ -171,6 +171,40 @@ class AaaRadiusMemberSyntax(Block):
     when = {"type": "radius"}
 
 
+class TacacsServerSyntax(Block):
+    """A TACACS+ server's settings, written once and shared by every group listing it by name."""
+
+    path = "system.aaa.server_groups.{group}.tacacs"
+    header = Line("tacacs server {name}")
+    key = "name"
+    shared = True
+    component = aaaTacacsAttributes
+    body = (
+        Line("address ipv4 {address}"),
+        Line("key 7 {secret_key_hashed}"),
+        Line("key 0 {secret_key}"),
+        Line("port {port:int}"),
+        Line("timeout {timeout:int}"),
+    )
+
+
+class RadiusServerSyntax(Block):
+    """A RADIUS server's settings, written once and shared by every group listing it by name."""
+
+    path = "system.aaa.server_groups.{group}.radius"
+    header = Line("radius server {name}")
+    key = "name"
+    shared = True
+    component = aaaRadiusAttributes
+    body = (
+        Line("address ipv4 {address}[ auth-port {auth_port:int}][ acct-port {acct_port:int}]"),
+        Line("key 7 {secret_key_hashed}"),
+        Line("key 0 {secret_key}"),
+        Line("timeout {timeout:int}"),
+        Line("retransmit {retransmit_attempts:int}"),
+    )
+
+
 class AaaServerGroupSyntax(Block):
     path = "system.aaa.server_groups"
     header = Line("aaa group server {type} {name}", type=Choice(tacacs="tacacs+", radius="radius"))
@@ -538,6 +572,8 @@ BLOCKS = [
     VrfSyntax(),
     AaaSyntax(),
     AaaServerGroupSyntax(),
+    TacacsServerSyntax(),
+    RadiusServerSyntax(),
     UserSyntax(),
     LoggingSyntax(),
     VtpSyntax(),

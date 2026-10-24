@@ -110,21 +110,31 @@ class Renderer:
             return []
         if block.flat:
             return [self.lines(block, parent, path, depth)]
+        if block.shared:
+            return self.shared(block, parent, path, depth)
         components = block.components(parent, values)
         if block.ranged:
             return [self.ranges(block, components, path, depth)]
         return [self.component(block, key, component, path, depth) for key, component in components]
 
     def component(
-        self, block: Block, key: str | None, component: BaseModel, path: tuple, depth: int, keys: list | None = None
+        self,
+        block: Block,
+        key: str | None,
+        component: BaseModel,
+        path: tuple,
+        depth: int,
+        keys: list | None = None,
+        walked: tuple | None = None,
     ) -> Text:
-        """One component's text; `keys` writes a run of components that render alike under one header."""
+        """One component's text; `keys` writes a run of components that render alike under one header, and
+        `walked` is the path to a component reached through path parameters."""
         values = block.derive(self.canonical(block.values(component, key)), self.context)
         if values is None:
             return Text()
         if keys is not None:
             values[block.key] = keys
-        path = path + block.segments + (() if key is None else (key,))
+        path = path + (block.segments if walked is None else walked) + (() if key is None else (key,))
         if block.header is None:
             return self.body(block.entries[type(component)], component, values, path, key, depth).span(path)
         header = block.header.pattern.render(values)
@@ -174,6 +184,16 @@ class Renderer:
                     own = path + walked + (key,)
                     text.extend(self.body(block.entries[type(component)], component, values, own, key, depth).span(own))
         return text
+
+    def shared(self, block: Block, parent: Any, path: tuple, depth: int) -> list[Text]:
+        """Entries held in several places under one key, written once each, from where they're first found."""
+        chunks, seen = [], set()
+        for _, walked, collection in block.placements(parent):
+            for key, component in collection.items():
+                if key not in seen and type(component) in block.types and block.includes(key, component):
+                    seen.add(key)
+                    chunks.append(self.component(block, key, component, path, depth, walked=walked))
+        return chunks
 
     def ranges(self, block: Block, components: list[tuple[str, BaseModel]], path: tuple, depth: int) -> Text:
         """Components keyed by a number, consecutive ones whose bodies render alike written as one range."""
@@ -351,6 +371,8 @@ class ParseRun:
         component_type = None if fields is None else block.type_for(fields)
         if component_type is None:
             return False
+        if block.shared:
+            return self.open_shared(block, frame, fields, depth)
         collection = block.locate(frame.target, create=True)
         if collection is None:
             return False
@@ -376,6 +398,20 @@ class ParseRun:
         for entry in entries:
             if isinstance(entry, Mount) and entry.default is not None:
                 self.mounts.setdefault((path, id(entry)), (entry, entry.default, key, None))
+        return True
+
+    def open_shared(self, block: Block, frame: Frame, fields: dict[str, Any], depth: int) -> bool:
+        key = str(fields[block.key])
+        found = [
+            (walked, collection[key]) for _, walked, collection in block.placements(frame.target) if key in collection
+        ]
+        if not found:
+            return False
+        components = [component for _, component in found]
+        self.assign(components, {k: v for k, v in fields.items() if k != block.key})
+        path = frame.path + found[0][0] + (key,)
+        entries = block.entries[type(components[0])]
+        self.stack.append(Frame(entries, components, block, key, path, depth, self.raw, self.number, self.number))
         return True
 
     def inline(self, block: Block, frame: Frame, text: str) -> bool:
