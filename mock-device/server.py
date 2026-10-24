@@ -37,6 +37,8 @@ FALLBACK_CONFIG = CONFIG_DIR / "default.txt"
 HOST_KEY = pathlib.Path(os.environ.get("MOCK_HOST_KEY", "/etc/ssh/mock_host_key"))
 # Ping targets that never answer, comma separated; every other target answers every packet.
 UNREACHABLE = {t.strip() for t in os.environ.get("MOCK_UNREACHABLE", "").split(",") if t.strip()}
+# Delay before every response, in milliseconds, to behave like a device over a real network.
+LATENCY = int(os.environ.get("MOCK_LATENCY_MS", "0")) / 1000
 
 SHOW_VERSION_TEMPLATE = (pathlib.Path(__file__).parent / "show_version.txt").read_text()
 
@@ -218,6 +220,8 @@ async def handle_client(process: asyncssh.SSHServerProcess):
                     line, buf = buf.split(sep, 1)
                     break
             response = session.handle(line)
+            if LATENCY:
+                await asyncio.sleep(LATENCY)
             process.stdout.write(response)
             await process.stdout.drain()
 
