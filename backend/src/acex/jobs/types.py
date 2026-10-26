@@ -3,7 +3,11 @@
 from acex.jobs.registry import JobType, registry
 from acex.operations.kinds import EXECUTE as _EXECUTE
 from acex.operations.kinds import OPERATIONS
-from acex.workflows.job_types import WORKFLOW_NODE_STEPS, WORKFLOW_ONCE_STEPS, WorkflowWait
+from acex.workflows.job_types import (
+    WORKFLOW_NODE_STEPS,
+    WORKFLOW_ONCE_STEPS,
+    WorkflowWait,
+)
 from acex.workflows.job_types import WORKFLOW_RUN as _WORKFLOW_RUN
 from acex.ztp.discovery import record_discovery
 from acex.ztp.pipeline_view import ZTP_PROVISION as _ZTP_PROVISION
@@ -16,17 +20,33 @@ from acex_devkit.models.workflows import (
     WorkflowStepResult,
     WorkflowWaitJob,
 )
-from acex_devkit.models.ztp import ZtpDiscoverData, ZtpDiscoverResult, ZtpProvisionData, ZtpProvisionResult
+from acex_devkit.models.ztp import (
+    ZtpDiscoverData,
+    ZtpDiscoverResult,
+    ZtpProvisionData,
+    ZtpProvisionResult,
+)
+from acex_devkit.models.cve import CveDiscoverData, CveDiscoverResult
 
 #: Log in to a device that fetched its ZTP bootstrap and find out what it is.
 #: What it reports is recorded as a discovery for an administrator to review.
 ZTP_DISCOVER = registry.register(
-    JobType("acex.ztp.discover", data=ZtpDiscoverData, result=ZtpDiscoverResult, on_succeeded=record_discovery)
+    JobType(
+        "acex.ztp.discover",
+        data=ZtpDiscoverData,
+        result=ZtpDiscoverResult,
+        on_succeeded=record_discovery,
+    )
 )
 
 #: Push full configuration to a node whose device has been approved, and verify it.
 ZTP_PROVISION = registry.register(
-    JobType(_ZTP_PROVISION, data=ZtpProvisionData, result=ZtpProvisionResult, subject=(JobSubjectType.node, "node_id"))
+    JobType(
+        _ZTP_PROVISION,
+        data=ZtpProvisionData,
+        result=ZtpProvisionResult,
+        subject=(JobSubjectType.node, "node_id"),
+    )
 )
 
 #: Operations on a node: raw commands, and each abstract action. Run on a node and report what it
@@ -56,13 +76,28 @@ WORKFLOW_RUN = registry.register(
 #: others run once. Each reports what it did and the artifacts it leaves.
 for _job_type in WORKFLOW_NODE_STEPS.values():
     registry.register(
-        JobType(_job_type, data=WorkflowNodeJob, result=WorkflowNodeResult, subject=(JobSubjectType.node, "node_id"))
+        JobType(
+            _job_type,
+            data=WorkflowNodeJob,
+            result=WorkflowNodeResult,
+            subject=(JobSubjectType.node, "node_id"),
+        )
     )
 for _step_type, _job_type in WORKFLOW_ONCE_STEPS.items():
     if _step_type == "wait":
         # Run by the backend when its time has come, holding no worker meanwhile.
         registry.register(
-            JobType(_job_type, data=WorkflowWaitJob, result=WorkflowStepResult, local=WorkflowWait.elapsed)
+            JobType(
+                _job_type,
+                data=WorkflowWaitJob,
+                result=WorkflowStepResult,
+                local=WorkflowWait.elapsed,
+            )
         )
     else:
-        registry.register(JobType(_job_type, data=WorkflowStepJob, result=WorkflowStepResult))
+        registry.register(
+            JobType(_job_type, data=WorkflowStepJob, result=WorkflowStepResult)
+        )
+CVE_DISCOVER = registry.register(
+    JobType("acex.cve.discover", data=CveDiscoverData, result=CveDiscoverResult)
+)

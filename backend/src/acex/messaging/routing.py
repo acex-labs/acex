@@ -6,6 +6,7 @@ from fnmatch import fnmatchcase
 ROUTES: dict[str, str] = {
     "acex.ztp.*": "acex.ztp",
     "acex.operations.*": "acex.operations",
+    "acex.cve.*": "acex.cve",
 }
 
 QUEUES: tuple[str, ...] = tuple(dict.fromkeys(ROUTES.values()))
@@ -23,4 +24,6 @@ def queue_for(job_type: str) -> str:
     for pattern, queue in ROUTES.items():
         if fnmatchcase(job_type, pattern):
             return queue
-    raise UnroutedJobType(f"No queue is routed for job type {job_type!r}; add it to acex.messaging.ROUTES.")
+    raise UnroutedJobType(
+        f"No queue is routed for job type {job_type!r}; add it to acex.messaging.ROUTES."
+    )

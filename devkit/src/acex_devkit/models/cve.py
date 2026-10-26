@@ -1,42 +1,20 @@
-from sqlalchemy import Column
-from sqlalchemy.dialects.postgresql import JSONB
-from pydantic import BaseModel, ConfigDict
-from sqlmodel import SQLModel, Field
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_serializer
+
 from datetime import datetime, timezone
+
 
 def utcnow():
     return datetime.now(timezone.utc)
 
-# SQL related stuff
-class CveModel(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    cve_id: str = Field(unique=True, index=True)
-    published: datetime | None = Field(default=None, index=True)
-    last_modified: datetime | None = Field(default=None, index=True)
-    description: str | None = Field(default=None)
-    cvss_score: float | None = Field(default=None)
-    raw: dict = Field(sa_column=Column(JSONB, nullable=False)) # RAW CVE data from NVD in json format
-    created_at: datetime = Field(default_factory=utcnow, index=True)
-    updated_at: datetime | None = Field(default=None)
 
-# User workflow state for CVEs
-class CveState(SQLModel, table=True):
-    """User workflow state, kept apart so re-syncing a CVE never overwrites it."""
+class CveApiKeyUpdate(BaseModel):
+    """Replace the backend's NVD API key."""
 
-    cve_id: str = Field(primary_key=True, foreign_key="cvemodel.cve_id")
-    status: str = Field(default="new")  # new, acked, mitigated, not_affected
-    updated_at: datetime = Field(default_factory=utcnow)
+    api_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(repr=False)
 
-# Sync state for each vendor:part combination
-class SyncState(SQLModel, table=True):
-    key: str = Field(primary_key=True)  # "<vendor>:<part>"
-    last_sync: datetime
 
-class CveDiscoverData(SQLModel):
-    vendor: str | None = Field(default="Cisco")
-    #start: datetime
-    #end: datetime
-    
 class CveCreate(BaseModel):
     """NVD data sent for ingestion; database IDs and timestamps are server-managed."""
 
@@ -47,12 +25,41 @@ class CveCreate(BaseModel):
     cvss_score: float | None = None
     raw: dict
 
+    @field_serializer("published", "last_modified")
+    def serialize_date(self, value: datetime | None) -> str | None:
+        return value.isoformat() if value is not None else None
+
 
 class CveResponse(CveCreate):
-    """A stored CVE, including its database ID and ingestion timestamps."""
+    """The response model for a CVE, including its database ID and ingestion timestamps."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     created_at: datetime
     updated_at: datetime | None = None
+
+
+class CveDiscoverResult(BaseModel):
+    """The result of a CVE discovery job."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    vendor: str | None = None
+    start: datetime | None = None
+    end: datetime | None = None
+    discovered_cves: list[str] = Field(default_factory=list)
+
+
+class CveDiscoverData(BaseModel):
+    """The data required to initiate a CVE discovery job."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    vendor: str | None = "Cisco"
+    start: datetime | None = None
+    end: datetime | None = None
+
+    @field_serializer("start", "end")
+    def serialize_date(self, value: datetime | None) -> str | None:
+        return value.isoformat() if value is not None else None

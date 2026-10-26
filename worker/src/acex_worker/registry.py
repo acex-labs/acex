@@ -15,6 +15,7 @@ from acex_worker.handlers.workflow import (
 )
 from acex_worker.handlers.ztp_discover import HandleZtpDiscovery
 from acex_worker.handlers.ztp_provision import HandleZtpProvision
+from acex_worker.handlers.cve_discovery import CveDiscoveryHandler
 
 HANDLERS = {
     "acex.ztp.discover": HandleZtpDiscovery,
@@ -28,4 +29,5 @@ HANDLERS = {
     "acex.operations.workflow.compute": HandleWorkflowCompute,
     "acex.operations.workflow.assert": HandleWorkflowAssert,
     "acex.operations.workflow.condition": HandleWorkflowCondition,
+    "acex.cve.discover": CveDiscoveryHandler,
 }

@@ -37,6 +37,7 @@ class AutomationEngine:
         from acex.api.api import Api
         from acex.automation_engine.integrations import Integrations
         from acex.compilers import ConfigCompiler
+        from acex.cve.cve_endpoints import CveManager
         from acex.database import Connection, DatabaseManager
         from acex.device_configs import DeviceConfigManager
         from acex.inventory import Inventory
@@ -77,6 +78,7 @@ class AutomationEngine:
         self.plugin_manager = PluginManager()
         self.integrations = Integrations(self.plugin_manager)
         self.db = DatabaseManager(db_connection)
+        self.cves = CveManager(self.db)
         self.config_compiler = ConfigCompiler(self.db)
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
         self.influxdb_settings = self.settings.influxdb
