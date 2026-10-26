@@ -123,6 +123,16 @@ class AutomationEngine:
 
         self.lldp_neighbor_manager = LldpNeighborManager(self.db)
 
+        # Workflows: saved steps and workflows, and the runs the backend moves on as their jobs finish.
+        from acex.operations.runs import OperationRuns
+        from acex.plugins.neds.manager import NEDManager
+        from acex.workflows.library import WorkflowLibrary
+        from acex.workflows.runs import WorkflowRuns
+
+        self.workflows = WorkflowLibrary(self.db)
+        operations = OperationRuns(self.jobs, self.inventory.node_instances, NEDManager())
+        self.workflow_runs = WorkflowRuns(self.jobs, self.workflows, operations)
+
         # Built in create_app() from settings.credentials
         self.credential_manager = None
 

@@ -19,6 +19,7 @@ typing-extensions = ">=4.0.0"
 deepdiff = ">=8.6.1"
 ipaddress = ">=1.0.23"
 sqlmodel = ">=0.0.27"
+google-re2 = "^1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

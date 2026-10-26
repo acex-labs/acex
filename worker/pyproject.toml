@@ -17,6 +17,7 @@ python = "^3.13"
 acex-client = { path = "../client", develop = true }
 acex-devkit = { path = "../devkit", develop = true }
 celery = ">=5.5"
+icmplib = "^3.0"
 
 [tool.poetry.scripts]
 acex-worker = "acex_worker.main:run"

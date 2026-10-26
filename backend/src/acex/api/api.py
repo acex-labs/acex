@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 from contextlib import asynccontextmanager
 from importlib.metadata import version
@@ -5,6 +6,7 @@ from pathlib import Path
 
 from acex.api import auth as _auth
 from acex.constants import BASE_URL
+from acex.jobs.dispatcher import JobDispatcher
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -47,7 +49,10 @@ class Api:
                     print(f"RabbitMQ: declared queues {', '.join(producer.declare_queues())}")
                 except Exception as exc:
                     print(f"RabbitMQ: could not declare queues — {exc}")
+            # Scheduled jobs, e.g. a workflow's waits, start from here when their time comes.
+            dispatcher = asyncio.create_task(JobDispatcher(automation_engine.jobs).run())
             yield
+            dispatcher.cancel()
 
         Api = FastAPI(
             title="ACE-X - Extendable Automation & Control Ecosystem",

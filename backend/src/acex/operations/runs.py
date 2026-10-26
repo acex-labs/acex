@@ -11,7 +11,7 @@ from acex_devkit.models.pagination import PaginatedResponse
 from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
-#: Job type prefixes of the run kinds listed apart.
+#: Job type prefixes of the run kinds listed apart. Workflow runs are listed with their workflows.
 KINDS = {"execute": "acex.operations.execute", "actions": "acex.operations.actions."}
 
 
@@ -26,7 +26,20 @@ class OperationRuns:
     async def order(self, operation: Operation, request: NodeSelection, created_by: str) -> Run:
         """Make the run's jobs and publish them. A node that doesn't exist answers 404, and one whose NED
         can't run the operation 422, before any job is made."""
-        nodes = [await self.nodes.get(str(node_id)) for node_id in request.node_ids]
+        await self.supporting(operation, request.node_ids)
+        batch = await run_in_threadpool(
+            self.jobs.enqueue_batch,
+            operation.job_type,
+            operation.items(request),
+            created_by=created_by,
+            request=request,
+        )
+        return self.run(batch)
+
+    async def supporting(self, operation: Operation, node_ids: list[int]) -> list:
+        """The nodes, if each one's NED can run the operation: 404 for a node that doesn't exist, 422 naming
+        the nodes whose NED can't."""
+        nodes = [await self.nodes.get(str(node_id)) for node_id in node_ids]
         capabilities: dict[str, object] = {}
         unsupported = []
         for node in nodes:
@@ -41,14 +54,7 @@ class OperationRuns:
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"No {operation.capability[1]} on the driver of: {', '.join(unsupported)}",
             )
-        batch = await run_in_threadpool(
-            self.jobs.enqueue_batch,
-            operation.job_type,
-            operation.items(request),
-            created_by=created_by,
-            request=request,
-        )
-        return self.run(batch)
+        return nodes
 
     def run(self, batch: JobResponse) -> Run:
         request = {k: v for k, v in (batch.data or {}).items() if k != "node_ids"}
@@ -65,7 +71,8 @@ class OperationRuns:
 
     def list(self, kind: str | None, limit: int, offset: int) -> PaginatedResponse[Run]:
         """Runs, newest first; `kind` is "execute" or "actions"."""
-        page = self.jobs.list_jobs(type_prefix=KINDS.get(kind, "acex.operations."), limit=limit, offset=offset)
+        prefixes = (KINDS[kind],) if kind else tuple(KINDS.values())
+        page = self.jobs.list_jobs(type_prefix=prefixes, limit=limit, offset=offset)
         runs = [self.run(self.jobs.get(summary.id)) for summary in page.items if summary.children]
         return PaginatedResponse(items=runs, total=page.total, limit=limit, offset=offset)
 

@@ -23,6 +23,12 @@ class JobType:
     #: Called as (session, job, result) when a worker reports success, in the
     #: same transaction: if it raises, the report is not applied.
     on_succeeded: Callable[[Any, Any, BaseModel | None], None] | None = None
+    #: A parent whose state is kept by whatever orchestrates it, e.g. a workflow run that pauses between
+    #: steps. Other parents' states are derived from the jobs under them.
+    orchestrated: bool = False
+    #: Run by the backend itself rather than a worker, once due: called with the job, it returns the result
+    #: or raises to fail it. Such jobs are always scheduled, e.g. a workflow's wait.
+    local: Callable[[Any], BaseModel | None] | None = None
 
 
 class UnknownJobType(LookupError):
