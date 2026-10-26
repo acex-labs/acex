@@ -15,27 +15,9 @@ Refs (tickets, for example #123) are optional. When an item ships, delete it her
 highlight. `python scripts/changelog.py validate` checks this file. Nothing is compiled.
 -->
 
-## Agents and the worker report their versions
+## Batch jobs
 
 Status: planned
 
-Collection agents, telemetry agents, the Grafana sync agent and the worker
-will report their version and the drivers they run to the backend, so that
-Settings > About can show them next to the backend and the web interface,
-also when they run at another site.
+Schedule batch jobs to be executed on a selection of nodes and get results back.
 
-## Background jobs on separate workers
-
-Status: in progress
-
-Long-running work such as discovery and provisioning is handed to separate
-workers through RabbitMQ, and the Activity > Jobs page lists the jobs and lets
-you requeue or cancel them.
-
-## ZTP discovery, approval and provisioning
-
-Status: in progress
-
-A device that fetches its bootstrap is discovered, what it reports is reviewed
-and approved, and its configuration is provisioned. The web interface follows
-each node through the stages.

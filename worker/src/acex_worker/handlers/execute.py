@@ -27,11 +27,15 @@ class NodeOperation(Handler):
 
     def handle(self, client: Acex, job: JobResponse) -> BaseModel:
         data = self.data.model_validate(job.data)
-        node = client.inventory.node_instances.get(data.node_id)
+        log.info(f"Job {job.id}: {job.type} on node {data.node_id}")
+        return self.on_node(client, data.node_id, data)
+
+    def on_node(self, client: Acex, node_id: int, data: Any) -> BaseModel:
+        """Run `operate` with `data` in a session to the node."""
+        node = client.inventory.node_instances.get(node_id)
         driver = load_ned(client, node.asset.ned_id)
         # Client actions take keyword arguments only.
         credentials = [client.inventory.credentials.secret(id=credential.id) for credential in node.credentials]
-        log.info(f"Job {job.id}: {job.type} on node {node.id}")
         return asyncio.run(self.run(driver, driver.session(node, credentials), data))
 
     async def run(self, driver: NetworkElementDriver, session: Session, data: Any) -> BaseModel:

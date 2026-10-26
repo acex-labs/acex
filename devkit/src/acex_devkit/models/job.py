@@ -8,11 +8,15 @@ from acex_devkit.models.base import PersistedResponse
 
 
 class JobState(StrEnum):
+    #: Waiting for its `run_at`; then it is queued, or run by the backend itself.
+    scheduled = "scheduled"
     queued = "queued"
     running = "running"
     succeeded = "succeeded"
     failed = "failed"
     cancelled = "cancelled"
+    #: A workflow run in evaluate mode, waiting to be continued after a step.
+    paused = "paused"
 
 
 class JobSubjectType(StrEnum):
@@ -21,12 +25,13 @@ class JobSubjectType(StrEnum):
     node = "node"
     logical_node = "logical_node"
     asset = "asset"
+    workflow = "workflow"
 
 
 class JobBase(BaseModel):
     #: The job type, e.g. "acex.ztp.discover". Also the Celery task name.
     type: str
-    #: Set on the jobs of a batch. Only one level: a child has no children.
+    #: The job this one runs under: a batch, or a step of a workflow run, which in turn runs under the run.
     parent_id: int | None = None
     #: Derived from the job type and its data, never set by the caller.
     subject_type: JobSubjectType | None = None
@@ -44,6 +49,8 @@ class JobBase(BaseModel):
     #: The `sub` of whoever cancelled the job.
     cancelled_by: str | None = None
     created_at: datetime
+    #: When a scheduled job is due.
+    run_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
@@ -65,6 +72,7 @@ class JobSummary(PersistedResponse):
     attempts: int
     claimed_by: str | None = None
     created_at: datetime
+    run_at: datetime | None = None
     finished_at: datetime | None = None
     children: dict[JobState, int] | None = None
 

@@ -24,16 +24,22 @@ class Handler(ABC):
     Base class for handlers.
 
     A handler returns its job type's result model, or None for a job type that
-    gives no result, and raises when the job cannot be done.
+    gives no result, and raises when the job cannot be done. The job's error is
+    the exception's message, which is what the user reads: a ValueError or a
+    RuntimeError says it all, any other is prefixed with its type, e.g.
+    "KeyError: 'x'". Which handler raised it and where is in the log.
     """
+
+    EXPLAINED = (ValueError, RuntimeError, OSError)
 
     def handle_hook(self, client: Acex, job: JobResponse) -> HandlerResponse:
         try:
             handler_result = self.handle(client, job)
         except Exception as exc:
-            exc_str = f"Handler {self.__class__.__name__} for job {job.id} ({job.type}) raised '{exc}'"
-            log.exception(exc_str)
-            return HandlerResponse(job_id=job.id, success=False, error=exc_str)
+            log.exception(f"Handler {self.__class__.__name__} for job {job.id} ({job.type}) raised '{exc}'")
+            explained = isinstance(exc, self.EXPLAINED) and str(exc)
+            error = str(exc) if explained else f"{type(exc).__name__}: {exc}"
+            return HandlerResponse(job_id=job.id, success=False, error=error)
 
         # The backend checks the result against the job type, and refuses one
         # that is missing for a job type that needs it.
