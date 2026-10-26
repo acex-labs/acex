@@ -64,7 +64,7 @@ class _Lab:
     def fall_due(self, job_id: int) -> None:
         with Session(self.db.engine) as session:
             job = session.get(Job, job_id)
-            job.run_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1)
+            job.run_at = datetime.now(UTC) - timedelta(seconds=1)
             session.add(job)
             session.commit()
 

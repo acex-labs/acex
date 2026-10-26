@@ -98,7 +98,7 @@ class JobManager:
             job.parent_id = parent_id
             if run_at is not None or spec.local is not None:
                 job.state = JobState.scheduled
-                job.run_at = self._naive_utc(run_at or datetime.now(UTC))
+                job.run_at = run_at or datetime.now(UTC)
             session.add(job)
             session.commit()
             session.refresh(job)
@@ -169,7 +169,7 @@ class JobManager:
         """Start the scheduled jobs whose time has come: queue and publish them, or run a local one here.
         Returns how many were started. Safe to call from several API processes at once: each job is taken by
         one of them (postgres SKIP LOCKED)."""
-        now = self._naive_utc(datetime.now(UTC))
+        now = datetime.now(UTC)
         session = next(self.db.get_session())
         try:
             due = session.exec(
@@ -518,10 +518,6 @@ class JobManager:
     @staticmethod
     def _as_dict(result: BaseModel | None) -> dict | None:
         return result.model_dump(mode="json") if result is not None else None
-
-    @staticmethod
-    def _naive_utc(moment: datetime) -> datetime:
-        return moment.astimezone(UTC).replace(tzinfo=None) if moment.tzinfo else moment
 
     def _finished(self, job: JobResponse) -> None:
         # The job's outcome is already saved: a listener that fails doesn't undo it, nor fail the report.

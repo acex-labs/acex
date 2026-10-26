@@ -132,7 +132,7 @@ class _Lab:
         """Every scheduled job falls due, and the dispatcher starts it."""
         with Session(self.db.engine) as session:
             for job in session.exec(select(Job).where(Job.state == JobState.scheduled)).all():
-                job.run_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1)
+                job.run_at = datetime.now(UTC) - timedelta(seconds=1)
                 session.add(job)
             session.commit()
         self.jobs.dispatch_due()
