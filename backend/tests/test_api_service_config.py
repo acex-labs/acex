@@ -271,13 +271,14 @@ class TestProxyHeaders:
 
         acex_api.app.run(settings)
 
-        configure_logging.assert_called_once_with(acex_api.app.LOGGING_CONFIG)
+        log_config = acex_api.app.build_logging_config(dev=settings.dev)
+        configure_logging.assert_called_once_with(log_config)
         serve.assert_called_once_with(
             "acex_api.app:create_app" if reload else "app",
             host="127.0.0.1",
             port=9090,
             proxy_headers=True,
             forwarded_allow_ips="*",
-            log_config=acex_api.app.LOGGING_CONFIG,
+            log_config=log_config,
             **({"factory": True, "reload": True} if reload else {}),
         )
