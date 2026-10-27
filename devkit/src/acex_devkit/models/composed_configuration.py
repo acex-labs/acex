@@ -60,6 +60,7 @@ class SystemConfig(Augmentable):
     domain_name: AttributeValue[str] | None = None
     hostname: AttributeValue[str] | None = None
     location: AttributeValue[str] | None = None
+    default_gateway: AttributeValue[str] | None = None
     login_banner: AttributeValue[str] | None = None
     motd_banner: AttributeValue[str] | None = None
 
@@ -106,7 +107,7 @@ class Ntp(BaseModel):
 
 class SshServer(Augmentable):
     enable: AttributeValue[bool] | None = None
-    protocol_version: AttributeValue[int] | None = AttributeValue(value=2)
+    protocol_version: AttributeValue[int] | None = None
     timeout: AttributeValue[int] | None = None
     auth_retries: AttributeValue[int] | None = None
     source_interface: Reference | None = None
@@ -165,6 +166,7 @@ class CdpConfigAttributes(BaseModel):
 
 class Vlan(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("vlan_id",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("name", "network_instance")  # placement, not intent
     name: AttributeValue[str]
     vlan_id: AttributeValue[int] | None = None
     vlan_name: AttributeValue[str] | None = None
@@ -228,10 +230,38 @@ class InterfaceTemplateAttributes(ContainerEntry, Augmentable):
     lacp_interval: AttributeValue[Literal["fast", "slow"]] | None = None
 
 
+class HsrpGroup(ContainerEntry, BaseModel):
+    "A first-hop redundancy group sharing a virtual gateway address between routers."
+
+    identity_fields: ClassVar[tuple[str, ...]] = ("group",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("interface",)
+    group: AttributeValue[int]
+    interface: AttributeValue[str] | None = None  # the interface it's placed on
+    virtual_address: AttributeValue[str] | None = None
+    priority: AttributeValue[int] | None = None
+    preempt: AttributeValue[bool] | None = None
+
+
+class VrrpGroup(ContainerEntry, BaseModel):
+    "A VRRP group: routers sharing a virtual gateway address, the standard counterpart to HSRP."
+
+    identity_fields: ClassVar[tuple[str, ...]] = ("group",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("interface",)
+    group: AttributeValue[int]
+    interface: AttributeValue[str] | None = None  # the interface it's placed on
+    virtual_address: AttributeValue[str] | None = None
+    priority: AttributeValue[int] | None = None
+    preempt: AttributeValue[bool] | None = None
+
+
 class Interface(ContainerEntry, Augmentable):
     "Base class for all interfaces"
 
     identity_fields: ClassVar[tuple[str, ...]] = ("index", "type")
+    # Fields a driver derives from the interface's identity rather than reads as intent, e.g. a port's
+    # device name from its position. Desired and observed spell them differently, so they aren't diffed.
+    # Any container entry may declare them, e.g. a field naming the parent it's placed under.
+    derived_fields: ClassVar[tuple[str, ...]] = ()
     index: AttributeValue[int]
     name: AttributeValue[str]
 
@@ -247,6 +277,8 @@ class Interface(ContainerEntry, Augmentable):
     logging_link_status: AttributeValue[bool] | None = None  # Default on; False suppresses link-state log events
     snmp_link_status_trap: AttributeValue[bool] | None = None  # Default on; False suppresses link-state SNMP traps
     storm_control: StormControlAttributes | None = None
+    hsrp_groups: dict[str, HsrpGroup] | None = {}
+    vrrp_groups: dict[str, VrrpGroup] | None = {}
 
     type: Literal[
         "ethernetCsmacd", "ieee8023adLag", "l3ipvlan", "softwareLoopback", "subinterface", "managementInterface"
@@ -258,6 +290,9 @@ class Interface(ContainerEntry, Augmentable):
 class EthernetCsmacdInterface(Interface):
     "Physical Interface"
 
+    # A port's position on the hardware; module and stack member tell apart ports sharing an index.
+    identity_fields: ClassVar[tuple[str, ...]] = ("index", "module_index", "stack_index", "type")
+    derived_fields: ClassVar[tuple[str, ...]] = ("name",)
     type: Literal["ethernetCsmacd"] = "ethernetCsmacd"
 
     # Egenskaper för fysiska interface
@@ -302,6 +337,8 @@ class EthernetCsmacdInterface(Interface):
 class Ieee8023adLagInterface(Interface):
     "LAG Interface"
 
+    identity_fields: ClassVar[tuple[str, ...]] = ("aggregate_id", "type")
+    derived_fields: ClassVar[tuple[str, ...]] = ("name", "index")
     type: Literal["ieee8023adLag"] = "ieee8023adLag"
     aggregate_id: AttributeValue[int] | None = None
     members: AttributeValue[list[str]] | None = None
@@ -316,6 +353,8 @@ class Ieee8023adLagInterface(Interface):
 class L3IpvlanInterface(Interface):
     "SVI Interface"
 
+    identity_fields: ClassVar[tuple[str, ...]] = ("vlan_id", "type")
+    derived_fields: ClassVar[tuple[str, ...]] = ("name", "index")
     type: Literal["l3ipvlan"] = "l3ipvlan"
     vlan_id: AttributeValue[int] | None = None
 
@@ -323,6 +362,7 @@ class L3IpvlanInterface(Interface):
 class SoftwareLoopbackInterface(Interface):
     "Loopback Interface"
 
+    derived_fields: ClassVar[tuple[str, ...]] = ("name",)
     type: Literal["softwareLoopback"] = "softwareLoopback"
 
     # Loopback har varken vlan, duplex eller speed
@@ -333,6 +373,8 @@ class SoftwareLoopbackInterface(Interface):
 class SubInterface(Interface):
     "Subinterface"
 
+    identity_fields: ClassVar[tuple[str, ...]] = ("name", "type")
+    derived_fields: ClassVar[tuple[str, ...]] = ("index",)
     type: Literal["subinterface"] = "subinterface"
 
     vlan_id: AttributeValue[int] | None = None
@@ -342,6 +384,8 @@ class SubInterface(Interface):
 class ManagementInterface(Interface):
     "Management Interface"
 
+    identity_fields: ClassVar[tuple[str, ...]] = ("name", "type")
+    derived_fields: ClassVar[tuple[str, ...]] = ("index",)
     type: Literal["managementInterface"] = "managementInterface"
 
     # Mgmt har inte vlan
@@ -350,6 +394,7 @@ class ManagementInterface(Interface):
 
 class StaticRouteNextHop(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("next_hop",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("index", "static_route", "network_instance")  # placement
     index: AttributeValue[int] | None = None
     next_hop: AttributeValue[str]  # can be an IP address or an interface. Reference will be handled in config component
     metric: AttributeValue[int] | None = None
@@ -360,6 +405,7 @@ class StaticRouteNextHop(ContainerEntry, BaseModel):
 
 class StaticRoute(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("prefix",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("network_instance",)  # placement
     route_name: AttributeValue[str] | None = None
     prefix: AttributeValue[str]
     next_hops: dict[str, StaticRouteNextHop] | None = {}
@@ -462,7 +508,8 @@ class SnmpConfig(ContainerEntry, BaseModel):
 
 
 class SnmpCommunity(ContainerEntry, Augmentable):
-    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    identity_fields: ClassVar[tuple[str, ...]] = ("community",)  # what the device knows it by
+    derived_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str]
     community: AttributeValue[str] | None = None  # Community string
     # access: Optional[AttributeValue[SnmpAccess]] = AttributeValue(value=SnmpAccess.READ_ONLY)
@@ -494,7 +541,8 @@ class SnmpUser(ContainerEntry, BaseModel):
 
 
 class SnmpView(ContainerEntry, BaseModel):
-    identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    identity_fields: ClassVar[tuple[str, ...]] = ("oid",)  # one view's entries differ by OID
+    derived_fields: ClassVar[tuple[str, ...]] = ("name", "view")
     name: AttributeValue[str]
     oid: AttributeValue[str]
     included: AttributeValue[bool] | None = AttributeValue(value=True)
@@ -509,6 +557,7 @@ class SnmpViewAttributes(ContainerEntry, BaseModel):
 
 class SnmpServer(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("name",)
     name: AttributeValue[str] | None = None
     address: AttributeValue[str] | None = None
     port: AttributeValue[int] | None = AttributeValue(value=162)
@@ -665,6 +714,7 @@ class aaaBaseClass(ContainerEntry, BaseModel):
 
 class aaaTacacsAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("server_group",)  # placement
     port: AttributeValue[int] | None = None
     secret_key: AttributeValue[str] | None = None
     secret_key_hashed: AttributeValue[str] | None = None
@@ -676,6 +726,7 @@ class aaaTacacsAttributes(ContainerEntry, BaseModel):
 
 class aaaRadiusAttributes(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("address",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("server_group",)  # placement
     auth_port: AttributeValue[int] | None = None
     acct_port: AttributeValue[int] | None = None
     secret_key: AttributeValue[str] | None = None
@@ -741,15 +792,14 @@ class aaaAuthenticationMethods(aaaBaseClass):
 
 class authenticationUser(aaaBaseClass):
     identity_fields: ClassVar[tuple[str, ...]] = ("username",)
+    derived_fields: ClassVar[tuple[str, ...]] = ("name",)  # the config component's name
     username: AttributeValue[str] | None = None
-    password: AttributeValue[str] | None = None
-    password_hahsed: AttributeValue[str] | None = None
+    privilege: AttributeValue[int] | None = None
+    password: AttributeValue[str] | None = None  # clear text, hashed by the device
+    password_hashed: AttributeValue[str] | None = None
+    password_hash_type: AttributeValue[int] | None = None  # the device's scheme for password_hashed, e.g. Cisco 9
     ssh_key: AttributeValue[str] | None = None
     role: AttributeValue[str] | None = None
-
-
-class aaaAuthenticationUsers(aaaBaseClass):
-    username: dict[str, authenticationUser] | None = {}
 
 
 class adminUser(aaaBaseClass):
@@ -772,7 +822,7 @@ class aaaAuthentication(BaseModel):
     # config: Optional[Dict[str, aaaAuthenticationMethods]] = {}
     config: aaaAuthenticationConfig = aaaAuthenticationConfig()
     admin_user: dict[str, aaaAuthenticationAdminUsers] | None = {}
-    users: dict[str, aaaAuthenticationUsers] | None = {}
+    users: dict[str, authenticationUser] | None = {}
 
 
 # Authorization Models
@@ -891,8 +941,7 @@ class VTP(BaseModel):
 
 class DHCPSnoopingAttributes(Augmentable):
     enabled: AttributeValue[bool] | None = None
-    # VLANs where DHCP snooping is enabled, key is VLAN ID, value is reference to VLAN
-    vlans: dict[str, Reference] | None = {}
+    vlans: AttributeValue[list[int]] | None = None  # VLAN IDs where DHCP snooping is enabled
     # Interfaces that are trusted for DHCP snooping, key is interface name, value is reference to interface
     trust_interfaces: dict[str, Reference] | None = {}
     option82: AttributeValue[bool] | None = None  # Whether DHCP snooping option 82 is enabled

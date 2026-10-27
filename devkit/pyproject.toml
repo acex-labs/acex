@@ -19,10 +19,18 @@ typing-extensions = ">=4.0.0"
 deepdiff = ">=8.6.1"
 ipaddress = ">=1.0.23"
 sqlmodel = ">=0.0.27"
+google-re2 = "^1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
+
+[tool.poetry.plugins."acex.changelog"]
+acex-devkit = "acex_devkit"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX devkit"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

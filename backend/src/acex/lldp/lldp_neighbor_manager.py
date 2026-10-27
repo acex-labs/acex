@@ -10,6 +10,7 @@ from acex.models.lldp_neighbor import (
 from acex.models.logical_node import LogicalNode
 from acex.models.node import Node
 from fastapi import HTTPException
+from sqlmodel import delete, select
 
 
 class LldpNeighborManager:
@@ -23,14 +24,14 @@ class LldpNeighborManager:
         (e.g. 'switch2.example.com' -> 'switch2').
         """
         # Try exact match first
-        ln = session.query(LogicalNode).filter(LogicalNode.hostname == remote_device).first()
+        ln = session.exec(select(LogicalNode).where(LogicalNode.hostname == remote_device)).first()
         # Fallback: strip domain part
         if not ln and "." in remote_device:
             short_name = remote_device.split(".")[0]
-            ln = session.query(LogicalNode).filter(LogicalNode.hostname == short_name).first()
+            ln = session.exec(select(LogicalNode).where(LogicalNode.hostname == short_name)).first()
         if not ln:
             return None
-        node = session.query(Node).filter(Node.logical_node_id == ln.id).first()
+        node = session.exec(select(Node).where(Node.logical_node_id == ln.id)).first()
         return node.id if node else None
 
     def _hash_neighbor_set(self, payload: LldpNeighborUpload) -> str:
@@ -56,22 +57,19 @@ class LldpNeighborManager:
             new_hash = self._hash_neighbor_set(payload)
 
             # Dedup: check if latest hash for this node is the same
-            latest = (
-                session.query(LldpNeighbor)
-                .filter(LldpNeighbor.node_instance_id == payload.node_instance_id)
+            latest = session.exec(
+                select(LldpNeighbor)
+                .where(LldpNeighbor.node_instance_id == payload.node_instance_id)
                 .order_by(LldpNeighbor.collected_at.desc())
-                .first()
-            )
+            ).first()
             if latest and latest.hash == new_hash:
                 # Re-resolve any unresolved remote_node_ids
-                unresolved = (
-                    session.query(LldpNeighbor)
-                    .filter(
+                unresolved = session.exec(
+                    select(LldpNeighbor).where(
                         LldpNeighbor.node_instance_id == payload.node_instance_id,
                         LldpNeighbor.remote_node_id.is_(None),
                     )
-                    .all()
-                )
+                ).all()
                 updated = 0
                 for row in unresolved:
                     resolved = self._resolve_remote_node(session, row.remote_device)
@@ -86,7 +84,7 @@ class LldpNeighborManager:
                 )
 
             # Delete old entries for this node, insert fresh set
-            session.query(LldpNeighbor).filter(LldpNeighbor.node_instance_id == payload.node_instance_id).delete()
+            session.exec(delete(LldpNeighbor).where(LldpNeighbor.node_instance_id == payload.node_instance_id))
 
             now = datetime.now(UTC)
             for entry in payload.neighbors:
@@ -116,12 +114,11 @@ class LldpNeighborManager:
     def get_neighbors(self, node_instance_id: int) -> list[LldpNeighborResponse]:
         session = next(self.db.get_session())
         try:
-            rows = (
-                session.query(LldpNeighbor)
-                .filter(LldpNeighbor.node_instance_id == node_instance_id)
+            rows = session.exec(
+                select(LldpNeighbor)
+                .where(LldpNeighbor.node_instance_id == node_instance_id)
                 .order_by(LldpNeighbor.local_interface)
-                .all()
-            )
+            ).all()
             return [LldpNeighborResponse.model_validate(r) for r in rows]
         finally:
             session.close()
@@ -130,12 +127,11 @@ class LldpNeighborManager:
         """Who sees this node as a neighbor."""
         session = next(self.db.get_session())
         try:
-            rows = (
-                session.query(LldpNeighbor)
-                .filter(LldpNeighbor.remote_node_id == node_instance_id)
+            rows = session.exec(
+                select(LldpNeighbor)
+                .where(LldpNeighbor.remote_node_id == node_instance_id)
                 .order_by(LldpNeighbor.node_instance_id)
-                .all()
-            )
+            ).all()
             return [LldpNeighborResponse.model_validate(r) for r in rows]
         finally:
             session.close()
@@ -157,13 +153,12 @@ class LldpNeighborManager:
             if node_id is not None:
                 rows = self._collect_hops(session, node_id, hops)
             elif site is not None:
-                rows = (
-                    session.query(LldpNeighbor)
+                rows = session.exec(
+                    select(LldpNeighbor)
                     .join(Node, LldpNeighbor.node_instance_id == Node.id)
                     .join(LogicalNode, Node.logical_node_id == LogicalNode.id)
-                    .filter(LogicalNode.site.ilike(site))
-                    .all()
-                )
+                    .where(LogicalNode.site.ilike(site))
+                ).all()
             else:
                 return {"nodes": [], "edges": []}
 
@@ -180,7 +175,7 @@ class LldpNeighborManager:
         for _ in range(max_hops):
             if not frontier:
                 break
-            rows = session.query(LldpNeighbor).filter(LldpNeighbor.node_instance_id.in_(frontier)).all()
+            rows = session.exec(select(LldpNeighbor).where(LldpNeighbor.node_instance_id.in_(frontier))).all()
             all_rows.extend(rows)
             next_frontier = set()
             for r in rows:
@@ -257,14 +252,13 @@ class LldpNeighborManager:
         """All neighbor links for nodes on a given site."""
         session = next(self.db.get_session())
         try:
-            rows = (
-                session.query(LldpNeighbor)
+            rows = session.exec(
+                select(LldpNeighbor)
                 .join(Node, LldpNeighbor.node_instance_id == Node.id)
                 .join(LogicalNode, Node.logical_node_id == LogicalNode.id)
-                .filter(LogicalNode.site.ilike(site))
+                .where(LogicalNode.site.ilike(site))
                 .order_by(LldpNeighbor.node_instance_id, LldpNeighbor.local_interface)
-                .all()
-            )
+            ).all()
             return [LldpNeighborResponse.model_validate(r) for r in rows]
         finally:
             session.close()

@@ -1,15 +1,25 @@
 from collections import defaultdict
-from typing import get_args
+from typing import Any, get_args
 
 from pydantic import BaseModel
 
 from acex_devkit.configdiffer.diff import AttributeChange, ComponentChange, ComponentDiffOp, Diff
 from acex_devkit.models.attribute_value import AttributeValue
+from acex_devkit.models.augment import AugmentAttributes
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.container_entry import ContainerEntry
+from acex_devkit.models.reference import Reference
+from acex_devkit.normalizer import MASK
 
 
 class ConfigDiffer:
+    """Diffs desired against observed configuration, component by component.
+
+    Only declared components take part: one identical to what an empty `ComposedConfiguration` already
+    holds at its path (an empty container, the default `global` network instance) states no intent and
+    is left out on both sides.
+    """
+
     def _is_leaf(self, model: BaseModel) -> bool:
         """A model is a leaf if it has at least one direct AttributeValue field."""
         for field_info in model.model_fields.values():
@@ -60,15 +70,94 @@ class ConfigDiffer:
         return result
 
     def _attribute_changes(self, before: BaseModel, after: BaseModel) -> list[AttributeChange]:
-        """Compare two component instances and return a list of changed attributes."""
+        """Compare an observed (before) and a desired (after) component and return the changed attributes.
+        Only what desired declares is compared: an attribute it leaves unset states no intent, whatever
+        the device holds there (often the device's own default)."""
         changes = []
-        all_fields = set(before.model_fields.keys()) | set(after.model_fields.keys())
+        derived = set(getattr(before, "derived_fields", ())) | set(getattr(after, "derived_fields", ()))
+        all_fields = (set(before.model_fields.keys()) | set(after.model_fields.keys())) - derived
         for field_name in all_fields:
             b = getattr(before, field_name, None)
             a = getattr(after, field_name, None)
-            if b != a:
+            if a is None or a == {} or a == []:
+                continue
+            if not self._same(b, a):
                 changes.append(AttributeChange(attribute_name=field_name, before=b, after=a))
         return changes
+
+    def _same(self, observed: Any, desired: Any) -> bool:
+        """References are equal when they point at the same place, whatever path spells it out. A secret
+        masked in the observed configuration can't be compared, so it matches any desired value."""
+        if isinstance(observed, AttributeValue) and observed.value == MASK:
+            return desired is not None
+        if self._is_augments(observed) and self._is_augments(desired):
+            return self._augment_contents(observed) == self._augment_contents(desired)
+        if isinstance(observed, Reference) and isinstance(desired, Reference):
+            return self._position(self.observed, observed.pointer) == self._position(self.desired, desired.pointer)
+        if self._is_references(observed) and self._is_references(desired):
+            observed_targets = {self._position(self.observed, r.pointer) for r in observed.values()}
+            return observed_targets == {self._position(self.desired, r.pointer) for r in desired.values()}
+        return observed == desired
+
+    def _is_augments(self, value: Any) -> bool:
+        return isinstance(value, dict) and all(isinstance(v, AugmentAttributes) for v in value.values())
+
+    def _augment_contents(self, augments: dict[str, AugmentAttributes]) -> list[str]:
+        """Augments as what they say, whatever they're keyed under and whether their fields are typed or
+        read back from JSON: each one's type and set fields."""
+        contents = []
+        for augment in augments.values():
+            # `name` is the integrator's handle for the augment, not something the device holds.
+            fields = {k: self._plain(v) for k, v in augment if k not in ("type", "name")}
+            contents.append(repr((augment.type, sorted((k, repr(v)) for k, v in fields.items() if v is not None))))
+        return sorted(contents)
+
+    def _plain(self, value: Any) -> Any:
+        if isinstance(value, AttributeValue):
+            return value.get_value()
+        return value["value"] if isinstance(value, dict) and "value" in value else value
+
+    def _is_references(self, value: Any) -> bool:
+        return isinstance(value, dict) and all(isinstance(v, Reference) for v in value.values())
+
+    def _position(self, root: BaseModel, pointer: str) -> tuple:
+        """Where `pointer` lands in `root`, with each dict key replaced by the entry's identity where it
+        has one. The same component keyed differently in two trees gets the same position."""
+        node, rest, position = root, pointer, []
+        while rest:
+            if isinstance(node, dict):
+                # Keys may hold dots (`Gi0/1.10`), so the longest key the pointer continues with wins.
+                key = max((k for k in node if rest == k or rest.startswith(f"{k}.")), key=len, default=None)
+                if key is None:
+                    return ("unresolved", pointer)
+                node, rest = node[key], rest[len(key) + 1 :]
+                identity = self._identity_key(node) if isinstance(node, ContainerEntry) else ()
+                position.append(identity or key)
+            else:
+                segment, _, rest = rest.partition(".")
+                node = getattr(node, segment, None)
+                if node is None:
+                    return ("unresolved", pointer)
+                position.append(segment)
+        return tuple(position)
+
+    def _declared(self, flat: dict[tuple, BaseModel], defaults: dict[tuple, BaseModel]) -> dict[tuple, BaseModel]:
+        """The leaves that state something: those differing from the empty tree's leaf at their path."""
+        return {path: model for path, model in flat.items() if defaults.get(path) != model}
+
+    def _masked_match(
+        self, desired: BaseModel, observed: dict[str, BaseModel], taken: set[str]
+    ) -> tuple[str, BaseModel] | None:
+        """An observed entry of the same type known only by a masked secret (an SNMP community string):
+        it can't be told apart, so it stands in for the first desired entry left without a match."""
+        return next(
+            (
+                (key, model)
+                for key, model in observed.items()
+                if key not in taken and type(model) is type(desired) and MASK in self._identity_key(model)
+            ),
+            None,
+        )
 
     def _identity_key(self, model: BaseModel) -> tuple:
         """Extract identity values from a ContainerEntry for matching.
@@ -108,7 +197,7 @@ class ConfigDiffer:
             d = desired.get(path)
             o = observed.get(path)
             if d and o:
-                if d != o:
+                if self._attribute_changes(o, d):
                     changes.append(self._make_change(ComponentDiffOp.CHANGE, path, before=o, after=d))
             elif d:
                 changes.append(self._make_change(ComponentDiffOp.ADD, path, after=d))
@@ -151,7 +240,7 @@ class ConfigDiffer:
 
                 if d_identity:
                     # Match by identity field values (e.g. same address, same vlan_id)
-                    match = o_by_identity.get(d_identity)
+                    match = o_by_identity.get(d_identity) or self._masked_match(d_model, o_components, matched_o_keys)
                     if match:
                         o_key, o_model = match
                 else:
@@ -161,7 +250,7 @@ class ConfigDiffer:
 
                 if o_model:
                     matched_o_keys.add(o_key)
-                    if d_model != o_model:
+                    if self._attribute_changes(o_model, d_model):
                         changes.append(
                             self._make_change(
                                 ComponentDiffOp.CHANGE,
@@ -200,8 +289,10 @@ class ConfigDiffer:
         ContainerEntry leaves (dict entries like interfaces) are matched by identity_fields,
         handling cases where keys differ (e.g. "Gi0/0/1" vs "GigabitEthernet0/0/1").
         """
-        flat_desired = self._flatten(desired_config)
-        flat_observed = self._flatten(observed_config)
+        self.desired, self.observed = desired_config, observed_config
+        defaults = self._flatten(ComposedConfiguration())
+        flat_desired = self._declared(self._flatten(desired_config), defaults)
+        flat_observed = self._declared(self._flatten(observed_config), defaults)
 
         # Split into singletons (path-matched) and entries (identity-matched)
         singleton_d = {p: m for p, m in flat_desired.items() if not isinstance(m, ContainerEntry)}

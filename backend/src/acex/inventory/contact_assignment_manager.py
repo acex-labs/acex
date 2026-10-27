@@ -1,5 +1,6 @@
 from acex.models.contacts import ContactAssignment, ContactAssignmentCreate
 from fastapi import HTTPException
+from sqlmodel import select
 
 
 class ContactAssignmentManager:
@@ -36,12 +37,12 @@ class ContactAssignmentManager:
     ) -> list[ContactAssignment]:
         session = next(self.db.get_session())
         try:
-            query = session.query(ContactAssignment)
+            statement = select(ContactAssignment)
             if contact_name:
-                query = query.filter(ContactAssignment.contact_name == contact_name)
+                statement = statement.where(ContactAssignment.contact_name == contact_name)
             if site_name:
-                query = query.filter(ContactAssignment.site_name == site_name)
-            return query.all()
+                statement = statement.where(ContactAssignment.site_name == site_name)
+            return session.exec(statement).all()
         finally:
             session.close()
 

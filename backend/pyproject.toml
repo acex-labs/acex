@@ -17,7 +17,7 @@ packages = [
 python = "^3.13"
 uvicorn = ">=0.38.0"
 fastapi = ">=0.121.0"
-sqlmodel = ">=0.0.27"
+sqlmodel = ">=0.0.45"
 sqlalchemy = ">=2.0,<2.1"
 requests = ">=2.32.5"
 python-jose = {extras = ["cryptography"], version = ">=3.3.0"}
@@ -36,6 +36,10 @@ celery = ">=5.5.0"
 
 [tool.poetry.scripts]
 acex-api = "acex_api.server:main"
+
+# Shown as the component's name in Settings > What's new; see changelog.d/README.md.
+[tool.acex.changelog]
+name = "ACEX backend"
 
 [tool.poetry.extras]
 vault = ["hvac"]

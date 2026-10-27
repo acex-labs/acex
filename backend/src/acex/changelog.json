@@ -1,0 +1,4901 @@
+{
+  "schema_version": 1,
+  "component": "acex",
+  "name": "ACEX backend",
+  "releases": [
+    {
+      "version": "6.27.0",
+      "date": "2026-10-15",
+      "summary": "The backend's settings use new ACEX_* names and the old names are no longer read; rename them before upgrading.",
+      "entries": [
+        {
+          "id": "02-ai-ops-providers-and-chains-are-configur",
+          "kind": "changed",
+          "title": "AI Ops providers and chains are configured with ACEX_AI_OPS_* variables",
+          "description": "`ACEX_AI_PROVIDERS`, `ACEX_AI_PROVIDER_<NAME>_BASEURL/_API_KEY/...`, `ACEX_AI_CHAIN_<TASK>` and `ACEX_AI_MCP_SERVER_URL` are replaced by `ACEX_AI_OPS_PROVIDERS__<NAME>__BASE_URL/__API_KEY/...`, `ACEX_AI_OPS_CHAINS__<TASK>` and `ACEX_AI_OPS_MCP_SERVER_URL`. AI Ops is now on whenever a provider is configured, and a default chain is then required.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-bug-report-destinations-use-new-acex-bug",
+          "kind": "changed",
+          "title": "Bug report destinations use new ACEX_BUG_REPORT_* variable names",
+          "description": "The Azure DevOps, Slack and file targets for bug reports are now `ACEX_BUG_REPORT_ADO_SERVICE_PAT/_ORG/_PROJECT/_FEATURE_ID`, `ACEX_BUG_REPORT_SLACK_WEBHOOK_URL` and `ACEX_BUG_REPORT_FILE_DIR`. They replace `ADO_*`, `SLACK_BUG_REPORT_WEBHOOK` and `BUG_REPORT_FILE_DIR`, which are no longer read, so bug reports go nowhere until you rename them.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-database-oidc-server-and-vault-settings-",
+          "kind": "changed",
+          "title": "Database, OIDC, server and Vault settings use new ACEX_ variable names",
+          "description": "`DB_*`, `OIDC_*`, `VAULT_*`, `ACEX_HOST`, `ACEX_PORT`, `ACEX_RELOAD` and `ACEX_ENCRYPTION_KEY` are now `ACEX_DB_*`, `ACEX_OIDC_*`, `ACEX_CREDENTIALS_VAULT_*`, `ACEX_SERVER_HOST/PORT/RELOAD` and `ACEX_CREDENTIALS_ENCRYPTION_KEY`. The old names are no longer read and have no aliases, so rename them in your deployment before upgrading.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-extra-influxdb-outputs-and-vault-certifi",
+          "kind": "added",
+          "title": "Extra InfluxDB outputs and Vault certificate checking can be set by environment",
+          "description": "`ACEX_INFLUXDB_EXTRA_OUTPUTS` takes a JSON list of further InfluxDB outputs next to the primary one, and `ACEX_CREDENTIALS_VAULT_VERIFY` sets whether Vault's certificate is verified. Both could previously only be set in `app.py`.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-the-backend-starts-again-on-fresh-instal",
+          "kind": "fixed",
+          "title": "The backend starts again on fresh installs that pulled SQLAlchemy 2.1",
+          "description": "A fresh install could pull SQLAlchemy 2.1, which expects a PostgreSQL driver that is not installed, so the API failed at startup with \"No module named 'psycopg'\". SQLAlchemy is now limited to 2.0.x.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#313",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-configuring-the-engine-through-setter-me",
+          "kind": "deprecated",
+          "title": "Configuring the engine through setter methods is deprecated; use Settings",
+          "description": "`AutomationEngine` now takes `settings=Settings(...)`. `dev_mode=`, `set_oidc()`, `set_vault()`, `set_encryption_key()`, `add_cors_allowed_origin()`, `ai_ops()` and `set_influxdb()` still work but emit a deprecation warning.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.26.0",
+      "date": "2026-10-05",
+      "entries": [
+        {
+          "id": "01-ztp-bootstrap-script-no-longer-interfere",
+          "kind": "fixed",
+          "title": "ZTP bootstrap script no longer interferes with the switch's ZTP run",
+          "description": "The bootstrap script that switches download during ZTP now has plain strings on its configuration lines. The previous form interfered with the switch's ZTP process.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#299",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.25.0",
+      "date": "2026-10-05",
+      "entries": [
+        {
+          "id": "01-ztp-bootstrap-script-is-served-as-a-fixe",
+          "kind": "changed",
+          "title": "ZTP bootstrap script is served as a fixed script per OS type",
+          "description": "The ZTP bootstrap script endpoint no longer takes hostname, domain name, username and password. It only takes the OS type (currently cisco_iosxe) and returns the same script every time. Callers that still pass those parameters will find them ignored.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#298",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.24.0",
+      "date": "2026-10-05",
+      "entries": [
+        {
+          "id": "01-switches-can-download-a-ztp-bootstrap-sc",
+          "kind": "added",
+          "title": "Switches can download a ZTP bootstrap script from the backend",
+          "description": "The API now lists the OS types that have a ZTP bootstrap script (cisco_iosxe at the moment) and serves the script for an OS type as a Python file. The script applies a base configuration and enables SSH on the device. The PR describes this as a first step for testing; design and flows are expected to change.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#297",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.23.0",
+      "date": "2026-09-30",
+      "summary": "Nodes get an admin status and a provisioning status instead of one status, and the agent images start again.",
+      "entries": [
+        {
+          "id": "01-a-node-has-an-admin-status-and-a-provisi",
+          "kind": "changed",
+          "title": "A node has an admin status and a provisioning status instead of one status",
+          "description": "The admin status is your intent (planned, active or decommissioned); the provisioning status shows where the device is in provisioning (for example unprovisioned, adopted or provisioned) and is set by the provisioning flow. The old \"init\" status is gone. Existing nodes are converted automatically: active nodes become adopted, all others unprovisioned, and \"init\" becomes planned.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#292",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-node-status-field-and-filter-replaced-by",
+          "kind": "changed",
+          "title": "Node status field and filter replaced by admin_status and provision_status",
+          "description": "Scripts and integrations that read, set or filter nodes by `status` must switch to `admin_status` and `provision_status`. The same two fields replace `status` in telemetry and collection agent match rules. The CLI node list takes `--admin-status` and `--provision-status` instead of `--status`.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#292",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-the-node-csv-import-sets-both-statuses-a",
+          "kind": "changed",
+          "title": "The node CSV import sets both statuses and no longer accepts \"init\"",
+          "description": "The CSV node sync script rejects the status value \"init\". Devices imported as active are marked as adopted; others are marked unprovisioned.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#292",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-telemetry-and-collection-agent-images-st",
+          "kind": "fixed",
+          "title": "Telemetry and collection agent images start again",
+          "description": "The telemetry and collection agent container images could install an outdated shared library and crash at startup with an import error. They now always use the library version shipped in this repository.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#290",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.22.0",
+      "date": "2026-09-25",
+      "summary": "Agents are found by name, and the exact set of nodes of an agent can be set in one call.",
+      "entries": [
+        {
+          "id": "03-reading-one-telemetry-agent-no-longer-re",
+          "kind": "changed",
+          "title": "Reading one telemetry agent no longer returns node coverage by default",
+          "description": "The single-agent read used to compute and return `node_coverage` every time, which is costly. It is now only included when you ask for it with the `include_coverage=true` query parameter. Scripts that read `node_coverage` must add it.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-set-the-exact-list-of-nodes-for-a-teleme",
+          "kind": "added",
+          "title": "Set the exact list of nodes for a telemetry or collection agent in one call",
+          "description": "A new PUT call on an agent's nodes replaces its explicitly assigned nodes with the list you send. It returns which nodes were added and removed, answers 422 for unknown node ids, and answers 409 if you pass an expected revision that no longer matches. Nodes picked up by match rules are not affected.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-agents-find-their-configuration-by-name-",
+          "kind": "changed",
+          "title": "Agents find their configuration by name instead of numeric id",
+          "description": "Telemetry and collection agents now read TELEMETRY_AGENT_NAME or COLLECTION_AGENT_NAME and look up the agent by its exact name, retrying until the backend answers. TELEMETRY_AGENT_ID and COLLECTION_AGENT_ID still work but are deprecated and log a warning; the name wins if both are set.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.21.0",
+      "date": "2026-09-25",
+      "summary": "Telemetry agents are more robust, since one node that cannot be rendered no longer breaks the config, and show per-node coverage.",
+      "entries": [
+        {
+          "id": "03-reading-one-telemetry-agent-shows-per-no",
+          "kind": "added",
+          "title": "Reading one telemetry agent shows per-node coverage",
+          "description": "The single-agent response now has `node_coverage`: for each node the agent covers, whether it comes from an explicit assignment, a rule or both, and for each capability (such as ICMP or SNMP) whether it was rendered or skipped and why. It is not part of the agent list.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#287",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-a-telemetry-agent-with-nothing-to-monito",
+          "kind": "fixed",
+          "title": "A telemetry agent with nothing to monitor no longer stops Telegraf from starting",
+          "description": "Telegraf refuses to start without any input. When every node of an agent is skipped and no syslog or SNMP trap listener is enabled, the generated config now falls back to Telegraf's own internal metrics instead of an empty config.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#287",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-one-node-that-cannot-be-rendered-no-long",
+          "kind": "fixed",
+          "title": "One node that cannot be rendered no longer breaks a telemetry agent's config",
+          "description": "A node with no management IP, no logical node or an unreadable credential is now skipped and logged, and the agent's config is still produced for all other nodes. Before, such a node could make the whole config fail.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#287",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-telemetry-agents-pick-up-node-and-logica",
+          "kind": "fixed",
+          "title": "Telemetry agents pick up node and logical node edits",
+          "description": "Changing a node's status or logical node, or a logical node's site or role, now bumps the config revision of every telemetry agent that covered the node before or after the change, including an agent that just lost it. Before, only node creation and deletion did, so agents could keep a stale config.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#287",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.20.0",
+      "date": "2026-09-22",
+      "entries": [
+        {
+          "id": "01-attach-up-to-three-screenshots-to-a-bug-",
+          "kind": "added",
+          "title": "Attach up to three screenshots to a bug report",
+          "description": "Bug reports can now carry up to three screenshots. They are saved as image files next to the report and attached to the work item when reports go to Azure DevOps; the Slack message only notes how many were attached.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#286",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-region-filter-matches-part-of-a-region-n",
+          "kind": "changed",
+          "title": "Region filter matches part of a region name, ignoring case",
+          "description": "Filtering nodes or site-to-region assignments by region now matches any region whose name contains the text you enter, regardless of upper or lower case. Before, the name had to match exactly.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#286",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.19.1",
+      "date": "2026-09-22",
+      "entries": [
+        {
+          "id": "01-filtering-nodes-by-role-works-again",
+          "kind": "fixed",
+          "title": "Filtering nodes by role works again",
+          "description": "The role search box on the Nodes page (and the role filter in the API) was accepted but ignored, so every node was returned. It now narrows the list to nodes with that role.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#285",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-timestamps-on-nodes-stored-configs-and-l",
+          "kind": "fixed",
+          "title": "Timestamps on nodes, stored configs and LLDP neighbours are timezone-aware",
+          "description": "Creation and update times for nodes, stored device configurations and LLDP neighbours are now recorded in UTC with a timezone.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#285",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.19.0",
+      "date": "2026-09-22",
+      "entries": [
+        {
+          "id": "02-filter-nodes-by-management-ip-address",
+          "kind": "added",
+          "title": "Filter nodes by management IP address",
+          "description": "The node list can be filtered with management_connection_ip. It matches nodes with a management connection whose address starts with the given text, ignoring case. The PR text calls the parameter `ip` and describes a substring match; the code uses this name and a prefix match.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#275",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-node-list-shows-each-node-s-management-c",
+          "kind": "added",
+          "title": "Node list shows each node's management connections",
+          "description": "Every node in the node list now includes its management connections, with the primary connection first, so you can see the management IP address without opening the node.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#275",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.18.2",
+      "date": "2026-09-21",
+      "entries": [
+        {
+          "id": "01-backend-starts-on-postgresql-servers-wit",
+          "kind": "fixed",
+          "title": "Backend starts on PostgreSQL servers without the contrib package",
+          "description": "The database migration that adds search indexes crashed startup when the PostgreSQL contrib package was not installed. It now skips those indexes instead; text search still works, just without index acceleration.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#284",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.18.1",
+      "date": "2026-09-17",
+      "entries": [
+        {
+          "id": "02-database-migration-adds-search-indexes-o",
+          "kind": "added",
+          "title": "Database migration adds search indexes on PostgreSQL",
+          "description": "A new migration enables the PostgreSQL pg_trgm extension and indexes site names, asset vendor, model and serial number, and node hostnames to keep contains-search fast. It needs the PostgreSQL contrib package and permission to create extensions; other databases are unaffected.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#272",
+              "url": null
+            },
+            {
+              "label": "#281",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-text-filters-match-anywhere-in-the-value",
+          "kind": "changed",
+          "title": "Text filters match anywhere in the value, not only at the start",
+          "description": "Text filters on sites, assets, nodes and similar lists now match the text anywhere in the value, ignoring case. Searching for \"europe\" now finds \"central-europe\"; before, only names starting with it matched.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#272",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.18.0",
+      "date": "2026-09-17",
+      "entries": [
+        {
+          "id": "01-collection-agent-installs-device-drivers",
+          "kind": "changed",
+          "title": "Collection agent installs device drivers from the backend before each cycle",
+          "description": "The collection agent image no longer contains any device driver. It downloads the drivers it needs from the backend before every collection cycle, so a driver added or upgraded on the backend is picked up without restarting the agent. The agent container must be able to reach a Python package index for the drivers' dependencies.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#277",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.17.0",
+      "date": "2026-09-16",
+      "summary": "The API needs an OIDC issuer and named CORS origins to start, is started with acex-api, and the Junos driver is in the image.",
+      "entries": [
+        {
+          "id": "03-automationengine-refuses-requests-unless",
+          "kind": "changed",
+          "title": "AutomationEngine refuses requests unless an OIDC issuer is set or dev_mode is on",
+          "description": "An application that builds its own AutomationEngine without calling set_oidc(...) now answers every request with HTTP 503, except the public auth configuration endpoint. Pass dev_mode=True for local development only.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#274",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-start-the-api-with-acex-api-python-m-ace",
+          "kind": "changed",
+          "title": "Start the API with acex-api; python -m acex no longer exists",
+          "description": "The service is now started with `acex-api` or `python -m acex_api`, which also accept --host, --port and --reload. `python -m acex` has been removed, so custom start scripts must be changed. The container image already uses the new command.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#274",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-the-api-service-needs-an-oidc-issuer-and",
+          "kind": "changed",
+          "title": "The API service needs an OIDC issuer and named CORS origins to start",
+          "description": "The service now stops at startup unless OIDC_ISSUER_URL is set and ACEX_CORS_ALLOWED_ORIGINS does not contain `*`. Put the origins that call the API from a browser in ACEX_CORS_ALLOWED_ORIGINS, comma-separated; empty means same-origin only. For local work, start it with `acex-api --dev`.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#274",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-juniper-junos-driver-is-included-in-the-",
+          "kind": "added",
+          "title": "Juniper Junos driver is included in the backend image",
+          "description": "The standard backend container image now ships the Juniper Junos CLI driver next to the Cisco IOS one, so Junos devices no longer need a custom image.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#276",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.16.0",
+      "date": "2026-09-15",
+      "summary": "The API lists supported vendors, hardware models and operating systems, and bug reports can be saved as files.",
+      "entries": [
+        {
+          "id": "02-list-supported-vendors-hardware-models-a",
+          "kind": "added",
+          "title": "List supported vendors, hardware models and operating systems",
+          "description": "A new platforms endpoint returns the vendors the backend has drivers for, the hardware models under each, the operating systems each model can run, and example OS version strings. It is meant for asset forms.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#273",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-save-bug-reports-as-files-in-a-directory",
+          "kind": "added",
+          "title": "Save bug reports as files in a directory on the server",
+          "description": "Set BUG_REPORT_FILE_DIR and every bug report is also written there as a JSON file, next to any Slack or Azure DevOps delivery. The standard compose file mounts a volume at /data/bug-reports for this.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#267",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-running-alembic-by-hand-uses-the-same-db",
+          "kind": "changed",
+          "title": "Running alembic by hand uses the same DB_* settings as the backend",
+          "description": "The alembic command line now builds its database URL from DB_HOST, DB_NAME, DB_USER, DB_PASSWORD and DB_PORT, defaulting to localhost, instead of a fixed host in alembic.ini. `alembic -x url=...` still overrides it.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#273",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-updating-an-asset-checks-the-os-version-",
+          "kind": "changed",
+          "title": "Updating an asset checks the OS version against its operating system",
+          "description": "Changing an asset's os or os_version is now validated: the version must fit the version scheme of that OS, otherwise the update is rejected with a 422 error that explains why. Updates that change neither field are unaffected.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#273",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.15.0",
+      "date": "2026-09-15",
+      "entries": [
+        {
+          "id": "01-assets-need-a-supported-vendor-and-os-na",
+          "kind": "changed",
+          "title": "Assets need a supported vendor and OS name; the old defaults are gone",
+          "description": "Creating or updating an asset now requires vendor and os to be one of the supported names, for example cisco_iosxe or juniper_junos instead of free text such as iosxe. vendor, serial_number, os and hardware_model have no defaults any more, and os_version is optional and checked against the OS. Update scripts that create assets.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#271",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-os-version-is-imported-from-netbox",
+          "kind": "added",
+          "title": "OS version is imported from NetBox",
+          "description": "When assets are read from NetBox, the os_version custom field is now used as the asset's OS version.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#271",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.14.0",
+      "date": "2026-09-10",
+      "summary": "The AI assistant can offer links to pages and checks facts in ACEX; the MCP server base URL no longer includes /api/v1.",
+      "entries": [
+        {
+          "id": "03-mcp-server-base-url-no-longer-includes-a",
+          "kind": "changed",
+          "title": "MCP server base URL no longer includes /api/v1",
+          "description": "The MCP server now takes ACEX_API_URL without the /api/v1 suffix and uses the caller's own login token when it reads from the backend. It refuses to start if it cannot read the backend's authentication settings. Update the variable in existing deployments.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#268",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-ai-assistant-can-offer-a-link-to-the-pag",
+          "kind": "added",
+          "title": "AI assistant can offer a link to the page you asked for",
+          "description": "When you ask the assistant to open a node, a site or a node tab such as History, it shows a link you can click. It never navigates on its own.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#268",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-ai-assistant-checks-the-facts-in-ace-x-i",
+          "kind": "changed",
+          "title": "AI assistant checks the facts in ACE-X instead of hedging",
+          "description": "When an MCP server is configured, the assistant and the config analysis can look up nodes, desired and observed configuration, drift, history and LLDP neighbours before answering. A step-by-step plan is shown while it works, and answers use the terms desired and observed config.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#268",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-ai-streaming-responses-carry-plan-tool-c",
+          "kind": "changed",
+          "title": "AI streaming responses carry plan, tool call and navigation events",
+          "description": "The streaming endpoints /ai/ask and /ai/config_analysis now send separate plan, tool_call and navigate events next to content and usage, so a client can show them as their own elements.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#268",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.13.0",
+      "date": "2026-09-10",
+      "entries": [
+        {
+          "id": "01-the-backend-is-started-with-python-m-ace",
+          "kind": "changed",
+          "title": "The backend is started with python -m acex and installed as a package",
+          "description": "The container image now installs the backend with pip and starts it with `python -m acex`, reading the same DB_*, ACEX_HOST and ACEX_PORT settings as before. The old development start file is gone, and the entry point no longer sets up INFO-level application logging, so container logs may be quieter.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#266",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.12.1",
+      "date": "2026-09-09",
+      "entries": [
+        {
+          "id": "02-csv-sync-scripts-can-log-in-with-a-servi",
+          "kind": "added",
+          "title": "CSV sync scripts can log in with a service account",
+          "description": "csv_sync_sites.py and csv_sync_nodes.py accept --client-id, --client-secret and --issuer-url, so they can run unattended without a browser login. The node script also no longer fails on every row because of an unpacking error.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#261",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-ai-ops-starts-when-no-mcp-server-url-is-",
+          "kind": "fixed",
+          "title": "AI Ops starts when no MCP server URL is configured",
+          "description": "Enabling AI Ops without an MCP server URL no longer breaks startup. The assistant starts without MCP tools and a note is printed.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "ba53208",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.12.0",
+      "date": "2026-09-09",
+      "entries": [
+        {
+          "id": "01-ai-ops-can-be-enabled-entirely-from-envi",
+          "kind": "added",
+          "title": "AI Ops can be enabled entirely from environment variables",
+          "description": "Setting ACEX_AI_PROVIDERS is now enough to turn AI Ops on; no code change in the application is needed. If a provider is listed but no chain is defined, startup stops with an error that says what to set. Leave the variable unset to keep AI Ops off.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#264",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-the-health-endpoint-reports-the-running-",
+          "kind": "added",
+          "title": "The health endpoint reports the running backend version",
+          "description": "GET /api/v1/health now returns the status and the installed backend version, and the API documentation shows the same version.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#265",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.11.1",
+      "date": "2026-09-08",
+      "entries": [
+        {
+          "id": "01-grafana-sync-agent-authenticates-when-it",
+          "kind": "fixed",
+          "title": "Grafana sync agent authenticates when it reads from the backend",
+          "description": "The Grafana sync agent now sends its login token on every call to the backend API. Before, its requests carried none, so a backend that requires login could refuse them.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "70c130b",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.11.0",
+      "date": "2026-09-04",
+      "summary": "Bug reports get a severity and steps to reproduce, and are delivered to Slack and Azure DevOps.",
+      "entries": [
+        {
+          "id": "02-bug-reports-are-delivered-to-slack-and-a",
+          "kind": "added",
+          "title": "Bug reports are delivered to Slack and Azure DevOps when configured",
+          "description": "Set SLACK_BUG_REPORT_WEBHOOK to post each report to Slack. Set ADO_SERVICE_PAT, ADO_ORG, ADO_PROJECT and ADO_BUGFIX_FEATURE_ID to create a User Story under that feature. A destination that is not configured is skipped.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#259",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-submit-bug-reports-with-a-severity-and-s",
+          "kind": "added",
+          "title": "Submit bug reports with a severity and steps to reproduce",
+          "description": "Signed-in users can send a bug report with a title, description, severity (low to critical), optional steps to reproduce and the page they were on. The reporter is taken from their login. The reply says where the report was delivered.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#259",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-python-client-calls-api-paths-without-a-",
+          "kind": "fixed",
+          "title": "Python client calls API paths without a trailing slash",
+          "description": "The Python client no longer appends a trailing slash to some API paths, including the observed configuration endpoints of a node. This avoids redirects that behind a TLS proxy could drop the login token and end in 401.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#254",
+              "url": null
+            },
+            {
+              "label": "#256",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.10.2",
+      "date": "2026-09-02",
+      "entries": [
+        {
+          "id": "01-api-collection-endpoints-no-longer-end-i",
+          "kind": "changed",
+          "title": "API collection endpoints no longer end in a slash",
+          "description": "List and create endpoints such as asset_clusters, credentials, collection_agents, management_connections and region_assignments are now served at the plain path with no trailing slash. The old form is still redirected, but behind a TLS proxy that redirect can lose the login token (401), so update scripts to the plain path.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#251",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.10.1",
+      "date": "2026-09-02",
+      "entries": [
+        {
+          "id": "02-rejected-logins-are-written-to-the-backe",
+          "kind": "added",
+          "title": "Rejected logins are written to the backend log with the reason",
+          "description": "Each 401 is now logged with the request method and path and why the token was refused (missing header, expired, wrong audience or signature). Expired tokens are logged at info level only. The container log now includes application messages at info level.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#250",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-a-short-identity-provider-outage-no-long",
+          "kind": "fixed",
+          "title": "A short identity provider outage no longer breaks logins with errors",
+          "description": "When the identity provider cannot be reached, the API answers 503 \"Identity provider unavailable\" instead of a raw 500. It also keeps validating tokens with the signing keys it already has for up to 24 hours, retrying the provider at most every 30 seconds.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#250",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.10.0",
+      "date": "2026-09-02",
+      "entries": [
+        {
+          "id": "01-alembic-is-installed-together-with-the-b",
+          "kind": "fixed",
+          "title": "Alembic is installed together with the backend package",
+          "description": "The backend package now lists alembic as a dependency, so an installation from the package gets what its startup migrations need. The container image already installed it.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#249",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.9.0",
+      "date": "2026-09-01",
+      "entries": [
+        {
+          "id": "01-database-schema-changes-are-applied-by-m",
+          "kind": "changed",
+          "title": "Database schema changes are applied by migrations at startup",
+          "description": "On startup the backend now applies Alembic migrations instead of creating all tables at once, so schema changes are tracked and applied in order. A database created by an earlier version has no migration history and this release contains no step that adopts it, so back it up and test the first start before upgrading.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#247",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.8.0",
+      "date": "2026-08-28",
+      "entries": [
+        {
+          "id": "01-create-an-asset-cluster-together-with-it",
+          "kind": "added",
+          "title": "Create an asset cluster together with its assets in one request",
+          "description": "An asset cluster can now be created with its assets listed up front, instead of creating the cluster and then adding assets in a second step. The asset list is optional.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#244",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-an-asset-can-only-belong-to-one-cluster-",
+          "kind": "changed",
+          "title": "An asset can only belong to one cluster at a time",
+          "description": "Creating a cluster or updating its asset list now fails with a 409 conflict, naming the asset and the cluster, if one of the assets already belongs to a different cluster. Assets already in the cluster being updated are not affected.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#244",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.7.0",
+      "date": "2026-08-27",
+      "summary": "Nodes, assets, sites and regions can be imported from CSV, and InfluxDB outputs move to the backend instead of each telemetry agent.",
+      "entries": [
+        {
+          "id": "01-telemetry-agents-no-longer-have-their-ow",
+          "kind": "removed",
+          "title": "Telemetry agents no longer have their own InfluxDB outputs",
+          "description": "The endpoints for adding, changing and deleting an output on a single telemetry agent are gone, and agent configuration no longer lists per-agent outputs. All agents now use the InfluxDB outputs configured once on the backend (`set_influxdb`, `add_influxdb` or the `ACEX_INFLUXDB_*` settings). Move any per-agent outputs there before upgrading.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-influxdb-outputs-default-to-version-3",
+          "kind": "changed",
+          "title": "InfluxDB outputs default to version 3",
+          "description": "An InfluxDB output without an explicit version is now treated as InfluxDB v3 instead of v2. If your deployment relies on v2, set the version explicitly.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-import-nodes-assets-and-management-conne",
+          "kind": "added",
+          "title": "Import nodes, assets and management connections from a CSV file",
+          "description": "A new script, `scripts/csv_sync_nodes.py`, creates or updates logical nodes, assets, node instances and management connections from a CSV export. `--decommission-missing` marks nodes absent from the CSV as decommissioned, and `--dry-run` previews that without changing anything.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#235",
+              "url": null
+            },
+            {
+              "label": "#238",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-import-sites-and-regions-from-a-csv-file",
+          "kind": "added",
+          "title": "Import sites and regions from a CSV file",
+          "description": "A new script, `scripts/csv_sync_sites.py`, creates or updates sites and their regions from a CSV file.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#235",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-see-which-influxdb-outputs-the-backend-i",
+          "kind": "added",
+          "title": "See which InfluxDB outputs the backend is configured with",
+          "description": "A new `/observability/outputs` endpoint lists the configured InfluxDB outputs. Tokens and passwords are not shown, only whether they are set.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "08-creating-a-node-returns-the-same-details",
+          "kind": "changed",
+          "title": "Creating a node returns the same details as reading it",
+          "description": "The response to creating a node now includes the enriched node details that reading a node returns.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "cd9a5c1",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-telemetry-agent-configuration-hides-secr",
+          "kind": "changed",
+          "title": "Telemetry agent configuration hides secrets by default",
+          "description": "The generated telemetry configuration now shows SNMP credentials and InfluxDB tokens and passwords as «redacted». The telemetry agent itself still receives the real values.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "07-cisco-ios-interface-speed-is-read-as-a-n",
+          "kind": "fixed",
+          "title": "Cisco IOS interface speed is read as a number",
+          "description": "The Cisco IOS CLI driver used the whole speed object where it needed the plain value, which produced a malformed speed. It now reads the numeric value.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#226",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.6.2",
+      "date": "2026-08-19",
+      "summary": "AI operations use providers with failover chains, and users can choose the provider and model that answers.",
+      "entries": [
+        {
+          "id": "01-ai-operations-are-configured-with-provid",
+          "kind": "changed",
+          "title": "AI operations are configured with providers and failover chains",
+          "description": "`ai_ops()` no longer takes `api_key`, `base_url` and `model`. Define named providers and a `default` chain of provider/model levels instead, either as `providers=` and `chains=` or with `ACEX_AI_*` environment variables. Existing AI setups must be updated before upgrading.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#223",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-ai-answers-report-token-usage-and-speed",
+          "kind": "added",
+          "title": "AI answers report token usage and speed",
+          "description": "The streamed AI answer now ends with a usage message: token counts, generation speed and, when the provider publishes prices, cost.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#223",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-ai-requests-fall-back-to-the-next-provid",
+          "kind": "added",
+          "title": "AI requests fall back to the next provider or model when one fails",
+          "description": "When a provider is unreachable, rate-limited or returns a server error before answering, the request is retried on the next model in the chain. If every level fails, the error is returned in the answer stream. Chat and configuration analysis can have their own chains.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#223",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-choose-which-ai-provider-and-model-answe",
+          "kind": "added",
+          "title": "Choose which AI provider and model answers a question",
+          "description": "The backend lists the configured AI providers with their health and available models, so the web interface can offer a choice. A chat or configuration analysis request can name a model; without one the configured chain is used.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#223",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.6.1",
+      "date": "2026-08-14",
+      "entries": [
+        {
+          "id": "01-agents-can-acknowledge-configuration-rev",
+          "kind": "fixed",
+          "title": "Agents can acknowledge configuration revisions again",
+          "description": "Telemetry and collection agents failed every acknowledgement with \"Field required: id\" because the backend's reply did not match what the client expects. The backend now returns the expected result, so agents report the revision they applied.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#222",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.5.4",
+      "date": "2026-08-14",
+      "entries": [
+        {
+          "id": "02-existing-databases-need-new-telemetry-ag",
+          "kind": "changed",
+          "title": "Existing databases need new telemetry agent columns",
+          "description": "Telemetry agents gained SNMP and syslog settings, stored as new columns on the telemetry agent table. The backend creates missing tables at startup but does not alter existing ones, so add these columns before upgrading an existing database.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#219",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-telemetry-agents-can-receive-snmp-traps-",
+          "kind": "added",
+          "title": "Telemetry agents can receive SNMP traps and syslog messages",
+          "description": "A telemetry agent with the `snmp_trap` or `syslog_rfc5424` capability now listens for traps and syslog. Per agent you can set the SNMP version (2c, 3 or both), the trap and syslog ports (162 and 514 by default), and the SNMP community or SNMPv3 credential to use.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#219",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-snmpv3-credentials-are-checked-for-valid",
+          "kind": "changed",
+          "title": "SNMPv3 credentials are checked for valid protocols",
+          "description": "Creating an SNMPv3 credential with an unknown authentication or privacy protocol is rejected with a 400 error that lists the valid values, such as SHA256 or AES.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#219",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-a-credential-assigned-to-a-node-or-site-",
+          "kind": "fixed",
+          "title": "A credential assigned to a node or site can be deleted",
+          "description": "Deleting a credential that was assigned to a node or a site failed with a server error. The assignments are now removed together with the credential.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#211",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-cisco-ios-configuration-no-longer-has-a-",
+          "kind": "fixed",
+          "title": "Cisco IOS configuration no longer has a stray blank line before compress-config",
+          "description": "The Cisco IOS template emitted an extra empty line before `service compress-config`; it is removed.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#218",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.5.3",
+      "date": "2026-08-13",
+      "entries": [
+        {
+          "id": "01-augments-can-target-settings-that-are-op",
+          "kind": "fixed",
+          "title": "Augments can target settings that are optional singletons",
+          "description": "An augment whose target path ended at an optional object declared with the `X | None` form was treated as an invalid target. These paths are now accepted.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "b2bdc7e",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.5.2",
+      "date": "2026-08-13",
+      "entries": [
+        {
+          "id": "01-aaa-authentication-layer-2-domains-and-l",
+          "kind": "fixed",
+          "title": "AAA authentication, layer 2 domains and logging events render in configurations",
+          "description": "Configurations using AAA authentication methods, layer 2 domains or logging events could not be placed in the node configuration, which broke rendering of AAA authentication. These components are now mapped and render.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#215",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-creating-a-node-for-a-missing-asset-or-c",
+          "kind": "fixed",
+          "title": "Creating a node for a missing asset or cluster returns 404",
+          "description": "Creating a node whose referenced asset or asset cluster does not exist is now rejected with a 404 error instead of being accepted.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#210",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.5.1",
+      "date": "2026-08-11",
+      "entries": [
+        {
+          "id": "03-observed-configurations-are-looked-up-by",
+          "kind": "changed",
+          "title": "Observed configurations are looked up by id and returned base64-encoded",
+          "description": "A stored device configuration is now fetched, and two are compared, by their numeric id within the node instance instead of by hash. The content of the latest and of a single observed configuration is base64-encoded in the response. Scripts using the hash must be updated.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#209",
+              "url": null
+            },
+            {
+              "label": "#204",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-generate-config-map-code-from-a-pasted-d",
+          "kind": "added",
+          "title": "Generate config map code from a pasted device configuration",
+          "description": "Paste a device's configuration text and pick a driver, and the backend parses it and returns config map code for the components it found. The list of available drivers is served alongside.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#204",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-the-ai-assistant-can-answer-questions-ab",
+          "kind": "added",
+          "title": "The AI assistant can answer questions about the page you are viewing",
+          "description": "The assistant receives the data shown on the current page and a guide to the web interface, so it can answer \"this node\" questions and say where to find things. If the tool server is offline it answers from the page data alone.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#204",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-cisco-ios-configuration-no-longer-contai",
+          "kind": "changed",
+          "title": "Cisco IOS configuration no longer contains boot markers or a final end",
+          "description": "The rendered Cisco IOS configuration drops the boot-start-marker and boot-end-marker lines and the trailing `end`, and repeated blank lines are collapsed.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#204",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "08-cisco-ios-port-names-follow-each-port-s-",
+          "kind": "changed",
+          "title": "Cisco IOS port names follow each port's configured speed",
+          "description": "For stacked or modular Cisco switches, the interface name prefix is now chosen per port from its configured speed, where previously one speed was used for all ports.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#204",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "07-parsed-cisco-ios-configurations-include-",
+          "kind": "changed",
+          "title": "Parsed Cisco IOS configurations include interface IPv4 addresses",
+          "description": "When a Cisco IOS running configuration is parsed, the IPv4 address on a physical interface is now read and shown as an address with prefix length.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#204",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-rejected-login-tokens-now-say-why",
+          "kind": "changed",
+          "title": "Rejected login tokens now say why",
+          "description": "A 401 response now states whether the token has expired, has the wrong audience or issuer, or has an invalid signature, instead of a generic error.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#196",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "09-the-driver-list-shows-every-installed-dr",
+          "kind": "changed",
+          "title": "The driver list shows every installed driver",
+          "description": "The list of drivers now includes installed drivers that have not been loaded yet, with their version and package name, instead of only the ones already loaded.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#204",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-comparing-intent-with-a-node-that-has-no",
+          "kind": "fixed",
+          "title": "Comparing intent with a node that has no collected configuration yet",
+          "description": "The intent diff now treats a node with no collected running configuration as empty instead of failing.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#204",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "10-the-command-line-diff-table-shows-the-co",
+          "kind": "fixed",
+          "title": "The command-line diff table shows the component type",
+          "description": "The table view of a configuration diff in the command line referred to a misspelled attribute for the component type; it now shows the type.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#207",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.5.0",
+      "date": "2026-07-08",
+      "entries": [
+        {
+          "id": "01-a-node-can-have-its-own-snmp-community-o",
+          "kind": "added",
+          "title": "A node can have its own SNMP community, overriding the site's",
+          "description": "Assign an SNMP community credential to a node and it is used for that node's SNMP monitoring. The order is node, then site, then `public`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#200",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-see-where-a-node-s-snmp-community-comes-",
+          "kind": "added",
+          "title": "See where a node's SNMP community comes from",
+          "description": "A new `/inventory/nodes/{node_id}/snmp-community-source` endpoint tells whether a node uses its own community, its site's, or the default. It never returns the community itself.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#200",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-vault-is-connected-from-environment-vari",
+          "kind": "added",
+          "title": "Vault is connected from environment variables",
+          "description": "If `VAULT_ADDR` is set together with `VAULT_TOKEN`, or with `VAULT_ROLE_ID` and `VAULT_SECRET_ID`, the backend connects to Vault at startup. Reading a Vault-backed credential while Vault is unreachable now returns a 503 error that says so.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#200",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-cisco-switches-without-a-stack-index-in-",
+          "kind": "fixed",
+          "title": "Cisco switches without a stack index in the config map render",
+          "description": "Rendering a Cisco switch whose config map did not set a stack index failed with a NoneType error. A missing stack index is now treated as 0.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#202",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.2.1",
+      "date": "2026-06-22",
+      "entries": [
+        {
+          "id": "01-cisco-aaa-groups-can-be-given-by-name",
+          "kind": "fixed",
+          "title": "Cisco AAA groups can be given by name",
+          "description": "In Cisco AAA authentication, authorization and accounting, a server group given as a plain name (a string) instead of a server group object is now accepted for both TACACS+ and RADIUS groups.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#199",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.2.0",
+      "date": "2026-06-22",
+      "entries": [
+        {
+          "id": "01-assign-an-snmp-community-to-a-site",
+          "kind": "added",
+          "title": "Assign an SNMP community to a site",
+          "description": "A credential of type `snmp_community` can now be assigned to a site, and SNMP monitoring of the site's nodes uses it. Sites without one fall back to `public`. Manage assignments under `/inventory/sites/{site_name}/credentials`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#184",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.1.0",
+      "date": "2026-06-22",
+      "entries": [
+        {
+          "id": "03-the-aaa-configuration-model-has-a-named-",
+          "kind": "changed",
+          "title": "The AAA configuration model has a named container for each area",
+          "description": "Authentication, authorization and accounting settings now sit in a named configuration container with `methods` (and `events`) inside, instead of directly under `config`. Code that read or wrote the old structure through the API must be updated.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#197",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-assign-aaa-method-lists-to-console-and-v",
+          "kind": "added",
+          "title": "Assign AAA method lists to console and VTY lines on Cisco IOS",
+          "description": "Console and VTY lines accept Cisco AAA augments for login authentication, exec authorization and command authorization. Consecutive VTY lines with identical settings are rendered as one `line vty` range.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#197",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-cisco-ios-aaa-configuration-tacacs-radiu",
+          "kind": "added",
+          "title": "Cisco IOS AAA configuration: TACACS+, RADIUS and method lists",
+          "description": "A config map can now describe AAA: TACACS+ and RADIUS servers and server groups, and authentication, authorization and accounting method lists. Cisco-specific settings are added as Cisco augments, and the Cisco IOS driver renders them.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#197",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.0.3",
+      "date": "2026-06-18",
+      "entries": [
+        {
+          "id": "01-sites-with-contacts-are-returned-without",
+          "kind": "fixed",
+          "title": "Sites with contacts are returned without validation errors",
+          "description": "Reading a site that has contacts assigned failed response validation. The contacts are now converted to the expected response shape.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#195",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "6.0.0",
+      "date": "2026-06-17",
+      "entries": [
+        {
+          "id": "03-the-device-configs-and-diff-operations-e",
+          "kind": "removed",
+          "title": "The device_configs and diff operations endpoints are gone",
+          "description": "`/operations/device_configs/...` and `/operations/diff/{id}` are removed. The list of recent changes is at `/operations/configuration/changes`, compliance is at `/operations/compliance/{node_instance_id}` and `/operations/compliance/site/{site_name}`, and the other functions moved to the node instance configuration paths.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#190",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-logical-node-responses-no-longer-include",
+          "kind": "changed",
+          "title": "Logical node responses no longer include the configuration",
+          "description": "Reading a logical node returns only its details (hostname, role, site, sequence, regions). The compiled configuration, with its compile status and errors, is now read from `/inventory/logical_nodes/{id}/configuration`. Scripts that read `configuration` from the logical node must switch.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#190",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-node-instance-configuration-is-grouped-u",
+          "kind": "changed",
+          "title": "Node instance configuration is grouped under one path",
+          "description": "The rendered configuration moved from `/inventory/node_instances/{id}/config` to `.../configuration/desired`. Collected configurations are under `.../configuration/observed/` (list, upload, `latest`, `diff` and by hash), and the comparison with intent is `.../configuration/intent_diff`.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#190",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-a-new-logical-node-has-no-site-or-sequen",
+          "kind": "changed",
+          "title": "A new logical node has no site or sequence unless you set them",
+          "description": "Creating a logical node without a site or sequence used to give it the site `HQ` and sequence 1. Both are now empty. Set them explicitly if you relied on the old defaults.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#190",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.30.0",
+      "date": "2026-06-16",
+      "entries": [
+        {
+          "id": "01-ai-analysis-of-a-configuration-change",
+          "kind": "added",
+          "title": "AI analysis of a configuration change",
+          "description": "A configuration diff can be sent to the AI assistant for an explanation, a risk assessment, or a check of whether the change moves the device toward or away from its desired state. The answer streams back in the same way as chat answers.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#189",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "08-cisco-ios-configurations-are-parsed-for-",
+          "kind": "added",
+          "title": "Cisco IOS configurations are parsed for DNS and clock settings",
+          "description": "Reading a Cisco IOS running configuration now picks up DNS servers and clock settings, and empty values are left out of the parsed result. SNMP settings are temporarily not parsed, because the earlier SNMP parsing gave invalid results.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#186",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-compare-two-collected-device-configurati",
+          "kind": "added",
+          "title": "Compare two collected device configurations line by line",
+          "description": "A new endpoint returns a line-by-line difference between two stored configurations of a node instance, identified by their hashes, with counts of added, removed and unchanged lines.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#189",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-filter-sites-by-region",
+          "kind": "added",
+          "title": "Filter sites by region",
+          "description": "The site list can be limited to the sites that belong to a given region.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#189",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-the-node-list-shows-each-node-s-role",
+          "kind": "added",
+          "title": "The node list shows each node's role",
+          "description": "Entries in the node list now include the role of the node's logical node next to hostname and site.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#189",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "09-two-more-cisco-hardware-models-are-known",
+          "kind": "added",
+          "title": "Two more Cisco hardware models are known to the driver",
+          "description": "The Cisco IOS driver now includes hardware model definitions for the c9300-4v and c9kv-uadp-8p virtual switches.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#185",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-cisco-ios-port-names-are-built-from-the-",
+          "kind": "changed",
+          "title": "Cisco IOS port names are built from the hardware model definition",
+          "description": "The Cisco IOS driver now builds front-panel port names from each hardware model's naming pattern and index offsets, and many model definitions were corrected. Check the rendered port names of existing Cisco switches after upgrading.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#182",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-the-ai-assistant-keeps-answering-when-th",
+          "kind": "changed",
+          "title": "The AI assistant keeps answering when the tool server is offline",
+          "description": "If the tool server cannot be reached, the assistant now answers without tools and tells the user the tool server is offline, instead of failing the request.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#189",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "07-vrf-membership-is-rendered-on-cisco-ios-",
+          "kind": "fixed",
+          "title": "VRF membership is rendered on Cisco IOS interfaces",
+          "description": "Interfaces that belong to a VRF now get the VRF added to their configuration, and VRFs are rendered before the interfaces that use them.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#183",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.28.2",
+      "date": "2026-06-11",
+      "entries": [
+        {
+          "id": "01-snmp-polling-is-generated-per-node-and-r",
+          "kind": "added",
+          "title": "SNMP polling is generated per node and region for telemetry agents",
+          "description": "The telemetry agent configuration now includes an SNMP input for each node, tagged with its site and region, with one block per region when a site is in several. The SNMP community is `public` for now.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#179",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-cisco-ios-port-rendering-handles-stacks-",
+          "kind": "changed",
+          "title": "Cisco IOS port rendering handles stacks and unknown models",
+          "description": "Front-panel ports of single switches and stacks are generated from the hardware model definitions, with stack members numbered in order. A hardware model without its own definition now uses a generic one, and the separate template for virtual switches is no longer chosen.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#181",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.28.1",
+      "date": "2026-06-11",
+      "entries": [
+        {
+          "id": "01-cisco-ios-driver-knows-the-port-layout-o",
+          "kind": "added",
+          "title": "Cisco IOS driver knows the port layout of about 120 Cisco models",
+          "description": "The driver now ships hardware model definitions for Catalyst 3x00, 4500, 6500, 9200, 9300 and 9500 series switches, plus some Nexus 9000, routers and industrial Ethernet switches. These are used to generate front-panel port names.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#180",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-switch-stacks-render-every-member-s-port",
+          "kind": "added",
+          "title": "Switch stacks render every member's ports on Cisco IOS",
+          "description": "When a node's asset is a cluster (a stack), the Cisco IOS driver generates the ports of each member switch from its own hardware model and numbers them by stack position.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#180",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-rendered-node-configuration-uses-the-ful",
+          "kind": "fixed",
+          "title": "Rendered node configuration uses the full asset details",
+          "description": "Rendering a node instance's configuration now uses the asset with its details already filled in, including all members of a cluster, instead of looking the asset up again.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#180",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.28.0",
+      "date": "2026-06-09",
+      "entries": [
+        {
+          "id": "02-limit-how-many-devices-the-collection-ag",
+          "kind": "added",
+          "title": "Limit how many devices the collection agent contacts at once",
+          "description": "Set `COLLECTION_MAX_CONCURRENT` on the collection agent. The default is 20 and values above 250 are lowered to 250.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#175",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-ping-monitoring-is-tagged-with-site-and-",
+          "kind": "added",
+          "title": "Ping monitoring is tagged with site and region",
+          "description": "The telemetry agent's ping inputs now carry `site` and `region` tags. A site assigned to several regions gets one ping block per region, so dashboards can group and filter on a single region.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#176",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-collection-failures-say-if-authenticatio",
+          "kind": "changed",
+          "title": "Collection failures say if authentication failed or the connection timed out",
+          "description": "When the collection agent cannot reach a Cisco IOS device, the error is reported as \"Authentication failed\" or \"Connection timed out\" instead of a generic message.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#174",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.27.0",
+      "date": "2026-06-03",
+      "entries": [
+        {
+          "id": "01-filter-nodes-by-vendor-and-operating-sys",
+          "kind": "added",
+          "title": "Filter nodes by vendor and operating system",
+          "description": "The node list can be limited to nodes whose asset has a given vendor or operating system. The filters combine with the other node filters, such as site, role or region.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#173",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.25.0",
+      "date": "2026-06-02",
+      "entries": [
+        {
+          "id": "01-sign-in-to-the-api-with-openid-connect",
+          "kind": "added",
+          "title": "Sign in to the API with OpenID Connect",
+          "description": "Configure an OIDC issuer with `set_oidc()` or the `OIDC_ISSUER_URL`, `OIDC_AUDIENCE`, `OIDC_JWKS_TTL` and `OIDC_VERIFY_SSL` environment variables. API requests must then carry a bearer token from that issuer, and the interactive API documentation offers a login. The web interface reads the sign-in settings from `/auth/config`.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#172",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-collection-runs-log-failing-devices-by-h",
+          "kind": "changed",
+          "title": "Collection runs log failing devices by hostname with an error summary",
+          "description": "After each collection run, the collection agent's log names each failed device by hostname and ends with a count of how often each error occurred.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#170",
+              "url": null
+            },
+            {
+              "label": "#171",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-collecting-configs-from-many-cisco-ios-d",
+          "kind": "fixed",
+          "title": "Collecting configs from many Cisco IOS devices at once keeps sessions separate",
+          "description": "The Cisco IOS driver kept the open SSH session in one shared field, so concurrent collections could use each other's session. Each collection now holds its own session.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#171",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.24.3",
+      "date": "2026-05-28",
+      "entries": [
+        {
+          "id": "01-region-is-now-stored-and-shown-on-collec",
+          "kind": "fixed",
+          "title": "Region is now stored and shown on collection agent match rules",
+          "description": "Creating a match rule for a collection agent with a region now keeps the region, and rules returned by the API include it. Before, the region was silently dropped.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#169",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.24.2",
+      "date": "2026-05-27",
+      "entries": [
+        {
+          "id": "01-listing-regions-no-longer-includes-sites",
+          "kind": "changed",
+          "title": "Listing regions no longer includes sites unless asked for",
+          "description": "The region list now returns regions without their sites by default, which is faster. Add `include_sites=true` to get the sites of each region.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#164",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.24.0",
+      "date": "2026-05-27",
+      "entries": [
+        {
+          "id": "02-filter-nodes-and-logical-nodes-by-region",
+          "kind": "added",
+          "title": "Filter nodes and logical nodes by region, and see their regions",
+          "description": "Nodes and logical nodes now list the regions of their site, and the node and logical node lists can be filtered with `region`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#161",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-group-sites-into-regions",
+          "kind": "added",
+          "title": "Group sites into regions",
+          "description": "Regions can be created and managed, and sites are assigned to them under region assignments. A site can belong to more than one region. Regions are listed under /inventory/regions.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#161",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-select-devices-by-region-in-collection-a",
+          "kind": "added",
+          "title": "Select devices by region in collection and telemetry agent rules",
+          "description": "Match rules for collection agents and telemetry agents have a new `region` field. A rule with a region matches the nodes at all sites in that region.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#161",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.22.0",
+      "date": "2026-05-20",
+      "entries": [
+        {
+          "id": "01-cisco-ios-devices-can-be-configured-with",
+          "kind": "added",
+          "title": "Cisco IOS devices can be configured with many more features",
+          "description": "Cisco IOS configuration rendering now covers access sessions and control policies, device sensor, DHCP snooping, SSH settings, password encryption, clock timezone, logging, ACLs and the archive feature, and gives richer SNMP output.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-augments-can-target-a-single-instance-se",
+          "kind": "changed",
+          "title": "Augments can target a single-instance setting without naming it",
+          "description": "When an augment applies to a setting that exists only once on a device, `target` may be the class itself or left out. Augments that can occur several times now require a `name`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#159",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-snmp-configuration-components-load-again",
+          "kind": "fixed",
+          "title": "SNMP configuration components load again after the model renames",
+          "description": "The SNMP components were pointing at renamed models, which raised a NameError.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#158",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.21.0",
+      "date": "2026-05-11",
+      "entries": [
+        {
+          "id": "02-snmp-community-now-holds-only-the-commun",
+          "kind": "changed",
+          "title": "SNMP community now holds only the community string",
+          "description": "Settings that used to sit on a community (view, access lists) now belong to the SNMP group. Config maps that set them on a community must be updated.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#157",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-snmp-groups-and-views-with-several-oids",
+          "kind": "added",
+          "title": "SNMP groups, and views with several OIDs",
+          "description": "SNMP configuration now has groups that tie views, users and access lists together, and one view can contain several OIDs.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#157",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.20.0",
+      "date": "2026-05-11",
+      "entries": [
+        {
+          "id": "01-apply-an-access-list-to-a-vty-line",
+          "kind": "added",
+          "title": "Apply an access list to a VTY line",
+          "description": "A VTY line in the logging configuration can now point to an IPv4 or IPv6 access list. The rendered configuration for the reference was still being completed in this release.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#155",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.19.7",
+      "date": "2026-05-08",
+      "entries": [
+        {
+          "id": "03-netflow-exporters-and-records-name-the-c",
+          "kind": "changed",
+          "title": "Netflow exporters and records name the collector they belong to",
+          "description": "In Netflow configuration an exporter and a record now point to their collector, instead of the collector listing them. Config maps that set the record or exporter on a collector must be updated.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#156",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-telemetry-agents-notice-when-nodes-are-a",
+          "kind": "changed",
+          "title": "Telemetry agents notice when nodes are added or removed",
+          "description": "Creating or deleting a node now updates the configuration revision of every telemetry agent that covers that node, so agents pick up the change without a manual edit.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#156",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-the-nodes-seen-count-on-the-icmp-overvie",
+          "kind": "fixed",
+          "title": "The nodes-seen count on the ICMP overview dashboard is counted per node",
+          "description": "The Grafana ICMP overview dashboard now counts monitored nodes grouped by node name.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#154",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.19.6",
+      "date": "2026-05-06",
+      "entries": [
+        {
+          "id": "01-removing-a-node-also-removes-its-related",
+          "kind": "fixed",
+          "title": "Removing a node also removes its related data",
+          "description": "Deleting a node now cascades to its credential links, discovered LLDP neighbours, management connections and collection agent links. LLDP neighbours that pointed at the removed node keep their entry with the remote node cleared.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#153",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.19.5",
+      "date": "2026-05-05",
+      "entries": [
+        {
+          "id": "01-filter-the-icmp-overview-dashboard-by-si",
+          "kind": "added",
+          "title": "Filter the ICMP overview dashboard by site",
+          "description": "The Grafana ICMP overview dashboard has a site selector, and the node selector only lists nodes at the chosen site.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#152",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.19.4",
+      "date": "2026-05-05",
+      "entries": [
+        {
+          "id": "01-a-grafana-sync-service-keeps-grafana-in-",
+          "kind": "added",
+          "title": "A Grafana sync service keeps Grafana in step with ACEX dashboards",
+          "description": "A new separate service, acex-grafana-sync, reads the generated dashboards and datasources from the backend and creates or updates them in a Grafana folder. Dashboards removed in ACEX are removed from that folder unless pruning is turned off.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#151",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-icmp-overview-dashboard-has-a-node-filte",
+          "kind": "changed",
+          "title": "ICMP overview dashboard has a node filter, top lists and a reachability timeline",
+          "description": "The generated ICMP overview dashboard now has a node selector, nodes-seen and nodes-up counters, latency and packet-loss bar lists, and a reachability timeline with colour thresholds.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#151",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.19.3",
+      "date": "2026-05-04",
+      "entries": [
+        {
+          "id": "01-icmp-monitoring-uses-the-built-in-ping-m",
+          "kind": "fixed",
+          "title": "ICMP monitoring uses the built-in ping method in the generated Telegraf config",
+          "description": "The ping inputs generated for ICMP monitoring now select Telegraf's native ping method.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#149",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.19.2",
+      "date": "2026-05-04",
+      "entries": [
+        {
+          "id": "01-snmp-monitoring-in-the-generated-telegra",
+          "kind": "fixed",
+          "title": "SNMP monitoring in the generated Telegraf config works without MIB files",
+          "description": "The uptime and name queries now use numeric OIDs instead of MIB names.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#148",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.19.1",
+      "date": "2026-05-03",
+      "entries": [
+        {
+          "id": "01-influxdb-v3-outputs-in-the-generated-tel",
+          "kind": "fixed",
+          "title": "InfluxDB v3 outputs in the generated Telegraf config use the correct setting",
+          "description": "The generated Telegraf configuration for an InfluxDB v3 output now writes the URL as `urls`, which is what Telegraf expects, instead of `host`.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#147",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.19.0",
+      "date": "2026-05-03",
+      "entries": [
+        {
+          "id": "02-a-telemetry-agent-service-keeps-telegraf",
+          "kind": "added",
+          "title": "A telemetry agent service keeps telegraf.conf in step with ACEX",
+          "description": "A new separate service, acex-telemetry-agent, runs beside Telegraf, polls the backend for its agent's configuration and writes the rendered telegraf.conf when the revision changes.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#146",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-telemetry-agents-report-which-configurat",
+          "kind": "added",
+          "title": "Telemetry agents report which configuration revision they applied",
+          "description": "A telemetry agent can acknowledge the configuration revision it has applied. The agent then shows the acknowledged revision and when it was acknowledged.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#146",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.18.0",
+      "date": "2026-05-03",
+      "entries": [
+        {
+          "id": "01-telemetry-agent-api-moved-to-observabili",
+          "kind": "changed",
+          "title": "Telemetry agent API moved to /observability/agents",
+          "description": "All telemetry agent endpoints moved from /inventory/telemetry_agents to /observability/agents. Update scripts and tools that call the old path.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#145",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-generated-grafana-dashboards-and-datasou",
+          "kind": "added",
+          "title": "Generated Grafana dashboards and datasources are available from the API",
+          "description": "The backend now generates an ICMP overview Grafana dashboard and datasource definitions, listed under /observability/grafana/dashboards and /observability/grafana/datasources, ready to import into Grafana.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#145",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-set-default-influxdb-outputs-once-for-al",
+          "kind": "added",
+          "title": "Set default InfluxDB outputs once for all telemetry agents",
+          "description": "A default InfluxDB output can be set with the ACEX_INFLUXDB_URL variable (plus VERSION, TOKEN, ORGANIZATION, BUCKET, DATABASE, USERNAME, PASSWORD) and is added to every telemetry agent's Telegraf configuration.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#145",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-icmp-ping-results-are-tagged-with-node-n",
+          "kind": "changed",
+          "title": "ICMP ping results are tagged with node name, node ID and site",
+          "description": "The ping measurements generated for telemetry agents now carry the node name, node ID and site as tags, so dashboards can filter on them instead of on IP address.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#145",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.17.0",
+      "date": "2026-05-01",
+      "entries": [
+        {
+          "id": "01-see-configuration-changes-across-all-dev",
+          "kind": "added",
+          "title": "See configuration changes across all devices",
+          "description": "A new list of configuration snapshots over a time window, filterable by site, role and hostname, shows each snapshot with the previous one for the same device so changes can be diffed. Available at /device_configs/.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#144",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-vendor-specific-extras-can-be-added-to-i",
+          "kind": "added",
+          "title": "Vendor-specific extras can be added to interfaces and services",
+          "description": "Config maps can add Cisco-only settings (device tracking policy, service policy, VTP primary server) and a Juniper SNMP community client list. Drivers that do not support an extra ignore it.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#144",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-node-instance-responses-leave-out-empty-",
+          "kind": "changed",
+          "title": "Node instance responses leave out empty fields",
+          "description": "Node instance API responses no longer include fields that have no value. Clients that expect those fields to be present with null must tolerate them missing.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#144",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.16.0",
+      "date": "2026-04-29",
+      "entries": [
+        {
+          "id": "01-configure-dns-servers-on-devices",
+          "kind": "added",
+          "title": "Configure DNS servers on devices",
+          "description": "A configuration can now include DNS servers, and a DNS example config map is included.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#143",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.15.0",
+      "date": "2026-04-29",
+      "entries": [
+        {
+          "id": "01-cisco-ios-interface-templates-render-sto",
+          "kind": "fixed",
+          "title": "Cisco IOS interface templates render storm control and portfast correctly",
+          "description": "Storm-control levels of whole thousands are written as 'k' values, and a portfast setting is available on interface templates.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#142",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.14.0",
+      "date": "2026-04-29",
+      "entries": [
+        {
+          "id": "01-reusable-interface-templates",
+          "kind": "added",
+          "title": "Reusable interface templates",
+          "description": "A named set of interface settings (switchport mode, VLANs, storm control, spanning-tree options) can be defined once, and ports, LAGs, SVIs, loopbacks and subinterfaces can point to it. Cisco IOS devices render them as templates.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#141",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.13.2",
+      "date": "2026-04-28",
+      "entries": [
+        {
+          "id": "01-collection-agents-get-a-driver-for-nodes",
+          "kind": "fixed",
+          "title": "Collection agents get a driver for nodes on clustered assets",
+          "description": "Nodes that run on an asset cluster were handed to collection agents without a driver, so no configuration was collected from them. The driver is now looked up from the cluster.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#140",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.13.1",
+      "date": "2026-04-28",
+      "entries": [
+        {
+          "id": "01-netflow-collectors-keep-references-to-th",
+          "kind": "changed",
+          "title": "Netflow collectors keep references to their exporter and record",
+          "description": "In Netflow configuration the collector now refers to its exporter and record by reference. The pull request does not say what users must change.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#139",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.13.0",
+      "date": "2026-04-28",
+      "entries": [
+        {
+          "id": "01-configure-netflow-exporters-records-and-",
+          "kind": "added",
+          "title": "Configure NetFlow exporters, records and collectors",
+          "description": "Configurations can now define NetFlow exporters, records and collectors, and an interface can opt out of NetFlow by naming the collector. Cisco IOS devices render the result.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#138",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.11.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-acex-encryption-key-must-be-set-before-t",
+          "kind": "changed",
+          "title": "ACEX_ENCRYPTION_KEY must be set before the backend starts",
+          "description": "Credentials are stored encrypted, so the backend now needs an encryption key in the ACEX_ENCRYPTION_KEY environment variable and fails to start without one.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-keep-credential-secrets-in-hashicorp-vau",
+          "kind": "added",
+          "title": "Keep credential secrets in HashiCorp Vault",
+          "description": "A credential can use Vault as its source, with the secret read from a Vault path instead of stored in the ACEX database. Vault is configured in the application code with a token or AppRole.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-lldp-neighbours-can-be-uploaded-and-brow",
+          "kind": "added",
+          "title": "LLDP neighbours can be uploaded and browsed",
+          "description": "Neighbour discovery results are stored per node, with a topology view, by-site lookup and reverse lookup under /operations/lldp_neighbors/. Remote devices are matched to nodes by hostname.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-store-device-credentials-and-assign-them",
+          "kind": "added",
+          "title": "Store device credentials and assign them to nodes",
+          "description": "Credentials of several types (username and password, enable password, token, SNMP community, SNMPv3, SSH key) can be created and assigned to nodes. Secret values are hidden in normal responses, and collection agents receive the credentials of their nodes.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#135",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.10.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-config-agents-are-now-called-collection-",
+          "kind": "changed",
+          "title": "Config agents are now called collection agents",
+          "description": "The /inventory/config_agents endpoints are now /inventory/collection_agents, and the agent has its own acknowledged revision. Agents created under the old name are not carried over by this change, so they must be created again.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#133",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-collection-agents-confirm-the-manifest-r",
+          "kind": "added",
+          "title": "Collection agents confirm the manifest revision they applied",
+          "description": "A collection agent can acknowledge the manifest revision it has applied, and the agent then shows the acknowledged revision and time.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#133",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-describe-small-services-running-on-a-dev",
+          "kind": "added",
+          "title": "Describe small services running on a device",
+          "description": "Configurations can now include a Services setting for small services on a device, with an example config map.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#134",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.9.1",
+      "date": "2026-04-24",
+      "entries": [
+        {
+          "id": "01-uploaded-device-configurations-are-clean",
+          "kind": "changed",
+          "title": "Uploaded device configurations are cleaned and secrets masked before storing",
+          "description": "When a device configuration is uploaded, the driver first removes data that is not configuration intent and masks secrets, then the result is stored and hashed.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#131",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-a-reverted-device-configuration-is-store",
+          "kind": "fixed",
+          "title": "A reverted device configuration is stored as a new snapshot",
+          "description": "An upload is now only rejected as unchanged when it equals the latest stored configuration. Before, matching any older snapshot was rejected, so a change back to an earlier configuration was never recorded.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#131",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.9.0",
+      "date": "2026-04-24",
+      "entries": [
+        {
+          "id": "02-driver-transports-fetch-and-send-configu",
+          "kind": "changed",
+          "title": "Driver transports fetch and send configuration",
+          "description": "The transport interface for drivers now has get_config and send_config (and an optional execute), replacing connect, send, verify and rollback. Driver authors must update their transports.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#130",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-a-config-agent-collects-running-configur",
+          "kind": "added",
+          "title": "A config agent collects running configurations from devices",
+          "description": "A new separate service, the config agent, uses drivers to read the running configuration from devices and uploads it to ACEX. It needs ACEX_API_URL and CONFIG_AGENT_ID. Renamed collection agent in 5.10.0.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#130",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.8.0",
+      "date": "2026-04-24",
+      "entries": [
+        {
+          "id": "03-the-config-backup-telemetry-capability-i",
+          "kind": "removed",
+          "title": "The config_backup telemetry capability is gone",
+          "description": "Telemetry agents can no longer be given the config_backup capability; configuration collection is handled by config agents instead.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#129",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-config-agents-choose-which-devices-an-ag",
+          "kind": "added",
+          "title": "Config agents: choose which devices an agent collects from",
+          "description": "Config agents can be created and given devices, either one by one or by match rules on site, role, vendor, OS and status, with an interval and an on/off switch. An agent reads its device list from a manifest. Renamed collection agents in 5.10.0.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#129",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-telemetry-agents-show-when-they-last-fet",
+          "kind": "added",
+          "title": "Telemetry agents show when they last fetched their configuration",
+          "description": "A telemetry agent now shows the time of its last configuration poll.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#129",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.7.0",
+      "date": "2026-04-23",
+      "entries": [
+        {
+          "id": "02-open-an-ssh-session-to-a-node-from-the-c",
+          "kind": "added",
+          "title": "Open an SSH session to a node from the command line",
+          "description": "The CLI has a node connect command that looks up the node's management connection and starts ssh to its address. Only SSH management connections are supported.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#126",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-telemetry-agents-generate-telegraf-confi",
+          "kind": "added",
+          "title": "Telemetry agents: generate Telegraf configuration for chosen devices",
+          "description": "Telemetry agents can be created with capabilities, devices (by hand or by match rules) and InfluxDB outputs, and serve a generated Telegraf configuration with a revision number that changes when the setup changes. Moved to /observability/agents in 5.18.0.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#127",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.6.4",
+      "date": "2026-04-22",
+      "entries": [
+        {
+          "id": "01-asking-for-a-node-that-does-not-exist-re",
+          "kind": "fixed",
+          "title": "Asking for a node that does not exist returns \"not found\"",
+          "description": "A request for a node instance id that does not exist now gets a 404 response instead of an error.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#125",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-node-details-no-longer-fail-when-the-nod",
+          "kind": "fixed",
+          "title": "Node details no longer fail when the node has no matching asset",
+          "description": "A node whose asset cannot be found is returned with an empty asset instead of failing, and an asset is marked with type 'asset'.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#125",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.6.3",
+      "date": "2026-04-22",
+      "entries": [
+        {
+          "id": "01-nodes-on-asset-clusters-show-cluster-det",
+          "kind": "fixed",
+          "title": "Nodes on asset clusters show cluster details in node responses",
+          "description": "Node responses now return the asset cluster for nodes that run on one, and node lists show the vendor, OS and driver of cluster nodes. Before they were looked up as single assets.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#124",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.6.2",
+      "date": "2026-04-22",
+      "entries": [
+        {
+          "id": "02-the-node-show-command-also-shows-the-man",
+          "kind": "changed",
+          "title": "The node show command also shows the management address, port and protocol",
+          "description": "The CLI node show command now fetches the node by id and adds its management IP, port and protocol when a management connection exists.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#122",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-node-views-no-longer-fill-in-placeholder",
+          "kind": "fixed",
+          "title": "Node views no longer fill in placeholder hostname, role and site",
+          "description": "Fields that have no value in a node response are now empty instead of showing example defaults such as hostname R1, role core and site HQ.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#122",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.6.0",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "01-cisco-ios-rendering-of-aaa-server-groups",
+          "kind": "added",
+          "title": "Cisco IOS rendering of AAA server groups, TACACS+/RADIUS servers and VTP",
+          "description": "Cisco IOS devices now get AAA server groups, TACACS+ and RADIUS servers, and VTP domain, mode, version and password rendered from the configuration. Trunk allowed VLAN lines are no longer over-indented.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#118",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-desired-configuration-show-no-longer-pri",
+          "kind": "fixed",
+          "title": "Desired configuration show no longer prints a timing debug line",
+          "description": "The CLI command that shows the desired configuration no longer ends with a debug line of timings.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#118",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.5.0",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "01-configure-cdp-on-devices-and-interfaces",
+          "kind": "added",
+          "title": "Configure CDP on devices and interfaces",
+          "description": "A configuration can now include global CDP settings, and an interface can have CDP enabled. Cisco IOS output follows the settings.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#117",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.4.0",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "04-the-command-line-has-list-and-show-comma",
+          "kind": "changed",
+          "title": "The command line has list and show commands with filters and output formats",
+          "description": "The CLI commands for assets, logical nodes, nodes and drivers now share list and show commands with filters, paging and table, JSON or CSV output, and config commands moved under node config. Update scripts that use the old command names.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-a-management-connection-can-be-created-w",
+          "kind": "fixed",
+          "title": "A management connection can be created without an id in the path",
+          "description": "Creating a management connection is now a POST to /management_connections/ rather than to a path that required an id.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#116",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-configure-lldp-on-devices-and-interfaces",
+          "kind": "added",
+          "title": "Configure LLDP on devices and interfaces",
+          "description": "A configuration can now include more LLDP settings, and an interface with lldp_enabled is added to the LLDP configuration. The old lldp_enabled field on Ethernet interfaces was removed in favour of this.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#116",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-node-lists-show-vendor-os-and-driver-for",
+          "kind": "added",
+          "title": "Node lists show vendor, OS and driver for each node",
+          "description": "Each node in the node list now carries the vendor, OS and driver (NED) of its asset.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#116",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.3.2",
+      "date": "2026-04-20",
+      "entries": [
+        {
+          "id": "01-configure-dhcp-snooping-and-dhcp-relay",
+          "kind": "added",
+          "title": "Configure DHCP snooping and DHCP relay",
+          "description": "Configurations can now define DHCP snooping and DHCP relay servers (IP helper). An interface can be trusted for snooping or point to a relay server.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#114",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.3.1",
+      "date": "2026-04-20",
+      "entries": [
+        {
+          "id": "01-reconcile-on-a-node-with-no-parsed-confi",
+          "kind": "fixed",
+          "title": "Reconcile on a node with no parsed configuration gives a clear error",
+          "description": "When no parsed running configuration exists for a node, the reconcile request answers 404 and says the device may have no driver assigned or the driver failed to parse the configuration.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#113",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.3.0",
+      "date": "2026-04-17",
+      "entries": [
+        {
+          "id": "01-build-config-maps-from-a-library-of-conf",
+          "kind": "added",
+          "title": "Build config maps from a library of configuration components",
+          "description": "The API lists the available configuration components with their fields, generates the Python code of a config map from a chosen set of components, and can create a config map from a device's observed configuration, either only what differs from the desired configuration or everything. Available under /config_components.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#112",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.2.5",
+      "date": "2026-04-16",
+      "entries": [
+        {
+          "id": "01-configuration-model-gains-vtp-and-per-in",
+          "kind": "added",
+          "title": "Configuration model gains VTP and per-interface redirect and proxy ARP settings",
+          "description": "The configuration model can now describe VTP settings and enabling or disabling CDP, LLDP, redirects and proxy ARP on an interface. Whether a device driver renders them depends on the driver; Cisco IOS rendering of VTP followed in 5.6.0.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#111",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.2.3",
+      "date": "2026-04-14",
+      "entries": [
+        {
+          "id": "01-cisco-ios-stacks-render-interfaces-for-e",
+          "kind": "added",
+          "title": "Cisco IOS stacks render interfaces for every stack member",
+          "description": "Switch stacks on Cisco IOS now get interface names for each stack member, using the maximum port index of each hardware model.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#110",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-asset-responses-no-longer-include-an-emp",
+          "kind": "changed",
+          "title": "Asset responses no longer include an empty meta_data field",
+          "description": "The meta_data field was removed from asset responses, and cluster members are returned with the same fields as single assets.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#110",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-the-ai-assistant-model-can-be-chosen",
+          "kind": "changed",
+          "title": "The AI assistant model can be chosen",
+          "description": "ai_ops now takes a model setting instead of always using one fixed model, and reasoning text is no longer included in streamed answers.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#109",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.2.2",
+      "date": "2026-04-08",
+      "entries": [
+        {
+          "id": "01-asset-clusters-can-be-renamed-and-given-",
+          "kind": "changed",
+          "title": "Asset clusters can be renamed and given a driver with the same update",
+          "description": "Updating an asset cluster now takes an object with name, ned_id and asset_ids, each optional, instead of a bare list of asset ids. Scripts that send a plain list must change. Cluster responses also include ned_id.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#108",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-vlan-interfaces-render-with-the-right-vl",
+          "kind": "fixed",
+          "title": "VLAN interfaces render with the right VLAN number on Cisco IOS",
+          "description": "The interface vlan line in rendered Cisco IOS configuration used the whole attribute instead of the VLAN number.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#104",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.2.1",
+      "date": "2026-04-08",
+      "entries": [
+        {
+          "id": "01-nodes-on-asset-clusters-are-recognised-a",
+          "kind": "fixed",
+          "title": "Nodes on asset clusters are recognised after the asset_cluster rename",
+          "description": "Node lookup now uses the asset_cluster value, so nodes that run on an asset cluster are handled again.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#107",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.2.0",
+      "date": "2026-04-08",
+      "entries": [
+        {
+          "id": "01-asset-reference-type-assetcluster-is-now",
+          "kind": "changed",
+          "title": "Asset reference type \"assetcluster\" is now \"asset_cluster\"",
+          "description": "Nodes that run on an asset cluster now use the asset_ref_type value asset_cluster. Scripts that send or compare against assetcluster must be updated.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#106",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.1.0",
+      "date": "2026-04-07",
+      "entries": [
+        {
+          "id": "01-filter-logical-nodes-by-whether-they-are",
+          "kind": "added",
+          "title": "Filter logical nodes by whether they are assigned",
+          "description": "The logical node list accepts an assigned filter to show only nodes that are, or are not, assigned to a node instance.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#105",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "5.0.0",
+      "date": "2026-04-07",
+      "entries": [
+        {
+          "id": "02-filter-assets-by-whether-they-are-assign",
+          "kind": "added",
+          "title": "Filter assets by whether they are assigned",
+          "description": "The asset list accepts an assigned filter to show only assets that are, or are not, used by a node.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#103",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-nodes-have-a-status-and-creation-and-upd",
+          "kind": "added",
+          "title": "Nodes have a status and creation and update times",
+          "description": "A node now has a status (planned, init, active or decommissioned), starting as planned, plus created and updated times. The node list can be filtered by status.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#103",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.11.4",
+      "date": "2026-04-07",
+      "entries": [
+        {
+          "id": "01-single-value-settings-are-stored-as-plai",
+          "kind": "fixed",
+          "title": "Single-value settings are stored as plain values in the configuration",
+          "description": "Settings that hold one value, such as a hostname, were stored in the composed configuration wrapped in an extra object; they are now stored as plain values.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#102",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.11.3",
+      "date": "2026-04-06",
+      "entries": [
+        {
+          "id": "01-filter-assets-by-serial-number",
+          "kind": "added",
+          "title": "Filter assets by serial number",
+          "description": "The asset list accepts a serial_number filter.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#101",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.11.2",
+      "date": "2026-04-06",
+      "entries": [
+        {
+          "id": "01-observed-configuration-of-a-node-with-no",
+          "kind": "fixed",
+          "title": "Observed configuration of a node with no driver no longer crashes",
+          "description": "Reading the parsed configuration of a node that has no driver assigned now returns empty content instead of failing.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#100",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.11.1",
+      "date": "2026-04-06",
+      "entries": [
+        {
+          "id": "01-inventory-lists-return-a-page-object-wit",
+          "kind": "changed",
+          "title": "Inventory lists return a page object with items, total, limit and offset",
+          "description": "The asset, logical node, node, site and contact lists now answer with an object holding items, total, limit and offset instead of a bare list. Scripts that read the list directly must use items.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#99",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-sites-and-contacts-lists-can-be-paged",
+          "kind": "added",
+          "title": "Sites and contacts lists can be paged",
+          "description": "The site and contact lists accept limit and offset like the other inventory lists.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#99",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.9.0",
+      "date": "2026-04-05",
+      "entries": [
+        {
+          "id": "01-page-through-assets-logical-nodes-and-no",
+          "kind": "added",
+          "title": "Page through assets, logical nodes and nodes",
+          "description": "The asset, logical node and node lists accept limit and offset, with a default of 100 items per request. Lists longer than 100 are cut off unless you page.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#97",
+              "url": null
+            },
+            {
+              "label": "#98",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.8.0",
+      "date": "2026-04-05",
+      "entries": [
+        {
+          "id": "01-check-how-well-a-node-or-a-site-matches-",
+          "kind": "added",
+          "title": "Check how well a node or a site matches its desired configuration",
+          "description": "The health endpoints report, for a node or a whole site, how much of the desired configuration is present in the observed configuration, with counts and a compliance percentage. Available at /health/node_instance/{id} and /health/site/{name}.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#96",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.7.0",
+      "date": "2026-04-02",
+      "entries": [
+        {
+          "id": "01-sites-and-contacts",
+          "kind": "added",
+          "title": "Sites and contacts",
+          "description": "Sites (with address, city, country and coordinates) and contacts can be created and listed, and contacts are assigned to sites. A site shows its contacts.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#95",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.6.1",
+      "date": "2026-03-31",
+      "entries": [
+        {
+          "id": "01-node-details-work-again-after-assets-bec",
+          "kind": "fixed",
+          "title": "Node details work again after assets became a service",
+          "description": "Looking up a node's asset now waits for the asset service, which fixes node details that did not resolve the asset after the previous release.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#94",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.5.0",
+      "date": "2026-03-31",
+      "entries": [
+        {
+          "id": "01-filter-assets-and-logical-nodes",
+          "kind": "added",
+          "title": "Filter assets and logical nodes",
+          "description": "The asset list can be filtered by vendor, OS, hardware model and driver, and the logical node list by role, site, sequence and hostname.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#92",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.4.0",
+      "date": "2026-03-31",
+      "entries": [
+        {
+          "id": "02-cisco-ios-observed-configuration-include",
+          "kind": "added",
+          "title": "Cisco IOS observed configuration includes L3 interfaces and SNMP",
+          "description": "The Cisco IOS driver now reads L3 interfaces and SNMP settings from a device's running configuration, so they appear in the observed configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#88",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-filter-nodes-by-site-hostname-logical-no",
+          "kind": "added",
+          "title": "Filter nodes by site, hostname, logical node and asset",
+          "description": "The node list can be filtered by site, hostname, logical node id and asset id.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#91",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-cisco-ios-rendering-of-interfaces-and-re",
+          "kind": "fixed",
+          "title": "Cisco IOS rendering of interfaces and remote logging servers",
+          "description": "Interface and remote logging server sections of the rendered Cisco IOS configuration used keys that no longer existed and are corrected.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#89",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.3.1",
+      "date": "2026-03-26",
+      "entries": [
+        {
+          "id": "03-cisco-ios-observed-configuration-include",
+          "kind": "added",
+          "title": "Cisco IOS observed configuration includes system, SSH, NTP, L3 interfaces",
+          "description": "The Cisco IOS driver parses system settings, SSH, NTP and L3 interfaces from the running configuration, which allows them to be compared with the desired configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#85",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-node-list-shows-hostname-and-site",
+          "kind": "added",
+          "title": "Node list shows hostname and site",
+          "description": "Each node in the node list now carries the hostname and site of its logical node.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#87",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-differences-between-desired-and-observed",
+          "kind": "changed",
+          "title": "Differences between desired and observed configuration ignore metadata",
+          "description": "The comparison no longer counts metadata attached to values, so only real configuration differences show up.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#86",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.3.0",
+      "date": "2026-03-19",
+      "entries": [
+        {
+          "id": "02-logging-settings-are-nested-under-typed-",
+          "kind": "changed",
+          "title": "Logging settings are nested under typed containers in the configuration",
+          "description": "Remote servers, VTY lines and log files now sit one level deeper in the composed configuration, and the Cisco IOS template follows. Code that reads the composed configuration by path must follow the new paths.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#83",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-cisco-ios-rendering-works-when-no-ntp-se",
+          "kind": "fixed",
+          "title": "Cisco IOS rendering works when no NTP servers are defined",
+          "description": "A configuration without NTP servers no longer fails to render.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#82",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.1",
+      "date": "2026-03-11",
+      "entries": [
+        {
+          "id": "01-see-the-difference-between-desired-and-o",
+          "kind": "added",
+          "title": "See the difference between desired and observed configuration for a node",
+          "description": "A new endpoint at /operations/diff/{node_instance_id} compares the desired configuration with the latest observed, parsed configuration and lists what is added, removed or changed.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#79",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-configurations-with-empty-snmp-settings-",
+          "kind": "fixed",
+          "title": "Configurations with empty SNMP settings no longer cause errors",
+          "description": "An empty SNMP section is now an empty object rather than an empty dictionary, which caused errors.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#78",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.0",
+      "date": "2026-02-27",
+      "entries": [
+        {
+          "id": "01-configure-ipv4-and-ipv6-access-lists",
+          "kind": "added",
+          "title": "Configure IPv4 and IPv6 access lists",
+          "description": "Configurations can now define IPv4 and IPv6 ACLs with entries and actions. IP address and network values are stored as text.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#40",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.8",
+      "date": "2026-02-26",
+      "entries": [
+        {
+          "id": "01-more-aaa-settings-server-groups-accounti",
+          "kind": "added",
+          "title": "More AAA settings: server groups, accounting events and references",
+          "description": "AAA configuration now covers TACACS+ and RADIUS under server groups, accounting events, an enabled setting, and source interface references.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#39",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.6",
+      "date": "2026-02-25",
+      "entries": [
+        {
+          "id": "01-apply-the-planned-changes-to-a-node-from",
+          "kind": "added",
+          "title": "Apply the planned changes to a node from the command line",
+          "description": "The CLI node config diff has an apply command that shows the commands needed to bring a node in line with its desired configuration and asks for confirmation before sending them. The plan command now shows the same patch commands.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#72",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-configuration-differences-are-shown-in-a",
+          "kind": "changed",
+          "title": "Configuration differences are shown in a new format",
+          "description": "The CLI diff output was reworked around a new differ, so added, removed and changed values are listed differently than before.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#70",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-cisco-ios-commands-are-rendered-in-the-s",
+          "kind": "fixed",
+          "title": "Cisco IOS commands are rendered in the same order as the running configuration",
+          "description": "Rendered Cisco IOS configuration now follows the order used in a running configuration, writes the VLAN of an SSH source interface in upper case, and no longer includes fixed banner commands. This reduces false differences.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#67",
+              "url": null
+            },
+            {
+              "label": "#68",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-spanning-tree-appears-in-the-configurati",
+          "kind": "fixed",
+          "title": "Spanning tree appears in the configuration only when defined",
+          "description": "When no spanning tree protocol is defined, nothing is added to the composed configuration; when one is defined, only that protocol is.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#69",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.5",
+      "date": "2026-02-20",
+      "entries": [
+        {
+          "id": "01-virtual-cisco-ios-devices-render-static-",
+          "kind": "added",
+          "title": "Virtual Cisco IOS devices render static routes, negotiation and banners",
+          "description": "The template used for virtual Cisco IOS devices now handles static routes and interface negotiation, writes login and MOTD banners, orders commands to allow a cleaner diff, and no longer fails on missing data.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#65",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.4",
+      "date": "2026-02-19",
+      "entries": [
+        {
+          "id": "01-configure-login-and-motd-banners",
+          "kind": "added",
+          "title": "Configure login and MOTD banners",
+          "description": "A configuration can now include a login banner and a message-of-the-day banner, with an example config map.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#63",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.3",
+      "date": "2026-02-19",
+      "entries": [
+        {
+          "id": "01-configure-static-routes",
+          "kind": "added",
+          "title": "Configure static routes",
+          "description": "A configuration can now include static routes with next hops, with an example config map.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#61",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-set-negotiation-on-physical-interfaces",
+          "kind": "added",
+          "title": "Set negotiation on physical interfaces",
+          "description": "A physical interface can now have its negotiation setting configured, with an example.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#61",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.2",
+      "date": "2026-02-17",
+      "entries": [
+        {
+          "id": "01-virtual-cisco-ios-switches-render-with-t",
+          "kind": "added",
+          "title": "Virtual Cisco IOS switches render with their own template",
+          "description": "Nodes whose asset has hardware model vios_l2 are rendered with a template made for virtual Cisco switches, and the driver checks that it receives a composed configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "d931ab7",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-a-failed-render-writes-the-full-error-tr",
+          "kind": "changed",
+          "title": "A failed render writes the full error trace to the backend log",
+          "description": "When rendering a configuration fails, the backend log now includes the whole traceback instead of only the error text. The rendered configuration is still empty in that case.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "f6982b1",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.1",
+      "date": "2026-02-13",
+      "entries": [
+        {
+          "id": "03-drivers-receive-the-composed-configurati",
+          "kind": "changed",
+          "title": "Drivers receive the composed configuration instead of the logical node",
+          "description": "The backend now passes the composed configuration and the asset to the driver's render method. Driver authors must update the signature.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "9967b36",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-cisco-ios-configurations-can-include-svi",
+          "kind": "added",
+          "title": "Cisco IOS configurations can include SVIs",
+          "description": "Switched virtual interfaces (VLAN interfaces) are now rendered for Cisco IOS devices.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "5a80c9a",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-rendered-cisco-ios-configuration-no-long",
+          "kind": "fixed",
+          "title": "Rendered Cisco IOS configuration no longer starts with blank space",
+          "description": "Leading whitespace was removed from the start of rendered Cisco IOS configurations.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "5f0af51",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.0",
+      "date": "2026-02-13",
+      "entries": [
+        {
+          "id": "01-turn-a-configuration-difference-into-dev",
+          "kind": "added",
+          "title": "Turn a configuration difference into device commands",
+          "description": "A difference between desired and observed configuration can now be rendered as the commands that would fix it, and the CLI diff plan uses this for Cisco IOS devices.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#52",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.0.0",
+      "date": "2026-02-12",
+      "entries": [
+        {
+          "id": "01-configuration-models-are-imported-from-a",
+          "kind": "changed",
+          "title": "Configuration models are imported from acex_devkit, not the backend",
+          "description": "The configuration and node models moved into a new acex-devkit package that the backend, client, CLI and drivers share. Config maps, plugins and drivers that import models from the backend must import them from acex_devkit instead.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "9168cbb",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-show-differences-between-desired-and-obs",
+          "kind": "added",
+          "title": "Show differences between desired and observed configuration in the CLI",
+          "description": "The CLI node command can now print a formatted difference between a node's desired and observed configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#49",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.5.7",
+      "date": "2026-02-10",
+      "entries": [
+        {
+          "id": "01-get-the-latest-device-configuration-pars",
+          "kind": "added",
+          "title": "Get the latest device configuration parsed into the data model",
+          "description": "The latest stored configuration of a node can be requested as rendered text or, with output set to parsed, as a structured configuration produced by the node's driver.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#44",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.5.6",
+      "date": "2026-02-09",
+      "entries": [
+        {
+          "id": "05-cisco-ios-stack-index-starts-at-0",
+          "kind": "changed",
+          "title": "Cisco IOS stack index starts at 0",
+          "description": "The stack index used for interface names on Cisco IOS now starts counting from 0, in line with module and port index counting. Config maps that used 1-based stack indexes need adjusting.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#41",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-a-command-line-tool-for-assets-nodes-and",
+          "kind": "added",
+          "title": "A command line tool for assets, nodes and configurations",
+          "description": "The acex command can save named backend contexts, list assets and nodes, and show desired and observed configurations, differences and backups for a node.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#35",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-cisco-ios-running-configurations-can-be-",
+          "kind": "added",
+          "title": "Cisco IOS running configurations can be parsed into the data model",
+          "description": "The Cisco IOS driver can read a device's running configuration (hostname, physical and LAG interfaces) into the same structure used for desired configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#42",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-configure-aaa-with-tacacs-and-radius",
+          "kind": "added",
+          "title": "Configure AAA with TACACS+ and RADIUS",
+          "description": "A configuration can now include AAA settings with TACACS+ and RADIUS servers, with example config maps.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#38",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-configure-snmp-on-devices",
+          "kind": "added",
+          "title": "Configure SNMP on devices",
+          "description": "A configuration can now describe SNMP: server, communities, users, views and trap events, with example config maps.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#33",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.5.4",
+      "date": "2026-01-28",
+      "entries": [
+        {
+          "id": "01-configure-spanning-tree",
+          "kind": "added",
+          "title": "Configure spanning tree",
+          "description": "A configuration can now describe spanning tree protocols (such as RSTP and Rapid PVST) and per-interface spanning tree options, with example config maps.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#26",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-the-backend-no-longer-prints-a-warning-a",
+          "kind": "fixed",
+          "title": "The backend no longer prints a warning about a model attribute at startup",
+          "description": "A model attribute on management connections that caused warnings when the backend started was corrected.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#32",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.5.2",
+      "date": "2026-01-19",
+      "entries": [
+        {
+          "id": "01-drivers-are-no-longer-installed-automati",
+          "kind": "changed",
+          "title": "Drivers are no longer installed automatically",
+          "description": "The backend now only looks for drivers that are already installed and loads them. Install every driver you need yourself, for example from a requirements file; the default Cisco IOS driver is no longer fetched at startup.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#28",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-10g-interfaces-on-cisco-ios",
+          "kind": "added",
+          "title": "10G interfaces on Cisco IOS",
+          "description": "Interfaces with 10 Gb/s speed are named TenGigabitEthernet on Cisco IOS, and interface numbering with a module index uses the module in the name.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#28",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.5.1",
+      "date": "2026-01-16",
+      "entries": [
+        {
+          "id": "01-node-instance-responses-have-a-defined-r",
+          "kind": "changed",
+          "title": "Node instance responses have a defined response model",
+          "description": "The node instance endpoints now declare a proper response model, so the API schema describes the fields returned.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#29",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.5.0",
+      "date": "2026-01-15",
+      "entries": [
+        {
+          "id": "01-cisco-ios-output-follows-the-device-os-v",
+          "kind": "changed",
+          "title": "Cisco IOS output follows the device OS version and defines VRFs",
+          "description": "Rendered Cisco IOS configuration now writes the OS version of the asset, defines non-global VRFs, and sets fixed lines such as timestamps, aaa new-model and vtp mode off. Review the rendered output before pushing it to existing devices.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "59b8929",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.4.9",
+      "date": "2026-01-09",
+      "entries": [
+        {
+          "id": "01-cisco-ios-interface-names-support-module",
+          "kind": "added",
+          "title": "Cisco IOS interface names support modules",
+          "description": "Interfaces on switches with modules are numbered with the module index, counting from 0, and the VLAN section is placed where a running configuration has it. The default driver version was raised to 0.0.3.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "b49737f",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.4.7",
+      "date": "2026-01-08",
+      "entries": [
+        {
+          "id": "03-drivers-can-be-downloaded-through-the-ap",
+          "kind": "added",
+          "title": "Drivers can be downloaded through the API",
+          "description": "Installed drivers can be downloaded as a package from /neds/download/{filename}, so that the client can fetch the drivers it needs to render locally.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#21",
+              "url": null
+            },
+            {
+              "label": "#23",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-link-aggregation-interfaces",
+          "kind": "added",
+          "title": "Link aggregation interfaces",
+          "description": "Configurations can describe LAG (port-channel) interfaces, and the Cisco IOS driver renders etherchannels. The backend side of membership by reference is only partly enabled in this release.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#22",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-cisco-ios-rendering-works-with-the-new-c",
+          "kind": "fixed",
+          "title": "Cisco IOS rendering works with the new configuration model",
+          "description": "The Cisco IOS driver can read the composed configuration in its new format, and no longer breaks when SSH or VRF interface references are not defined.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#22",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.4.6",
+      "date": "2025-12-29",
+      "entries": [
+        {
+          "id": "01-drivers-are-separate-packages-that-the-b",
+          "kind": "changed",
+          "title": "Drivers are separate packages that the backend installs at startup",
+          "description": "The Cisco IOS and Junos drivers moved out of the backend into their own packages. At startup the backend now installs the default Cisco IOS driver from PyPI; other drivers, including Junos, are no longer bundled.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#19",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-drivers-can-be-listed-and-downloaded-thr",
+          "kind": "added",
+          "title": "Drivers can be listed and downloaded through the API",
+          "description": "The /neds endpoints list drivers by id and return a driver package for download.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#19",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-references-in-the-configuration-are-stor",
+          "kind": "changed",
+          "title": "References in the configuration are stored as pointers",
+          "description": "References between parts of a configuration are now stored as a pointer with metadata instead of a copy of the name and path.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "742dc8e",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.4.4",
+      "date": "2025-12-11",
+      "entries": [
+        {
+          "id": "02-asset-cluster-members-are-returned-in-or",
+          "kind": "fixed",
+          "title": "Asset cluster members are returned in order",
+          "description": "Assets in a cluster are listed in their stack order with a cluster_index, and the cluster update is sent to /asset_clusters/{id} instead of /asset_clusters/.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "34fe558",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-delete-an-asset-cluster",
+          "kind": "added",
+          "title": "Delete an asset cluster",
+          "description": "An asset cluster can be deleted with DELETE /inventory/asset_clusters/{id}.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "7712e6c",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.4.3",
+      "date": "2025-12-11",
+      "entries": [
+        {
+          "id": "01-file-logging-and-openconfig-style-loggin",
+          "kind": "added",
+          "title": "File logging and OpenConfig-style logging settings",
+          "description": "Configurations can define logging to a file, and remote logging servers use source_address instead of source_interface, following the OpenConfig names. Config maps that set source_interface on a logging server must be updated.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "b114393",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-asset-cluster-endpoints-moved-under-inve",
+          "kind": "changed",
+          "title": "Asset cluster endpoints moved under /inventory",
+          "description": "The asset cluster endpoints now live under /inventory/asset_clusters/ instead of /assetclusters/asset_clusters/, and use {id} in the path.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "c058a87",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-trunk-vlans-speed-and-mtu-on-interfaces",
+          "kind": "added",
+          "title": "Trunk VLANs, speed and MTU on interfaces",
+          "description": "Physical interfaces can now be given trunk VLANs, a speed and an MTU in a configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "e0c73ae",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.4.2",
+      "date": "2025-12-09",
+      "entries": [
+        {
+          "id": "02-physical-ports-are-called-front-panel-po",
+          "kind": "changed",
+          "title": "Physical ports are called front panel ports, and a management port exists",
+          "description": "The physical interface component is now FrontpanelPort, which can also be placed in a VRF and has an MTU option; a separate management port class was added. Config maps that use the old name must be updated.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "aa9a367",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-interface-settings-no-longer-disappear-f",
+          "kind": "fixed",
+          "title": "Interface settings no longer disappear for specific interface types",
+          "description": "Attributes set on front panel, management and other interface child types were lost in the composed configuration and are now kept.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "20b62e2",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.4.1",
+      "date": "2025-12-09",
+      "entries": [
+        {
+          "id": "01-a-vrf-with-several-interfaces-keeps-all-",
+          "kind": "fixed",
+          "title": "A VRF with several interfaces keeps all its interface references",
+          "description": "When several interfaces were placed in the same VRF, only some of them were referenced from the VRF. All of them are now.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#15",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.4.0",
+      "date": "2025-12-09",
+      "entries": [
+        {
+          "id": "01-group-assets-into-clusters-stacks",
+          "kind": "added",
+          "title": "Group assets into clusters (stacks)",
+          "description": "Assets can be grouped into an ordered cluster, such as a switch stack, and a node can be assigned to a cluster instead of a single asset. Clusters are managed under /assetclusters/asset_clusters/ in this release.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#14",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-ntp-and-ssh-can-refer-to-their-source-in",
+          "kind": "added",
+          "title": "NTP and SSH can refer to their source interface by name",
+          "description": "The source interface of NTP and SSH can be set with the name of an interface or the interface object, and the configuration keeps it as a reference.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#10",
+              "url": null
+            },
+            {
+              "label": "#11",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.3.0",
+      "date": "2025-12-02",
+      "entries": [
+        {
+          "id": "01-configure-the-ssh-server-and-authorized-",
+          "kind": "added",
+          "title": "Configure the SSH server and authorized keys",
+          "description": "A configuration can now set SSH server options (enable, protocol version, timeout, authentication retries) and add authorized public keys. Physical interfaces also accept an access VLAN.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#9",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.2.0",
+      "date": "2025-12-02",
+      "entries": [
+        {
+          "id": "01-ntp-servers-work-in-the-new-configuratio",
+          "kind": "fixed",
+          "title": "NTP servers work in the new configuration model",
+          "description": "NTP server settings were adapted to the reworked configuration model so they appear in the composed configuration again.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#8",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.1.1",
+      "date": "2025-12-02",
+      "entries": [
+        {
+          "id": "01-vrfs-and-vlans-as-configuration-componen",
+          "kind": "added",
+          "title": "VRFs and VLANs as configuration components",
+          "description": "Configurations can define VRFs and VLANs and put interfaces into a VRF, and Cisco IOS output renders them. Logging servers were remodelled and the rendered Cisco IOS configuration covers more interface settings.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#7",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.1.0",
+      "date": "2025-11-26",
+      "entries": [
+        {
+          "id": "01-switched-virtual-interfaces-svis-and-a-n",
+          "kind": "added",
+          "title": "Switched virtual interfaces (SVIs) and a new composed configuration",
+          "description": "Configurations are now built into a single composed configuration with typed values and references, and VLAN interfaces (SVIs) can be configured.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#6",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.0.6",
+      "date": "2025-11-18",
+      "entries": [
+        {
+          "id": "01-the-ai-assistant-streams-its-answer-and-",
+          "kind": "changed",
+          "title": "The AI assistant streams its answer and remembers the conversation",
+          "description": "Asking the AI assistant is now a POST to /ai_ops/ai/ask/ with the prompt and earlier messages, and the answer streams back as events; a HEAD request shows whether the assistant is enabled. Tool calls and errors are shown in the stream. Scripts that used GET must change.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#5",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.0.5",
+      "date": "2025-11-14",
+      "entries": [
+        {
+          "id": "01-configure-logging-servers-ssh-and-ntp",
+          "kind": "added",
+          "title": "Configure logging servers, SSH and NTP",
+          "description": "Configurations can now include remote logging servers, basic SSH server settings and NTP servers.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#2",
+              "url": null
+            },
+            {
+              "label": "#3",
+              "url": null
+            },
+            {
+              "label": "#4",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.0.4",
+      "date": "2025-11-14",
+      "entries": [
+        {
+          "id": "01-configure-vlans",
+          "kind": "added",
+          "title": "Configure VLANs",
+          "description": "VLANs can be defined in a configuration, grouped under network instances following the OpenConfig layout, and Cisco IOS output renders them.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#1",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.0.3",
+      "date": "2025-11-05",
+      "entries": [
+        {
+          "id": "01-the-ai-assistant-can-be-pointed-at-an-mc",
+          "kind": "changed",
+          "title": "The AI assistant can be pointed at an MCP server",
+          "description": "The ai_ops setting on the automation engine now accepts the address of the MCP server the assistant uses for its tools.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "e576343",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.0.2",
+      "date": "2025-11-05",
+      "entries": [
+        {
+          "id": "01-the-postgresql-driver-installs-from-a-pr",
+          "kind": "fixed",
+          "title": "The PostgreSQL driver installs from a prebuilt package",
+          "description": "The backend now depends on psycopg2-binary instead of psycopg2, so installing it no longer needs a compiler or PostgreSQL development files.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "257854d",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "3.0.1",
+      "date": "2025-11-05",
+      "entries": [
+        {
+          "id": "01-the-backend-is-licensed-under-agpl-3-0",
+          "kind": "changed",
+          "title": "The backend is licensed under AGPL-3.0",
+          "description": "The backend package's license changed from Apache-2.0 to AGPL-3.0. Check what this means for your deployment and any modifications.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "47f72df",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-the-ai-assistant-passes-arguments-to-mcp",
+          "kind": "fixed",
+          "title": "The AI assistant passes arguments to MCP tools",
+          "description": "Tool calls made by the AI assistant now send their arguments to the MCP server; before, they were sent without them.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "656fb12",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "date": "2025-11-05",
+      "entries": [
+        {
+          "id": "01-an-ai-assistant-that-can-look-up-network",
+          "kind": "added",
+          "title": "An AI assistant that can look up network data",
+          "description": "When enabled, an AI assistant at /ai_ops/ai/ask/ can answer questions by calling tools on an MCP server, which gives it read access to the inventory API. It needs an API key, an endpoint and the address of the MCP server.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "70962b7",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2025-11-04",
+      "entries": [
+        {
+          "id": "02-an-inventory-api-for-assets-logical-node",
+          "kind": "added",
+          "title": "An inventory API for assets, logical nodes, nodes and management connections",
+          "description": "The API lists and manages assets, logical nodes, node instances and management connections, and shows the rendered configuration of a node instance.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "83efd0b",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-describe-devices-in-python-config-maps-a",
+          "kind": "added",
+          "title": "Describe devices in Python config maps and render them",
+          "description": "Config maps in Python define the desired configuration of logical nodes, picked by filters on role, site or hostname, and are compiled into a vendor-neutral configuration that Cisco IOS and Junos drivers render.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "83efd0b",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-store-and-fetch-device-configurations",
+          "kind": "added",
+          "title": "Store and fetch device configurations",
+          "description": "Device configurations can be uploaded for a node and fetched by hash or as the latest one, and the available drivers can be listed.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "83efd0b",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": [],
+  "highlights": []
+}

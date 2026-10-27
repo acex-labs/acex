@@ -177,14 +177,14 @@ class aaaAuthConfig(ConfigMap):
 
 aaa_config = aaaconfig()
 aaa_config.filters = (
-    FilterAttribute("role").eq("lan_access")
-    | FilterAttribute("role").eq("lan_distribution")
-    | FilterAttribute("role").eq("lan_csw")
+    FilterAttribute("role").eq("access")
+    | FilterAttribute("role").eq("distribution")
+    | FilterAttribute("role").eq("core")
 )
 
 aaa_auth_config = aaaAuthConfig()
 aaa_auth_config.filters = (
-    FilterAttribute("role").eq("lan_asw")
-    | FilterAttribute("role").eq("lan_distribution")
-    | FilterAttribute("role").eq("lan_csw")
+    FilterAttribute("role").eq("access")
+    | FilterAttribute("role").eq("distribution")
+    | FilterAttribute("role").eq("core")
 )

@@ -1,0 +1,420 @@
+{
+  "schema_version": 1,
+  "component": "acex-mcp",
+  "name": "ACEX MCP server",
+  "releases": [
+    {
+      "version": "1.1.0",
+      "date": "2026-09-30",
+      "entries": [
+        {
+          "id": "01-node-status-is-split-into-admin-status-a",
+          "kind": "changed",
+          "title": "Node status is split into `admin_status` and `provision_status`",
+          "description": "`find_nodes` and `get_node` return `admin_status` (planned, active, decommissioned) and `provision_status` (unprovisioned, adopted, pending, bootstrapping, provisioning, provisioned, failed) instead of one `status`. The `status` filter of `find_nodes` is replaced by `admin_status` and `provision_status`; prompts that pass or read `status` must be updated.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#292",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-09-10",
+      "summary": "A new MCP server: assistants sign in and read devices, configuration, drift and cabling as the signed-in user. The earlier tool set is gone.",
+      "entries": [
+        {
+          "id": "01-the-earlier-tool-set-is-replaced-prompts",
+          "kind": "removed",
+          "title": "The earlier tool set is replaced; prompts using the old tools must change",
+          "description": "`list_assets`, `list_logical_nodes`, `get_specific_logical_node`, `list_node_instances`, `get_node_instance` and `get_node_instance_config` no longer exist. Devices are now found with `find_nodes` and every other tool takes the `node_id` it returns; `get_desired_config` and `get_observed_config` replace the old configuration tools. There is no tool for logical nodes any more.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "0c2cf7bb",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "07-callers-sign-in-and-every-read-is-made-a",
+          "kind": "changed",
+          "title": "Callers sign in and every read is made as the signed-in user",
+          "description": "Over HTTP the server checks the caller's bearer token against the ACEX identity provider and forwards it to the API, so the API decides what that user may read. With `stdio` the server signs in as the user (`ACEX_CLIENT_ID` and `ACEX_CLIENT_SECRET`, or a browser login). Clients that sent no token must now provide one when the ACEX API has sign-in enabled.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "0c2cf7bb",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "08-server-settings-are-reorganised-and-acex",
+          "kind": "changed",
+          "title": "Server settings are reorganised and `ACEX_API_URL` no longer includes `/api/v1`",
+          "description": "Set `ACEX_API_URL` to the base address only (default `http://localhost:8080`); an old value ending in `/api/v1` must be changed. New settings are `ACEX_VERIFY_SSL`, `ACEX_MCP_TRANSPORT` (`http` or `stdio`), `ACEX_MCP_HOST`, `ACEX_MCP_PORT`, `ACEX_MCP_PATH`, `ACEX_MCP_REQUEST_TIMEOUT` and `ACEX_MCP_MAX_CONFIG_CHARS`.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "0c2cf7bb",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "09-the-package-is-now-called-acex-mcp",
+          "kind": "changed",
+          "title": "The package is now called `acex-mcp`",
+          "description": "The package was renamed from `acex-mcp-server` to `acex-mcp` and its version restarts at 1.0.0. The container image now runs as a non-root user with a health check and is built from the repository root.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "0c2cf7bb",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-get-running-config-explains-that-live-de",
+          "kind": "added",
+          "title": "`get_running_config` explains that live device reads are not available",
+          "description": "ACEX cannot read a device on demand, so `get_running_config` returns no configuration; it says so and points to the newest collected snapshot with its collection time. Questions about the \"running config\" are best answered from `get_observed_config`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "0c2cf7bb",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-assistants-can-check-configuration-drift",
+          "kind": "added",
+          "title": "Assistants can check configuration drift and cabling",
+          "description": "`get_config_drift` compares a device's intended and latest collected configuration per component and lists what is missing, extra or different. `get_neighbors` lists what is cabled to a device according to LLDP/CDP, with the neighbour's `node_id` when ACEX knows it.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "0c2cf7bb",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-assistants-can-read-intended-and-collect",
+          "kind": "added",
+          "title": "Assistants can read intended and collected configuration, and its history",
+          "description": "`get_desired_config` returns the intended configuration as device commands; `get_observed_config` returns a collected snapshot (latest, in effect `at` a time, or by `snapshot_id`); both take `section` to keep only matching blocks and are capped in size. `list_observed_configs` lists the history and `diff_observed_configs` shows what changed between two snapshots.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "0c2cf7bb",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-assistants-can-search-devices-hardware-s",
+          "kind": "added",
+          "title": "Assistants can search devices, hardware, sites and regions",
+          "description": "`find_nodes` filters devices by hostname, site, region, role, vendor, OS or status; `get_node` returns one device with its hardware (including clusters); `find_assets` lists hardware, deployed or spare; `list_sites` and `list_regions` list locations. Searches return a `total` and at most `limit` rows (default 50) so an assistant can tell when to narrow the filter.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "0c2cf7bb",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-reference-documents-and-ready-made-analy",
+          "kind": "added",
+          "title": "Reference documents and ready-made analysis prompts for assistants",
+          "description": "The server now offers the documents `acex://glossary`, `acex://entities`, `acex://capabilities` and `acex://now`, and the prompts `explain_config_change`, `assess_config_risk` and `assess_config_alignment`, each taking a `diff` and optional `context`. Tool errors are rewritten so they say what to try next.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "0c2cf7bb",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.1.1",
+      "date": "2026-09-02",
+      "entries": [
+        {
+          "id": "02-a-container-image-definition-for-the-mcp",
+          "kind": "added",
+          "title": "A container image definition for the MCP server is included",
+          "description": "The package now ships a `Dockerfile` that installs the server and starts it with `acex-mcp`, exposing port 8000. It is also wired into the repository's local Docker Compose stack.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#241",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-list-tools-call-the-api-endpoints-withou",
+          "kind": "fixed",
+          "title": "List tools call the API endpoints without a trailing slash",
+          "description": "`list_assets`, `list_logical_nodes` and `list_node_instances` now request the ACEX API paths without the trailing `/`, matching the API's own change in the same period. Against an API that no longer serves the slashed paths, these three tools could not return results before.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#251",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "1.0.0 (April 2026)",
+      "date": "2026-04-24",
+      "entries": [
+        {
+          "id": "01-list-tools-can-be-filtered-and-now-retur",
+          "kind": "changed",
+          "title": "List tools can be filtered and now return a page of results",
+          "description": "`list_assets`, `list_logical_nodes` and `list_node_instances` take filters (for example `vendor`, `site`, `role`, `hostname`, `assigned`, `status`) plus `limit` (default 100) and `offset`. They now return an object with the items, a total count, `limit` and `offset` instead of a bare list, so an assistant must page to see more than 100 results.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#128",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-node-instances-are-described-with-asset-",
+          "kind": "changed",
+          "title": "Node instances are described with `asset_ref_id` and a status",
+          "description": "The tool descriptions for `list_node_instances` now name the device link `asset_ref_id` (formerly `asset_id`) and mention `status` (planned, init, active, decommissioned), site, vendor, OS and timestamps. This reflects what the API returns; prompts that read `asset_id` should use `asset_ref_id`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#128",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.5",
+      "date": "2025-11-18",
+      "entries": [
+        {
+          "id": "03-the-hello-test-tool-is-gone",
+          "kind": "removed",
+          "title": "The `hello` test tool is gone",
+          "description": "`hello`, the placeholder tool that only greeted a name, has been removed. It returned nothing about ACEX, so only a setup that explicitly called it is affected.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#5",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-built-in-guides-explain-acex-concepts-an",
+          "kind": "added",
+          "title": "Built-in guides explain ACEX concepts and the order to use the tools",
+          "description": "The server now offers two readable documents to assistants: `acex://docs/system-architecture` (assets, logical nodes, node instances) and `acex://docs/workflow-examples` (which tool to call in which order, and how to compare desired and running configuration).",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#5",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-tool-descriptions-are-rewritten-in-engli",
+          "kind": "changed",
+          "title": "Tool descriptions are rewritten in English and say desired vs. actual state",
+          "description": "The descriptions of `list_assets`, `list_logical_nodes`, `get_specific_logical_node`, `list_node_instances`, `get_node_instance` and `get_node_instance_config` are now in English. They state which ids to pass between tools and that `get_node_instance` is the desired, compiled configuration while `get_node_instance_config` is the last collected running configuration. The calls themselves are unchanged.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#5",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.4",
+      "date": "2025-11-06",
+      "entries": [
+        {
+          "id": "01-the-acex-api-address-can-be-set-with-ace",
+          "kind": "added",
+          "title": "The ACEX API address can be set with `ACEX_API_URL`",
+          "description": "Set the `ACEX_API_URL` environment variable to point the server at an ACEX API on another address. If it is unset (or empty) the server keeps using `http://localhost/api/v1`.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "b279417c",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.3",
+      "date": "2025-11-05",
+      "entries": [
+        {
+          "id": "01-the-acex-mcp-command-now-starts-the-serv",
+          "kind": "fixed",
+          "title": "The `acex-mcp` command now starts the server",
+          "description": "The `acex-mcp` command installed with the package pointed at a function that did not exist, so it could not start the server. It now starts it, and `python -m acex_mcp` works as well.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "99a19fae",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.2",
+      "date": "2025-11-05",
+      "entries": [
+        {
+          "id": "01-node-instance-tools-now-take-a-numeric-i",
+          "kind": "changed",
+          "title": "Node instance tools now take a numeric `id`",
+          "description": "`get_node_instance` and `get_node_instance_config` take an integer `id` instead of the text `node_instance_id`. Prompts or assistant setups that passed `node_instance_id` by name need to use `id`.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "47f72df1",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.1",
+      "date": "2025-11-05",
+      "entries": [
+        {
+          "id": "01-assistants-can-list-devices-logical-node",
+          "kind": "added",
+          "title": "Assistants can list devices, logical nodes and node instances",
+          "description": "Three read-only tools: `list_assets` returns the physical devices (vendor, serial number, model, operating system), `list_logical_nodes` returns the logical nodes (site, id, role, sequence), and `list_node_instances` returns which asset is bound to which logical node.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "70962b7",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-assistants-can-read-the-intended-configu",
+          "kind": "added",
+          "title": "Assistants can read the intended configuration of a node",
+          "description": "`get_specific_logical_node` takes a `logical_node_id` and returns that node with its vendor-neutral configuration (system, ACLs, LLDP, interfaces, network instances). `get_node_instance` takes a `node_instance_id` and returns the instance; its tool description says the configuration is compiled when a single instance is requested.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "70962b7",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-assistants-can-read-the-latest-configura",
+          "kind": "added",
+          "title": "Assistants can read the latest configuration collected from a device",
+          "description": "`get_node_instance_config` takes a `node_instance_id` and returns the most recent running configuration collected for that instance; the config text is in the `content` field, already decoded.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "70962b7",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-the-server-fetches-data-from-the-acex-ap",
+          "kind": "added",
+          "title": "The server fetches data from the ACEX API instead of running inside the backend",
+          "description": "Every tool now calls the ACEX API over HTTP at a fixed address, `http://localhost/api/v1`. The server therefore has to run where the API is reachable on that address; it can no longer be pointed elsewhere in this version.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "70962b7",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2025-11-05",
+      "entries": [
+        {
+          "id": "01-first-acex-mcp-server-with-a-single-plac",
+          "kind": "added",
+          "title": "First ACEX MCP server, with a single placeholder tool",
+          "description": "The MCP server package (`acex-mcp-server`) exists for the first time and serves over HTTP on port 8000. It exposes only one tool, `hello`, which takes a `name` and greets it. It cannot yet answer anything about devices or configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "fdb089f9",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": [],
+  "highlights": []
+}

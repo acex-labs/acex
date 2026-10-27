@@ -26,6 +26,10 @@ from acex_devkit.normalizer.engine import (
     RewriteRule,
 )
 
+MASK = "<REDACTED>"
+"""What a masked secret reads as in a stored configuration. Drivers' rewrite rules write it; the differ
+treats an observed value equal to it as unknown rather than as a difference."""
+
 
 class BaseNormalizer:
     line_rules: list[LineRule] = []

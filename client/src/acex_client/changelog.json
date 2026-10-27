@@ -1,0 +1,887 @@
+{
+  "schema_version": 1,
+  "component": "acex-client",
+  "name": "ACEX client",
+  "releases": [
+    {
+      "version": "4.10.0",
+      "date": "2026-09-30",
+      "entries": [
+        {
+          "id": "01-nodes-have-admin-status-and-provision-st",
+          "kind": "changed",
+          "title": "Nodes have `admin_status` and `provision_status` instead of `status`",
+          "description": "`node.status` and the `status` filter on `node_instances.query()` are removed. Use `admin_status` (`planned`, `active`, `decommissioned`) for operator intent and `provision_status` (`unprovisioned`, `adopted`, `pending`, `bootstrapping`, `provisioning`, `provisioned`, `failed`) for the provisioning lifecycle. Telemetry and collection agent match rules get the same two fields; the old `init` status is gone.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#292",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.9.0",
+      "date": "2026-09-25",
+      "summary": "Agents can be found by name and given their exact set of nodes, and a failed driver install raises an exception.",
+      "entries": [
+        {
+          "id": "02-get-id-by-name-name-finds-an-agent-s-id-",
+          "kind": "added",
+          "title": "`get_id_by_name(name)` finds an agent's id from its name",
+          "description": "`inventory.collection_agents` and `observability.agents` have `get_id_by_name(name)`, which returns the id of the item whose name matches exactly. It raises `LookupError` when no item or more than one item has that name.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-set-nodes-replaces-the-node-set-of-a-col",
+          "kind": "added",
+          "title": "`set_nodes()` replaces the node set of a collection or telemetry agent",
+          "description": "`inventory.collection_agents.set_nodes(id, payload)` and `observability.agents.set_nodes(id, payload)` send an `AgentNodeSet` with `PUT {id}/nodes` and return an `AgentNodeSetResult`. The given set replaces the agent's explicit nodes; an empty list removes all of them.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#289",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-neds-install-returns-a-bool-and-raises-a",
+          "kind": "changed",
+          "title": "`neds.install()` returns a bool and raises `AcexNedInstallError` on failure",
+          "description": "`install(ned)` now raises the new `AcexNedInstallError` (an `AcexError`) if pip fails or the driver is not found afterwards, instead of `subprocess.CalledProcessError`. It returns `False` when the package was already imported at an older version, meaning the process must be restarted before the new driver is used. The wheel is written to a temporary directory instead of the working directory.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#277",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-dependency-ranges-are-wider-httpx-0-27-0",
+          "kind": "changed",
+          "title": "Dependency ranges are wider: `httpx>=0.27.0`, `pydantic>=2.12.5`",
+          "description": "The upper bounds on `httpx` (previously below 1.0) and `pydantic` (previously `^2.12.5`) were removed, so the client can be installed next to newer releases of both.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#277",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.8.3",
+      "date": "2026-09-03",
+      "entries": [
+        {
+          "id": "01-upload-observed-and-list-observed-use-pa",
+          "kind": "fixed",
+          "title": "`upload_observed()` and `list_observed()` use paths without a trailing slash",
+          "description": "`inventory.node_instances.upload_observed(id, payload)` and `list_observed(id)` now call `.../configuration/observed` instead of `.../configuration/observed/`, matching the backend after it dropped trailing slashes.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#256",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.8.2",
+      "date": "2026-09-03",
+      "entries": [
+        {
+          "id": "01-neds-query-catalog-and-lldp-upload-no-lo",
+          "kind": "fixed",
+          "title": "`neds.query()`, `catalog()` and `lldp.upload()` no longer add a trailing `/`",
+          "description": "Action methods with an empty path, such as `neds.query()`, `config_components.catalog()` and `operations.lldp.upload()`, used to request the resource path followed by a trailing slash (for example `/neds/`). They now request the path as is (`/neds`), which is what the backend serves after it dropped trailing slashes.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#254",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.8.1",
+      "date": "2026-09-02",
+      "entries": [
+        {
+          "id": "01-ai-ask-and-ai-analyze-call-endpoints-wit",
+          "kind": "fixed",
+          "title": "`ai.ask()` and `ai.analyze()` call endpoints without a trailing slash",
+          "description": "The AI calls, and the probe that decides whether `client.ai` is `None`, now request `/ai_ops/ai/ask` and `/ai_ops/ai/config_analysis` without a trailing slash, matching the backend that dropped trailing slashes on all endpoints. Against an older backend that still expects the slash, `client.ai` can come back as `None`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#251",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.8.0",
+      "date": "2026-08-27",
+      "summary": "Per-agent outputs are removed from the client, and AI providers and models can be listed.",
+      "entries": [
+        {
+          "id": "01-per-agent-outputs-removed-observability-",
+          "kind": "removed",
+          "title": "Per-agent outputs removed: `observability.agents.outputs()` is gone",
+          "description": "`observability.agents.outputs(agent_id)` and `agent.outputs` (create, list, update, delete of output destinations) were removed together with the `OutputDestination*` models. Outputs now come from the backend's own InfluxDB configuration, so scripts that managed them per agent must stop doing so.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-client-ai-providers-and-client-ai-models",
+          "kind": "added",
+          "title": "`client.ai.providers()` and `client.ai.models(provider)` list AI options",
+          "description": "`providers()` returns the configured AI providers with health, models and chains as `AiProvidersResponse`; `models(provider, refresh=False)` returns that provider's models as `AiModelsResponse`, and `refresh=True` bypasses the cache.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#223",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-observability-agents-config-accepts-a-re",
+          "kind": "added",
+          "title": "`observability.agents.config()` accepts a `reveal_secrets` argument",
+          "description": "`config(id, reveal_secrets=None)` forwards `reveal_secrets` as a query parameter when set. The commit message says the backend now returns output groups in redacted form by default and the telemetry agent asks for the unredacted form.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#239",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.7.0",
+      "date": "2026-08-14",
+      "entries": [
+        {
+          "id": "02-telemetry-agent-models-carry-snmp-trap-a",
+          "kind": "added",
+          "title": "Telemetry agent models carry SNMP trap and syslog receiver settings",
+          "description": "`TelemetryAgentResponse`, `TelemetryAgentCreate` and `TelemetryAgentUpdate` (from `acex_devkit`) gain `snmp_version` (`2c`, `3` or `both`), `snmp_trap_port` (default 162), `syslog_port` (default 514), `snmpv3_sec_level`, `snmpv3_sec_name`, `snmpv2c_credential_id` and `snmpv3_credential_id`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#219",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-credentials-create-validates-snmpv3-auth",
+          "kind": "changed",
+          "title": "`credentials.create()` validates SNMPv3 authentication and privacy protocols",
+          "description": "For a credential of type `snmpv3`, `auth_protocol` must be one of `MD5`, `SHA`, `SHA224`, `SHA256`, `SHA384`, `SHA512` and `priv_protocol` one of `DES`, `AES`, `AES192`, `AES192C`, `AES256`, `AES256C`; other values are rejected with a validation error before the request is sent.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#219",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-agent-ack-calls-no-longer-fail-validatio",
+          "kind": "fixed",
+          "title": "Agent `ack()` calls no longer fail validation",
+          "description": "`observability.agents.ack()` and `inventory.collection_agents.ack()` failed on the client with `Field required: id` because the backend's reply had no `id`. The backend now returns a complete `AckResult`; the client change in this release is only the version number, so use it with backend 6.6.1 or later.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#222",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.6.2",
+      "date": "2026-08-13",
+      "entries": [
+        {
+          "id": "01-the-client-follows-http-redirects-from-t",
+          "kind": "fixed",
+          "title": "The client follows HTTP redirects from the API",
+          "description": "Requests now follow redirects (such as a 307 for a missing trailing slash) instead of failing with an error status. Scripts that hit an endpoint through a redirect now get the response from the target.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#213",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.6.1",
+      "date": "2026-08-13",
+      "entries": [
+        {
+          "id": "05-errors-are-acexerror-subclasses-get-rais",
+          "kind": "changed",
+          "title": "Errors are `AcexError` subclasses; `get()` raises `AcexNotFoundError` on 404",
+          "description": "Calls now raise `AcexNotFoundError`, `AcexAuthError`, `AcexPermissionError`, `AcexValidationError`, `AcexServerError`, `AcexTimeoutError` or `AcexConnectionError`, all subclasses of `AcexError`; HTTP errors carry `status_code` and `body`. `get()` no longer returns `None` for a missing item, and code catching `requests.HTTPError` must catch these instead.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-new-acex-client-from-acex-client-import-",
+          "kind": "changed",
+          "title": "New `Acex` client: `from acex_client import Acex`, `base_url`, context manager",
+          "description": "The client was rewritten around `Acex(base_url=..., api_version=1, *, verify=True, auth=None, timeout=30.0)`, usable as `with Acex(...) as client`, plus `Acex.from_env()` which reads `ACEX_BASE_URL` and `ACEX_VERIFY_SSL`. The old import `acex_client.acex.acex` and the parameters `baseurl` and `api_ver` are gone, and `Acex.differ` was removed (use `ConfigDiffer` from `acex_devkit` or `node_instances.intent_diff(id)`).",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-resources-are-grouped-under-client-inven",
+          "kind": "changed",
+          "title": "Resources are grouped under `client.inventory`, `observability`, `operations`",
+          "description": "`node_instances`, `credentials`, `management_connections`, `assets`, `asset_clusters`, `logical_nodes`, `sites`, `regions`, `contacts`, `region_assignments`, `contact_assignments` and `collection_agents` now live under `client.inventory`. Other groups are `client.observability` (`agents`, `grafana`), `client.operations` (`compliance`, `config_history`, `lldp`), `client.config_components`, `client.neds`, `client.system` and `client.ai`. Replace `acex.node_instances` with `client.inventory.node_instances`, and so on.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-node-instances-can-read-and-compare-conf",
+          "kind": "added",
+          "title": "`node_instances` can read and compare configuration history",
+          "description": "`client.inventory.node_instances` gains `configuration_desired(id)`, `upload_observed(id, payload)`, `list_observed(id)`, `get_latest_observed(id, output=...)`, `get_observed(...)`, `diff_observed(id, a, b)` and `intent_diff(id)`; `logical_nodes.configuration(id)` returns a node's configuration.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-sites-regions-contacts-observability-age",
+          "kind": "added",
+          "title": "Sites, regions, contacts, observability agents, compliance and LLDP from Python",
+          "description": "New resources have `get`, `query`, `create`, `update` and `delete` where the API allows it, for example `inventory.sites`, `inventory.regions`, `inventory.contacts`, `observability.agents` (with `outputs`, `rules`, `nodes`) and `inventory.collection_agents` (`manifest`, `ack`, `add_node`, `rules`). Actions include `operations.compliance.check()`, `operations.lldp.topology()`, `config_components.reconcile()` and `ai.ask()` (streamed; `client.ai` is `None` if the backend has no AI endpoint).",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-create-and-update-validate-input-instanc",
+          "kind": "changed",
+          "title": "`create()` and `update()` validate input; instances keep typed fields",
+          "description": "`create(**fields)` and `update(id, **fields)` validate against the devkit create/update models and drop `None` values, so wrong fields fail locally with a validation error. The instance returned by `get()`, `create()` and `update()` holds the model again (fields are typed objects, `.model` and `.id` are available), assignments are validated, and `save()` and `delete()` remain.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "08-neds-methods-changed-query-get-ned-id-do",
+          "kind": "changed",
+          "title": "`neds` methods changed: `query()`, `get(ned_id)`, `download()`, `install()`",
+          "description": "`client.neds` now has `query()`, `get(ned_id)` and `download(filename)`; `get_missing()` compares name and version and `get_driver_instance(ned_id)` returns `None` when the driver is not installed. `install(ned)` saves the wheel into the current working directory and runs `pip install --force-reinstall` on it, so a `.whl` file is left there.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "07-a-backend-with-sign-in-disabled-can-be-u",
+          "kind": "changed",
+          "title": "A backend with sign-in disabled can be used without a token",
+          "description": "If the API reports that authentication is disabled, `Acex` now uses a `NullAuthProvider` and sends no `Authorization` header instead of raising `RuntimeError`. The same `ACEX_ISSUER_URL`, `ACEX_CLIENT_ID` and `ACEX_CLIENT_SECRET` overrides still apply when sign-in is enabled.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "09-the-client-uses-httpx-and-no-longer-inst",
+          "kind": "changed",
+          "title": "The client uses `httpx` and no longer installs `requests` or the Cisco driver",
+          "description": "Dependencies are now `httpx`, `pydantic` and `acex-devkit`; `requests`, `typer`, `rich`, `datamodel-code-generator`, `sqlmodel` and `acex-driver-cisco-ioscli` were dropped. Install a driver yourself if a script renders configuration locally.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#212",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.6.0",
+      "date": "2026-08-04",
+      "entries": [
+        {
+          "id": "02-assets-logical-nodes-and-neds-resources-",
+          "kind": "removed",
+          "title": "`assets`, `logical_nodes` and `neds` resources removed from `Acex`",
+          "description": "`Acex` now exposes `node_instances`, `credentials`, `management_connections` and `differ`; `acex.assets`, `acex.logical_nodes` and `acex.neds` (including `get_missing()`, `install()` and `get_driver_instance()`) are gone. The generated `acex_client.models.generated_models` module was removed too; import models from `acex_devkit.models`.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#196",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "01-acex-signs-in-with-the-login-details-the",
+          "kind": "changed",
+          "title": "`Acex` signs in with the login details the API publishes",
+          "description": "Creating `Acex(baseurl, verify, auth=None)` now reads the sign-in settings from the API's `/auth/config` and sends a bearer token with every call; it raises `RuntimeError` if the API has sign-in disabled. With `ACEX_CLIENT_SECRET` set (plus optional `ACEX_CLIENT_ID`, `ACEX_ISSUER_URL`) it uses client credentials, otherwise it opens a browser for an interactive login and keeps the token in `~/.acex/token.json`. Pass your own `AuthProvider` through `auth=` to override this.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#205",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-get-and-create-return-an-editable-instan",
+          "kind": "changed",
+          "title": "`get()` and `create()` return an editable instance with `save()` and `delete()`",
+          "description": "The returned `LiveInstance` lets you assign fields and call `save()` to send only the changed ones, or `delete()` to remove the item. Its fields are plain dicts and values built from `model_dump()`, not model objects, so code such as `node.asset.ned_id` must become `node.asset['ned_id']`.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#196",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-new-credentials-and-management-connectio",
+          "kind": "added",
+          "title": "New `credentials` and `management_connections`; `node_instances` is writable",
+          "description": "`node_instances` gains `create(**fields)`, `update(id, **fields)` and `delete(id)`. New `credentials` supports `get`, `query` and `create`, and `management_connections` supports `get`, `query`, `create` and `delete`; responses are `CredentialResponse` and `ManagementConnectionResponse` from the devkit.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#196",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-http-errors-now-raise-instead-of-returni",
+          "kind": "changed",
+          "title": "HTTP errors now raise instead of returning an empty result",
+          "description": "`get(id)` returns `None` only for a 404; any other error status raises `requests.HTTPError`, and so do `query()`, `create()`, `update()` and `delete()`. Scripts that relied on `None` for all failures need a `try/except`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#196",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "06-the-client-no-longer-depends-on-the-acex",
+          "kind": "changed",
+          "title": "The client no longer depends on the `acex` backend package",
+          "description": "The `acex` backend dependency was dropped and `sqlmodel` added, so installing `acex-client` no longer pulls in the backend.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#196",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.5.0",
+      "date": "2026-04-28",
+      "entries": [
+        {
+          "id": "01-neds-install-follows-the-verify-argument",
+          "kind": "fixed",
+          "title": "`neds.install()` follows the `verify` argument of `Acex`",
+          "description": "When `Acex` is created with `verify=False`, `neds.install(ned)` now passes the API host to pip as a trusted host, so NED downloads work in the same setup as the other client calls. With the default `verify=True` nothing changes.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "add9d0b07e0c",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.4.0",
+      "date": "2026-04-27",
+      "entries": [
+        {
+          "id": "01-neds-install-upgrades-a-driver-that-is-a",
+          "kind": "fixed",
+          "title": "`neds.install()` upgrades a driver that is already installed",
+          "description": "`neds.install(ned)` now runs `pip install --upgrade` on the wheel from the API, so a NED at a different version than the one installed is replaced instead of being left as is. This makes `get_missing()` followed by `install()` reach the version the API declares.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#136",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.2",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "01-assetreftype-assetcluster-is-now-assetre",
+          "kind": "changed",
+          "title": "`AssetRefType.assetcluster` is now `AssetRefType.asset_cluster`",
+          "description": "The asset reference type for clusters is spelled `asset_cluster` (value `'asset_cluster'`) in both the client's generated models and the devkit's `NodeResponse`. Scripts that compare against `AssetRefType.assetcluster` or the string `'assetcluster'` must use the new name.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#119",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-lldp-and-cdp-are-configured-in-lldp-and-",
+          "kind": "changed",
+          "title": "LLDP and CDP are configured in `lldp` and `cdp` sections, not per interface",
+          "description": "In the devkit's `ComposedConfiguration` that the client returns, `lldp` now has `enabled`, `transmit_interval`, `hold_time`, `system_name`, `suppress_tlv_advertisement` and `interfaces`, and a new `cdp` section has `enabled`, `transmit_interval`, `hold_time`, `advertise_v2` and `interfaces`. The interface fields `lldp_enabled` and `cdp_enabled` were removed from Ethernet interfaces.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#118",
+              "url": null
+            },
+            {
+              "label": "#119",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.1",
+      "date": "2026-04-21",
+      "entries": [
+        {
+          "id": "01-resources-can-be-queried-with-pagination",
+          "kind": "added",
+          "title": "Resources can be queried with pagination and filters using `query()`",
+          "description": "Every resource now has `query(limit=100, offset=0, **filters)`, which sends the filters as query parameters and returns a `PaginatedResult` with `items`, `total`, `limit` and `offset`. The result can be iterated, and `len()` and truthiness reflect the items on the page.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-get-all-returns-at-most-the-first-100-it",
+          "kind": "changed",
+          "title": "`get_all()` returns at most the first 100 items",
+          "description": "`get_all()` is now `query().items`, so it asks the API for `limit=100, offset=0` and returns that single page. If you have more than 100 items in a resource, page through them with `query(limit=..., offset=...)` and `total`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-node-instances-list-results-are-nodelist",
+          "kind": "changed",
+          "title": "`node_instances` list results are `NodeListItem`",
+          "description": "`node_instances.get_all()` and `node_instances.query()` now return `acex_devkit.models.NodeListItem` objects instead of the generated `Node`. `node_instances.get(id)` still returns `NodeResponse`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-installed-drivers-are-loaded-on-first-us",
+          "kind": "changed",
+          "title": "Installed drivers are loaded on first use of `neds.drivers`",
+          "description": "Creating `Acex()` no longer loads every installed `acex.neds` driver; `neds.drivers` (and `get_driver_instance()`) loads them the first time it is accessed.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#115",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.2.0",
+      "date": "2026-03-19",
+      "entries": [
+        {
+          "id": "01-node-configurations-and-acex-differ-foll",
+          "kind": "changed",
+          "title": "Node configurations and `Acex.differ` follow the new devkit model",
+          "description": "The version was raised so the client requires the devkit's reworked `ComposedConfiguration`: logging `remote_servers`, `vty` and `files` are now containers holding `servers`, `lines` and `files`, spanning-tree interface fields are `AttributeValue`s, and there is an `acl` section. `acex.differ.diff(desired_config=..., observed_config=...)` now takes `ComposedConfiguration` objects (not dicts) and returns a `Diff` with `added`, `removed` and `changed` components.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#83",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.2",
+      "date": "2026-02-20",
+      "entries": [
+        {
+          "id": "01-node-resources-return-the-shared-devkit-",
+          "kind": "changed",
+          "title": "Node resources return the shared devkit models",
+          "description": "`logical_nodes.get()` and `logical_nodes.get_all()` now both return `acex_devkit.models.LogicalNodeResponse` (previously `get_all()` returned the generated `LogicalNode`), and `node_instances.get()` returns `acex_devkit.models.NodeResponse`. Code that type-checks against or imports the generated classes for these resources should use the devkit classes.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#64",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "4.1.0",
+      "date": "2026-02-13",
+      "entries": [
+        {
+          "id": "01-models-moved-from-acex-client-models-mod",
+          "kind": "changed",
+          "title": "Models moved from `acex_client.models.models` to `generated_models`",
+          "description": "The generated models now live in `acex_client.models.generated_models`. Scripts that import `LogicalNode`, `NodeResponse`, `AssetResponse`, `Ned` or other models from `acex_client.models.models` must change the import path.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#49",
+              "url": null
+            },
+            {
+              "label": "#48",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-acex-differ-compares-a-desired-and-an-ob",
+          "kind": "added",
+          "title": "`Acex.differ` compares a desired and an observed configuration",
+          "description": "`acex.differ.diff(desired_config=..., observed_config=...)` takes two dicts and returns a `Diff` with `add`, `remove` and `change` nodes; `is_empty()` and `summary()` tell whether and how much differs. It comes from the new `acex-devkit` dependency.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#48",
+              "url": null
+            },
+            {
+              "label": "#49",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "04-deviceconfigresponse-model-and-configout",
+          "kind": "added",
+          "title": "`DeviceConfigResponse` model and `ConfigOutput` choice (`parsed`, `rendered`)",
+          "description": "A `DeviceConfigResponse` model (`node_instance_id`, `content`, `hash`, `created_at`) and a `ConfigOutput` enum with `parsed` and `rendered` are now part of the models. `content` is either a string or a `ComposedConfiguration`. The client has no method that returns it yet.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#44",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-configuration-models-cover-snmp-and-aaa",
+          "kind": "added",
+          "title": "Configuration models cover SNMP and AAA",
+          "description": "`ComposedConfiguration` and node responses now have an `snmp` section (`communities`, `users`, `trap_servers`, `trap_events`, `views`) and a filled-in `aaa` section (`server_groups`, `tacacs`, `radius`, `authentication`, `authorization`, `accounting`).",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#49",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "05-some-configuration-defaults-are-no-longe",
+          "kind": "changed",
+          "title": "Some configuration defaults are no longer pre-filled",
+          "description": "`logging.config.buffer_size` is now `None` instead of `4096`, `ntp.config` is no longer defaulted to `enabled: False`, and `lacp` and `stp` start as empty dicts instead of pre-built sections. Scripts that read these without checking for `None` or missing keys may need a guard.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#49",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.10",
+      "date": "2026-02-09",
+      "entries": [
+        {
+          "id": "01-get-and-get-all-return-different-models-",
+          "kind": "changed",
+          "title": "`get()` and `get_all()` return different models for nodes",
+          "description": "Resources now use one model for a single item and another for a list. `logical_nodes.get(id)` returns `LogicalNodeResponse` (with the full configuration) while `logical_nodes.get_all()` returns `LogicalNode`; `node_instances.get_all()` returns `Node` instead of `NodeResponse`, so list items no longer have `asset` and `logical_node`. Fetch an item with `node_instances.get(id)` when you need those.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#36",
+              "url": null
+            },
+            {
+              "label": "#37",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.8",
+      "date": "2026-01-29",
+      "entries": [
+        {
+          "id": "01-configuration-models-cover-spanning-tree",
+          "kind": "added",
+          "title": "Configuration models cover spanning tree (`stp`)",
+          "description": "`ComposedConfiguration` and `LogicalNodeResponse` now have an `stp` section with global `config` plus `rstp`, `mstp` (with `mst_instances`) and `rapidpvst` (per `vlan`). Ethernet interfaces gain `stp_port_priority`, `stp_cost`, `stp_edge_port`, `stp_bpdu_filter`, `stp_bpdu_guard`, `stp_loop_guard`, `stp_root_guard`, `stp_portfast` and `stp_link_type`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#34",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.7",
+      "date": "2026-01-27",
+      "entries": [
+        {
+          "id": "01-acex-client-with-assets-logical-nodes-no",
+          "kind": "added",
+          "title": "`Acex` client with `assets`, `logical_nodes`, `node_instances` and `neds`",
+          "description": "`from acex_client.acex.acex import Acex`, then `Acex(baseurl=..., api_ver=1, verify=True)`. Each resource has `get(id)` and `get_all()` and returns typed models (`AssetResponse`, `LogicalNode`, `NodeResponse`, `Ned`); `get` returns `None` when the API does not answer 200.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#31",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "02-install-and-use-device-drivers-neds-from",
+          "kind": "added",
+          "title": "Install and use device drivers (NEDs) from the API with `acex.neds`",
+          "description": "`neds.get_missing()` lists NEDs the API declares that are not installed locally, `neds.install(ned)` downloads the wheel from the API and pip-installs it, and `neds.get_driver_instance(name)` returns an installed driver, for example to `render(logical_node, asset)` a config locally. Installed drivers are found through the `acex.neds` entry point group.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#21",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "03-models-include-interface-lacp-settings",
+          "kind": "added",
+          "title": "Models include interface LACP settings",
+          "description": "The generated models now have `Ned`, `NodeResponse` and, for aggregated links, a `lacp` section with `config` (`system_priority`, `system_id_mac`, `load_balance_algorithm`) and per-interface fields such as `aggregate_id`, `lacp_enabled`, `lacp_mode`, `lacp_interval`, `switchport_mode` and `trunk_allowed_vlans`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#31",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.6",
+      "date": "2025-12-17",
+      "entries": [
+        {
+          "id": "01-pydantic-models-for-acex-api-objects-are",
+          "kind": "added",
+          "title": "Pydantic models for ACEX API objects are included in the package",
+          "description": "`acex_client.models.models` now contains models generated from the API's OpenAPI spec, for example `Asset`, `AssetResponse`, `AssetCluster`, `DeviceConfig` and `ComposedConfiguration`. There are still no client methods to fetch them; `RestClient` (`get_item`, `list_items`) is an empty stub.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "8dd4e8957c74",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.2",
+      "date": "2025-12-16",
+      "entries": [
+        {
+          "id": "01-the-acex-client-package-is-now-present-i",
+          "kind": "fixed",
+          "title": "The `acex_client` package is now present in the distribution",
+          "description": "In 0.0.1 the package metadata pointed at `src/acex_client`, but the code sat in `src/main.py` outside that directory. From this version `acex_client` exists as an importable package (still without any client functionality).",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "f2e39a066ebe",
+              "url": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coming": [],
+  "highlights": []
+}

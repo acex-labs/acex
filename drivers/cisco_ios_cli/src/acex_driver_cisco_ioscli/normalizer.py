@@ -2,7 +2,7 @@
 
 import re
 
-from acex_devkit.normalizer import BaseNormalizer, BlockRule, LineRule, RewriteRule
+from acex_devkit.normalizer import MASK, BaseNormalizer, BlockRule, LineRule, RewriteRule
 
 
 class CiscoIOSNormalizer(BaseNormalizer):
@@ -33,46 +33,46 @@ class CiscoIOSNormalizer(BaseNormalizer):
         RewriteRule(
             "enable_secret",
             re.compile(r"^(\s*enable secret\s+\d+)\s+\S+.*$"),
-            r"\1 <REDACTED>",
+            rf"\1 {MASK}",
         ),
         RewriteRule(
             "enable_password",
             re.compile(r"^(\s*enable password(?:\s+\d+)?)\s+\S+.*$"),
-            r"\1 <REDACTED>",
+            rf"\1 {MASK}",
         ),
         RewriteRule(
             "username_secret",
             re.compile(r"^(\s*username\s+\S+(?:\s+privilege\s+\d+)?\s+secret\s+\d+)\s+\S+.*$"),
-            r"\1 <REDACTED>",
+            rf"\1 {MASK}",
         ),
         RewriteRule(
             "username_password",
             re.compile(r"^(\s*username\s+\S+(?:\s+privilege\s+\d+)?\s+password(?:\s+\d+)?)\s+\S+.*$"),
-            r"\1 <REDACTED>",
+            rf"\1 {MASK}",
         ),
         RewriteRule(
             "snmp_community",
             re.compile(r"^(\s*snmp-server community)\s+\S+(\s+.*)?$"),
-            r"\1 <REDACTED>\2",
+            rf"\1 {MASK}\2",
         ),
         RewriteRule(
             "aaa_shared_key",
             re.compile(r"^(\s*key(?:\s+\d+)?)\s+\S+.*$"),
-            r"\1 <REDACTED>",
+            rf"\1 {MASK}",
         ),
         RewriteRule(
             "ike_psk",
             re.compile(r"^(\s*pre-shared-key(?:\s+address\s+\S+)?)\s+key\s+\S+.*$"),
-            r"\1 key <REDACTED>",
+            rf"\1 key {MASK}",
         ),
         RewriteRule(
             "ospf_md5_key",
             re.compile(r"^(\s*ip ospf message-digest-key\s+\d+\s+md5(?:\s+\d+)?)\s+\S+.*$"),
-            r"\1 <REDACTED>",
+            rf"\1 {MASK}",
         ),
         RewriteRule(
             "bgp_password",
             re.compile(r"^(\s*neighbor\s+\S+\s+password(?:\s+\d+)?)\s+\S+.*$"),
-            r"\1 <REDACTED>",
+            rf"\1 {MASK}",
         ),
     ]

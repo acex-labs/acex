@@ -119,6 +119,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Carry unreleased changelog entries into the development image
+        # Rewrites the compiled changelog.json files in this checkout only; nothing is committed.
+        run: python scripts/changelog.py build --include-unreleased
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 

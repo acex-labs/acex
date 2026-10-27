@@ -8,6 +8,7 @@ from acex.jobs import JobManager, JobPublishError, JobType, JobTypeRegistry, Unk
 from acex.messaging import JobProducer, MessagingNotConfigured, UnroutedJobType, queue_for
 from acex.models.job import Job, JobState, JobSubjectType
 from acex.settings import RabbitMQSettings
+from acex_devkit.models.job import JobUpdate
 from kombu.transport.memory import Channel
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.pool import StaticPool
@@ -86,8 +87,20 @@ class TestProducer:
     def should_declare_durable_queues(self):
         # Workers declare the same queues; RabbitMQ refuses a second declaration
         # with different arguments, so this is part of the contract with them.
-        [queue] = JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues
-        assert (queue.name, queue.durable, queue.queue_arguments) == ("acex.ztp", True, None)
+        queues = JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues
+        assert [(q.name, q.durable, q.queue_arguments) for q in queues] == [
+            ("acex.ztp", True, None),
+            ("acex.operations", True, None),
+        ]
+
+    def should_declare_every_queue_without_publishing(self):
+        # At startup, so a queue exists before its first job and before any worker consumes it.
+        Channel.queues.clear()
+        producer = JobProducer(RabbitMQSettings(host="rabbitmq"))
+        producer._app.conf.broker_url = "memory://"
+
+        assert producer.declare_queues() == ["acex.ztp", "acex.operations"]
+        assert sorted(Channel.queues) == ["acex.operations", "acex.ztp"]
 
     def should_send_the_job_id_to_its_queue(self):
         # Through Celery's whole publish path, on kombu's in-memory broker.
@@ -197,6 +210,20 @@ class TestBatch:
         assert parent.children[JobState.failed] == 1
         assert parent.children[JobState.queued] == 2
         assert parent.state == JobState.running
+
+    def should_finish_when_its_last_job_does(self, db):
+        manager = JobManager(db, _Producer(), _registry())
+        parent = manager.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="a")
+        first, second = [job.id for job in _jobs(db) if job.parent_id == parent.id]
+        for job_id in (first, second):
+            manager.update(job_id, JobUpdate(state=JobState.running), worker="w")
+        manager.update(first, JobUpdate(state=JobState.succeeded), worker="w")
+        assert manager.get(parent.id).finished_at is None
+        manager.update(second, JobUpdate(state=JobState.failed, error="unreachable"), worker="w")
+        last = max(job.finished_at for job in _jobs(db) if job.parent_id == parent.id)
+        assert manager.get(parent.id).finished_at == last
+        [summary] = manager.list_jobs().items
+        assert summary.finished_at == last
 
     def should_refuse_an_empty_batch(self, db):
         with pytest.raises(ValueError):

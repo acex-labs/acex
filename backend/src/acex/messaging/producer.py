@@ -24,6 +24,17 @@ class JobProducer:
     def configured(self) -> bool:
         return self._app is not None
 
+    def declare_queues(self) -> list[str]:
+        """Declare every queue on the broker, so each exists before its first job and before any worker
+        that consumes it has started. Declaring an existing queue the same way is a no-op."""
+        if self._app is None:
+            raise MessagingNotConfigured("RabbitMQ is not configured; set ACEX_RABBITMQ_HOST to run jobs.")
+        with self._app.connection_for_write() as connection:
+            connection.ensure_connection(max_retries=1)
+            for queue in self._app.conf.task_queues:
+                queue.bind(connection.default_channel).declare()
+        return [queue.name for queue in self._app.conf.task_queues]
+
     def publish(self, job_type: str, job_id: int) -> None:
         if self._app is None:
             raise MessagingNotConfigured("RabbitMQ is not configured; set ACEX_RABBITMQ_HOST to run jobs.")

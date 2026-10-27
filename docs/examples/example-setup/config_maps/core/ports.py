@@ -42,4 +42,4 @@ class ConfigureCorePorts(ConfigMap):
 
 
 config = ConfigureCorePorts()
-config.filters = FilterAttribute("role").eq("lan_csw")
+config.filters = FilterAttribute("role").eq("core")

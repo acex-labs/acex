@@ -27,7 +27,7 @@ def create_router(automation_engine):
     def retry(source_ip: str, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Queue discovery of the device again, e.g. after a worker could not log in."""
         try:
-            return calls.retry(source_ip, created_by=user.get("sub") or "anonymous")
+            return calls.retry(source_ip, created_by=user.get("preferred_username") or user.get("sub") or "anonymous")
         except ZtpCallNotFound as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
         except MessagingNotConfigured as exc:
