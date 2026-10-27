@@ -5,6 +5,13 @@ from acex.database import Connection
 from acex.settings import Settings
 import os
 
+#import logging.config
+#from acex_api.logging_config import build_logging_config
+
+dev_mode = Settings(dev=True)
+#log_config = build_logging_config(dev=dev_mode.dev)
+#logging.config.dictConfig(log_config)
+
 # Database (Postgres)
 db = Connection(
     dbname=os.getenv("ACEX_DB_NAME"),
@@ -22,13 +29,12 @@ db = Connection(
 #   verify_ssl=False,
 #)
 
-dev_mode = Settings(dev=True)
-
 ae = AutomationEngine(
     db_connection=db,
     # assets_plugin=netbox,
     # logical_nodes_plugin=netbox,
     settings=dev_mode, # Run in dev mode, comment if you want to run in prod
+    configure_logging=True,
 )
 
 # OIDC authentication
@@ -82,4 +88,5 @@ if __name__ == "__main__":
         app,
         host="0.0.0.0",
         port=8080,
+        log_config=None,
     )
