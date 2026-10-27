@@ -9,11 +9,12 @@ from types import SimpleNamespace
 import pytest
 from acex.api.routers.ztp_nodes import create_router as nodes_router
 from acex.models import Node
-from acex.models.job import Job, JobState
+from acex.models.job import Job
 from acex.models.management_connections import ManagementConnection
-from acex.models.node import NodeProvisionStatus
 from acex.models.ztp_discovery import ZtpDiscovery
 from acex.ztp import ZtpDiscoveryManager, ZtpPipelineManager
+from acex_devkit.models.job import JobState
+from acex_devkit.models.node_response import NodeProvisionStatus
 from sqlmodel import Session, select
 from test_ztp_review import _Ztp
 

@@ -2,7 +2,8 @@ import warnings
 
 import pytest
 from acex.credentials.credential_manager import CredentialManager
-from acex.models.credential import CredentialCreate, CredentialUpdate, NodeCredentialCreate, SiteCredentialCreate
+from acex.models.credential import SiteCredentialCreate
+from acex_devkit.models.credential import CredentialCreate, CredentialUpdate, NodeCredentialCreate
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
 from sqlalchemy.pool import StaticPool

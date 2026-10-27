@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from acex.jobs import JobManager, JobType, JobTypeRegistry
-from acex.models.job import Job, JobState
+from acex.models.job import Job
+from acex_devkit.models.job import JobState
 from pydantic import BaseModel
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine

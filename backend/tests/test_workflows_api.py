@@ -7,11 +7,11 @@ import pytest
 from acex.api import auth
 from acex.api.routers import operation_runs, workflows
 from acex.jobs import JobManager
-from acex.models.job import Job, JobState
+from acex.models.job import Job
 from acex.operations.runs import OperationRuns
 from acex.workflows.library import WorkflowLibrary
 from acex.workflows.runs import WorkflowRuns
-from acex_devkit.models.job import JobUpdate
+from acex_devkit.models.job import JobState, JobUpdate
 from acex_devkit.models.ned import Capabilities
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient

@@ -6,8 +6,8 @@ from datetime import UTC, datetime
 
 from acex.jobs.registry import JobType, JobTypeRegistry, UnknownJobType, registry
 from acex.messaging import JobProducer, MessagingNotConfigured
-from acex.models.job import Job, JobResponse, JobState, JobSubjectType
-from acex_devkit.models.job import JobSummary, JobUpdate
+from acex.models.job import Job
+from acex_devkit.models.job import JobResponse, JobState, JobSubjectType, JobSummary, JobUpdate
 from acex_devkit.models.pagination import PaginatedResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, or_, update

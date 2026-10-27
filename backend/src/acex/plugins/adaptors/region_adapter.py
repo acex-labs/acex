@@ -1,4 +1,5 @@
-from acex.models.regions import Region, RegionResponse
+from acex.models.regions import Region
+from acex_devkit.models.region import RegionResponse
 
 from .adapter_base import AdapterBase
 

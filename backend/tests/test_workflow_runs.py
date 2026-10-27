@@ -9,10 +9,10 @@ from types import SimpleNamespace
 
 import pytest
 from acex.jobs import JobManager
-from acex.models.job import Job, JobState
+from acex.models.job import Job
 from acex.workflows.library import WorkflowLibrary
 from acex.workflows.runs import RunConflict, WorkflowRunError, WorkflowRuns
-from acex_devkit.models.job import JobUpdate
+from acex_devkit.models.job import JobState, JobUpdate
 from acex_devkit.models.workflows import WorkflowCreate, WorkflowRunMode
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select

@@ -18,9 +18,9 @@ from acex.messaging import (
     UnroutedJobType,
     queue_for,
 )
-from acex.models.job import Job, JobState, JobSubjectType
+from acex.models.job import Job
 from acex.settings import RabbitMQSettings
-from acex_devkit.models.job import JobUpdate
+from acex_devkit.models.job import JobState, JobSubjectType, JobUpdate
 from kombu.transport.memory import Channel
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.pool import StaticPool

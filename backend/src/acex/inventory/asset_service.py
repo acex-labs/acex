@@ -1,9 +1,12 @@
 import inspect
 from typing import Literal
 
-from acex.models import Asset, AssetResponse, AssetUpdate, PaginatedResponse
-from acex.models.node import AssetRefType, Node
+from acex.models import Asset
+from acex.models.node import Node
+from acex_devkit.models.asset import AssetResponse, AssetUpdate
+from acex_devkit.models.node_response import AssetRefType
 from acex_devkit.models.os_version import OsVersionScheme
+from acex_devkit.models.pagination import PaginatedResponse
 from fastapi import HTTPException
 from sqlalchemy import select
 

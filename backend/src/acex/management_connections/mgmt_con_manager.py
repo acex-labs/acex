@@ -1,4 +1,5 @@
-from acex.models import ManagementConnection, ManagementConnectionBase, ManagementConnectionResponse
+from acex.models import ManagementConnection, ManagementConnectionBase
+from acex_devkit.models.management_connection import ManagementConnectionResponse
 from sqlmodel import select
 
 

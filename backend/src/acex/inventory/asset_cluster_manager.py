@@ -1,8 +1,7 @@
-from acex.models.asset import (
-    AssetCluster,
+from acex.models.asset import AssetCluster, AssetClusterLink
+from acex_devkit.models.asset import (
     AssetClusterAssetResponse,
     AssetClusterCreate,
-    AssetClusterLink,
     AssetClusterResponse,
     AssetClusterUpdate,
 )

@@ -1,4 +1,5 @@
-from acex.models import LogicalNode, LogicalNodeListResponse, LogicalNodeResponse
+from acex.models import LogicalNode
+from acex_devkit.models.logical_node import LogicalNodeListResponse, LogicalNodeResponse
 
 from .adapter_base import AdapterBase
 

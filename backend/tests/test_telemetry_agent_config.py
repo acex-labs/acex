@@ -5,7 +5,7 @@ import acex.inventory.inventory  # noqa: F401  — registers all SQLModel tables
 import pytest
 from acex.models.logical_node import LogicalNode
 from acex.models.management_connections import ManagementConnection
-from acex.models.node import Node, NodeAdminStatus
+from acex.models.node import Node
 from acex.observability.agents.manager import TelemetryAgentManager
 from acex.observability.agents.models import (
     TelemetryAgent,
@@ -14,6 +14,7 @@ from acex.observability.agents.models import (
 )
 from acex.observability.components.icmp_ping import IcmpPingTelemetry
 from acex.observability.registry import TelemetryRegistry
+from acex_devkit.models.node_response import NodeAdminStatus
 from fastapi import HTTPException
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine

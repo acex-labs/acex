@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 
 from acex.config_map import ConfigMap, ConfigMapContext
 from acex.configuration import Configuration
-from acex.models import LogicalNodeConfigResponse, LogicalNodeResponse
+from acex_devkit.models.logical_node import LogicalNodeConfigResponse, LogicalNodeResponse
 
 
 class CompiledLogicalNode:

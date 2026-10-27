@@ -1,6 +1,6 @@
 from acex.constants import BASE_URL
-from acex.models.ned import Ned
 from acex.plugins.neds.manager import NEDManager
+from acex_devkit.models.ned import Ned
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 

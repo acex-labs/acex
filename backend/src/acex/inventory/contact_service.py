@@ -1,7 +1,8 @@
 import inspect
 
-from acex.models.contacts import Contact, ContactBase, ContactResponse
-from acex.models.pagination import PaginatedResponse
+from acex.models.contacts import Contact, ContactBase
+from acex_devkit.models.contact import ContactResponse
+from acex_devkit.models.pagination import PaginatedResponse
 
 
 class ContactService:

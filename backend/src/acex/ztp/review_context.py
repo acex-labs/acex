@@ -5,9 +5,10 @@ from dataclasses import dataclass, field
 from acex.models.asset import Asset
 from acex.models.job import Job
 from acex.models.logical_node import LogicalNode
-from acex.models.node import AssetRefType, Node, NodeProvisionStatus
+from acex.models.node import Node
 from acex.models.ztp_discovery import ZtpDiscovery
 from acex.models.ztp_method import ZtpMethodRow
+from acex_devkit.models.node_response import AssetRefType, NodeProvisionStatus
 from acex_devkit.models.ztp import ZtpConflict, ZtpConflictKind, ZtpReviewStatus
 from sqlmodel import or_, select
 
