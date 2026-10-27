@@ -1400,3 +1400,80 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-mcp:${{ needs.check-mcp-image.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/acex-mcp:latest
+
+  check-worker-image:
+    name: Check Worker image
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      exists: ${{ steps.check-image.outputs.exists }}
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Get version
+        id: get-version
+        working-directory: ./worker
+        run: |
+          pip install poetry
+          VERSION=$(poetry version -s)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if image exists
+        id: check-image
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://ghcr.io/v2/${{ github.repository_owner }}/acex-worker/manifests/${VERSION}")
+
+          echo "| Image | Version | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⏭️  Image version $VERSION already exists - skipping"
+            echo "| acex-worker | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Image version $VERSION is new - will build and push"
+            echo "| acex-worker | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  build-and-push-worker:
+    name: Build & Push Worker
+    needs: [check-worker-image, publish-packages]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    if: github.ref == 'refs/heads/main' && needs.check-worker-image.outputs.exists == 'false'
+    # Ingen manuell godkännande-gate längre — se publish-packages ovan.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./worker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/acex-worker:${{ needs.check-worker-image.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/acex-worker:latest
