@@ -40,6 +40,10 @@ class CollectionAgentResponse(PersistedResponse, CollectionAgentBase):
     last_manifest_poll: str | None = None
     acked_revision: int = 0
     acked_at: str | None = None
+    # Reported by the agent in its last ack; None until it has sent them.
+    agent_version: str | None = None
+    build_id: str | None = None
+    build_ref: str | None = None
     nodes: list[int] = []
     rules: list[CollectionAgentMatchRuleResponse] = []
     resolved_nodes: list[int] = []
@@ -47,6 +51,11 @@ class CollectionAgentResponse(PersistedResponse, CollectionAgentBase):
 
 class CollectionAgentAck(BaseModel):
     config_revision: int
+    # What the agent runs: its package version, the commit its image was built from and the branch that build
+    # ran on (dev for development images). All optional, so an agent that does not report them still acks.
+    agent_version: str | None = None
+    build_id: str | None = None
+    build_ref: str | None = None
 
 
 class CollectionAgentMatchRuleCreate(CollectionAgentMatchRuleBase):

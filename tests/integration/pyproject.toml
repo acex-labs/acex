@@ -10,6 +10,7 @@ acex = { path = "../../backend", develop = true }
 acex-devkit = { path = "../../devkit", develop = true }
 acex-client = { path = "../../client", develop = true }
 acex-collection-agent = { path = "../../agents/collection-agent", develop = true }
+acex-telemetry-agent = { path = "../../agents/telemetry-agent", develop = true }
 acex-driver-cisco-ioscli = { path = "../../drivers/cisco_ios_cli", develop = true }
 acex-driver-juniper-junoscli = { path = "../../drivers/juniper_junos_cli", develop = true }
 

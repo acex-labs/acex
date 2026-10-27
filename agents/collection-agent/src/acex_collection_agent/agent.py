@@ -1,7 +1,9 @@
 """Core agent loop — polls manifest frequently, runs collection on interval."""
 
 import asyncio
+import importlib.metadata
 import logging
+import os
 import time
 
 from acex_client import Acex
@@ -13,6 +15,15 @@ from acex_collection_agent.collector import Collector
 logger = logging.getLogger("acex_collection_agent")
 
 POLL_INTERVAL = 60  # Poll manifest every 60s for liveness + change detection
+
+
+def _build_info() -> tuple[str | None, str | None, str | None]:
+    """The version of this package, the commit its image was built from and the branch that build ran on."""
+    try:
+        version = importlib.metadata.version("acex-collection-agent")
+    except importlib.metadata.PackageNotFoundError:
+        version = None
+    return version, os.environ.get("ACEX_BUILD_ID") or None, os.environ.get("ACEX_BUILD_REF") or None
 
 
 class CollectionAgent:
@@ -84,10 +95,13 @@ class CollectionAgent:
 
     def _ack_manifest(self, config_revision: int):
         """Acknowledge receipt of manifest revision to ACEX API."""
+        agent_version, build_id, build_ref = _build_info()
         try:
             self.client.inventory.collection_agents.ack(
                 id=self.agent_id,
-                payload=CollectionAgentAck(config_revision=config_revision),
+                payload=CollectionAgentAck(
+                    config_revision=config_revision, agent_version=agent_version, build_id=build_id, build_ref=build_ref
+                ),
             )
         except Exception as e:
             logger.warning(f"Failed to ack manifest: {e}")

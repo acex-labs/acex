@@ -1069,7 +1069,9 @@ jobs:
         with:
           context: .
           file: ./backend/Dockerfile
-          build-args: BUILD_ID=${{ github.sha }}
+          build-args: |
+            BUILD_ID=${{ github.sha }}
+            BUILD_REF=${{ github.ref_name }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
@@ -1154,6 +1156,9 @@ jobs:
         with:
           context: .
           file: ./agents/collection-agent/Dockerfile
+          build-args: |
+            BUILD_ID=${{ github.sha }}
+            BUILD_REF=${{ github.ref_name }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
@@ -1235,6 +1240,9 @@ jobs:
         with:
           context: .
           file: ./agents/telemetry-agent/Dockerfile
+          build-args: |
+            BUILD_ID=${{ github.sha }}
+            BUILD_REF=${{ github.ref_name }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
