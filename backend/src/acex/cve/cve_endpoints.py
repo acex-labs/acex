@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from acex_devkit.models.cve import CveCreate, CveResponse
 from acex.models.cve import CveModelRow
+from acex_devkit.models.cve import CveCreate, CveResponse
 from sqlmodel import select
 
 
@@ -16,7 +16,7 @@ class CveManager:
             return CveResponse.model_validate(cve) if cve is not None else None
         finally:
             session.close()
-            
+
     def query(self):
         session = next(self.db.get_session())
         try:
@@ -48,11 +48,9 @@ class CveManager:
 
         session = next(self.db.get_session())
         try:
-            existing = session.exec(
-                select(CveModelRow).where(CveModelRow.cve_id.in_(records))
-            ).all()
+            existing = session.exec(select(CveModelRow).where(CveModelRow.cve_id.in_(records))).all()
             cves_by_cve_id = {cve.cve_id: cve for cve in existing}
-            refreshed_at = datetime.now(timezone.utc)
+            refreshed_at = datetime.now(UTC)
 
             for cve_id, item in records.items():
                 cve = cves_by_cve_id.get(cve_id)
@@ -88,7 +86,7 @@ class CveManager:
             cve.description = payload.description
             cve.cvss_score = payload.cvss_score
             cve.raw = payload.raw
-            cve.updated_at = datetime.now(timezone.utc)
+            cve.updated_at = datetime.now(UTC)
             session.commit()
             session.refresh(cve)
             return CveResponse.model_validate(cve)

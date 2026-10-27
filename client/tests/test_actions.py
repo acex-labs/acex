@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import datetime, timezone
+import json
 
 import pytest
 import respx
@@ -13,15 +15,19 @@ from acex_client.resources.base import (
     GetMixin,
     ListMixin,
     Resource,
+    _serialize_body,
     action,
     stream,
 )
+from acex_client.resources.cve import Cves
 from acex_devkit.models.agent_manifest import AckResult, CollectionAgentManifest
+from acex_devkit.models.cve import CveApiKeyUpdate, CveCreate, CveDiscoverData, CveResponse
 from acex_devkit.models.collection_agent import (
     CollectionAgentAck,
     CollectionAgentResponse,
 )
 from httpx import Response
+from pydantic import BaseModel
 
 
 class CollectionAgents(Resource, GetMixin, ListMixin, ActionMixin):
@@ -58,6 +64,18 @@ def test_action_with_body(rest):
     assert result.acked_revision == 5
 
 
+def test_shared_action_serializer_preserves_python_mode():
+    class Payload(BaseModel):
+        timestamp: datetime
+        optional: str | None = None
+
+    timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    payload = Payload(timestamp=timestamp)
+
+    assert _serialize_body(payload) == {"timestamp": timestamp}
+    assert _serialize_body([payload]) == [{"timestamp": timestamp}]
+
+
 @respx.mock
 def test_action_with_path_substitution(rest):
     respx.get("http://test/api/v1/inventory/collection_agents/2/manifest").mock(
@@ -77,6 +95,140 @@ def test_action_with_path_substitution(rest):
     assert result.agent_id == 2
     assert result.name == "agent-2"
     assert result.targets == []
+
+
+@respx.mock
+def test_cve_discovery_and_bulk_create_actions(rest):
+    discover = respx.post("http://test/api/v1/cves/discover").mock(
+        return_value=Response(
+            202,
+            json={
+                "id": 18,
+                "type": "acex.cve.discover",
+                "data": {"vendor": "Cisco", "start": None, "end": None},
+                "state": "queued",
+                "created_by": "alice",
+                "created_at": "2026-01-01T00:00:00Z",
+            },
+        )
+    )
+    bulk_create = respx.post("http://test/api/v1/cves/bulk").mock(
+        return_value=Response(
+            200,
+            json=[
+                {
+                    "id": 3,
+                    "cve_id": "CVE-2026-1234",
+                    "raw": {"id": "CVE-2026-1234"},
+                    "published": None,
+                    "last_modified": None,
+                    "description": None,
+                    "cvss_score": None,
+                    "created_at": "2026-01-01T00:00:00Z",
+                    "updated_at": None,
+                }
+            ],
+        )
+    )
+    cves = Cves(rest)
+
+    published = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    last_modified = datetime(2026, 1, 2, tzinfo=timezone.utc)
+    job = cves.discover(
+        payload=CveDiscoverData(vendor="Cisco", start=published, end=last_modified)
+    )
+    created = cves.bulk_create(
+        payload=[CveCreate(
+            cve_id="CVE-2026-1234",
+            published=published,
+            last_modified=last_modified,
+            raw={"id": "CVE-2026-1234"},
+        )]
+    )
+
+    assert discover.called
+    assert json.loads(discover.calls.last.request.content) == {
+        "vendor": "Cisco",
+        "start": "2026-01-01T00:00:00+00:00",
+        "end": "2026-01-02T00:00:00+00:00",
+    }
+    assert job.type == "acex.cve.discover"
+    assert bulk_create.called
+    assert json.loads(bulk_create.calls.last.request.content) == [{
+        "cve_id": "CVE-2026-1234",
+        "published": "2026-01-01T00:00:00+00:00",
+        "last_modified": "2026-01-02T00:00:00+00:00",
+        "raw": {"id": "CVE-2026-1234"},
+    }]
+    assert len(created) == 1
+    assert isinstance(created[0], CveResponse)
+    assert created[0].cve_id == "CVE-2026-1234"
+
+
+@respx.mock
+@pytest.mark.parametrize("method", ["create", "update", "bulk_create"])
+def test_cve_mutations_serialize_datetime_fields(rest, method):
+    published = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    payload = CveCreate(
+        cve_id="CVE-2026-1234",
+        published=published,
+        last_modified=published,
+        raw={"id": "CVE-2026-1234"},
+    )
+    body = {
+        "cve_id": "CVE-2026-1234",
+        "published": "2026-01-01T00:00:00+00:00",
+        "last_modified": "2026-01-01T00:00:00+00:00",
+        "raw": {"id": "CVE-2026-1234"},
+    }
+    response = {**body, "id": 3, "created_at": "2026-01-01T00:00:00Z"}
+    cves = Cves(rest)
+    if method == "bulk_create":
+        route = respx.post("http://test/api/v1/cves/bulk").mock(
+            return_value=Response(200, json=[response])
+        )
+        result = cves.bulk_create(payload=[payload])[0]
+        expected_body = [body]
+    elif method == "update":
+        route = respx.patch("http://test/api/v1/cves/3").mock(
+            return_value=Response(200, json=response)
+        )
+        result = cves.update(cve_id=3, payload=payload)
+        expected_body = body
+    else:
+        route = respx.post("http://test/api/v1/cves").mock(
+            return_value=Response(200, json=response)
+        )
+        result = cves.create(payload=payload)
+        expected_body = body
+
+    assert json.loads(route.calls.last.request.content) == expected_body
+    assert result.published == published
+    assert result.last_modified == published
+
+
+@respx.mock
+@pytest.mark.parametrize("key", ["test-nvd-key", None])
+def test_cve_api_key_action_returns_a_json_string_or_none(rest, key):
+    route = respx.get("http://test/api/v1/cves/api_key").mock(
+        return_value=Response(200, content="null" if key is None else '"test-nvd-key"')
+    )
+    cves = Cves(rest)
+    assert cves.api_key.rest is rest
+    assert cves.api_key.get() == key
+    assert route.called
+
+
+@respx.mock
+def test_cve_api_key_save_and_delete_actions(rest):
+    save = respx.put("http://test/api/v1/cves/api_key").mock(return_value=Response(204))
+    delete = respx.delete("http://test/api/v1/cves/api_key").mock(return_value=Response(204))
+    cves = Cves(rest)
+
+    assert cves.api_key.update(payload=CveApiKeyUpdate(api_key="test-nvd-key")) is None
+    assert save.calls.last.request.content == b'{"api_key":"test-nvd-key"}'
+    assert cves.api_key.delete() is None
+    assert delete.called
 
 
 @respx.mock

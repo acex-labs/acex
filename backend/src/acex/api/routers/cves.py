@@ -46,11 +46,13 @@ def create_router(automation_engine):
         cm = automation_engine.credential_manager
         try:
             if credential is None:
-                cm.create(CredentialCreate(
-                    name=_NVD_CREDENTIAL_NAME,
-                    credential_type="token",
-                    fields={"token": payload.api_key},
-                ))
+                cm.create(
+                    CredentialCreate(
+                        name=_NVD_CREDENTIAL_NAME,
+                        credential_type="token",
+                        fields={"token": payload.api_key},
+                    )
+                )
             else:
                 cm.update(credential.id, CredentialUpdate(fields={"token": payload.api_key}))
         except IntegrityError as exc:
@@ -93,7 +95,7 @@ def create_router(automation_engine):
         if cve is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No CVE {cve_id}")
         return cve
-    
+
     @router.get("", response_model=list[CveResponse])
     def query():
         return cves.query()

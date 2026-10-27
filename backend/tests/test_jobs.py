@@ -4,8 +4,20 @@ publish leaves it marked failed rather than silently queued."""
 from collections import Counter
 
 import pytest
-from acex.jobs import JobManager, JobPublishError, JobType, JobTypeRegistry, UnknownJobType, derive_state
-from acex.messaging import JobProducer, MessagingNotConfigured, UnroutedJobType, queue_for
+from acex.jobs import (
+    JobManager,
+    JobPublishError,
+    JobType,
+    JobTypeRegistry,
+    UnknownJobType,
+    derive_state,
+)
+from acex.messaging import (
+    JobProducer,
+    MessagingNotConfigured,
+    UnroutedJobType,
+    queue_for,
+)
 from acex.models.job import Job, JobState, JobSubjectType
 from acex.settings import RabbitMQSettings
 from acex_devkit.models.job import JobUpdate
@@ -17,7 +29,9 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 class _Db:
     def __init__(self):
-        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        self.engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
         SQLModel.metadata.create_all(self.engine)
 
     def get_session(self):
@@ -49,7 +63,13 @@ class _NoSubject(BaseModel):
 
 def _registry() -> JobTypeRegistry:
     job_types = JobTypeRegistry()
-    job_types.register(JobType("acex.ztp.discover", data=_Discover, subject=(JobSubjectType.node, "node_id")))
+    job_types.register(
+        JobType(
+            "acex.ztp.discover",
+            data=_Discover,
+            subject=(JobSubjectType.node, "node_id"),
+        )
+    )
     return job_types
 
 
@@ -67,6 +87,8 @@ class TestRouting:
     def should_route_a_flow_to_its_queue(self):
         assert queue_for("acex.ztp.discover") == "acex.ztp"
         assert queue_for("acex.ztp.provision") == "acex.ztp"
+        assert queue_for("acex.operations.execute") == "acex.operations"
+        assert queue_for("acex.cve.discover") == "acex.cve"
 
     def should_refuse_a_job_type_no_queue_carries(self):
         with pytest.raises(UnroutedJobType):
@@ -87,11 +109,12 @@ class TestProducer:
     def should_declare_durable_queues(self):
         # Workers declare the same queues; RabbitMQ refuses a second declaration
         # with different arguments, so this is part of the contract with them.
-        queues = JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues
-        assert [(q.name, q.durable, q.queue_arguments) for q in queues] == [
-            ("acex.ztp", True, None),
-            ("acex.operations", True, None),
-        ]
+        queues = {
+            queue.name: queue
+            for queue in JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues
+        }
+        assert set(queues) == {"acex.ztp", "acex.operations", "acex.cve"}
+        assert all(queue.durable and queue.queue_arguments is None for queue in queues.values())
 
     def should_declare_every_queue_without_publishing(self):
         # At startup, so a queue exists before its first job and before any worker consumes it.
@@ -99,8 +122,8 @@ class TestProducer:
         producer = JobProducer(RabbitMQSettings(host="rabbitmq"))
         producer._app.conf.broker_url = "memory://"
 
-        assert producer.declare_queues() == ["acex.ztp", "acex.operations"]
-        assert sorted(Channel.queues) == ["acex.operations", "acex.ztp"]
+        assert producer.declare_queues() == ["acex.ztp", "acex.operations", "acex.cve"]
+        assert sorted(Channel.queues) == ["acex.cve", "acex.operations", "acex.ztp"]
 
     def should_send_the_job_id_to_its_queue(self):
         # Through Celery's whole publish path, on kombu's in-memory broker.
@@ -110,10 +133,15 @@ class TestProducer:
 
         producer.publish("acex.ztp.discover", 42)
 
-        assert sorted(Channel.queues) == ["acex.ztp"]  # Celery's default queue is never declared
+        assert sorted(Channel.queues) == [
+            "acex.ztp"
+        ]  # Celery's default queue is never declared
         with producer._app.connection_for_read() as conn:
             message = conn.SimpleQueue("acex.ztp").get(timeout=1)
-        assert (message.headers["task"], message.headers["id"]) == ("acex.ztp.discover", "42")
+        assert (message.headers["task"], message.headers["id"]) == (
+            "acex.ztp.discover",
+            "42",
+        )
         assert message.decode()[0] == [42]
 
 
@@ -125,7 +153,11 @@ class TestRegistry:
     def should_refuse_a_subject_field_the_data_lacks(self):
         with pytest.raises(ValueError, match="node_id"):
             JobTypeRegistry().register(
-                JobType("acex.ztp.discover", data=_NoSubject, subject=(JobSubjectType.node, "node_id"))
+                JobType(
+                    "acex.ztp.discover",
+                    data=_NoSubject,
+                    subject=(JobSubjectType.node, "node_id"),
+                )
             )
 
     def should_refuse_registering_a_job_type_twice(self):
@@ -141,7 +173,9 @@ class TestRegistry:
 class TestEnqueue:
     def should_save_the_job_before_publishing_its_id(self, db):
         producer = _Producer()
-        job = JobManager(db, producer, _registry()).enqueue("acex.ztp.discover", {"node_id": 7}, created_by="alice")
+        job = JobManager(db, producer, _registry()).enqueue(
+            "acex.ztp.discover", {"node_id": 7}, created_by="alice"
+        )
         assert producer.published == [("acex.ztp.discover", job.id)]
         [saved] = _jobs(db)
         assert (saved.id, saved.state, saved.data, saved.created_by) == (
@@ -159,7 +193,9 @@ class TestEnqueue:
 
     def should_reject_data_that_does_not_fit_the_job_type(self, db):
         with pytest.raises(ValidationError):
-            JobManager(db, _Producer(), _registry()).enqueue("acex.ztp.discover", {"node": 7}, created_by="a")
+            JobManager(db, _Producer(), _registry()).enqueue(
+                "acex.ztp.discover", {"node": 7}, created_by="a"
+            )
         assert _jobs(db) == []
 
     def should_save_nothing_without_a_broker(self, db):
@@ -213,13 +249,17 @@ class TestBatch:
 
     def should_finish_when_its_last_job_does(self, db):
         manager = JobManager(db, _Producer(), _registry())
-        parent = manager.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="a")
+        parent = manager.enqueue_batch(
+            "acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="a"
+        )
         first, second = [job.id for job in _jobs(db) if job.parent_id == parent.id]
         for job_id in (first, second):
             manager.update(job_id, JobUpdate(state=JobState.running), worker="w")
         manager.update(first, JobUpdate(state=JobState.succeeded), worker="w")
         assert manager.get(parent.id).finished_at is None
-        manager.update(second, JobUpdate(state=JobState.failed, error="unreachable"), worker="w")
+        manager.update(
+            second, JobUpdate(state=JobState.failed, error="unreachable"), worker="w"
+        )
         last = max(job.finished_at for job in _jobs(db) if job.parent_id == parent.id)
         assert manager.get(parent.id).finished_at == last
         [summary] = manager.list_jobs().items
@@ -227,7 +267,9 @@ class TestBatch:
 
     def should_refuse_an_empty_batch(self, db):
         with pytest.raises(ValueError):
-            JobManager(db, _Producer(), _registry()).enqueue_batch("acex.ztp.discover", [], created_by="a")
+            JobManager(db, _Producer(), _registry()).enqueue_batch(
+                "acex.ztp.discover", [], created_by="a"
+            )
 
 
 class TestDerivedState:

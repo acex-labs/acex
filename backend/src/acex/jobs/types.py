@@ -11,6 +11,7 @@ from acex.workflows.job_types import (
 from acex.workflows.job_types import WORKFLOW_RUN as _WORKFLOW_RUN
 from acex.ztp.discovery import record_discovery
 from acex.ztp.pipeline_view import ZTP_PROVISION as _ZTP_PROVISION
+from acex_devkit.models.cve import CveDiscoverData, CveDiscoverResult
 from acex_devkit.models.job import JobSubjectType
 from acex_devkit.models.workflows import (
     WorkflowNodeJob,
@@ -26,7 +27,6 @@ from acex_devkit.models.ztp import (
     ZtpProvisionData,
     ZtpProvisionResult,
 )
-from acex_devkit.models.cve import CveDiscoverData, CveDiscoverResult
 
 #: Log in to a device that fetched its ZTP bootstrap and find out what it is.
 #: What it reports is recorded as a discovery for an administrator to review.
@@ -98,6 +98,7 @@ for _step_type, _job_type in WORKFLOW_ONCE_STEPS.items():
         registry.register(
             JobType(_job_type, data=WorkflowStepJob, result=WorkflowStepResult)
         )
+
 CVE_DISCOVER = registry.register(
     JobType("acex.cve.discover", data=CveDiscoverData, result=CveDiscoverResult)
 )
