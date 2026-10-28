@@ -21,4 +21,9 @@ RUN sed -i 's|../../client|/deps/client|' pyproject.toml && \
     poetry install --no-interaction && \
     pip install /deps/devkit
 
+ARG BUILD_ID=""
+ENV ACEX_BUILD_ID=$BUILD_ID
+ARG BUILD_REF=""
+ENV ACEX_BUILD_REF=$BUILD_REF
+
 ENTRYPOINT ["acex-collection-agent"]

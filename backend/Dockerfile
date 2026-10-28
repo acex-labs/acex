@@ -31,6 +31,8 @@ RUN sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_cli/pyproje
 
 ARG BUILD_ID=""
 ENV ACEX_BUILD_ID=$BUILD_ID
+ARG BUILD_REF=""
+ENV ACEX_BUILD_REF=$BUILD_REF
 
 
 CMD ["python", "-m", "acex_api"]
