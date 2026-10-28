@@ -23,7 +23,7 @@ class CiscoIOSCodec(Codec[str]):
     def parse(self, raw: str, node: NodeInstance) -> ParseResult:
         return self.mapper.parse(self.normalize(raw), CiscoContext(node))
 
-    def render_patch(self, diff: Diff, node: NodeInstance) -> str:
+    def render_patch(self, diff: Diff, node: NodeInstance) -> RenderResult[str]:
         return self.mapper.render_patch(diff, CiscoContext(node))
 
     def normalize(self, raw: str) -> str:

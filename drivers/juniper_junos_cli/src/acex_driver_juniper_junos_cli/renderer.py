@@ -5,6 +5,7 @@ from typing import Any
 
 from acex_devkit.configdiffer import Diff
 from acex_devkit.configdiffer.command import Command, Context
+from acex_devkit.models.codec_result import RenderMetadata, RenderResult
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
@@ -70,19 +71,24 @@ class JunosCLIRenderer:
         self.registry.register(("system", "config"), self._generate_system_config_commands)
         self.registry.register(("interfaces", "*"), self._generate_interface_config_commands)
 
-    def render_patch(self, diff: Diff, node_instance: Any):
-        """Render device commands for a Diff using registered generators."""
+    def render_patch(self, diff: Diff, node_instance: Any) -> RenderResult[str]:
+        """Render device commands for a Diff using registered generators; a change no generator handles is
+        listed as unrendered."""
         self.registry = GeneratorRegistry()
         self._register()
 
         commands: list[Command] = []
+        unrendered: list[list[str]] = []
         for change in diff.get_all_changes():
             generator = self.registry.resolve(tuple(change.path))
             if generator is None:
+                unrendered.append(change.path)
                 continue
             commands.extend(generator(change, node_instance))
 
-        return "\n".join(c.command for c in commands)
+        return RenderResult(
+            payload="\n".join(c.command for c in commands), metadata=RenderMetadata(unrendered=unrendered)
+        )
 
     def _generate_system_config_commands(self, component_change, node_instance) -> list[Command]:
         ctx = Context(path=[])
