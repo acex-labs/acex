@@ -7,6 +7,7 @@ from acex_devkit.models.acl_model import Acl
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.augment import Augmentable
 from acex_devkit.models.augment import AugmentAttributes as AugmentAttributes
+from acex_devkit.models.config_tree import ConfigTree, ConfigTreeNode
 from acex_devkit.models.container_entry import ContainerEntry
 from acex_devkit.models.logging import Console, FileLogging, LoggingConfig, LoggingEvents, RemoteServers, VtyLine
 from acex_devkit.models.reference import Metadata as Metadata
@@ -381,6 +382,10 @@ class SubInterface(Interface):
     ipv4: AttributeValue[str] | None = None
 
 
+# A physical interface lists its subinterfaces, defined after it.
+EthernetCsmacdInterface.model_rebuild()
+
+
 class ManagementInterface(Interface):
     "Management Interface"
 
@@ -417,7 +422,8 @@ class Protocols(BaseModel):
     # OSPF, BGP, etc. can be added here as needed
 
 
-class RouteTarget(BaseModel):
+class RouteTarget(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("value",)
     value: AttributeValue[str] | None = None
 
 
@@ -1184,6 +1190,11 @@ class ComposedConfiguration(BaseModel):
     }
     stp: SpanningTree | None = SpanningTree()
     sampling: Sampling | None = Sampling()
+
+    @classmethod
+    def tree(cls) -> ConfigTreeNode:
+        """The shape of the configuration tree a patch's path walks."""
+        return ConfigTree(cls).root()
 
 
 """

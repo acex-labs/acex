@@ -4,8 +4,11 @@ from acex_devkit.models.codec_result import UnmatchedLine
 from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
     EthernetCsmacdInterface,
+    ImportExportPolicy,
+    InterInstancePolicy,
     L3IpvlanInterface,
     NetworkInstance,
+    RouteTarget,
     Ssh,
     SshServer,
     System,
@@ -161,3 +164,18 @@ def test_the_default_instance_members_are_derived_not_declared():
     )
     observed = ComposedConfiguration(network_instances={"global": NetworkInstance(name="global")})
     assert ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed == []
+
+
+def route_targets(*values: str) -> ComposedConfiguration:
+    policy = ImportExportPolicy(export_route_target=[RouteTarget(value=v) for v in values])
+    policies = {"p": InterInstancePolicy(import_export_policy=policy)}
+    instance = NetworkInstance(name="A", inter_instance_policies=policies)
+    return ComposedConfiguration(network_instances={"A": instance})
+
+
+def test_listed_entries_are_components_matched_by_identity_not_position():
+    desired, observed = route_targets("65000:1", "65000:2"), route_targets("65000:2")
+    diff = ConfigDiffer().diff(desired_config=desired, observed_config=observed)
+
+    assert [c.path[-2:] for c in diff.added] == [["export_route_target", "0"]]
+    assert (diff.changed, diff.removed) == ([], [])

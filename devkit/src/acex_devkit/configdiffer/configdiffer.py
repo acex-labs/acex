@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, get_args
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -7,6 +7,7 @@ from acex_devkit.configdiffer.diff import AttributeChange, ComponentChange, Comp
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.augment import AugmentAttributes
 from acex_devkit.models.composed_configuration import ComposedConfiguration
+from acex_devkit.models.config_tree import ConfigTree
 from acex_devkit.models.container_entry import ContainerEntry
 from acex_devkit.models.reference import Reference
 from acex_devkit.normalizer import MASK
@@ -20,21 +21,10 @@ class ConfigDiffer:
     is left out on both sides.
     """
 
-    def _is_leaf(self, model: BaseModel) -> bool:
-        """A model is a leaf if it has at least one direct AttributeValue field."""
-        for field_info in model.model_fields.values():
-            ann = field_info.annotation
-            if isinstance(ann, type) and issubclass(ann, AttributeValue):
-                return True
-            for arg in get_args(ann):
-                if isinstance(arg, type) and issubclass(arg, AttributeValue):
-                    return True
-        return False
-
     def flatten(self, model: BaseModel, path: tuple = ()) -> dict[tuple, BaseModel]:
         """
         Recursively walk a model tree, collecting leaf nodes.
-        A leaf is any BaseModel that has direct AttributeValue fields.
+        A leaf is a component: a model with attributes of its own (`ConfigTree.is_component`).
         A model can be both a leaf (stored) and have children (recursed into).
         Returns a flat mapping of path → leaf instance.
         """
@@ -42,8 +32,8 @@ class ConfigDiffer:
             return {}
         result = {}
 
-        # Store this model if it has AttributeValue fields (e.g. SystemConfig, NtpServer, NetworkInstance)
-        if self._is_leaf(model):
+        # Store this model if it has attributes of its own (e.g. SystemConfig, NtpServer, NetworkInstance)
+        if ConfigTree.is_component(type(model)):
             result[path] = model
 
         # Walk each field declared on the model (e.g. System has config, aaa, logging, ntp, ssh, snmp)
@@ -60,12 +50,13 @@ class ConfigDiffer:
             if isinstance(value, BaseModel):
                 result.update(self.flatten(value, path + (field_name,)))
 
-            # Keyed collection — recurse into each entry (e.g. interfaces: Dict[str, Interface])
-            elif isinstance(value, dict):
-                for key, item in value.items():
-                    # Each dict entry is a named component (e.g. "Gi0/0/1" → EthernetCsmacdInterface)
+            # Collection — recurse into each entry (e.g. interfaces: Dict[str, Interface]). A listed entry is
+            # keyed by its position; entries are matched by identity, so the key is a name only.
+            elif isinstance(value, dict | list):
+                for key, item in value.items() if isinstance(value, dict) else enumerate(value):
+                    # Each entry is a named component (e.g. "Gi0/0/1" → EthernetCsmacdInterface)
                     if isinstance(item, BaseModel):
-                        result.update(self.flatten(item, path + (field_name, key)))
+                        result.update(self.flatten(item, path + (field_name, str(key))))
 
         return result
 
@@ -89,9 +80,9 @@ class ConfigDiffer:
     def _nests(self, value: Any) -> bool:
         """Whether a field's value holds components: a sub-model, or a collection of them, such as a network
         instance's vlans or protocols. References and augments are attributes."""
-        if isinstance(value, dict):
-            return any(self._nests(v) for v in value.values())
-        return isinstance(value, BaseModel) and not isinstance(value, AttributeValue | Reference | AugmentAttributes)
+        if isinstance(value, dict | list):
+            return any(self._nests(v) for v in (value.values() if isinstance(value, dict) else value))
+        return isinstance(value, BaseModel) and ConfigTree.is_model(type(value))
 
     def _same(self, observed: Any, desired: Any) -> bool:
         """References are equal when they point at the same place, whatever path spells it out; a collection
