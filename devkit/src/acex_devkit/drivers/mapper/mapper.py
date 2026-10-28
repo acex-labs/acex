@@ -87,7 +87,7 @@ class Mapper:
         """`context` reaches every block's `complete` hook."""
         return ParseRun(self, context).run(text)
 
-    def render_patch(self, diff: Diff, context: Any = None) -> str:
+    def render_patch(self, diff: Diff, context: Any = None) -> RenderResult[str]:
         """The lines that take a device from `diff`'s observed tree to its desired one, as far as the diff
         reaches; see `Patch`."""
         return Patch(self, diff, context).render()

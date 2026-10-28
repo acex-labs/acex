@@ -5,7 +5,12 @@ import pytest
 from acex_devkit.configdiffer import ConfigDiffer
 from acex_devkit.drivers.mapper import Block, Flag, Keyword, Line, Mapper
 from acex_devkit.exceptions import DriverException
-from acex_devkit.models.composed_configuration import EthernetCsmacdInterface, NtpServer, SystemConfig
+from acex_devkit.models.composed_configuration import (
+    CdpConfigAttributes,
+    EthernetCsmacdInterface,
+    NtpServer,
+    SystemConfig,
+)
 
 
 class SystemSyntax(Block):
@@ -76,7 +81,7 @@ def diff():
 
 
 def patch(path: str = "", prune: bool = False) -> list[str]:
-    return MAPPER.render_patch(diff().scoped(path, prune)).splitlines()
+    return MAPPER.render_patch(diff().scoped(path, prune)).payload.splitlines()
 
 
 def test_adds_and_changes_without_prune_leave_undeclared_config():
@@ -118,9 +123,19 @@ def test_a_path_matches_whole_keys_only():
 
 
 def test_in_sync_renders_nothing():
-    assert MAPPER.render_patch(diff().scoped("system.config.location")) == ""
+    assert MAPPER.render_patch(diff().scoped("system.config.location")).payload == ""
 
 
 def test_a_diff_without_its_trees_cannot_be_rendered():
     with pytest.raises(DriverException):
         MAPPER.render_patch(diff().model_copy(update={"desired": None, "observed": None}))
+
+
+def test_a_component_the_syntax_has_no_lines_for_is_left_out_and_listed():
+    desired = MAPPER.parse(DESIRED).configuration.model_copy(update={"cdp": CdpConfigAttributes(enabled=True)})
+    full = ConfigDiffer().diff(desired_config=desired, observed_config=MAPPER.parse(OBSERVED).configuration)
+
+    result = MAPPER.render_patch(full.scoped())
+
+    assert result.metadata.unrendered == [["cdp"]]
+    assert result.payload.splitlines() == patch()

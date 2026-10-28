@@ -109,12 +109,15 @@ class PatchRenderResult(BaseModel):
     #: Of the patch as rendered, before masking: an apply sends only a patch that hashes the same. None when
     #: the node already matches.
     patch_hash: str | None = None
+    #: What the patch changes.
     changes: list[PatchChange] = []
+    #: What differs that the node's NED can't write, so the patch leaves it out.
+    unrendered: list[PatchChange] = []
 
     @computed_field
     @property
     def in_sync(self) -> bool:
-        return not self.changes
+        return not self.changes and not self.unrendered
 
 
 class PatchApplyRequest(NodeSelection):
@@ -149,8 +152,11 @@ class PatchApplyResult(BaseModel):
     patch: str = ""
     #: What the device answered, masked.
     output: str = ""
-    #: What differs at the path now: after the patch, or instead of the plan when it no longer holds.
+    #: What differs at the path now that the NED can write: after the patch, or instead of the plan when it no
+    #: longer holds.
     changes: list[PatchChange] = []
+    #: What differs that the node's NED can't write, left out of the patch and of the verification.
+    unrendered: list[PatchChange] = []
 
 
 class Run(BaseModel):

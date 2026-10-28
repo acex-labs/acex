@@ -4,6 +4,7 @@ from typing import Any
 
 from acex_devkit.configdiffer import ComponentChange, ComponentDiffOp, ConfigDiffer, Diff
 from acex_devkit.exceptions import DriverException
+from acex_devkit.models.codec_result import RenderMetadata, RenderResult
 
 
 class Rendered:
@@ -19,10 +20,10 @@ class Rendered:
         self.components = set(ConfigDiffer().flatten(root))
 
     def span(self, path: list[str]) -> tuple[int, int]:
-        span = self.spans.get(tuple(path))
-        if span is None:
-            raise DriverException(f"{'.'.join(path)} has no lines of its own in this syntax")
-        return span
+        return self.spans[tuple(path)]
+
+    def has(self, path: list[str]) -> bool:
+        return tuple(path) in self.spans
 
     def headed(self, start: int, end: int) -> bool:
         """Whether the span opens with a header the rest is nested under, e.g. `interface Gi1`."""
@@ -63,7 +64,8 @@ class Patch:
     render, each under the headers of the blocks it sits in.
 
     An added component is written whole; a changed one only on the lines of the attributes that changed. A
-    removed component with a header is removed by negating the header, which takes what's nested along."""
+    removed component with a header is removed by negating the header, which takes what's nested along. A
+    component the syntax has no lines for is left out and listed as unrendered."""
 
     def __init__(self, mapper: Any, diff: Diff, context: Any):
         if diff.desired is None or diff.observed is None:
@@ -72,18 +74,24 @@ class Patch:
         self.desired = Rendered(mapper, diff.desired, context) if diff.added or diff.changed else None
         self.observed = Rendered(mapper, diff.observed, context) if diff.removed else None
         self.blocks: list[tuple[list[str], list[str]]] = []
+        self.unrendered: list[list[str]] = []
 
-    def render(self) -> str:
+    def render(self) -> RenderResult[str]:
         if self.observed is not None:
-            removed = sorted(self.diff.removed, key=lambda change: self.observed.span(change.path))
+            removed = sorted(self.expressed(self.diff.removed, self.observed), key=lambda c: self.observed.span(c.path))
             for change in removed:
                 if not self.inside_removed(change, removed):
                     self.remove(change)
         if self.desired is not None:
-            written = [t for c in self.diff.added + self.diff.changed if (t := self.trimmed(c)) is not None]
-            for change in sorted(written, key=lambda c: self.desired.span(c.path)):
+            trimmed = [t for c in self.diff.added + self.diff.changed if (t := self.trimmed(c)) is not None]
+            for change in sorted(self.expressed(trimmed, self.desired), key=lambda c: self.desired.span(c.path)):
                 self.write(change)
-        return "\n".join(self.joined())
+        return RenderResult(payload="\n".join(self.joined()), metadata=RenderMetadata(unrendered=self.unrendered))
+
+    def expressed(self, changes: list[ComponentChange], rendered: Rendered) -> list[ComponentChange]:
+        """The changes whose component has lines in the render; the others are noted as unrendered."""
+        self.unrendered += [c.path for c in changes if not rendered.has(c.path)]
+        return [c for c in changes if rendered.has(c.path)]
 
     def trimmed(self, change: ComponentChange) -> ComponentChange | None:
         """A change without the attributes holding nested components, which are changes of their own; None

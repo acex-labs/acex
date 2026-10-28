@@ -5,7 +5,7 @@ import re
 from acex_devkit.configdiffer import Diff
 from acex_devkit.drivers import Actions, Codec, NetworkElementDriver, State, Transport
 from acex_devkit.models.actions import PingParams, PingResult
-from acex_devkit.models.codec_result import ParseResult, RenderResult
+from acex_devkit.models.codec_result import ParseResult, RenderMetadata, RenderResult
 from acex_devkit.models.composed_configuration import ComposedConfiguration, System, SystemConfig
 from acex_devkit.models.ned import Platform
 from acex_devkit.models.node_response import NodeInstance
@@ -54,11 +54,11 @@ class ExampleCodec(Codec[str]):
         hostname = match.group(1) if match else None
         return ParseResult(configuration=ComposedConfiguration(system=System(config=SystemConfig(hostname=hostname))))
 
-    def render_patch(self, diff: Diff, node: NodeInstance) -> str:
-        return "".join(
-            f"hostname {component.after.hostname.value}\n"
-            for component in [*diff.added, *diff.changed]
-            if component.path == ["system", "config"] and component.after.hostname is not None
+    def render_patch(self, diff: Diff, node: NodeInstance) -> RenderResult[str]:
+        hostnames = [c for c in [*diff.added, *diff.changed] if c.path == ["system", "config"] and c.after.hostname]
+        return RenderResult(
+            payload="".join(f"hostname {c.after.hostname.value}\n" for c in hostnames),
+            metadata=RenderMetadata(unrendered=[c.path for c in diff.get_all_changes() if c not in hostnames]),
         )
 
     def mask(self, raw: str) -> str:
