@@ -100,6 +100,9 @@ class CollectionAgentManager:
             last_manifest_poll=agent.last_manifest_poll,
             acked_revision=agent.acked_revision or 0,
             acked_at=agent.acked_at,
+            agent_version=agent.agent_version,
+            build_id=agent.build_id,
+            build_ref=agent.build_ref,
             nodes=explicit_node_ids,
             rules=[
                 CollectionAgentMatchRuleResponse(
@@ -323,6 +326,9 @@ class CollectionAgentManager:
                 raise HTTPException(status_code=404, detail="CollectionAgent not found")
             agent.acked_revision = payload.config_revision
             agent.acked_at = datetime.utcnow().isoformat()
+            agent.agent_version = payload.agent_version
+            agent.build_id = payload.build_id
+            agent.build_ref = payload.build_ref
             session.commit()
             return AckResult(
                 id=agent.id,

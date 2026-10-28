@@ -104,11 +104,19 @@ jobs:
         include:
           - image: acex-backend
             dockerfile: ./backend/Dockerfile
-            build_args: BUILD_ID=${{ github.sha }}
+            build_args: |
+              BUILD_ID=${{ github.sha }}
+              BUILD_REF=${{ github.ref_name }}
           - image: acex-collection-agent
             dockerfile: ./agents/collection-agent/Dockerfile
+            build_args: |
+              BUILD_ID=${{ github.sha }}
+              BUILD_REF=${{ github.ref_name }}
           - image: acex-telemetry-agent
             dockerfile: ./agents/telemetry-agent/Dockerfile
+            build_args: |
+              BUILD_ID=${{ github.sha }}
+              BUILD_REF=${{ github.ref_name }}
           - image: acex-grafana-sync-agent
             dockerfile: ./agents/grafana-sync/Dockerfile
           - image: acex-mcp

@@ -237,6 +237,9 @@ class TelemetryAgentManager:
             last_config_poll=agent.last_config_poll,
             acked_revision=agent.acked_revision or 0,
             acked_at=agent.acked_at,
+            agent_version=agent.agent_version,
+            build_id=agent.build_id,
+            build_ref=agent.build_ref,
             name=agent.name,
             description=agent.description,
             snmp_version=agent.snmp_version,
@@ -518,6 +521,9 @@ class TelemetryAgentManager:
                 raise HTTPException(status_code=404, detail="TelemetryAgent not found")
             agent.acked_revision = payload.config_revision
             agent.acked_at = _utc_now_naive()
+            agent.agent_version = payload.agent_version
+            agent.build_id = payload.build_id
+            agent.build_ref = payload.build_ref
             session.commit()
             return AckResult(
                 id=agent.id,
