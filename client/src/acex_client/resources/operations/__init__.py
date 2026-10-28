@@ -6,7 +6,7 @@ from acex_client.http import RestClient
 from acex_client.resources.operations.compliance import Compliance
 from acex_client.resources.operations.config_history import ConfigHistory
 from acex_client.resources.operations.lldp import Lldp
-from acex_client.resources.operations.runs import Actions, Execute, Runs
+from acex_client.resources.operations.runs import Actions, Execute, Patch, Runs
 from acex_client.resources.operations.workflows import Workflows
 
 
@@ -16,6 +16,7 @@ class OperationsNamespace:
         self.config_history = ConfigHistory(rest)
         self.execute = Execute(rest)
         self.actions = Actions(rest)
+        self.patch = Patch(rest)
         self.runs = Runs(rest)
         self.lldp = Lldp(rest)
         self.workflows = Workflows(rest)
