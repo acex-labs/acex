@@ -3,10 +3,10 @@ from typing import Literal
 from acex.api import auth as _auth
 from acex.constants import BASE_URL
 from acex.messaging import MessagingNotConfigured
-from acex.operations import ACTIONS, EXECUTE, Action
+from acex.operations import ACTIONS, EXECUTE, PATCH_RENDER, Action
 from acex.operations.runs import OperationRuns
 from acex.plugins.neds.manager import NEDManager
-from acex_devkit.models.operations import ExecuteRequest, Run, RunReport
+from acex_devkit.models.operations import ExecuteRequest, PatchApplyRequest, PatchRenderRequest, Run, RunReport
 from acex_devkit.models.pagination import PaginatedResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse, Response
@@ -20,21 +20,34 @@ def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/operations", tags=["Operations"])
     runs = OperationRuns(automation_engine.jobs, automation_engine.inventory.node_instances, NEDManager())
 
-    async def order(operation, request, user: dict) -> Run:
+    async def order(ordering) -> Run:
         try:
-            return await runs.order(operation, request, _who(user))
+            return await ordering
         except MessagingNotConfigured as exc:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
+    @router.post("/patch/render", response_model=Run, status_code=status.HTTP_202_ACCEPTED)
+    async def render_patch(request: PatchRenderRequest, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
+        """Render on each node the patch that brings its configuration at `path` to the desired state, from a
+        live read; with `prune`, removing what desired doesn't declare there too. Nothing is sent: the run is
+        the plan a patch apply sends. Every node's NED must support get_config and apply."""
+        return await order(runs.order(PATCH_RENDER, request, _who(user)))
+
+    @router.post("/patch/apply", response_model=Run, status_code=status.HTTP_202_ACCEPTED)
+    async def apply_patch(request: PatchApplyRequest, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
+        """Send a plan's patches to some of its nodes. Each node is read live again and patched only if it
+        still renders the plan's patch, then read once more to verify."""
+        return await order(runs.apply_patch(request, _who(user)))
 
     @router.post("/execute", response_model=Run, status_code=status.HTTP_202_ACCEPTED)
     async def execute(request: ExecuteRequest, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Run raw commands on each node, in order, in one session per node. Each node's output is masked
         by its NED. Every node's NED must support execute."""
-        return await order(EXECUTE, request, user)
+        return await order(runs.order(EXECUTE, request, _who(user)))
 
     def action_route(action: Action):
         async def run_action(request: action.request, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
-            return await order(action, request, user)
+            return await order(runs.order(action, request, _who(user)))
 
         run_action.__doc__ = f"Run {action.name} on each node. Every node's NED must support {action.name}."
         return run_action
@@ -51,7 +64,7 @@ def create_router(automation_engine):
 
     @router.get("/runs", response_model=PaginatedResponse[Run])
     def list_runs(
-        kind: Literal["execute", "actions"] | None = None,
+        kind: Literal["execute", "actions", "patch"] | None = None,
         limit: int = Query(50, ge=1, le=500),
         offset: int = Query(0, ge=0),
     ):

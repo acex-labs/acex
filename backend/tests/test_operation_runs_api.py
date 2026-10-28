@@ -36,7 +36,8 @@ class _Producer:
 
 
 class _Nodes:
-    """Node 1 sw-b and node 2 sw-a run a driver with execute and ping; node 3 one with neither."""
+    """Node 1 sw-b and node 2 sw-a run a driver with execute, ping and config read and write; node 3 one that
+    only reads config."""
 
     NODES = {1: ("sw-b", "Full"), 2: ("sw-a", "Full"), 3: ("old", "Bare")}
 
@@ -51,7 +52,7 @@ class _Nodes:
 
 class _Neds:
     CAPABILITIES = {
-        "Full": Capabilities(operations=["execute"], actions=["ping"]),
+        "Full": Capabilities(operations=["apply", "execute", "get_config"], actions=["ping"]),
         "Bare": Capabilities(operations=["get_config"]),
     }
 
@@ -188,3 +189,78 @@ def test_report_downloads_as_csv_and_json(api):
 
 def test_unknown_run_answers_404(api):
     assert api.client.get(f"{OPS}/runs/99").status_code == 404
+
+
+PATCH = {"node_ids": [1, 2], "path": " system.ntp.servers. ", "prune": True}
+
+
+def plan(api) -> int:
+    """A finished plan: sw-b has a patch, sw-a is in sync."""
+    run = api.client.post(f"{OPS}/patch/render", json=PATCH).json()
+    api.finish(
+        run["id"],
+        {
+            1: {"patch": "ntp server 10.0.0.2", "patch_hash": "h1", "changes": [{"op": "add", "path": "x"}]},
+            2: {"patch": "", "patch_hash": None, "changes": []},
+        },
+    )
+    return run["id"]
+
+
+def test_patch_render_orders_a_run_of_its_scope(api):
+    run = api.client.post(f"{OPS}/patch/render", json=PATCH).json()
+
+    assert (run["type"], run["request"]) == (
+        "acex.operations.patch.render",
+        {"path": "system.ntp.servers", "prune": True},
+    )
+    assert [job.data for job in api.jobs.children(run["id"])] == [
+        {"node_id": 1, "path": "system.ntp.servers", "prune": True},
+        {"node_id": 2, "path": "system.ntp.servers", "prune": True},
+    ]
+
+
+def test_patch_needs_a_driver_that_reads_and_writes_config(api):
+    response = api.client.post(f"{OPS}/patch/render", json={**PATCH, "node_ids": [1, 3]})
+
+    assert response.status_code == 422
+    assert "old" in response.json()["detail"]
+
+
+def test_patch_apply_sends_the_plans_scope_and_hash(api):
+    plan_id = plan(api)
+
+    run = api.client.post(f"{OPS}/patch/apply", json={"plan_id": plan_id, "node_ids": [1]}).json()
+
+    assert (run["type"], run["request"]) == ("acex.operations.patch.apply", {"plan_id": plan_id})
+    assert [job.data for job in api.jobs.children(run["id"])] == [
+        {"node_id": 1, "plan_id": plan_id, "patch_hash": "h1", "path": "system.ntp.servers", "prune": True}
+    ]
+
+
+def test_patch_apply_refuses_nodes_the_plan_has_no_patch_for(api):
+    plan_id = plan(api)
+
+    response = api.client.post(f"{OPS}/patch/apply", json={"plan_id": plan_id, "node_ids": [1, 2]})
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == f"Plan {plan_id} has no patch for: sw-a"
+
+
+def test_patch_apply_needs_a_plan(api):
+    ping = api.client.post(f"{OPS}/actions/ping", json=PING).json()
+
+    for plan_id in (ping["id"], 99):
+        assert api.client.post(f"{OPS}/patch/apply", json={"plan_id": plan_id, "node_ids": [1]}).status_code == 404
+
+
+def test_patch_runs_are_listed_and_reported(api):
+    plan_id = plan(api)
+
+    assert [r["id"] for r in api.client.get(f"{OPS}/runs", params={"kind": "patch"}).json()["items"]] == [plan_id]
+    lines = api.client.get(f"{OPS}/runs/{plan_id}/report").text.splitlines()
+    assert lines[0] == "hostname,node_id,state,changes,patch,error,finished_at"
+    assert [line.split(",")[:5] for line in lines[1:]] == [
+        ["sw-a", "2", "succeeded", "0", ""],
+        ["sw-b", "1", "succeeded", "1", "ntp server 10.0.0.2"],
+    ]
