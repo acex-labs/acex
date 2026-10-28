@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from acex_devkit.configdiffer import Diff
+from acex_devkit.drivers.mapper.patch import Patch
 from acex_devkit.drivers.mapper.syntax import Block, Capture, Item, Mount, Section, Tree
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.codec_result import (
@@ -84,6 +86,11 @@ class Mapper:
     def parse(self, text: str, context: Any = None) -> ParseResult:
         """`context` reaches every block's `complete` hook."""
         return ParseRun(self, context).run(text)
+
+    def render_patch(self, diff: Diff, context: Any = None) -> str:
+        """The lines that take a device from `diff`'s observed tree to its desired one, as far as the diff
+        reaches; see `Patch`."""
+        return Patch(self, diff, context).render()
 
 
 class Renderer:

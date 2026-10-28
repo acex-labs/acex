@@ -82,7 +82,9 @@ class Codec[Payload](Facade, ABC):
 
     @abstractmethod
     def render_patch(self, diff: Diff, node: NodeInstance) -> Payload:
-        """The changes in `diff`, sendable with `Transport.apply`."""
+        """Every change in `diff`, removals included, sendable with `Transport.apply`. The caller decides
+        what the diff holds (`Diff.scoped`); the trees it was made from are on it. A change the syntax can't
+        express raises rather than being left out."""
 
     @abstractmethod
     def mask(self, raw: Any) -> Any:

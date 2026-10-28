@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, FieldSerializationInfo, computed_field, f
 
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.codec_result import UnmatchedLine
+from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.config_origin import ComponentOrigin
 from acex_devkit.models.reference import Reference
 
@@ -134,6 +135,10 @@ class Diff(BaseModel):
     # covers the device's configuration, not whether the device is compliant.
     unparsed: list[UnmatchedLine] = Field(default_factory=list)
 
+    # The trees the diff was made from, for a driver rendering it as a patch. Not serialized.
+    desired: ComposedConfiguration | None = Field(default=None, exclude=True)
+    observed: ComposedConfiguration | None = Field(default=None, exclude=True)
+
     @computed_field
     @property
     def undeclared_count(self) -> int:
@@ -185,6 +190,44 @@ class Diff(BaseModel):
             "undeclared_count": self.undeclared_count,
             "unparsed_count": self.unparsed_count,
         }
+
+    def scoped(self, path: str = "", prune: bool = False) -> "Diff":
+        """The changes at `path` and below it, a dotted path into the tree such as `system.ntp.servers`;
+        empty for all of it. A path ending at a component's attribute keeps that attribute's change alone.
+        What the device holds that desired doesn't declare is kept only with `prune`."""
+        return self.model_copy(
+            update={
+                "added": self.within(self.added, path),
+                "changed": self.within(self.changed, path),
+                "removed": self.within(self.removed, path) if prune else [],
+            }
+        )
+
+    @classmethod
+    def within(cls, changes: list[ComponentChange], path: str) -> list[ComponentChange]:
+        if not path:
+            return list(changes)
+        kept = []
+        for change in changes:
+            # Joined prefix by prefix, since keys may hold dots (`Gi0/1.10`, `10.0.0.1`).
+            if any(".".join(change.path[:depth]) == path for depth in range(1, len(change.path) + 1)):
+                kept.append(change)
+            elif path.startswith(f"{'.'.join(change.path)}.") and (attribute := cls.attribute(change, path)):
+                kept.append(change.model_copy(update={"changed_attributes": [attribute]}))
+        return kept
+
+    @staticmethod
+    def attribute(change: ComponentChange, path: str) -> AttributeChange | None:
+        """The change to the attribute `path` ends at, if `path` names one of the component's own."""
+        name = path.removeprefix(f"{'.'.join(change.path)}.")
+        if name not in change.component_type.model_fields:
+            return None
+        if change.op == ComponentDiffOp.CHANGE:
+            return next((a for a in change.changed_attributes if a.attribute_name == name), None)
+        before, after = getattr(change.before, name, None), getattr(change.after, name, None)
+        if before is None and after is None:
+            return None
+        return AttributeChange(attribute_name=name, before=before, after=after)
 
     def get_all_changes(self) -> list[ComponentChange]:
         """Get all changes in a single list"""

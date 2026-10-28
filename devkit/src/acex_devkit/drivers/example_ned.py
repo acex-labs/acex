@@ -56,10 +56,9 @@ class ExampleCodec(Codec[str]):
 
     def render_patch(self, diff: Diff, node: NodeInstance) -> str:
         return "".join(
-            f"hostname {change.after.value}\n"
+            f"hostname {component.after.hostname.value}\n"
             for component in [*diff.added, *diff.changed]
-            for change in component.changed_attributes
-            if change.attribute_name == "hostname"
+            if component.path == ["system", "config"] and component.after.hostname is not None
         )
 
     def mask(self, raw: str) -> str:

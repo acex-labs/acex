@@ -31,7 +31,7 @@ class ConfigDiffer:
                     return True
         return False
 
-    def _flatten(self, model: BaseModel, path: tuple = ()) -> dict[tuple, BaseModel]:
+    def flatten(self, model: BaseModel, path: tuple = ()) -> dict[tuple, BaseModel]:
         """
         Recursively walk a model tree, collecting leaf nodes.
         A leaf is any BaseModel that has direct AttributeValue fields.
@@ -58,14 +58,14 @@ class ConfigDiffer:
 
             # Single nested model — recurse deeper (e.g. System.config → SystemConfig, System.ssh → Ssh)
             if isinstance(value, BaseModel):
-                result.update(self._flatten(value, path + (field_name,)))
+                result.update(self.flatten(value, path + (field_name,)))
 
             # Keyed collection — recurse into each entry (e.g. interfaces: Dict[str, Interface])
             elif isinstance(value, dict):
                 for key, item in value.items():
                     # Each dict entry is a named component (e.g. "Gi0/0/1" → EthernetCsmacdInterface)
                     if isinstance(item, BaseModel):
-                        result.update(self._flatten(item, path + (field_name, key)))
+                        result.update(self.flatten(item, path + (field_name, key)))
 
         return result
 
@@ -290,9 +290,9 @@ class ConfigDiffer:
         handling cases where keys differ (e.g. "Gi0/0/1" vs "GigabitEthernet0/0/1").
         """
         self.desired, self.observed = desired_config, observed_config
-        defaults = self._flatten(ComposedConfiguration())
-        flat_desired = self._declared(self._flatten(desired_config), defaults)
-        flat_observed = self._declared(self._flatten(observed_config), defaults)
+        defaults = self.flatten(ComposedConfiguration())
+        flat_desired = self._declared(self.flatten(desired_config), defaults)
+        flat_observed = self._declared(self.flatten(observed_config), defaults)
 
         # Split into singletons (path-matched) and entries (identity-matched)
         singleton_d = {p: m for p, m in flat_desired.items() if not isinstance(m, ContainerEntry)}
@@ -312,4 +312,6 @@ class ConfigDiffer:
             changed=changed,
             total_desired=len(flat_desired),
             total_observed=len(flat_observed),
+            desired=desired_config,
+            observed=observed_config,
         )
