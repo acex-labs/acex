@@ -55,7 +55,7 @@ class Actions(Resource, ActionMixin):
 class Patch(Resource, ActionMixin):
     """Config patches — `/operations/patch/*`: bring a path of each node's configuration to its desired state.
 
-    `client.operations.patch.render([1, 2], path="system.ntp")` orders a plan, rendering each node's patch from
+    `client.operations.patch.render([1, 2], paths=["system.ntp"])` orders a plan, rendering each node's patch from
     a live read; `client.operations.patch.apply(plan.id, [1])` sends it to the nodes chosen from the plan.
     """
 
@@ -71,8 +71,8 @@ class Patch(Resource, ActionMixin):
     @action("POST", "apply")
     def run_apply(self, payload: PatchApplyRequest) -> Run: ...
 
-    def render(self, node_ids: list[int], path: str = "", prune: bool = False) -> Run:
-        return self.run_render(payload=PatchRenderRequest(node_ids=node_ids, path=path, prune=prune))
+    def render(self, node_ids: list[int], paths: list[str] = (), prune: bool = False) -> Run:
+        return self.run_render(payload=PatchRenderRequest(node_ids=node_ids, paths=list(paths), prune=prune))
 
     def apply(self, plan_id: int, node_ids: list[int]) -> Run:
         return self.run_apply(payload=PatchApplyRequest(plan_id=plan_id, node_ids=node_ids))

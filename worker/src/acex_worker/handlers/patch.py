@@ -1,6 +1,6 @@
-"""acex.operations.patch.render renders the patch a node's configuration needs at a path; acex.operations.patch.apply
-sends it. Both read the node live and diff that against its desired configuration, and upload each read as the
-node's observed configuration."""
+"""acex.operations.patch.render renders the patch a node's configuration needs within its scope;
+acex.operations.patch.apply sends it. Both read the node live and diff that against its desired configuration,
+and upload each read as the node's observed configuration."""
 
 import asyncio
 import hashlib
@@ -44,7 +44,7 @@ class PatchOperation(NodeOperation):
         await asyncio.to_thread(self.upload, raw)
         observed = driver.parse(driver.mask(driver.normalize(raw)), self.node).configuration
         diff = ConfigDiffer().diff(desired_config=self.desired, observed_config=observed)
-        return diff.scoped(scope.path, scope.prune)
+        return diff.scoped(scope.paths, scope.prune)
 
     def render(self, driver: NetworkElementDriver, diff: Diff) -> tuple[str, Diff, Diff]:
         """The patch, the part of the diff it writes, and the part the NED can't write."""

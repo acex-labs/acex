@@ -191,29 +191,33 @@ class Diff(BaseModel):
             "unparsed_count": self.unparsed_count,
         }
 
-    def scoped(self, path: str = "", prune: bool = False) -> "Diff":
-        """The changes at `path` and below it, a dotted path into the tree such as `system.ntp.servers`;
-        empty for all of it. A path ending at a component's attribute keeps that attribute's change alone.
-        What the device holds that desired doesn't declare is kept only with `prune`."""
+    def scoped(self, paths: list[str] = (), prune: bool = False) -> "Diff":
+        """The changes at any of `paths` and below it, dotted paths into the tree such as `system.ntp.servers`;
+        none, or an empty one, for all of it. A path ending at a component's attribute keeps that attribute's
+        change. What the device holds that desired doesn't declare is kept only with `prune`."""
         return self.model_copy(
             update={
-                "added": self.within(self.added, path),
-                "changed": self.within(self.changed, path),
-                "removed": self.within(self.removed, path) if prune else [],
+                "added": self.within(self.added, paths),
+                "changed": self.within(self.changed, paths),
+                "removed": self.within(self.removed, paths) if prune else [],
             }
         )
 
     @classmethod
-    def within(cls, changes: list[ComponentChange], path: str) -> list[ComponentChange]:
-        if not path:
+    def within(cls, changes: list[ComponentChange], paths: list[str]) -> list[ComponentChange]:
+        if not paths or "" in paths:
             return list(changes)
         kept = []
         for change in changes:
             # Joined prefix by prefix, since keys may hold dots (`Gi0/1.10`, `10.0.0.1`).
-            if any(".".join(change.path[:depth]) == path for depth in range(1, len(change.path) + 1)):
+            prefixes = {".".join(change.path[:depth]) for depth in range(1, len(change.path) + 1)}
+            if prefixes & set(paths):
                 kept.append(change)
-            elif path.startswith(f"{'.'.join(change.path)}.") and (attribute := cls.attribute(change, path)):
-                kept.append(change.model_copy(update={"changed_attributes": [attribute]}))
+                continue
+            at = ".".join(change.path)
+            attributes = [a for path in paths if path.startswith(f"{at}.") and (a := cls.attribute(change, path))]
+            if attributes:
+                kept.append(change.model_copy(update={"changed_attributes": attributes}))
         return kept
 
     @staticmethod

@@ -37,9 +37,10 @@ def create_router(automation_engine):
 
     @router.post("/patch/render", response_model=Run, status_code=status.HTTP_202_ACCEPTED)
     async def render_patch(request: PatchRenderRequest, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
-        """Render on each node the patch that brings its configuration at `path` to the desired state, from a
-        live read; with `prune`, removing what desired doesn't declare there too. Nothing is sent: the run is
-        the plan a patch apply sends. Every node's NED must support get_config and apply."""
+        """Render on each node the patch that brings its configuration at `paths` to the desired state, from a
+        live read; with `prune`, removing what desired doesn't declare there too. No paths is the whole tree.
+        Nothing is sent: the run is the plan a patch apply sends. Every node's NED must support get_config and
+        apply."""
         return await order(runs.order(PATCH_RENDER, request, _who(user)))
 
     @router.post("/patch/apply", response_model=Run, status_code=status.HTTP_202_ACCEPTED)

@@ -100,14 +100,14 @@ def device(monkeypatch) -> FakeDevice:
     return device
 
 
-def render(client: FakeClient, path: str = "") -> dict:
-    response = HandlePatchRender().handle_hook(client, job("acex.operations.patch.render", path=path))
+def render(client: FakeClient, *paths: str) -> dict:
+    response = HandlePatchRender().handle_hook(client, job("acex.operations.patch.render", paths=list(paths)))
     assert response.success, response.error
     return response.result
 
 
 def apply(client: FakeClient, patch_hash: str) -> dict:
-    data = {"plan_id": 5, "patch_hash": patch_hash, "path": ""}
+    data = {"plan_id": 5, "patch_hash": patch_hash, "paths": []}
     response = HandlePatchApply().handle_hook(client, job("acex.operations.patch.apply", **data))
     assert response.success, response.error
     return response.result
@@ -133,7 +133,7 @@ def test_render_in_sync_has_no_patch(device):
 
 
 def test_render_reaches_only_its_path(device):
-    assert render(FakeClient(desired()), path="system.ntp")["in_sync"] is True
+    assert render(FakeClient(desired()), "system.ntp")["in_sync"] is True
 
 
 def test_what_the_ned_cannot_write_is_left_out_and_listed(device):
@@ -144,7 +144,7 @@ def test_what_the_ned_cannot_write_is_left_out_and_listed(device):
 
 
 def test_a_node_with_only_what_its_ned_cannot_write_has_no_patch_and_is_not_in_sync(device):
-    result = render(FakeClient(desired(ntp=["10.0.0.1"])), path="system.ntp")
+    result = render(FakeClient(desired(ntp=["10.0.0.1"])), "system.ntp")
 
     assert (result["patch"], result["patch_hash"], result["in_sync"]) == ("", None, False)
 

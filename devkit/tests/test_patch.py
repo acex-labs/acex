@@ -80,8 +80,8 @@ def diff():
     )
 
 
-def patch(path: str = "", prune: bool = False) -> list[str]:
-    return MAPPER.render_patch(diff().scoped(path, prune)).payload.splitlines()
+def patch(*paths: str, prune: bool = False) -> list[str]:
+    return MAPPER.render_patch(diff().scoped(list(paths), prune)).payload.splitlines()
 
 
 def test_adds_and_changes_without_prune_leave_undeclared_config():
@@ -119,11 +119,11 @@ def test_a_path_ending_at_an_attribute_writes_its_line_alone():
 
 
 def test_a_path_matches_whole_keys_only():
-    assert diff().scoped("interfaces.Gi", prune=True).is_empty()
+    assert diff().scoped(["interfaces.Gi"], prune=True).is_empty()
 
 
 def test_in_sync_renders_nothing():
-    assert MAPPER.render_patch(diff().scoped("system.config.location")).payload == ""
+    assert MAPPER.render_patch(diff().scoped(["system.config.location"])).payload == ""
 
 
 def test_a_diff_without_its_trees_cannot_be_rendered():
@@ -139,3 +139,12 @@ def test_a_component_the_syntax_has_no_lines_for_is_left_out_and_listed():
 
     assert result.metadata.unrendered == [["cdp"]]
     assert result.payload.splitlines() == patch()
+
+
+def test_several_paths_reach_what_is_below_any_of_them():
+    assert patch("system.config.hostname", "interfaces.Gi2") == [
+        "hostname sw1-new",
+        "interface Gi2",
+        " description access",
+        " no shutdown",
+    ]

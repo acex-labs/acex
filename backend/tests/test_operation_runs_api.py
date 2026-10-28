@@ -191,7 +191,8 @@ def test_unknown_run_answers_404(api):
     assert api.client.get(f"{OPS}/runs/99").status_code == 404
 
 
-PATCH = {"node_ids": [1, 2], "path": " system.ntp.servers. ", "prune": True}
+PATCH = {"node_ids": [1, 2], "paths": [" system.ntp.servers. ", "interfaces.Gi1"], "prune": True}
+SCOPE = {"paths": ["system.ntp.servers", "interfaces.Gi1"], "prune": True}
 
 
 def plan(api) -> int:
@@ -210,14 +211,8 @@ def plan(api) -> int:
 def test_patch_render_orders_a_run_of_its_scope(api):
     run = api.client.post(f"{OPS}/patch/render", json=PATCH).json()
 
-    assert (run["type"], run["request"]) == (
-        "acex.operations.patch.render",
-        {"path": "system.ntp.servers", "prune": True},
-    )
-    assert [job.data for job in api.jobs.children(run["id"])] == [
-        {"node_id": 1, "path": "system.ntp.servers", "prune": True},
-        {"node_id": 2, "path": "system.ntp.servers", "prune": True},
-    ]
+    assert (run["type"], run["request"]) == ("acex.operations.patch.render", SCOPE)
+    assert [job.data for job in api.jobs.children(run["id"])] == [{"node_id": 1, **SCOPE}, {"node_id": 2, **SCOPE}]
 
 
 def test_patch_needs_a_driver_that_reads_and_writes_config(api):
@@ -234,7 +229,7 @@ def test_patch_apply_sends_the_plans_scope_and_hash(api):
 
     assert (run["type"], run["request"]) == ("acex.operations.patch.apply", {"plan_id": plan_id})
     assert [job.data for job in api.jobs.children(run["id"])] == [
-        {"node_id": 1, "plan_id": plan_id, "patch_hash": "h1", "path": "system.ntp.servers", "prune": True}
+        {"node_id": 1, "plan_id": plan_id, "patch_hash": "h1", **SCOPE}
     ]
 
 
@@ -275,3 +270,9 @@ def test_the_config_tree_names_what_a_path_walks(api):
     assert [(c["name"], c["kind"]) for c in ntp["children"]] == [("config", "component"), ("servers", "collection")]
     servers = ntp["children"][1]
     assert ("address", "attribute") in [(c["name"], c["kind"]) for c in servers["children"]]
+
+
+def test_an_empty_path_is_the_whole_tree(api):
+    run = api.client.post(f"{OPS}/patch/render", json={"node_ids": [1], "paths": ["system", " "]}).json()
+
+    assert run["request"] == {"paths": [], "prune": False}

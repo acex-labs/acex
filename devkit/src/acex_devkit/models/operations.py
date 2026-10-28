@@ -69,20 +69,22 @@ class ActionData[P: ActionParams](BaseModel):
 class PatchScope(BaseModel):
     """How far a patch reaches into the configuration tree."""
 
-    #: A dotted path such as `system.ntp.servers`; empty for the whole tree. The patch reaches what is at the
-    #: path and below it, nothing else.
-    path: str = ""
+    #: Dotted paths such as `system.ntp.servers`; none for the whole tree. The patch reaches what is at any of
+    #: them and below it, nothing else.
+    paths: list[str] = []
     #: Also remove what the device holds there that the desired configuration doesn't declare.
     prune: bool = False
 
-    @field_validator("path")
+    @field_validator("paths")
     @classmethod
-    def _trimmed(cls, path: str) -> str:
-        return path.strip().strip(".")
+    def _trimmed(cls, paths: list[str]) -> list[str]:
+        """Each once, trimmed; any empty one is the whole tree, so none."""
+        trimmed = list(dict.fromkeys(path.strip().strip(".") for path in paths))
+        return [] if "" in trimmed else trimmed
 
 
 class PatchRenderRequest(PatchScope, NodeSelection):
-    """Render, on each node, the patch that brings its configuration at `path` to the desired state. Each node
+    """Render, on each node, the patch that brings its configuration at `paths` to the desired state. Each node
     is read live; nothing is sent."""
 
 
@@ -136,9 +138,9 @@ class PatchApplyData(PatchScope):
 
 
 class PatchOutcome(StrEnum):
-    #: Sent, and nothing differs at the path any more.
+    #: Sent, and nothing differs in the scope any more.
     applied = "applied"
-    #: Sent, but the node still differs at the path.
+    #: Sent, but the node still differs in the scope.
     residual = "residual"
     #: Not sent: the node renders another patch than the plan's, so it changed since.
     changed = "changed"
@@ -152,7 +154,7 @@ class PatchApplyResult(BaseModel):
     patch: str = ""
     #: What the device answered, masked.
     output: str = ""
-    #: What differs at the path now that the NED can write: after the patch, or instead of the plan when it no
+    #: What differs in the scope now that the NED can write: after the patch, or instead of the plan when it no
     #: longer holds.
     changes: list[PatchChange] = []
     #: What differs that the node's NED can't write, left out of the patch and of the verification.
