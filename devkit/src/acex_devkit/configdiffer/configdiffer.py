@@ -72,18 +72,26 @@ class ConfigDiffer:
     def _attribute_changes(self, before: BaseModel, after: BaseModel) -> list[AttributeChange]:
         """Compare an observed (before) and a desired (after) component and return the changed attributes.
         Only what desired declares is compared: an attribute it leaves unset states no intent, whatever
-        the device holds there (often the device's own default)."""
+        the device holds there (often the device's own default). A field holding components of its own is
+        no attribute: those components are diffed themselves."""
         changes = []
         derived = set(getattr(before, "derived_fields", ())) | set(getattr(after, "derived_fields", ()))
         all_fields = (set(before.model_fields.keys()) | set(after.model_fields.keys())) - derived
         for field_name in all_fields:
             b = getattr(before, field_name, None)
             a = getattr(after, field_name, None)
-            if a is None or a == {} or a == []:
+            if a is None or a == {} or a == [] or self._nests(a) or self._nests(b):
                 continue
             if not self._same(b, a):
                 changes.append(AttributeChange(attribute_name=field_name, before=b, after=a))
         return changes
+
+    def _nests(self, value: Any) -> bool:
+        """Whether a field's value holds components: a sub-model, or a collection of them, such as a network
+        instance's vlans or protocols. References and augments are attributes."""
+        if isinstance(value, dict):
+            return any(self._nests(v) for v in value.values())
+        return isinstance(value, BaseModel) and not isinstance(value, AttributeValue | Reference | AugmentAttributes)
 
     def _same(self, observed: Any, desired: Any) -> bool:
         """References are equal when they point at the same place, whatever path spells it out. A secret

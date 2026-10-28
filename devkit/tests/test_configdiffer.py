@@ -10,6 +10,7 @@ from acex_devkit.models.composed_configuration import (
     SshServer,
     System,
     SystemConfig,
+    Vlan,
     authenticationUser,
 )
 from acex_devkit.models.reference import Reference
@@ -134,3 +135,15 @@ def test_an_entry_known_only_by_a_masked_secret_matches_a_desired_one():
     observed.system.snmp.communities = {MASK: SnmpCommunity(name=MASK, community=MASK)}
     diff = ConfigDiffer().diff(desired_config=desired, observed_config=observed)
     assert (diff.added, diff.changed, diff.removed) == ([], [], [])
+
+
+def instance(*vlan_ids: int) -> ComposedConfiguration:
+    vlans = {f"vl{i}": Vlan(name=f"vl{i}", vlan_id=i) for i in vlan_ids}
+    return ComposedConfiguration(network_instances={"global": NetworkInstance(name="global", vlans=vlans)})
+
+
+def test_components_a_component_holds_are_diffed_themselves_not_as_its_attributes():
+    diff = ConfigDiffer().diff(desired_config=instance(10, 20), observed_config=instance(10))
+
+    assert [c.path for c in diff.added] == [["network_instances", "global", "vlans", "vl20"]]
+    assert diff.changed == []

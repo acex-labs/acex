@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from acex_devkit.configdiffer import ComponentChange, ComponentDiffOp, ConfigDiffer, Diff
+from acex_devkit.configdiffer import ComponentChange, ConfigDiffer, Diff
 from acex_devkit.exceptions import DriverException
 from acex_devkit.models.codec_result import RenderMetadata, RenderResult
 
@@ -45,11 +45,6 @@ class Rendered:
         first = start + 1 if self.headed(start, end) else start
         return [i for i in range(first, end + 1) if not any(s <= i <= e for s, e in nested)]
 
-    def nests(self, path: list[str], name: str) -> bool:
-        """Whether the component's field `name` holds components of its own, e.g. a network instance's vlans."""
-        field = (*path, name)
-        return any(p[: len(field)] == field for p in self.components)
-
     def attribute_lines(self, change: ComponentChange, lines: list[int]) -> list[int]:
         """Of the component's own lines, those spanned by a field the change names. All of them when no
         line is, e.g. a field written on a line together with others."""
@@ -83,8 +78,8 @@ class Patch:
                 if not self.inside_removed(change, removed):
                     self.remove(change)
         if self.desired is not None:
-            trimmed = [t for c in self.diff.added + self.diff.changed if (t := self.trimmed(c)) is not None]
-            for change in sorted(self.expressed(trimmed, self.desired), key=lambda c: self.desired.span(c.path)):
+            written = self.expressed(self.diff.added + self.diff.changed, self.desired)
+            for change in sorted(written, key=lambda c: self.desired.span(c.path)):
                 self.write(change)
         return RenderResult(payload="\n".join(self.joined()), metadata=RenderMetadata(unrendered=self.unrendered))
 
@@ -92,14 +87,6 @@ class Patch:
         """The changes whose component has lines in the render; the others are noted as unrendered."""
         self.unrendered += [c.path for c in changes if not rendered.has(c.path)]
         return [c for c in changes if rendered.has(c.path)]
-
-    def trimmed(self, change: ComponentChange) -> ComponentChange | None:
-        """A change without the attributes holding nested components, which are changes of their own; None
-        when nothing else changed."""
-        if change.op != ComponentDiffOp.CHANGE:
-            return change
-        attributes = [a for a in change.changed_attributes if not self.desired.nests(change.path, a.attribute_name)]
-        return change.model_copy(update={"changed_attributes": attributes}) if attributes else None
 
     def inside_removed(self, change: ComponentChange, removed: list[ComponentChange]) -> bool:
         """Whether a component around this one goes, header and all, and takes it along."""
