@@ -54,9 +54,7 @@ def test_bulk_create_inserts_and_refreshes_without_duplicate_rows():
     db = _Db()
     manager = CveManager(db)
 
-    first = manager.bulk_create(
-        [CveCreate(cve_id="CVE-2026-0001", base_severity="HIGH", raw={"id": "CVE-2026-0001"})]
-    )
+    first = manager.bulk_create([CveCreate(cve_id="CVE-2026-0001", base_severity="HIGH", raw={"id": "CVE-2026-0001"})])
     first_created_at = first[0].created_at
     refreshed = manager.bulk_create(
         [

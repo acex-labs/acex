@@ -3,6 +3,7 @@ Handler registry. Defines a mapping between job type and handler
 class to handle the job event.
 """
 
+from acex_worker.handlers.cve_discovery import CveDiscoveryHandler
 from acex_worker.handlers.execute import HandleExecute, HandlePing
 from acex_worker.handlers.workflow import (
     HandleWorkflowAction,
@@ -15,7 +16,6 @@ from acex_worker.handlers.workflow import (
 )
 from acex_worker.handlers.ztp_discover import HandleZtpDiscovery
 from acex_worker.handlers.ztp_provision import HandleZtpProvision
-from acex_worker.handlers.cve_discovery import CveDiscoveryHandler
 
 HANDLERS = {
     "acex.ztp.discover": HandleZtpDiscovery,

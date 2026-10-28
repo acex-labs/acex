@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -9,7 +9,6 @@ from acex_worker.handlers.cve_discovery import (
     CveDiscoveryHandler,
     nvd_item_to_cve,
 )
-
 
 JOB = JobResponse.model_validate(
     {
@@ -35,9 +34,7 @@ def nvd_item(cve_id: str = "CVE-2026-1234") -> dict:
             "lastModified": "2026-01-01T00:00:00Z",
             "descriptions": [{"lang": "en", "value": "Example vulnerability"}],
             "metrics": {
-                "cvssMetricV31": [
-                    {"cvssData": {"baseScore": 8.1, "baseSeverity": "HIGH"}}
-                ],
+                "cvssMetricV31": [{"cvssData": {"baseScore": 8.1, "baseSeverity": "HIGH"}}],
             },
         }
     }
@@ -47,8 +44,8 @@ def test_nvd_item_is_normalized_to_the_backend_create_schema():
     result = nvd_item_to_cve(nvd_item())
 
     assert result.cve_id == "CVE-2026-1234"
-    assert result.published == datetime(2026, 1, 1, tzinfo=timezone.utc)
-    assert result.last_modified == datetime(2026, 1, 1, tzinfo=timezone.utc)
+    assert result.published == datetime(2026, 1, 1, tzinfo=UTC)
+    assert result.last_modified == datetime(2026, 1, 1, tzinfo=UTC)
     assert result.description == "Example vulnerability"
     assert result.cvss_score == 8.1
     assert result.base_severity == "HIGH"
@@ -83,9 +80,7 @@ def test_discovery_bulk_creates_each_page_and_returns_job_result(monkeypatch):
 
     stored_batches = []
     monkeypatch.setattr(handler, "_pages", fetch_pages)
-    monkeypatch.setattr(
-        "acex_worker.handlers.cve_discovery.time.sleep", lambda _seconds: None
-    )
+    monkeypatch.setattr("acex_worker.handlers.cve_discovery.time.sleep", lambda _seconds: None)
     client = SimpleNamespace(
         cves=SimpleNamespace(
             api_key=SimpleNamespace(get=Mock(return_value="backend-key")),
@@ -112,14 +107,14 @@ def test_discovery_bulk_creates_each_page_and_returns_job_result(monkeypatch):
     assert len(stored_batches) == 3
     assert all(len(batch) == 1 and batch[0].cve_id == "CVE-2026-1234" for batch in stored_batches)
     assert result.vendor == "Cisco"
-    assert result.start == datetime(2026, 1, 1, tzinfo=timezone.utc)
-    assert result.end == datetime(2026, 1, 2, tzinfo=timezone.utc)
+    assert result.start == datetime(2026, 1, 1, tzinfo=UTC)
+    assert result.end == datetime(2026, 1, 2, tzinfo=UTC)
     assert result.discovered_cves == ["CVE-2026-1234"]
 
 
 def test_discovery_splits_large_ranges_to_nvd_accepted_windows(monkeypatch):
     handler = CveDiscoveryHandler()
-    start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    start = datetime(2025, 1, 1, tzinfo=UTC)
     end = start + timedelta(days=240)
     job = JobResponse.model_validate(
         {
@@ -134,8 +129,7 @@ def test_discovery_splits_large_ranges_to_nvd_accepted_windows(monkeypatch):
 
     assert len(windows) == 9
     assert all(
-        datetime.fromisoformat(params["pubEndDate"])
-        - datetime.fromisoformat(params["pubStartDate"])
+        datetime.fromisoformat(params["pubEndDate"]) - datetime.fromisoformat(params["pubStartDate"])
         <= timedelta(days=119)
         for params in windows
     )
@@ -144,14 +138,26 @@ def test_discovery_splits_large_ranges_to_nvd_accepted_windows(monkeypatch):
 @pytest.mark.parametrize("key, delay", [("backend-key", 0.6), (None, 6)])
 def test_pagination_uses_the_fetched_key_for_headers_and_rate_limit(monkeypatch, key, delay):
     handler = CveDiscoveryHandler()
-    get = Mock(side_effect=[
-        SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: {
-            "vulnerabilities": [nvd_item()], "totalResults": 2,
-        }),
-        SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: {
-            "vulnerabilities": [nvd_item("CVE-2026-5678")], "totalResults": 2,
-        }),
-    ])
+    get = Mock(
+        side_effect=[
+            SimpleNamespace(
+                status_code=200,
+                raise_for_status=lambda: None,
+                json=lambda: {
+                    "vulnerabilities": [nvd_item()],
+                    "totalResults": 2,
+                },
+            ),
+            SimpleNamespace(
+                status_code=200,
+                raise_for_status=lambda: None,
+                json=lambda: {
+                    "vulnerabilities": [nvd_item("CVE-2026-5678")],
+                    "totalResults": 2,
+                },
+            ),
+        ]
+    )
     sleep = Mock()
     monkeypatch.setattr("acex_worker.handlers.cve_discovery.requests.get", get)
     monkeypatch.setattr("acex_worker.handlers.cve_discovery.time.sleep", sleep)
@@ -168,9 +174,11 @@ def test_discovery_does_not_hide_backend_key_fetch_errors(monkeypatch):
     handler = CveDiscoveryHandler()
     fetch_pages = Mock()
     monkeypatch.setattr(handler, "_pages", fetch_pages)
-    client = SimpleNamespace(cves=SimpleNamespace(
-        api_key=SimpleNamespace(get=Mock(side_effect=RuntimeError("Backend unavailable"))),
-    ))
+    client = SimpleNamespace(
+        cves=SimpleNamespace(
+            api_key=SimpleNamespace(get=Mock(side_effect=RuntimeError("Backend unavailable"))),
+        )
+    )
 
     with pytest.raises(RuntimeError, match="Backend unavailable"):
         handler.handle(client, JOB)
@@ -179,10 +187,12 @@ def test_discovery_does_not_hide_backend_key_fetch_errors(monkeypatch):
 
 
 def test_request_preserves_key_when_retrying(monkeypatch):
-    get = Mock(side_effect=[
-        requests.exceptions.Timeout(),
-        SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: {"ok": True}),
-    ])
+    get = Mock(
+        side_effect=[
+            requests.exceptions.Timeout(),
+            SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: {"ok": True}),
+        ]
+    )
     monkeypatch.setattr("acex_worker.handlers.cve_discovery.requests.get", get)
     monkeypatch.setattr("acex_worker.handlers.cve_discovery.time.sleep", lambda _seconds: None)
 

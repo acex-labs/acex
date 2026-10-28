@@ -1,16 +1,15 @@
 """CVE API schemas are independent of the SQL table model."""
 
-from datetime import datetime, timezone
 import json
+from datetime import UTC, datetime
 
 import pytest
-from pydantic import ValidationError
-
 from acex_devkit.models.cve import CveCreate, CveDiscoverData, CveResponse
+from pydantic import ValidationError
 
 
 def test_create_dates_are_json_compatible_in_standard_dump():
-    timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 1, 1, tzinfo=UTC)
     payload = CveCreate(
         cve_id="CVE-2026-1234",
         published=timestamp,
@@ -27,7 +26,7 @@ def test_create_dates_are_json_compatible_in_standard_dump():
 
 
 def test_discovery_dates_are_json_compatible_in_standard_dump():
-    timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 1, 1, tzinfo=UTC)
     payload = CveDiscoverData(start=timestamp, end=timestamp)
 
     data = json.loads(json.dumps(payload.model_dump()))
@@ -57,7 +56,7 @@ def test_create_converts_to_table_and_response():
         {
             **payload.model_dump(),
             "id": 1,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
             "updated_at": None,
         }
     )

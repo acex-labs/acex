@@ -95,10 +95,6 @@ for _step_type, _job_type in WORKFLOW_ONCE_STEPS.items():
             )
         )
     else:
-        registry.register(
-            JobType(_job_type, data=WorkflowStepJob, result=WorkflowStepResult)
-        )
+        registry.register(JobType(_job_type, data=WorkflowStepJob, result=WorkflowStepResult))
 
-CVE_DISCOVER = registry.register(
-    JobType("acex.cve.discover", data=CveDiscoverData, result=CveDiscoverResult)
-)
+CVE_DISCOVER = registry.register(JobType("acex.cve.discover", data=CveDiscoverData, result=CveDiscoverResult))

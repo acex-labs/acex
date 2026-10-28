@@ -22,9 +22,7 @@ class CveManager:
         session = next(self.db.get_session())
         try:
             total = session.exec(select(func.count()).select_from(CveModelRow)).one()
-            rows = session.exec(
-                select(CveModelRow).order_by(CveModelRow.id).offset(offset).limit(limit)
-            ).all()
+            rows = session.exec(select(CveModelRow).order_by(CveModelRow.id).offset(offset).limit(limit)).all()
             return PaginatedResponse(
                 items=[CveResponse.model_validate(r) for r in rows],
                 total=total,
@@ -57,9 +55,7 @@ class CveManager:
 
         session = next(self.db.get_session())
         try:
-            existing = session.exec(
-                select(CveModelRow).where(CveModelRow.cve_id.in_(records))
-            ).all()
+            existing = session.exec(select(CveModelRow).where(CveModelRow.cve_id.in_(records))).all()
             cves_by_cve_id = {cve.cve_id: cve for cve in existing}
             refreshed_at = datetime.now(UTC)
 

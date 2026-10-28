@@ -1,12 +1,11 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_serializer
 
-from datetime import datetime, timezone
-
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class CveApiKeyUpdate(BaseModel):
@@ -30,6 +29,7 @@ class CveCreate(BaseModel):
     def serialize_date(self, value: datetime | None) -> str | None:
         return value.isoformat() if value is not None else None
 
+
 class CveUpdate(BaseModel):
     """Update fields for an existing CVE."""
 
@@ -37,6 +37,7 @@ class CveUpdate(BaseModel):
     cvss_score: float | None = None
     base_severity: str | None = None
     raw: dict | None = None
+
 
 class CveResponse(CveCreate):
     """The response model for a CVE, including its database ID and ingestion timestamps."""

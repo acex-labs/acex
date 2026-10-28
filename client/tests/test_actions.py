@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from datetime import datetime, timezone
 import json
+from collections.abc import Iterator
+from datetime import UTC, datetime
 
 import pytest
 import respx
@@ -21,11 +21,11 @@ from acex_client.resources.base import (
 )
 from acex_client.resources.cve import Cves
 from acex_devkit.models.agent_manifest import AckResult, CollectionAgentManifest
-from acex_devkit.models.cve import CveApiKeyUpdate, CveCreate, CveDiscoverData, CveResponse
 from acex_devkit.models.collection_agent import (
     CollectionAgentAck,
     CollectionAgentResponse,
 )
+from acex_devkit.models.cve import CveApiKeyUpdate, CveCreate, CveDiscoverData, CveResponse
 from httpx import Response
 from pydantic import BaseModel
 
@@ -69,7 +69,7 @@ def test_shared_action_serializer_preserves_python_mode():
         timestamp: datetime
         optional: str | None = None
 
-    timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 1, 1, tzinfo=UTC)
     payload = Payload(timestamp=timestamp)
 
     assert _serialize_body(payload) == {"timestamp": timestamp}
@@ -132,18 +132,18 @@ def test_cve_discovery_and_bulk_create_actions(rest):
     )
     cves = Cves(rest)
 
-    published = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    last_modified = datetime(2026, 1, 2, tzinfo=timezone.utc)
-    job = cves.discover(
-        payload=CveDiscoverData(vendor="Cisco", start=published, end=last_modified)
-    )
+    published = datetime(2026, 1, 1, tzinfo=UTC)
+    last_modified = datetime(2026, 1, 2, tzinfo=UTC)
+    job = cves.discover(payload=CveDiscoverData(vendor="Cisco", start=published, end=last_modified))
     created = cves.bulk_create(
-        payload=[CveCreate(
-            cve_id="CVE-2026-1234",
-            published=published,
-            last_modified=last_modified,
-            raw={"id": "CVE-2026-1234"},
-        )]
+        payload=[
+            CveCreate(
+                cve_id="CVE-2026-1234",
+                published=published,
+                last_modified=last_modified,
+                raw={"id": "CVE-2026-1234"},
+            )
+        ]
     )
 
     assert discover.called
@@ -154,12 +154,14 @@ def test_cve_discovery_and_bulk_create_actions(rest):
     }
     assert job.type == "acex.cve.discover"
     assert bulk_create.called
-    assert json.loads(bulk_create.calls.last.request.content) == [{
-        "cve_id": "CVE-2026-1234",
-        "published": "2026-01-01T00:00:00+00:00",
-        "last_modified": "2026-01-02T00:00:00+00:00",
-        "raw": {"id": "CVE-2026-1234"},
-    }]
+    assert json.loads(bulk_create.calls.last.request.content) == [
+        {
+            "cve_id": "CVE-2026-1234",
+            "published": "2026-01-01T00:00:00+00:00",
+            "last_modified": "2026-01-02T00:00:00+00:00",
+            "raw": {"id": "CVE-2026-1234"},
+        }
+    ]
     assert len(created) == 1
     assert isinstance(created[0], CveResponse)
     assert created[0].cve_id == "CVE-2026-1234"
@@ -196,7 +198,7 @@ def test_cve_query_returns_a_paginated_result(rest):
 @respx.mock
 @pytest.mark.parametrize("method", ["create", "update", "bulk_create"])
 def test_cve_mutations_serialize_datetime_fields(rest, method):
-    published = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    published = datetime(2026, 1, 1, tzinfo=UTC)
     payload = CveCreate(
         cve_id="CVE-2026-1234",
         published=published,
@@ -212,21 +214,15 @@ def test_cve_mutations_serialize_datetime_fields(rest, method):
     response = {**body, "id": 3, "created_at": "2026-01-01T00:00:00Z"}
     cves = Cves(rest)
     if method == "bulk_create":
-        route = respx.post("http://test/api/v1/cves/bulk").mock(
-            return_value=Response(200, json=[response])
-        )
+        route = respx.post("http://test/api/v1/cves/bulk").mock(return_value=Response(200, json=[response]))
         result = cves.bulk_create(payload=[payload])[0]
         expected_body = [body]
     elif method == "update":
-        route = respx.patch("http://test/api/v1/cves/3").mock(
-            return_value=Response(200, json=response)
-        )
+        route = respx.patch("http://test/api/v1/cves/3").mock(return_value=Response(200, json=response))
         result = cves.update(cve_id=3, payload=payload)
         expected_body = body
     else:
-        route = respx.post("http://test/api/v1/cves").mock(
-            return_value=Response(200, json=response)
-        )
+        route = respx.post("http://test/api/v1/cves").mock(return_value=Response(200, json=response))
         result = cves.create(payload=payload)
         expected_body = body
 

@@ -29,9 +29,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 class _Db:
     def __init__(self):
-        self.engine = create_engine(
-            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-        )
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
         SQLModel.metadata.create_all(self.engine)
 
     def get_session(self):
@@ -109,10 +107,7 @@ class TestProducer:
     def should_declare_durable_queues(self):
         # Workers declare the same queues; RabbitMQ refuses a second declaration
         # with different arguments, so this is part of the contract with them.
-        queues = {
-            queue.name: queue
-            for queue in JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues
-        }
+        queues = {queue.name: queue for queue in JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues}
         assert set(queues) == {"acex.ztp", "acex.operations", "acex.cve"}
         assert all(queue.durable and queue.queue_arguments is None for queue in queues.values())
 
@@ -133,9 +128,7 @@ class TestProducer:
 
         producer.publish("acex.ztp.discover", 42)
 
-        assert sorted(Channel.queues) == [
-            "acex.ztp"
-        ]  # Celery's default queue is never declared
+        assert sorted(Channel.queues) == ["acex.ztp"]  # Celery's default queue is never declared
         with producer._app.connection_for_read() as conn:
             message = conn.SimpleQueue("acex.ztp").get(timeout=1)
         assert (message.headers["task"], message.headers["id"]) == (
@@ -173,9 +166,7 @@ class TestRegistry:
 class TestEnqueue:
     def should_save_the_job_before_publishing_its_id(self, db):
         producer = _Producer()
-        job = JobManager(db, producer, _registry()).enqueue(
-            "acex.ztp.discover", {"node_id": 7}, created_by="alice"
-        )
+        job = JobManager(db, producer, _registry()).enqueue("acex.ztp.discover", {"node_id": 7}, created_by="alice")
         assert producer.published == [("acex.ztp.discover", job.id)]
         [saved] = _jobs(db)
         assert (saved.id, saved.state, saved.data, saved.created_by) == (
@@ -193,9 +184,7 @@ class TestEnqueue:
 
     def should_reject_data_that_does_not_fit_the_job_type(self, db):
         with pytest.raises(ValidationError):
-            JobManager(db, _Producer(), _registry()).enqueue(
-                "acex.ztp.discover", {"node": 7}, created_by="a"
-            )
+            JobManager(db, _Producer(), _registry()).enqueue("acex.ztp.discover", {"node": 7}, created_by="a")
         assert _jobs(db) == []
 
     def should_save_nothing_without_a_broker(self, db):
@@ -249,17 +238,13 @@ class TestBatch:
 
     def should_finish_when_its_last_job_does(self, db):
         manager = JobManager(db, _Producer(), _registry())
-        parent = manager.enqueue_batch(
-            "acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="a"
-        )
+        parent = manager.enqueue_batch("acex.ztp.discover", [{"node_id": n} for n in (1, 2)], created_by="a")
         first, second = [job.id for job in _jobs(db) if job.parent_id == parent.id]
         for job_id in (first, second):
             manager.update(job_id, JobUpdate(state=JobState.running), worker="w")
         manager.update(first, JobUpdate(state=JobState.succeeded), worker="w")
         assert manager.get(parent.id).finished_at is None
-        manager.update(
-            second, JobUpdate(state=JobState.failed, error="unreachable"), worker="w"
-        )
+        manager.update(second, JobUpdate(state=JobState.failed, error="unreachable"), worker="w")
         last = max(job.finished_at for job in _jobs(db) if job.parent_id == parent.id)
         assert manager.get(parent.id).finished_at == last
         [summary] = manager.list_jobs().items
@@ -267,9 +252,7 @@ class TestBatch:
 
     def should_refuse_an_empty_batch(self, db):
         with pytest.raises(ValueError):
-            JobManager(db, _Producer(), _registry()).enqueue_batch(
-                "acex.ztp.discover", [], created_by="a"
-            )
+            JobManager(db, _Producer(), _registry()).enqueue_batch("acex.ztp.discover", [], created_by="a")
 
 
 class TestDerivedState:

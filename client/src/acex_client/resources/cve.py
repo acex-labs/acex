@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from acex_client.http import RestClient
-from acex_client.resources.base import ActionMixin, ListMixin, Resource, action
 from acex_devkit.models.cve import CveApiKeyUpdate, CveCreate, CveDiscoverData, CveResponse
 from acex_devkit.models.job import JobResponse
+
+from acex_client.http import RestClient
+from acex_client.resources.base import ActionMixin, ListMixin, Resource, action
 
 
 class CveApiKey(Resource, ActionMixin):

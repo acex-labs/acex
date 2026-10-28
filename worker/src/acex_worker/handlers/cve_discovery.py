@@ -1,12 +1,12 @@
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import requests
-
 from acex_client import Acex
 from acex_devkit.models.cve import CveCreate, CveDiscoverData, CveDiscoverResult
 from acex_devkit.models.job import JobResponse
+
 from acex_worker.handlers.base_handler import Handler
 
 BASE_URL = "https://services.nvd.nist.gov/rest/json"
@@ -25,13 +25,13 @@ log = logging.getLogger("acex_worker")
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def as_utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def iso(dt):
@@ -42,11 +42,7 @@ def nvd_item_to_cve(item: dict) -> CveCreate:
     cve = item["cve"]
     # Extract the English description only
     description = next(
-        (
-            entry["value"]
-            for entry in cve.get("descriptions", [])
-            if entry["lang"] == "en"
-        ),
+        (entry["value"] for entry in cve.get("descriptions", []) if entry["lang"] == "en"),
         None,
     )
     score = None
@@ -80,10 +76,9 @@ class CveDiscoveryHandler(Handler):
         headers = {"apiKey": api_key} if api_key else {}
         for attempt in range(1, attempts + 1):
             try:
-                response = requests.get(
-                    link, headers=headers, params=query, timeout=(10, 120)
-                )
-                # If the status code is not in the retry list, raise for status and return JSON. Otherwise, prepare to retry.
+                response = requests.get(link, headers=headers, params=query, timeout=(10, 120))
+                # If the status code is not in the retry list, raise for status and return JSON.
+                # Otherwise, prepare to retry.
                 if response.status_code not in RETRY_STATUS:
                     response.raise_for_status()
                     return response.json()
@@ -96,14 +91,10 @@ class CveDiscoveryHandler(Handler):
                 error = exc.__class__.__name__
             if attempt == attempts:
                 log.error(f"NVD request failed after {attempt} attempts: {error}")
-                raise RuntimeError(
-                    f"NVD request failed after {attempts} attempts: {error}"
-                )
+                raise RuntimeError(f"NVD request failed after {attempts} attempts: {error}")
             # exponential backoff before retrying
             wait = 2**attempt
-            log.warning(
-                f"NVD request failed ({error}); retry {attempt}/{attempts - 1} in {wait}s"
-            )
+            log.warning(f"NVD request failed ({error}); retry {attempt}/{attempts - 1} in {wait}s")
             time.sleep(wait)
         log.error("NVD request retry loop ended unexpectedly")
         raise RuntimeError("NVD request retry loop ended unexpectedly")
@@ -141,7 +132,7 @@ class CveDiscoveryHandler(Handler):
             raise ValueError("CVE discovery start must be before or equal to end")
 
         api_key = client.cves.api_key.get()
-        vendor = data.vendor #or "Cisco"
+        vendor = data.vendor  # or "Cisco"
         if vendor is None:
             log.error("Vendor must be specified")
             raise ValueError("Vendor must be specified")
