@@ -71,7 +71,7 @@ class FakeDevice:
     def parse(self, raw: str, node):
         return self.codec.parse(raw, node)
 
-    def render_patch(self, diff, node) -> str:
+    def render_patch(self, diff, node):
         return self.codec.render_patch(diff, node)
 
 
@@ -136,13 +136,26 @@ def test_render_reaches_only_its_path(device):
     assert render(FakeClient(desired()), path="system.ntp")["in_sync"] is True
 
 
-def test_a_change_the_ned_renders_nothing_for_fails_the_job(device):
-    response = HandlePatchRender().handle_hook(
-        FakeClient(desired(ntp=["10.0.0.1"])), job("acex.operations.patch.render", path="system.ntp")
-    )
+def test_what_the_ned_cannot_write_is_left_out_and_listed(device):
+    result = render(FakeClient(desired(ntp=["10.0.0.1"])))
 
-    assert not response.success
-    assert "renders nothing for system.ntp.servers.10.0.0.1" in response.error
+    assert result["patch"] == PATCH
+    assert result["unrendered"] == [{"op": "add", "path": "system.ntp.servers.10.0.0.1", "attributes": []}]
+
+
+def test_a_node_with_only_what_its_ned_cannot_write_has_no_patch_and_is_not_in_sync(device):
+    result = render(FakeClient(desired(ntp=["10.0.0.1"])), path="system.ntp")
+
+    assert (result["patch"], result["patch_hash"], result["in_sync"]) == ("", None, False)
+
+
+def test_apply_verifies_only_what_the_ned_can_write(device):
+    client = FakeClient(desired(ntp=["10.0.0.1"]))
+
+    result = apply(client, render(client)["patch_hash"])
+
+    assert (result["outcome"], result["changes"]) == ("applied", [])
+    assert [c["path"] for c in result["unrendered"]] == ["system.ntp.servers.10.0.0.1"]
 
 
 def test_apply_sends_the_planned_patch_and_verifies_it(device):
@@ -151,7 +164,13 @@ def test_apply_sends_the_planned_patch_and_verifies_it(device):
     result = apply(client, render(client)["patch_hash"])
 
     assert device.applied == [PATCH]
-    assert result == {"outcome": "applied", "patch": PATCH, "output": "ok, secret <REDACTED>", "changes": []}
+    assert result == {
+        "outcome": "applied",
+        "patch": PATCH,
+        "output": "ok, secret <REDACTED>",
+        "changes": [],
+        "unrendered": [],
+    }
     assert client.uploads[-1] == "hostname new\nenable secret abc\n"
 
 
