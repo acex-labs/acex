@@ -37,7 +37,7 @@ class AutomationEngine:
         from acex.api.api import Api
         from acex.automation_engine.integrations import Integrations
         from acex.compilers import ConfigCompiler
-        from acex.cve.cve_endpoints import CveManager
+        from acex.cve.cve_manager import CveManager
         from acex.database import Connection, DatabaseManager
         from acex.device_configs import DeviceConfigManager
         from acex.inventory import Inventory

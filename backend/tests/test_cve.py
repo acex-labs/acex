@@ -4,7 +4,7 @@ import pytest
 from acex.api import auth as _auth
 from acex.api.routers.cves import create_router
 from acex.credentials.credential_manager import CredentialManager
-from acex.cve.cve_endpoints import CveManager
+from acex.cve.cve_manager import CveManager
 from acex.models.credential import Credential, CredentialField, NodeCredential, SiteCredential
 from acex.models.cve import CveModelRow, CveState, SyncState
 from acex_devkit.models.credential import CredentialCreate
@@ -54,15 +54,27 @@ def test_bulk_create_inserts_and_refreshes_without_duplicate_rows():
     db = _Db()
     manager = CveManager(db)
 
-    first = manager.bulk_create([_payload("CVE-2026-0001")])
+    first = manager.bulk_create(
+        [CveCreate(cve_id="CVE-2026-0001", base_severity="HIGH", raw={"id": "CVE-2026-0001"})]
+    )
     first_created_at = first[0].created_at
-    refreshed = manager.bulk_create([_payload("CVE-2026-0001", description="Updated description")])
+    refreshed = manager.bulk_create(
+        [
+            CveCreate(
+                cve_id="CVE-2026-0001",
+                description="Updated description",
+                base_severity="CRITICAL",
+                raw={"id": "CVE-2026-0001"},
+            )
+        ]
+    )
 
     assert len(refreshed) == 1
     assert refreshed[0].id == first[0].id
     assert refreshed[0].created_at == first_created_at
     assert refreshed[0].updated_at is not None
     assert refreshed[0].description == "Updated description"
+    assert refreshed[0].base_severity == "CRITICAL"
     with Session(db.engine) as session:
         assert len(session.exec(select(CveModelRow)).all()) == 1
 
@@ -228,3 +240,30 @@ def test_nvd_key_rejects_a_conflicting_credential(key_api):
         response = client.request(method, "/api/v1/cves/api_key", json={"api_key": "new"})
         assert response.status_code == 409
     assert len(engine.credential_manager.query()) == 1
+
+
+def _list_api(manager):
+    app = FastAPI()
+    app.include_router(create_router(SimpleNamespace(cves=manager)))
+    return TestClient(app)
+
+
+def test_list_cves_returns_stable_non_overlapping_pages_with_total():
+    manager = CveManager(_Db())
+    manager.bulk_create([_payload(f"CVE-2026-{n:04d}") for n in range(5)])
+
+    with _list_api(manager) as client:
+        first = client.get("/api/v1/cves", params={"limit": 2, "offset": 0}).json()
+        second = client.get("/api/v1/cves", params={"limit": 2, "offset": 2}).json()
+        last = client.get("/api/v1/cves", params={"limit": 2, "offset": 4}).json()
+
+    assert (first["total"], first["limit"], first["offset"]) == (5, 2, 0)
+    assert (second["limit"], second["offset"]) == (2, 2)
+    ids = [item["cve_id"] for page in (first, second, last) for item in page["items"]]
+    assert ids == [f"CVE-2026-{n:04d}" for n in range(5)]
+
+
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 1001}, {"offset": -1}])
+def test_list_cves_rejects_out_of_range_pagination(params):
+    with _list_api(CveManager(_Db())) as client:
+        assert client.get("/api/v1/cves", params=params).status_code == 422

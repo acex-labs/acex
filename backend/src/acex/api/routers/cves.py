@@ -1,12 +1,13 @@
 from acex.api import auth as _auth
 from acex.constants import BASE_URL
-from acex.cve.cve_endpoints import CveManager
+from acex.cve.cve_manager import CveManager
 from acex.jobs import JobPublishError
 from acex.messaging import MessagingNotConfigured
 from acex_devkit.models.credential import CredentialCreate, CredentialResponse, CredentialUpdate
-from acex_devkit.models.cve import CveApiKeyUpdate, CveCreate, CveDiscoverData, CveResponse
+from acex_devkit.models.cve import CveApiKeyUpdate, CveCreate, CveDiscoverData, CveResponse, CveUpdate
 from acex_devkit.models.job import JobResponse
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from acex_devkit.models.pagination import PaginatedResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.exc import IntegrityError
 
 _NVD_CREDENTIAL_NAME = "acex.cve.nvd"
@@ -96,9 +97,9 @@ def create_router(automation_engine):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No CVE {cve_id}")
         return cve
 
-    @router.get("", response_model=list[CveResponse])
-    def query():
-        return cves.query()
+    @router.get("", response_model=PaginatedResponse[CveResponse])
+    def query(limit: int = Query(default=100, ge=1, le=1000), offset: int = Query(default=0, ge=0)):
+        return cves.query(limit=limit, offset=offset)
 
     @router.post("", response_model=CveResponse, status_code=status.HTTP_201_CREATED)
     def create(payload: CveCreate):
@@ -111,13 +112,13 @@ def create_router(automation_engine):
             ) from exc
 
     @router.patch("/{cve_id}", response_model=CveResponse)
-    def update(cve_id: int, payload: CveCreate):
+    def update(cve_id: int, payload: CveUpdate):
         try:
             cve = cves.update(cve_id, payload)
         except IntegrityError as exc:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"CVE {payload.cve_id} already exists",
+                detail=f"CVE {cve_id} already exists",
             ) from exc
         if cve is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No CVE {cve_id}")

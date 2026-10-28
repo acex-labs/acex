@@ -18,7 +18,7 @@ ENDPOINTS = {
     "source": ("source/2.0", "sources"),
 }
 
-MAX_WINDOW = timedelta(days=119)  # NVD rejects lastMod ranges longer than 120 days
+MAX_WINDOW = timedelta(days=119)  # NVD rejects date ranges longer than 120 days
 RETRY_STATUS = (429, 500, 502, 503, 504)  # HTTP status codes that trigger a retry
 PARTS = ("o", "a", "h")  # OS, applications, hardware
 log = logging.getLogger("acex_worker")
@@ -50,10 +50,14 @@ def nvd_item_to_cve(item: dict) -> CveCreate:
         None,
     )
     score = None
+    base_severity = None
     for key in ("cvssMetricV40", "cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
         metrics = cve.get("metrics", {}).get(key)
         if metrics:
-            score = metrics[0]["cvssData"]["baseScore"]
+            metric = metrics[0]
+            cvss_data = metric["cvssData"]
+            score = cvss_data["baseScore"]
+            base_severity = cvss_data.get("baseSeverity") or metric.get("baseSeverity")
             break
 
     def parse_date(value: str) -> datetime:
@@ -65,6 +69,7 @@ def nvd_item_to_cve(item: dict) -> CveCreate:
         last_modified=parse_date(cve["lastModified"]),
         description=description,
         cvss_score=score,
+        base_severity=base_severity,
         raw=cve,
     )
 
@@ -90,6 +95,7 @@ class CveDiscoveryHandler(Handler):
                 # If a connection error or timeout occurs, capture the exception name for logging and retry.
                 error = exc.__class__.__name__
             if attempt == attempts:
+                log.error(f"NVD request failed after {attempt} attempts: {error}")
                 raise RuntimeError(
                     f"NVD request failed after {attempts} attempts: {error}"
                 )
@@ -99,6 +105,7 @@ class CveDiscoveryHandler(Handler):
                 f"NVD request failed ({error}); retry {attempt}/{attempts - 1} in {wait}s"
             )
             time.sleep(wait)
+        log.error("NVD request retry loop ended unexpectedly")
         raise RuntimeError("NVD request retry loop ended unexpectedly")
 
     def _pages(self, product: str, params: dict, api_key: str | None, results_per_page: int = 500):
@@ -130,10 +137,14 @@ class CveDiscoveryHandler(Handler):
         end = as_utc(data.end) if data.end else utcnow()
         start = as_utc(data.start) if data.start else end - MAX_WINDOW
         if start > end:
+            log.error("CVE discovery start must be before or equal to end")
             raise ValueError("CVE discovery start must be before or equal to end")
 
         api_key = client.cves.api_key.get()
-        vendor = data.vendor or "Cisco"
+        vendor = data.vendor #or "Cisco"
+        if vendor is None:
+            log.error("Vendor must be specified")
+            raise ValueError("Vendor must be specified")
         discovered_cves: set[str] = set()
         window_start = start
         for part in PARTS:
@@ -143,8 +154,8 @@ class CveDiscoveryHandler(Handler):
                 log.info(f"{vendor}:{part}: {iso(window_start)} -> {iso(window_end)}")
                 params = {
                     "virtualMatchString": f"cpe:2.3:{part}:{vendor}",
-                    "lastModStartDate": iso(window_start),
-                    "lastModEndDate": iso(window_end),
+                    "pubStartDate": iso(window_start),
+                    "pubEndDate": iso(window_end),
                 }
                 for page in self._pages("cve", params, api_key):
                     cves = [nvd_item_to_cve(item) for item in page]

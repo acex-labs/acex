@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from acex_client.http import RestClient
-from acex_client.resources.base import ActionMixin, Resource, action
+from acex_client.resources.base import ActionMixin, ListMixin, Resource, action
 from acex_devkit.models.cve import CveApiKeyUpdate, CveCreate, CveDiscoverData, CveResponse
 from acex_devkit.models.job import JobResponse
 
@@ -26,10 +26,11 @@ class CveApiKey(Resource, ActionMixin):
         """Remove the backend's NVD API key."""
 
 
-class Cves(Resource, ActionMixin):
+class Cves(Resource, ListMixin, ActionMixin):
     """CVE resources — `/cves`."""
 
     path = "/cves"
+    list_model = CveResponse
 
     def __init__(self, rest: RestClient):
         super().__init__(rest)

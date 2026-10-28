@@ -23,12 +23,20 @@ class CveCreate(BaseModel):
     last_modified: datetime | None = None
     description: str | None = None
     cvss_score: float | None = None
+    base_severity: str | None = None
     raw: dict
 
     @field_serializer("published", "last_modified")
     def serialize_date(self, value: datetime | None) -> str | None:
         return value.isoformat() if value is not None else None
 
+class CveUpdate(BaseModel):
+    """Update fields for an existing CVE."""
+
+    description: str | None = None
+    cvss_score: float | None = None
+    base_severity: str | None = None
+    raw: dict | None = None
 
 class CveResponse(CveCreate):
     """The response model for a CVE, including its database ID and ingestion timestamps."""

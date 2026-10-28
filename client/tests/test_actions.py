@@ -166,6 +166,34 @@ def test_cve_discovery_and_bulk_create_actions(rest):
 
 
 @respx.mock
+def test_cve_query_returns_a_paginated_result(rest):
+    route = respx.get("http://test/api/v1/cves").mock(
+        return_value=Response(
+            200,
+            json={
+                "items": [
+                    {
+                        "id": 3,
+                        "cve_id": "CVE-2026-1234",
+                        "raw": {"id": "CVE-2026-1234"},
+                        "created_at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+                "total": 7,
+                "limit": 1,
+                "offset": 2,
+            },
+        )
+    )
+
+    page = Cves(rest).query(limit=1, offset=2)
+
+    assert dict(route.calls.last.request.url.params) == {"limit": "1", "offset": "2"}
+    assert (page.total, page.limit, page.offset) == (7, 1, 2)
+    assert isinstance(page.items[0], CveResponse)
+
+
+@respx.mock
 @pytest.mark.parametrize("method", ["create", "update", "bulk_create"])
 def test_cve_mutations_serialize_datetime_fields(rest, method):
     published = datetime(2026, 1, 1, tzinfo=timezone.utc)

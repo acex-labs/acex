@@ -1,8 +1,9 @@
 from datetime import UTC, datetime
 
 from acex.models.cve import CveModelRow
-from acex_devkit.models.cve import CveCreate, CveResponse
-from sqlmodel import select
+from acex_devkit.models import PaginatedResponse
+from acex_devkit.models.cve import CveCreate, CveResponse, CveUpdate
+from sqlmodel import func, select
 
 
 class CveManager:
@@ -17,11 +18,19 @@ class CveManager:
         finally:
             session.close()
 
-    def query(self):
+    def query(self, limit: int = 100, offset: int = 0) -> PaginatedResponse[CveResponse]:
         session = next(self.db.get_session())
         try:
-            cves = session.exec(select(CveModelRow)).all()
-            return [CveResponse.model_validate(cve) for cve in cves]
+            total = session.exec(select(func.count()).select_from(CveModelRow)).one()
+            rows = session.exec(
+                select(CveModelRow).order_by(CveModelRow.id).offset(offset).limit(limit)
+            ).all()
+            return PaginatedResponse(
+                items=[CveResponse.model_validate(r) for r in rows],
+                total=total,
+                limit=limit,
+                offset=offset,
+            )
         finally:
             session.close()
 
@@ -48,7 +57,9 @@ class CveManager:
 
         session = next(self.db.get_session())
         try:
-            existing = session.exec(select(CveModelRow).where(CveModelRow.cve_id.in_(records))).all()
+            existing = session.exec(
+                select(CveModelRow).where(CveModelRow.cve_id.in_(records))
+            ).all()
             cves_by_cve_id = {cve.cve_id: cve for cve in existing}
             refreshed_at = datetime.now(UTC)
 
@@ -63,6 +74,7 @@ class CveManager:
                     cve.last_modified = item.last_modified
                     cve.description = item.description
                     cve.cvss_score = item.cvss_score
+                    cve.base_severity = item.base_severity
                     cve.raw = item.raw
                     cve.updated_at = refreshed_at
 
@@ -74,17 +86,15 @@ class CveManager:
         finally:
             session.close()
 
-    def update(self, cve_id: int, payload: CveCreate) -> CveResponse | None:
+    def update(self, cve_id: int, payload: CveUpdate) -> CveResponse | None:
         session = next(self.db.get_session())
         try:
             cve = session.get(CveModelRow, cve_id)
             if cve is None:
                 return None
-            cve.cve_id = payload.cve_id
-            cve.published = payload.published
-            cve.last_modified = payload.last_modified
             cve.description = payload.description
             cve.cvss_score = payload.cvss_score
+            cve.base_severity = payload.base_severity
             cve.raw = payload.raw
             cve.updated_at = datetime.now(UTC)
             session.commit()

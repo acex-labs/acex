@@ -20,6 +20,7 @@ class CveModelRow(SQLModel, table=True):
     last_modified: datetime | None = Field(default=None, index=True)
     description: str | None = Field(default=None)
     cvss_score: float | None = Field(default=None)
+    base_severity: str | None = Field(default=None)
     raw: dict = Field(sa_column=Column(JSON().with_variant(JSONB, "postgresql"), nullable=False))
     created_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime | None = Field(default=None)
