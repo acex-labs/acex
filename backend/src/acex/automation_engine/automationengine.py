@@ -22,7 +22,7 @@ class AutomationEngine:
         contacts_plugin: "IntegrationPluginBase|None" = None,
         dev_mode: bool | None = None,
         settings: "Settings|None" = None,
-        configure_logging : bool = False,
+        configure_logging: bool = False,
     ):
         """Build the engine.
 
@@ -69,11 +69,10 @@ class AutomationEngine:
 
         if configure_logging:
             import logging.config
+
             from acex_api.logging_config import build_logging_config
 
-            logging.config.dictConfig(
-                build_logging_config(dev=self.settings.dev)
-            )
+            logging.config.dictConfig(build_logging_config(dev=self.settings.dev))
 
         if db_connection is None:
             db = self.settings.db

@@ -1,6 +1,5 @@
 """Assembles and serves the ACE-X API."""
 
-import logging.config
 
 import uvicorn
 from acex import AutomationEngine
@@ -15,7 +14,7 @@ def create_engine(settings: Settings | None = None) -> AutomationEngine:
     integrations or ConfigMap directories can do so before the app is built.
     The engine's own create_app() runs the same startup checks.
     """
-    return AutomationEngine(settings=settings or Settings())
+    return AutomationEngine(settings=settings or Settings(), configure_logging=True)
 
 
 def create_app(settings: Settings | None = None):
@@ -46,7 +45,6 @@ def run(settings: Settings | None = None):
     # before uvicorn, and the reloader, are started.
     settings.check()
     log_config = build_logging_config(dev=settings.dev)
-    logging.config.dictConfig(log_config)
     _announce(settings)
 
     server = settings.server
