@@ -147,3 +147,17 @@ def test_components_a_component_holds_are_diffed_themselves_not_as_its_attribute
 
     assert [c.path for c in diff.added] == [["network_instances", "global", "vlans", "vl20"]]
     assert diff.changed == []
+
+
+def test_memberships_on_the_device_that_desired_does_not_declare_are_no_difference():
+    desired = config({"uplink": 0, "access": 1}, source="uplink", members=["access"])
+    observed = config({"Gi1": 0, "Gi2": 1}, source="Gi1", members=["Gi1", "Gi2"])
+    assert changed(desired, observed) == []
+
+
+def test_the_default_instance_members_are_derived_not_declared():
+    desired = ComposedConfiguration(
+        network_instances={"global": NetworkInstance(name="global", interfaces={"svi11": Reference(pointer="x.svi11")})}
+    )
+    observed = ComposedConfiguration(network_instances={"global": NetworkInstance(name="global")})
+    assert ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed == []

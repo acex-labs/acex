@@ -94,8 +94,9 @@ class ConfigDiffer:
         return isinstance(value, BaseModel) and not isinstance(value, AttributeValue | Reference | AugmentAttributes)
 
     def _same(self, observed: Any, desired: Any) -> bool:
-        """References are equal when they point at the same place, whatever path spells it out. A secret
-        masked in the observed configuration can't be compared, so it matches any desired value."""
+        """References are equal when they point at the same place, whatever path spells it out; a collection
+        of them matches when it holds every one desired declares. A secret masked in the observed configuration
+        can't be compared, so it matches any desired value."""
         if isinstance(observed, AttributeValue) and observed.value == MASK:
             return desired is not None
         if self._is_augments(observed) and self._is_augments(desired):
@@ -103,8 +104,9 @@ class ConfigDiffer:
         if isinstance(observed, Reference) and isinstance(desired, Reference):
             return self._position(self.observed, observed.pointer) == self._position(self.desired, desired.pointer)
         if self._is_references(observed) and self._is_references(desired):
+            # Memberships desired declares must be there; others on the device are undeclared, not a difference.
             observed_targets = {self._position(self.observed, r.pointer) for r in observed.values()}
-            return observed_targets == {self._position(self.desired, r.pointer) for r in desired.values()}
+            return {self._position(self.desired, r.pointer) for r in desired.values()} <= observed_targets
         return observed == desired
 
     def _is_augments(self, value: Any) -> bool:

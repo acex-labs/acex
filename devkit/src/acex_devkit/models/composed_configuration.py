@@ -433,12 +433,19 @@ class InterInstancePolicy(ContainerEntry, BaseModel):
 
 class NetworkInstance(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    #: The default instance: every interface no other instance lists belongs to it.
+    DEFAULT: ClassVar[str] = "global"
     name: AttributeValue[str]
     description: AttributeValue[str] | None = None
     vlans: dict[str, Vlan] | None = {}
     interfaces: dict[str, Reference] | None = {}
     inter_instance_policies: dict[str, InterInstancePolicy] | None = {}
     protocols: Protocols | None = Protocols()
+
+    @property
+    def derived_fields(self) -> tuple[str, ...]:
+        """The default instance's members follow from the other instances', so they state no intent."""
+        return ("interfaces",) if getattr(self.name, "value", self.name) == self.DEFAULT else ()
 
 
 class LacpConfig(BaseModel):
@@ -1172,7 +1179,9 @@ class ComposedConfiguration(BaseModel):
     lacp: Lacp | None = Lacp()
     interfaces: dict[str, InterfaceType] = {}
     interface_templates: dict[str, InterfaceTemplateAttributes] = {}
-    network_instances: dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
+    network_instances: dict[str, NetworkInstance] = {
+        NetworkInstance.DEFAULT: NetworkInstance(name=NetworkInstance.DEFAULT)
+    }
     stp: SpanningTree | None = SpanningTree()
     sampling: Sampling | None = Sampling()
 
