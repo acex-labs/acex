@@ -264,3 +264,14 @@ def test_patch_runs_are_listed_and_reported(api):
         ["sw-a", "2", "succeeded", "0", ""],
         ["sw-b", "1", "succeeded", "1", "ntp server 10.0.0.2"],
     ]
+
+
+def test_the_config_tree_names_what_a_path_walks(api):
+    tree = api.client.get(f"{OPS}/patch/tree").json()
+    system = next(c for c in tree["children"] if c["name"] == "system")
+    ntp = next(c for c in system["children"] if c["name"] == "ntp")
+
+    assert (tree["kind"], system["kind"]) == ("branch", "branch")
+    assert [(c["name"], c["kind"]) for c in ntp["children"]] == [("config", "component"), ("servers", "collection")]
+    servers = ntp["children"][1]
+    assert ("address", "attribute") in [(c["name"], c["kind"]) for c in servers["children"]]

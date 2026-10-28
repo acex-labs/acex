@@ -6,6 +6,7 @@ from acex.messaging import MessagingNotConfigured
 from acex.operations import ACTIONS, EXECUTE, PATCH_RENDER, Action
 from acex.operations.runs import OperationRuns
 from acex.plugins.neds.manager import NEDManager
+from acex_devkit.models.config_tree import ConfigTree, ConfigTreeNode
 from acex_devkit.models.operations import ExecuteRequest, PatchApplyRequest, PatchRenderRequest, Run, RunReport
 from acex_devkit.models.pagination import PaginatedResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -25,6 +26,14 @@ def create_router(automation_engine):
             return await ordering
         except MessagingNotConfigured as exc:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
+    tree = ConfigTree().root()
+
+    @router.get("/patch/tree", response_model=ConfigTreeNode)
+    def config_tree():
+        """The shape of the configuration tree a patch's path walks: branches, components, keyed collections of
+        components with the fields of each entry, and attributes."""
+        return tree
 
     @router.post("/patch/render", response_model=Run, status_code=status.HTTP_202_ACCEPTED)
     async def render_patch(request: PatchRenderRequest, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
