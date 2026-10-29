@@ -6,6 +6,8 @@ allowed only behind an explicit dev mode — these tests pin that boundary, and
 that it holds however the engine is started.
 """
 
+from unittest.mock import Mock
+
 import pytest
 from acex.settings import (
     DatabaseSettings,
@@ -252,12 +254,30 @@ class TestProxyHeaders:
     def should_hand_them_to_uvicorn(self, monkeypatch, reload):
         import acex_api.app
 
-        served = {}
+        serve = Mock()
+        configure_logging = Mock()
         monkeypatch.setattr(acex_api.app, "create_app", lambda settings: "app")
-        monkeypatch.setattr(acex_api.app.uvicorn, "run", lambda app, **kwargs: served.update(kwargs))
-        settings = Settings(dev=True, server={"forwarded_allow_ips": "*", "reload": reload})
+        monkeypatch.setattr(acex_api.app.uvicorn, "run", serve)
+        monkeypatch.setattr(acex_api.app.logging.config, "dictConfig", configure_logging)
+        settings = Settings(
+            dev=True,
+            server={
+                "host": "127.0.0.1",
+                "port": 9090,
+                "forwarded_allow_ips": "*",
+                "reload": reload,
+            },
+        )
 
         acex_api.app.run(settings)
 
-        assert served["proxy_headers"] is True
-        assert served["forwarded_allow_ips"] == "*"
+        configure_logging.assert_called_once_with(acex_api.app.LOGGING_CONFIG)
+        serve.assert_called_once_with(
+            "acex_api.app:create_app" if reload else "app",
+            host="127.0.0.1",
+            port=9090,
+            proxy_headers=True,
+            forwarded_allow_ips="*",
+            log_config=acex_api.app.LOGGING_CONFIG,
+            **({"factory": True, "reload": True} if reload else {}),
+        )

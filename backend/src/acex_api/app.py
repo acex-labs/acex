@@ -1,8 +1,11 @@
 """Assembles and serves the ACE-X API."""
 
+import logging.config
+
 import uvicorn
 from acex import AutomationEngine
 from acex.settings import Settings, UnsafeConfiguration
+from .logging_config import LOGGING_CONFIG
 
 
 def create_engine(settings: Settings | None = None) -> AutomationEngine:
@@ -24,7 +27,9 @@ def _announce(settings: Settings) -> None:
     if not settings.dev:
         return
     origins = ", ".join(settings.cors.allowed_origins) or "same-origin only"
-    auth = "OIDC enabled" if settings.authenticated else "NO AUTH — every endpoint is open"
+    auth = (
+        "OIDC enabled" if settings.authenticated else "NO AUTH — every endpoint is open"
+    )
     print(
         "\n  ACE-X API in dev mode — do not expose this to anyone else."
         f"\n    auth:    {auth}"
@@ -36,6 +41,7 @@ def _announce(settings: Settings) -> None:
 
 def run(settings: Settings | None = None):
     """Serve the API with uvicorn. Entry point for both ways of starting."""
+    logging.config.dictConfig(LOGGING_CONFIG)
     settings = settings or Settings()
     # Checked here as well as in create_app() so that a refused start fails
     # before uvicorn, and the reloader, are started.
@@ -54,9 +60,19 @@ def run(settings: Settings | None = None):
     if server.reload:
         # The reloader re-imports in a subprocess, so hand it a factory to call
         # there instead of an app built here. ACEX_DEV carries dev mode across.
-        uvicorn.run("acex_api.app:create_app", factory=True, reload=True, **serve)
+        uvicorn.run(
+            "acex_api.app:create_app",
+            **serve,
+            factory=True,
+            reload=True,
+            log_config=LOGGING_CONFIG,
+        )
     else:
-        uvicorn.run(create_app(settings), **serve)
+        uvicorn.run(
+            create_app(settings),
+            **serve,
+            log_config=LOGGING_CONFIG,
+        )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -79,14 +95,25 @@ def main(argv: list[str] | None = None) -> None:
         help="run in development mode: allows running without auth, answers any "
         "origin and reloads on source changes. Never use it where others can reach it.",
     )
-    parser.add_argument("--host", help="address to bind (default: $ACEX_SERVER_HOST or 0.0.0.0)")
-    parser.add_argument("--port", type=int, help="port to bind (default: $ACEX_SERVER_PORT or 8080)")
+    parser.add_argument(
+        "--host", help="address to bind (default: $ACEX_SERVER_HOST or 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port", type=int, help="port to bind (default: $ACEX_SERVER_PORT or 8080)"
+    )
     reload_group = parser.add_mutually_exclusive_group()
     reload_group.add_argument(
-        "--reload", dest="reload", action="store_true", default=None, help="restart on source changes"
+        "--reload",
+        dest="reload",
+        action="store_true",
+        default=None,
+        help="restart on source changes",
     )
     reload_group.add_argument(
-        "--no-reload", dest="reload", action="store_false", help="do not restart on source changes"
+        "--no-reload",
+        dest="reload",
+        action="store_false",
+        help="do not restart on source changes",
     )
     args = parser.parse_args(argv)
 
