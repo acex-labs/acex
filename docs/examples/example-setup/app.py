@@ -6,7 +6,7 @@ from acex.settings import Settings
 import os
 
 #import logging.config
-#from acex_api.logging_config import build_logging_config
+#from acex.logging_config import build_logging_config
 
 dev_mode = Settings(dev=True)
 #log_config = build_logging_config(dev=dev_mode.dev)

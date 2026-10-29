@@ -70,7 +70,7 @@ class AutomationEngine:
         if configure_logging:
             import logging.config
 
-            from acex_api.logging_config import build_logging_config
+            from acex.logging_config import build_logging_config
 
             logging.config.dictConfig(build_logging_config(dev=self.settings.dev))
 
