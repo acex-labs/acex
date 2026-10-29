@@ -2,6 +2,7 @@
 
 import uvicorn
 from acex import AutomationEngine
+from acex.logging_config import build_logging_config
 from acex.settings import Settings, UnsafeConfiguration
 
 
@@ -12,7 +13,7 @@ def create_engine(settings: Settings | None = None) -> AutomationEngine:
     integrations or ConfigMap directories can do so before the app is built.
     The engine's own create_app() runs the same startup checks.
     """
-    return AutomationEngine(settings=settings or Settings())
+    return AutomationEngine(settings=settings or Settings(), configure_logging=True)
 
 
 def create_app(settings: Settings | None = None):
@@ -40,6 +41,7 @@ def run(settings: Settings | None = None):
     # Checked here as well as in create_app() so that a refused start fails
     # before uvicorn, and the reloader, are started.
     settings.check()
+    log_config = build_logging_config(dev=settings.dev)
     _announce(settings)
 
     server = settings.server
@@ -54,9 +56,19 @@ def run(settings: Settings | None = None):
     if server.reload:
         # The reloader re-imports in a subprocess, so hand it a factory to call
         # there instead of an app built here. ACEX_DEV carries dev mode across.
-        uvicorn.run("acex_api.app:create_app", factory=True, reload=True, **serve)
+        uvicorn.run(
+            "acex_api.app:create_app",
+            **serve,
+            factory=True,
+            reload=True,
+            log_config=log_config,
+        )
     else:
-        uvicorn.run(create_app(settings), **serve)
+        uvicorn.run(
+            create_app(settings),
+            **serve,
+            log_config=log_config,
+        )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -83,10 +95,17 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--port", type=int, help="port to bind (default: $ACEX_SERVER_PORT or 8080)")
     reload_group = parser.add_mutually_exclusive_group()
     reload_group.add_argument(
-        "--reload", dest="reload", action="store_true", default=None, help="restart on source changes"
+        "--reload",
+        dest="reload",
+        action="store_true",
+        default=None,
+        help="restart on source changes",
     )
     reload_group.add_argument(
-        "--no-reload", dest="reload", action="store_false", help="do not restart on source changes"
+        "--no-reload",
+        dest="reload",
+        action="store_false",
+        help="do not restart on source changes",
     )
     args = parser.parse_args(argv)
 

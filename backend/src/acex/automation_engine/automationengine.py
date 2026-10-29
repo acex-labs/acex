@@ -22,6 +22,7 @@ class AutomationEngine:
         contacts_plugin: "IntegrationPluginBase|None" = None,
         dev_mode: bool | None = None,
         settings: "Settings|None" = None,
+        configure_logging: bool = False,
     ):
         """Build the engine.
 
@@ -32,6 +33,9 @@ class AutomationEngine:
 
         `db_connection` overrides `settings.db` with a ready-made Connection.
         `dev_mode` is deprecated in favour of `Settings(dev=True)`.
+
+        `configure_logging` enables timestamped console logging and replaces
+        the process-wide logging configuration. Disabled by default.
         """
         # Lazy imports - only load when AutomationEngine is instantiated
         from acex.api.api import Api
@@ -62,6 +66,13 @@ class AutomationEngine:
                 raise TypeError("Pass dev mode in settings, not both settings= and dev_mode=")
             settings = Settings(dev=dev_mode)
         self.settings = settings if settings is not None else Settings()
+
+        if configure_logging:
+            import logging.config
+
+            from acex.logging_config import build_logging_config
+
+            logging.config.dictConfig(build_logging_config(dev=self.settings.dev))
 
         if db_connection is None:
             db = self.settings.db
