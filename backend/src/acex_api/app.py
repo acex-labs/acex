@@ -2,8 +2,8 @@
 
 import uvicorn
 from acex import AutomationEngine
-from acex.settings import Settings, UnsafeConfiguration
 from acex.logging_config import build_logging_config
+from acex.settings import Settings, UnsafeConfiguration
 
 
 def create_engine(settings: Settings | None = None) -> AutomationEngine:
