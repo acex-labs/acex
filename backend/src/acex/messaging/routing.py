@@ -6,6 +6,7 @@ from fnmatch import fnmatchcase
 ROUTES: dict[str, str] = {
     "acex.ztp.*": "acex.ztp",
     "acex.operations.*": "acex.operations",
+    "acex.cve.*": "acex.cve",
 }
 
 QUEUES: tuple[str, ...] = tuple(dict.fromkeys(ROUTES.values()))

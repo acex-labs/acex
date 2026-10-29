@@ -15,6 +15,7 @@ Namespaces:
     client.observability     — agents (with bound outputs/rules/nodes), grafana
     client.operations        — compliance, config_history, lldp
     client.config_components — catalog, generate, reconcile, translate, drivers
+    client.cves             — CVE records (including batch ingestion)
     client.neds              — list, get, download
     client.ai                — ask, analyze (SSE-streamed) or None if backend
                               does not mount ai_ops
@@ -32,6 +33,7 @@ from acex_client.auth import AuthProvider, create_auth_provider
 from acex_client.http import RestClient
 from acex_client.resources.ai import Ai
 from acex_client.resources.config_components import ConfigComponents
+from acex_client.resources.cve import Cves
 from acex_client.resources.inventory import InventoryNamespace
 from acex_client.resources.neds import Neds
 from acex_client.resources.observability import ObservabilityNamespace
@@ -70,6 +72,7 @@ class Acex:
         self.observability = ObservabilityNamespace(self.rest)
         self.operations = OperationsNamespace(self.rest)
         self.config_components = ConfigComponents(self.rest)
+        self.cves = Cves(self.rest)
         self.neds = Neds(self.rest)
         self.system = SystemNamespace(self.rest)
         self.workers = Workers(self.rest)

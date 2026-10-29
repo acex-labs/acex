@@ -7,7 +7,7 @@ from acex.jobs.manager import (
     derive_state,
 )
 from acex.jobs.registry import JobType, JobTypeRegistry, UnknownJobType, registry
-from acex.jobs.types import EXECUTE, ZTP_DISCOVER
+from acex.jobs.types import CVE_DISCOVER, EXECUTE, ZTP_DISCOVER
 
 __all__ = [
     "EXECUTE",
@@ -16,6 +16,7 @@ __all__ = [
     "JobManager",
     "JobNotFound",
     "JobPublishError",
+    "CVE_DISCOVER",
     "JobType",
     "JobTypeRegistry",
     "UnknownJobType",
