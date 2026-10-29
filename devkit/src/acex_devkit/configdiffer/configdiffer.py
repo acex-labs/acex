@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, get_args
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -7,6 +7,7 @@ from acex_devkit.configdiffer.diff import AttributeChange, ComponentChange, Comp
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.augment import AugmentAttributes
 from acex_devkit.models.composed_configuration import ComposedConfiguration
+from acex_devkit.models.config_tree import ConfigTree
 from acex_devkit.models.container_entry import ContainerEntry
 from acex_devkit.models.reference import Reference
 from acex_devkit.normalizer import MASK
@@ -20,21 +21,10 @@ class ConfigDiffer:
     is left out on both sides.
     """
 
-    def _is_leaf(self, model: BaseModel) -> bool:
-        """A model is a leaf if it has at least one direct AttributeValue field."""
-        for field_info in model.model_fields.values():
-            ann = field_info.annotation
-            if isinstance(ann, type) and issubclass(ann, AttributeValue):
-                return True
-            for arg in get_args(ann):
-                if isinstance(arg, type) and issubclass(arg, AttributeValue):
-                    return True
-        return False
-
-    def _flatten(self, model: BaseModel, path: tuple = ()) -> dict[tuple, BaseModel]:
+    def flatten(self, model: BaseModel, path: tuple = ()) -> dict[tuple, BaseModel]:
         """
         Recursively walk a model tree, collecting leaf nodes.
-        A leaf is any BaseModel that has direct AttributeValue fields.
+        A leaf is a component: a model with attributes of its own (`ConfigTree.is_component`).
         A model can be both a leaf (stored) and have children (recursed into).
         Returns a flat mapping of path → leaf instance.
         """
@@ -42,8 +32,8 @@ class ConfigDiffer:
             return {}
         result = {}
 
-        # Store this model if it has AttributeValue fields (e.g. SystemConfig, NtpServer, NetworkInstance)
-        if self._is_leaf(model):
+        # Store this model if it has attributes of its own (e.g. SystemConfig, NtpServer, NetworkInstance)
+        if ConfigTree.is_component(type(model)):
             result[path] = model
 
         # Walk each field declared on the model (e.g. System has config, aaa, logging, ntp, ssh, snmp)
@@ -58,36 +48,46 @@ class ConfigDiffer:
 
             # Single nested model — recurse deeper (e.g. System.config → SystemConfig, System.ssh → Ssh)
             if isinstance(value, BaseModel):
-                result.update(self._flatten(value, path + (field_name,)))
+                result.update(self.flatten(value, path + (field_name,)))
 
-            # Keyed collection — recurse into each entry (e.g. interfaces: Dict[str, Interface])
-            elif isinstance(value, dict):
-                for key, item in value.items():
-                    # Each dict entry is a named component (e.g. "Gi0/0/1" → EthernetCsmacdInterface)
+            # Collection — recurse into each entry (e.g. interfaces: Dict[str, Interface]). A listed entry is
+            # keyed by its position; entries are matched by identity, so the key is a name only.
+            elif isinstance(value, dict | list):
+                for key, item in value.items() if isinstance(value, dict) else enumerate(value):
+                    # Each entry is a named component (e.g. "Gi0/0/1" → EthernetCsmacdInterface)
                     if isinstance(item, BaseModel):
-                        result.update(self._flatten(item, path + (field_name, key)))
+                        result.update(self.flatten(item, path + (field_name, str(key))))
 
         return result
 
     def _attribute_changes(self, before: BaseModel, after: BaseModel) -> list[AttributeChange]:
         """Compare an observed (before) and a desired (after) component and return the changed attributes.
         Only what desired declares is compared: an attribute it leaves unset states no intent, whatever
-        the device holds there (often the device's own default)."""
+        the device holds there (often the device's own default). A field holding components of its own is
+        no attribute: those components are diffed themselves."""
         changes = []
         derived = set(getattr(before, "derived_fields", ())) | set(getattr(after, "derived_fields", ()))
         all_fields = (set(before.model_fields.keys()) | set(after.model_fields.keys())) - derived
         for field_name in all_fields:
             b = getattr(before, field_name, None)
             a = getattr(after, field_name, None)
-            if a is None or a == {} or a == []:
+            if a is None or a == {} or a == [] or self._nests(a) or self._nests(b):
                 continue
             if not self._same(b, a):
                 changes.append(AttributeChange(attribute_name=field_name, before=b, after=a))
         return changes
 
+    def _nests(self, value: Any) -> bool:
+        """Whether a field's value holds components: a sub-model, or a collection of them, such as a network
+        instance's vlans or protocols. References and augments are attributes."""
+        if isinstance(value, dict | list):
+            return any(self._nests(v) for v in (value.values() if isinstance(value, dict) else value))
+        return isinstance(value, BaseModel) and ConfigTree.is_model(type(value))
+
     def _same(self, observed: Any, desired: Any) -> bool:
-        """References are equal when they point at the same place, whatever path spells it out. A secret
-        masked in the observed configuration can't be compared, so it matches any desired value."""
+        """References are equal when they point at the same place, whatever path spells it out; a collection
+        of them matches when it holds every one desired declares. A secret masked in the observed configuration
+        can't be compared, so it matches any desired value."""
         if isinstance(observed, AttributeValue) and observed.value == MASK:
             return desired is not None
         if self._is_augments(observed) and self._is_augments(desired):
@@ -95,8 +95,9 @@ class ConfigDiffer:
         if isinstance(observed, Reference) and isinstance(desired, Reference):
             return self._position(self.observed, observed.pointer) == self._position(self.desired, desired.pointer)
         if self._is_references(observed) and self._is_references(desired):
+            # Memberships desired declares must be there; others on the device are undeclared, not a difference.
             observed_targets = {self._position(self.observed, r.pointer) for r in observed.values()}
-            return observed_targets == {self._position(self.desired, r.pointer) for r in desired.values()}
+            return {self._position(self.desired, r.pointer) for r in desired.values()} <= observed_targets
         return observed == desired
 
     def _is_augments(self, value: Any) -> bool:
@@ -290,9 +291,9 @@ class ConfigDiffer:
         handling cases where keys differ (e.g. "Gi0/0/1" vs "GigabitEthernet0/0/1").
         """
         self.desired, self.observed = desired_config, observed_config
-        defaults = self._flatten(ComposedConfiguration())
-        flat_desired = self._declared(self._flatten(desired_config), defaults)
-        flat_observed = self._declared(self._flatten(observed_config), defaults)
+        defaults = self.flatten(ComposedConfiguration())
+        flat_desired = self._declared(self.flatten(desired_config), defaults)
+        flat_observed = self._declared(self.flatten(observed_config), defaults)
 
         # Split into singletons (path-matched) and entries (identity-matched)
         singleton_d = {p: m for p, m in flat_desired.items() if not isinstance(m, ContainerEntry)}
@@ -312,4 +313,6 @@ class ConfigDiffer:
             changed=changed,
             total_desired=len(flat_desired),
             total_observed=len(flat_observed),
+            desired=desired_config,
+            observed=observed_config,
         )

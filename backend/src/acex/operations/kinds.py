@@ -3,6 +3,7 @@
 from typing import Any
 
 from acex_devkit.models.actions import ActionParams, PingParams, PingResult
+from acex_devkit.models.job import JobResponse, JobState
 from acex_devkit.models.operations import (
     ActionData,
     ActionRequest,
@@ -10,6 +11,13 @@ from acex_devkit.models.operations import (
     ExecuteRequest,
     ExecuteResult,
     NodeSelection,
+    PatchApplyData,
+    PatchApplyRequest,
+    PatchApplyResult,
+    PatchRenderData,
+    PatchRenderRequest,
+    PatchRenderResult,
+    PatchScope,
 )
 from pydantic import BaseModel
 
@@ -74,9 +82,68 @@ class Action(Operation):
         return [{column: result.get(column) for column in self.columns}] if result else [{}]
 
 
+class Patching(Operation):
+    """Reads the node's configuration and writes it, so its NED must do both."""
+
+    capability = ("operations", "apply")
+
+    def supported_by(self, capabilities: BaseModel | None) -> bool:
+        return capabilities is not None and {"get_config", "apply"} <= set(capabilities.operations)
+
+
+class PatchRender(Patching):
+    """Renders on each node the patch its configuration needs at a path, from a live read. Sends nothing."""
+
+    job_type = "acex.operations.patch.render"
+    request = PatchRenderRequest
+    data = PatchRenderData
+    result = PatchRenderResult
+    columns = ("changes", "patch")
+
+    def items(self, request: PatchRenderRequest) -> list[BaseModel]:
+        scope = PatchScope.model_validate(request, from_attributes=True).model_dump()
+        return [PatchRenderData(node_id=node_id, **scope) for node_id in request.node_ids]
+
+    def cells(self, result: dict | None) -> list[dict[str, Any]]:
+        return [{"changes": len(result["changes"]), "patch": result["patch"]}] if result else [{}]
+
+
+class PatchApply(Patching):
+    """Sends a plan's patches: each node is read again and patched only if it still renders the plan's patch."""
+
+    job_type = "acex.operations.patch.apply"
+    request = PatchApplyRequest
+    data = PatchApplyData
+    result = PatchApplyResult
+    columns = ("outcome", "patch", "output")
+
+    def planned(self, rendered: list[JobResponse]) -> dict[int, str]:
+        """The hash of each patch a plan rendered, by node; nodes in sync or failed have none."""
+        return {
+            job.subject_id: job.result["patch_hash"]
+            for job in rendered
+            if job.state == JobState.succeeded and job.result and job.result.get("patch_hash")
+        }
+
+    def items_from(self, request: PatchApplyRequest, plan: JobResponse, hashes: dict[int, str]) -> list[BaseModel]:
+        scope = PatchScope.model_validate(plan.data or {})
+        return [
+            PatchApplyData(node_id=node_id, plan_id=plan.id, patch_hash=hashes[node_id], **scope.model_dump())
+            for node_id in request.node_ids
+        ]
+
+    def cells(self, result: dict | None) -> list[dict[str, Any]]:
+        return [{column: result.get(column) for column in self.columns}] if result else [{}]
+
+
 EXECUTE = Execute()
 
 #: Every abstract action a run can be made of. One route and one job type each.
 ACTIONS = [Action(PingParams, PingResult)]
 
-OPERATIONS: dict[str, Operation] = {operation.job_type: operation for operation in [EXECUTE, *ACTIONS]}
+PATCH_RENDER = PatchRender()
+PATCH_APPLY = PatchApply()
+
+OPERATIONS: dict[str, Operation] = {
+    operation.job_type: operation for operation in [EXECUTE, *ACTIONS, PATCH_RENDER, PATCH_APPLY]
+}

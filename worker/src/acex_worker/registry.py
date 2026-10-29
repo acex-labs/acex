@@ -5,6 +5,7 @@ class to handle the job event.
 
 from acex_worker.handlers.cve_discovery import CveDiscoveryHandler
 from acex_worker.handlers.execute import HandleExecute, HandlePing
+from acex_worker.handlers.patch import HandlePatchApply, HandlePatchRender
 from acex_worker.handlers.workflow import (
     HandleWorkflowAction,
     HandleWorkflowAssert,
@@ -22,6 +23,8 @@ HANDLERS = {
     "acex.ztp.provision": HandleZtpProvision,
     "acex.operations.execute": HandleExecute,
     "acex.operations.actions.ping": HandlePing,
+    "acex.operations.patch.render": HandlePatchRender,
+    "acex.operations.patch.apply": HandlePatchApply,
     "acex.operations.workflow.execute": HandleWorkflowExecute,
     "acex.operations.workflow.action": HandleWorkflowAction,
     "acex.operations.workflow.probe": HandleWorkflowProbe,

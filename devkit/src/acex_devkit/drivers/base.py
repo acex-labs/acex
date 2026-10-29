@@ -8,7 +8,7 @@ A NED is an adapter for one device type. Callers only see `NetworkElementDriver`
 - `State`     reads operational state into devkit models, opt-in per method
 - `Actions`   runs actions such as ping, opt-in per method
 
-Codec and transport share a payload type: what `Codec.render` and `Codec.render_patch`
+Codec and transport share a payload type: the payload `Codec.render` and `Codec.render_patch`
 return is what `Transport.apply` sends, e.g. `Codec[str]` with `Transport[str]` for CLI text.
 """
 
@@ -81,8 +81,10 @@ class Codec[Payload](Facade, ABC):
     def parse(self, raw: Any, node: NodeInstance) -> ParseResult: ...
 
     @abstractmethod
-    def render_patch(self, diff: Diff, node: NodeInstance) -> Payload:
-        """The changes in `diff`, sendable with `Transport.apply`."""
+    def render_patch(self, diff: Diff, node: NodeInstance) -> RenderResult[Payload]:
+        """Every change in `diff`, removals included; its `payload` is sendable with `Transport.apply`. The
+        caller decides what the diff holds (`Diff.scoped`); the trees it was made from are on it. A change the
+        syntax can't express is left out and listed in `metadata.unrendered`."""
 
     @abstractmethod
     def mask(self, raw: Any) -> Any:
@@ -260,7 +262,7 @@ class NetworkElementDriver:
     def parse(self, raw: Any, node: NodeInstance) -> ParseResult:
         return self.require_codec().parse(raw, node)
 
-    def render_patch(self, diff: Diff, node: NodeInstance) -> Any:
+    def render_patch(self, diff: Diff, node: NodeInstance) -> RenderResult:
         return self.require_codec().render_patch(diff, node)
 
     def normalize(self, raw: Any) -> Any:

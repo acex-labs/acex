@@ -7,6 +7,7 @@ from acex_devkit.models.acl_model import Acl
 from acex_devkit.models.attribute_value import AttributeValue
 from acex_devkit.models.augment import Augmentable
 from acex_devkit.models.augment import AugmentAttributes as AugmentAttributes
+from acex_devkit.models.config_tree import ConfigTree, ConfigTreeNode
 from acex_devkit.models.container_entry import ContainerEntry
 from acex_devkit.models.logging import Console, FileLogging, LoggingConfig, LoggingEvents, RemoteServers, VtyLine
 from acex_devkit.models.reference import Metadata as Metadata
@@ -381,6 +382,10 @@ class SubInterface(Interface):
     ipv4: AttributeValue[str] | None = None
 
 
+# A physical interface lists its subinterfaces, defined after it.
+EthernetCsmacdInterface.model_rebuild()
+
+
 class ManagementInterface(Interface):
     "Management Interface"
 
@@ -417,7 +422,8 @@ class Protocols(BaseModel):
     # OSPF, BGP, etc. can be added here as needed
 
 
-class RouteTarget(BaseModel):
+class RouteTarget(ContainerEntry, BaseModel):
+    identity_fields: ClassVar[tuple[str, ...]] = ("value",)
     value: AttributeValue[str] | None = None
 
 
@@ -433,12 +439,19 @@ class InterInstancePolicy(ContainerEntry, BaseModel):
 
 class NetworkInstance(ContainerEntry, BaseModel):
     identity_fields: ClassVar[tuple[str, ...]] = ("name",)
+    #: The default instance: every interface no other instance lists belongs to it.
+    DEFAULT: ClassVar[str] = "global"
     name: AttributeValue[str]
     description: AttributeValue[str] | None = None
     vlans: dict[str, Vlan] | None = {}
     interfaces: dict[str, Reference] | None = {}
     inter_instance_policies: dict[str, InterInstancePolicy] | None = {}
     protocols: Protocols | None = Protocols()
+
+    @property
+    def derived_fields(self) -> tuple[str, ...]:
+        """The default instance's members follow from the other instances', so they state no intent."""
+        return ("interfaces",) if getattr(self.name, "value", self.name) == self.DEFAULT else ()
 
 
 class LacpConfig(BaseModel):
@@ -1172,9 +1185,16 @@ class ComposedConfiguration(BaseModel):
     lacp: Lacp | None = Lacp()
     interfaces: dict[str, InterfaceType] = {}
     interface_templates: dict[str, InterfaceTemplateAttributes] = {}
-    network_instances: dict[str, NetworkInstance] = {"global": NetworkInstance(name="global")}
+    network_instances: dict[str, NetworkInstance] = {
+        NetworkInstance.DEFAULT: NetworkInstance(name=NetworkInstance.DEFAULT)
+    }
     stp: SpanningTree | None = SpanningTree()
     sampling: Sampling | None = Sampling()
+
+    @classmethod
+    def tree(cls) -> ConfigTreeNode:
+        """The shape of the configuration tree a patch's path walks."""
+        return ConfigTree(cls).root()
 
 
 """

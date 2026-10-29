@@ -1,8 +1,9 @@
 """Operations on nodes: raw commands and abstract actions, ordered as runs of one job per node."""
 
 from datetime import datetime
+from enum import StrEnum
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 from acex_devkit.models.actions import ActionParams
 from acex_devkit.models.job import JobState
@@ -63,6 +64,101 @@ class ActionData[P: ActionParams](BaseModel):
 
     node_id: int
     params: P
+
+
+class PatchScope(BaseModel):
+    """How far a patch reaches into the configuration tree."""
+
+    #: Dotted paths such as `system.ntp.servers`; none for the whole tree. The patch reaches what is at any of
+    #: them and below it, nothing else.
+    paths: list[str] = []
+    #: Also remove what the device holds there that the desired configuration doesn't declare.
+    prune: bool = False
+
+    @field_validator("paths")
+    @classmethod
+    def _trimmed(cls, paths: list[str]) -> list[str]:
+        """Each once, trimmed; any empty one is the whole tree, so none."""
+        trimmed = list(dict.fromkeys(path.strip().strip(".") for path in paths))
+        return [] if "" in trimmed else trimmed
+
+
+class PatchRenderRequest(PatchScope, NodeSelection):
+    """Render, on each node, the patch that brings its configuration at `paths` to the desired state. Each node
+    is read live; nothing is sent."""
+
+
+class PatchRenderData(PatchScope):
+    """Data of an acex.operations.patch.render job: the patch to render on one node."""
+
+    node_id: int
+
+
+class PatchChange(BaseModel):
+    """A component a patch adds, changes or removes."""
+
+    op: str
+    path: str
+    #: For a change, the attributes that change.
+    attributes: list[str] = []
+
+
+class PatchRenderResult(BaseModel):
+    """Result of an acex.operations.patch.render job: what the node would be sent."""
+
+    #: Masked by the node's NED. Empty when the node already matches.
+    patch: str = ""
+    #: Of the patch as rendered, before masking: an apply sends only a patch that hashes the same. None when
+    #: the node already matches.
+    patch_hash: str | None = None
+    #: What the patch changes.
+    changes: list[PatchChange] = []
+    #: What differs that the node's NED can't write, so the patch leaves it out.
+    unrendered: list[PatchChange] = []
+
+    @computed_field
+    @property
+    def in_sync(self) -> bool:
+        return not self.changes and not self.unrendered
+
+
+class PatchApplyRequest(NodeSelection):
+    """Apply a rendered plan on some of its nodes. Each node is read live again and sent its patch only if
+    it still renders the one the plan holds."""
+
+    plan_id: int
+
+
+class PatchApplyData(PatchScope):
+    """Data of an acex.operations.patch.apply job: the plan's scope and patch for one node."""
+
+    node_id: int
+    plan_id: int
+    patch_hash: str
+
+
+class PatchOutcome(StrEnum):
+    #: Sent, and nothing differs in the scope any more.
+    applied = "applied"
+    #: Sent, but the node still differs in the scope.
+    residual = "residual"
+    #: Not sent: the node renders another patch than the plan's, so it changed since.
+    changed = "changed"
+
+
+class PatchApplyResult(BaseModel):
+    """Result of an acex.operations.patch.apply job."""
+
+    outcome: PatchOutcome
+    #: What was sent, masked by the node's NED.
+    patch: str = ""
+    #: What the device answered, masked.
+    output: str = ""
+    #: What differs in the scope now that the NED can write: after the patch, or instead of the plan when it no
+    #: longer holds.
+    changes: list[PatchChange] = []
+    #: What differs that the node's NED can't write, left out of the patch and of the verification.
+    unrendered: list[PatchChange] = []
 
 
 class Run(BaseModel):
