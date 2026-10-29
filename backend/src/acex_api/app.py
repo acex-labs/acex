@@ -25,9 +25,7 @@ def _announce(settings: Settings) -> None:
     if not settings.dev:
         return
     origins = ", ".join(settings.cors.allowed_origins) or "same-origin only"
-    auth = (
-        "OIDC enabled" if settings.authenticated else "NO AUTH — every endpoint is open"
-    )
+    auth = "OIDC enabled" if settings.authenticated else "NO AUTH — every endpoint is open"
     print(
         "\n  ACE-X API in dev mode — do not expose this to anyone else."
         f"\n    auth:    {auth}"
@@ -93,12 +91,8 @@ def main(argv: list[str] | None = None) -> None:
         help="run in development mode: allows running without auth, answers any "
         "origin and reloads on source changes. Never use it where others can reach it.",
     )
-    parser.add_argument(
-        "--host", help="address to bind (default: $ACEX_SERVER_HOST or 0.0.0.0)"
-    )
-    parser.add_argument(
-        "--port", type=int, help="port to bind (default: $ACEX_SERVER_PORT or 8080)"
-    )
+    parser.add_argument("--host", help="address to bind (default: $ACEX_SERVER_HOST or 0.0.0.0)")
+    parser.add_argument("--port", type=int, help="port to bind (default: $ACEX_SERVER_PORT or 8080)")
     reload_group = parser.add_mutually_exclusive_group()
     reload_group.add_argument(
         "--reload",
