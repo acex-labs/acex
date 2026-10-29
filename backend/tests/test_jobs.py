@@ -4,8 +4,20 @@ publish leaves it marked failed rather than silently queued."""
 from collections import Counter
 
 import pytest
-from acex.jobs import JobManager, JobPublishError, JobType, JobTypeRegistry, UnknownJobType, derive_state
-from acex.messaging import JobProducer, MessagingNotConfigured, UnroutedJobType, queue_for
+from acex.jobs import (
+    JobManager,
+    JobPublishError,
+    JobType,
+    JobTypeRegistry,
+    UnknownJobType,
+    derive_state,
+)
+from acex.messaging import (
+    JobProducer,
+    MessagingNotConfigured,
+    UnroutedJobType,
+    queue_for,
+)
 from acex.models.job import Job, JobState, JobSubjectType
 from acex.settings import RabbitMQSettings
 from acex_devkit.models.job import JobUpdate
@@ -49,7 +61,13 @@ class _NoSubject(BaseModel):
 
 def _registry() -> JobTypeRegistry:
     job_types = JobTypeRegistry()
-    job_types.register(JobType("acex.ztp.discover", data=_Discover, subject=(JobSubjectType.node, "node_id")))
+    job_types.register(
+        JobType(
+            "acex.ztp.discover",
+            data=_Discover,
+            subject=(JobSubjectType.node, "node_id"),
+        )
+    )
     return job_types
 
 
@@ -67,6 +85,8 @@ class TestRouting:
     def should_route_a_flow_to_its_queue(self):
         assert queue_for("acex.ztp.discover") == "acex.ztp"
         assert queue_for("acex.ztp.provision") == "acex.ztp"
+        assert queue_for("acex.operations.execute") == "acex.operations"
+        assert queue_for("acex.cve.discover") == "acex.cve"
 
     def should_refuse_a_job_type_no_queue_carries(self):
         with pytest.raises(UnroutedJobType):
@@ -87,11 +107,9 @@ class TestProducer:
     def should_declare_durable_queues(self):
         # Workers declare the same queues; RabbitMQ refuses a second declaration
         # with different arguments, so this is part of the contract with them.
-        queues = JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues
-        assert [(q.name, q.durable, q.queue_arguments) for q in queues] == [
-            ("acex.ztp", True, None),
-            ("acex.operations", True, None),
-        ]
+        queues = {queue.name: queue for queue in JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.task_queues}
+        assert set(queues) == {"acex.ztp", "acex.operations", "acex.cve"}
+        assert all(queue.durable and queue.queue_arguments is None for queue in queues.values())
 
     def should_declare_every_queue_without_publishing(self):
         # At startup, so a queue exists before its first job and before any worker consumes it.
@@ -99,8 +117,8 @@ class TestProducer:
         producer = JobProducer(RabbitMQSettings(host="rabbitmq"))
         producer._app.conf.broker_url = "memory://"
 
-        assert producer.declare_queues() == ["acex.ztp", "acex.operations"]
-        assert sorted(Channel.queues) == ["acex.operations", "acex.ztp"]
+        assert producer.declare_queues() == ["acex.ztp", "acex.operations", "acex.cve"]
+        assert sorted(Channel.queues) == ["acex.cve", "acex.operations", "acex.ztp"]
 
     def should_send_the_job_id_to_its_queue(self):
         # Through Celery's whole publish path, on kombu's in-memory broker.
@@ -113,7 +131,10 @@ class TestProducer:
         assert sorted(Channel.queues) == ["acex.ztp"]  # Celery's default queue is never declared
         with producer._app.connection_for_read() as conn:
             message = conn.SimpleQueue("acex.ztp").get(timeout=1)
-        assert (message.headers["task"], message.headers["id"]) == ("acex.ztp.discover", "42")
+        assert (message.headers["task"], message.headers["id"]) == (
+            "acex.ztp.discover",
+            "42",
+        )
         assert message.decode()[0] == [42]
 
 
@@ -125,7 +146,11 @@ class TestRegistry:
     def should_refuse_a_subject_field_the_data_lacks(self):
         with pytest.raises(ValueError, match="node_id"):
             JobTypeRegistry().register(
-                JobType("acex.ztp.discover", data=_NoSubject, subject=(JobSubjectType.node, "node_id"))
+                JobType(
+                    "acex.ztp.discover",
+                    data=_NoSubject,
+                    subject=(JobSubjectType.node, "node_id"),
+                )
             )
 
     def should_refuse_registering_a_job_type_twice(self):
