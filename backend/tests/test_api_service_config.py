@@ -253,12 +253,11 @@ class TestProxyHeaders:
     @pytest.mark.parametrize("reload", [False, True])
     def should_hand_them_to_uvicorn(self, monkeypatch, reload):
         import acex_api.app
+        from acex.logging_config import build_logging_config
 
         serve = Mock()
-        configure_logging = Mock()
         monkeypatch.setattr(acex_api.app, "create_app", lambda settings: "app")
         monkeypatch.setattr(acex_api.app.uvicorn, "run", serve)
-        monkeypatch.setattr(acex_api.app.logging.config, "dictConfig", configure_logging)
         settings = Settings(
             dev=True,
             server={
@@ -271,8 +270,7 @@ class TestProxyHeaders:
 
         acex_api.app.run(settings)
 
-        log_config = acex_api.app.build_logging_config(dev=settings.dev)
-        configure_logging.assert_called_once_with(log_config)
+        log_config = build_logging_config(dev=settings.dev)
         serve.assert_called_once_with(
             "acex_api.app:create_app" if reload else "app",
             host="127.0.0.1",
