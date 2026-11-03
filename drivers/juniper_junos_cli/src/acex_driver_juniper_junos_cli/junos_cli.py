@@ -86,7 +86,7 @@ class JunosCodec(Codec[str]):
     def parse(self, raw: str, node: NodeInstance) -> ParseResult:
         raise DriverException("Parsing Junos configuration is not implemented yet")
 
-    def render_patch(self, diff: Diff, node: NodeInstance) -> str:
+    def render_patch(self, diff: Diff, node: NodeInstance) -> RenderResult[str]:
         return JunosCLIRenderer().render_patch(diff, node)
 
     def normalize(self, raw: str) -> str:

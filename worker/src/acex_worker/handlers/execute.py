@@ -32,7 +32,9 @@ class NodeOperation(Handler):
 
     def on_node(self, client: Acex, node_id: int, data: Any) -> BaseModel:
         """Run `operate` with `data` in a session to the node."""
-        node = client.inventory.node_instances.get(node_id)
+        return self.in_session(client, client.inventory.node_instances.get(node_id), data)
+
+    def in_session(self, client: Acex, node: Any, data: Any) -> BaseModel:
         driver = load_ned(client, node.asset.ned_id)
         # Client actions take keyword arguments only.
         credentials = [client.inventory.credentials.secret(id=credential.id) for credential in node.credentials]

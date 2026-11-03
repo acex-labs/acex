@@ -4,15 +4,19 @@ import csv
 import io
 
 from acex.jobs import JobManager
-from acex.operations.kinds import OPERATIONS, Operation
+from acex.operations.kinds import OPERATIONS, PATCH_APPLY, PATCH_RENDER, Operation
 from acex_devkit.models.job import JobResponse
-from acex_devkit.models.operations import NodeResponse, NodeSelection, Run, RunReport
+from acex_devkit.models.operations import NodeResponse, NodeSelection, PatchApplyRequest, Run, RunReport
 from acex_devkit.models.pagination import PaginatedResponse
 from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
 #: Job type prefixes of the run kinds listed apart. Workflow runs are listed with their workflows.
-KINDS = {"execute": "acex.operations.execute", "actions": "acex.operations.actions."}
+KINDS = {
+    "execute": "acex.operations.execute",
+    "actions": "acex.operations.actions.",
+    "patch": "acex.operations.patch.",
+}
 
 
 class OperationRuns:
@@ -27,12 +31,27 @@ class OperationRuns:
         """Make the run's jobs and publish them. A node that doesn't exist answers 404, and one whose NED
         can't run the operation 422, before any job is made."""
         await self.supporting(operation, request.node_ids)
+        return await self.enqueue(operation, operation.items(request), request, created_by)
+
+    async def apply_patch(self, request: PatchApplyRequest, created_by: str) -> Run:
+        """Apply a plan on some of its nodes: 404 for a plan that isn't one, 422 naming the nodes it rendered
+        no patch for, before any job is made."""
+        plan = self.jobs.get(request.plan_id)
+        if plan is None or plan.type != PATCH_RENDER.job_type or not plan.children:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No patch plan {request.plan_id}")
+        nodes = await self.supporting(PATCH_APPLY, request.node_ids)
+        hashes = PATCH_APPLY.planned(self.jobs.children(plan.id))
+        unplanned = [node.logical_node.hostname or str(node.id) for node in nodes if node.id not in hashes]
+        if unplanned:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Plan {plan.id} has no patch for: {', '.join(unplanned)}",
+            )
+        return await self.enqueue(PATCH_APPLY, PATCH_APPLY.items_from(request, plan, hashes), request, created_by)
+
+    async def enqueue(self, operation: Operation, items: list, request: NodeSelection, created_by: str) -> Run:
         batch = await run_in_threadpool(
-            self.jobs.enqueue_batch,
-            operation.job_type,
-            operation.items(request),
-            created_by=created_by,
-            request=request,
+            self.jobs.enqueue_batch, operation.job_type, items, created_by=created_by, request=request
         )
         return self.run(batch)
 
@@ -70,7 +89,7 @@ class OperationRuns:
         )
 
     def list(self, kind: str | None, limit: int, offset: int) -> PaginatedResponse[Run]:
-        """Runs, newest first; `kind` is "execute" or "actions"."""
+        """Runs, newest first; `kind` is "execute", "actions" or "patch"."""
         prefixes = (KINDS[kind],) if kind else tuple(KINDS.values())
         page = self.jobs.list_jobs(type_prefix=prefixes, limit=limit, offset=offset)
         runs = [self.run(self.jobs.get(summary.id)) for summary in page.items if summary.children]

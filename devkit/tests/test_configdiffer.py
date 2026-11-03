@@ -4,12 +4,16 @@ from acex_devkit.models.codec_result import UnmatchedLine
 from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
     EthernetCsmacdInterface,
+    ImportExportPolicy,
+    InterInstancePolicy,
     L3IpvlanInterface,
     NetworkInstance,
+    RouteTarget,
     Ssh,
     SshServer,
     System,
     SystemConfig,
+    Vlan,
     authenticationUser,
 )
 from acex_devkit.models.reference import Reference
@@ -134,3 +138,44 @@ def test_an_entry_known_only_by_a_masked_secret_matches_a_desired_one():
     observed.system.snmp.communities = {MASK: SnmpCommunity(name=MASK, community=MASK)}
     diff = ConfigDiffer().diff(desired_config=desired, observed_config=observed)
     assert (diff.added, diff.changed, diff.removed) == ([], [], [])
+
+
+def instance(*vlan_ids: int) -> ComposedConfiguration:
+    vlans = {f"vl{i}": Vlan(name=f"vl{i}", vlan_id=i) for i in vlan_ids}
+    return ComposedConfiguration(network_instances={"global": NetworkInstance(name="global", vlans=vlans)})
+
+
+def test_components_a_component_holds_are_diffed_themselves_not_as_its_attributes():
+    diff = ConfigDiffer().diff(desired_config=instance(10, 20), observed_config=instance(10))
+
+    assert [c.path for c in diff.added] == [["network_instances", "global", "vlans", "vl20"]]
+    assert diff.changed == []
+
+
+def test_memberships_on_the_device_that_desired_does_not_declare_are_no_difference():
+    desired = config({"uplink": 0, "access": 1}, source="uplink", members=["access"])
+    observed = config({"Gi1": 0, "Gi2": 1}, source="Gi1", members=["Gi1", "Gi2"])
+    assert changed(desired, observed) == []
+
+
+def test_the_default_instance_members_are_derived_not_declared():
+    desired = ComposedConfiguration(
+        network_instances={"global": NetworkInstance(name="global", interfaces={"svi11": Reference(pointer="x.svi11")})}
+    )
+    observed = ComposedConfiguration(network_instances={"global": NetworkInstance(name="global")})
+    assert ConfigDiffer().diff(desired_config=desired, observed_config=observed).changed == []
+
+
+def route_targets(*values: str) -> ComposedConfiguration:
+    policy = ImportExportPolicy(export_route_target=[RouteTarget(value=v) for v in values])
+    policies = {"p": InterInstancePolicy(import_export_policy=policy)}
+    instance = NetworkInstance(name="A", inter_instance_policies=policies)
+    return ComposedConfiguration(network_instances={"A": instance})
+
+
+def test_listed_entries_are_components_matched_by_identity_not_position():
+    desired, observed = route_targets("65000:1", "65000:2"), route_targets("65000:2")
+    diff = ConfigDiffer().diff(desired_config=desired, observed_config=observed)
+
+    assert [c.path[-2:] for c in diff.added] == [["export_route_target", "0"]]
+    assert (diff.changed, diff.removed) == ([], [])

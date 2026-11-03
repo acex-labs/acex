@@ -23,6 +23,9 @@ class UnmatchedLine(BaseModel):
 
 class RenderMetadata(BaseModel):
     spans: list[Span] = []
+    # Of a patch: the paths of the changes the syntax has no lines for, so they were left out. Like unmatched
+    # lines on parse, they say how far the driver covers the configuration.
+    unrendered: list[list[str]] = []
 
 
 class RenderResult[Payload](BaseModel):
