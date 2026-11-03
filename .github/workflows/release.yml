@@ -1,20 +1,8 @@
 name: Release
 
-# The release button. Actions > Release > Run workflow: on `dev` for a release, on a
-# `hotfix/*` branch for a hotfix.
-#
-#   Plan     what would be released, in the run summary. Nothing is changed.
-#   Gate     the `release` environment waits for a reviewer. Read the plan, then approve.
-#   Release  `scripts/changelog.py release-all` sets the versions and compiles the release
-#            notes, and the bot commits the result: as a pull request into dev when run on
-#            dev, as a commit on the branch when run on a hotfix branch.
-#
-# Publishing does not change: a push to main publishes every version that is new on PyPI and
-# GHCR (ci.yml). See docs/guides/changelog.md.
-#
-# Secret RELEASE_TOKEN (optional): a token that may push and open pull requests in this
-# repository. Pushes and pull requests made with the default token do not start other
-# workflows, so without it the checks do not run on the release pull request.
+# Run from the Actions tab on dev, or on a hotfix/* branch. The plan is shown in the run summary and
+# the reviewers of the release environment approve before anything is committed.
+# RELEASE_TOKEN lets the checks run on the release pull request, which the default token cannot start.
 
 on:
   workflow_dispatch:
@@ -78,7 +66,6 @@ jobs:
     needs: plan
     if: needs.plan.outputs.due == 'true'
     runs-on: ubuntu-latest
-    # The gate: the release environment has required reviewers.
     environment: release
     permissions:
       contents: write

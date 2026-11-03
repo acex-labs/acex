@@ -698,105 +698,107 @@ def release(
 
 @dataclass
 class Planned:
-    """One component in a release: the version it moves to, and why it is in the release."""
-
     component: Component
     old: str
     new: str
-    #: Empty when the component has fragments of its own; otherwise what pulled it in.
     reasons: list[str] = field(default_factory=list)
 
+    @property
+    def has_own_fragments(self) -> bool:
+        return not self.reasons
 
-def image_sources(component: Component, components: list[Component], repo: Path) -> list[Component]:
-    """The components whose whole directory the component's `Dockerfile` copies into its image.
-
-    A copy of a single file (the backend takes the compiled notes of other components that way)
-    does not count: the image is built from a directory, not from a file's release.
-    """
-    dockerfile = component.root / "Dockerfile"
-    if not dockerfile.is_file():
-        return []
-    root = repo.resolve()
-    by_directory = {c.root.resolve().relative_to(root).as_posix(): c for c in components}
-    found: dict[str, Component] = {}
-    for line in dockerfile.read_text(encoding="utf-8").splitlines():
-        words = line.split()
-        if not words or words[0].upper() != "COPY" or any(w.startswith("--from") for w in words):
-            continue
-        for source in [w for w in words[1:] if not w.startswith("--")][:-1]:
-            owner = by_directory.get(source.rstrip("/"))
-            if owner is not None and owner is not component:
-                found[owner.id] = owner
-    return list(found.values())
-
-
-def path_dependencies(component: Component, components: list[Component]) -> list[Component]:
-    """The components a Python package depends on by path, the way the packages here use each other."""
-    if component.manifest_name != "pyproject.toml":
-        return []
-    data = tomllib.loads(component.manifest.read_text(encoding="utf-8"))
-    dependencies = data.get("tool", {}).get("poetry", {}).get("dependencies", {})
-    targets = {
-        (component.root / spec["path"]).resolve()
-        for spec in dependencies.values()
-        if isinstance(spec, dict) and "path" in spec
-    }
-    return [c for c in components if c.root.resolve() in targets]
+    @property
+    def changes_major_version(self) -> bool:
+        return _major(self.new) != _major(self.old)
 
 
 def _major(version: str) -> str:
     return version.split(".")[0]
 
 
+def _copy_sources(dockerfile: Path) -> list[str]:
+    sources = []
+    for line in dockerfile.read_text(encoding="utf-8").splitlines():
+        words = line.split()
+        if not words or words[0].upper() != "COPY" or any(word.startswith("--from") for word in words):
+            continue
+        arguments = [word for word in words[1:] if not word.startswith("--")]
+        if len(arguments) >= 2:
+            *copied, _destination = arguments
+            sources.extend(copied)
+    return sources
+
+
+def components_in_image(component: Component, components: list[Component], repo: Path) -> list[Component]:
+    dockerfile = component.root / "Dockerfile"
+    if not dockerfile.is_file():
+        return []
+    root = repo.resolve()
+    component_by_directory = {c.root.resolve().relative_to(root).as_posix(): c for c in components}
+    copied = {}
+    for source in _copy_sources(dockerfile):
+        directory_owner = component_by_directory.get(source.rstrip("/"))
+        if directory_owner and directory_owner is not component:
+            copied[directory_owner.id] = directory_owner
+    return list(copied.values())
+
+
+def path_dependencies(component: Component, components: list[Component]) -> list[Component]:
+    if component.manifest_name != "pyproject.toml":
+        return []
+    data = tomllib.loads(component.manifest.read_text(encoding="utf-8"))
+    dependencies = data.get("tool", {}).get("poetry", {}).get("dependencies", {})
+    dependency_directories = {
+        (component.root / spec["path"]).resolve()
+        for spec in dependencies.values()
+        if isinstance(spec, dict) and "path" in spec
+    }
+    return [c for c in components if c.root.resolve() in dependency_directories]
+
+
+def _reasons_to_follow(
+    component: Component, components: list[Component], repo: Path, planned: dict[str, Planned]
+) -> list[str]:
+    reasons = [
+        f"its image contains {source.id}, which goes to {planned[source.id].new}"
+        for source in components_in_image(component, components, repo)
+        if source.id in planned
+    ]
+    for dependency in path_dependencies(component, components):
+        dependency_release = planned.get(dependency.id)
+        if dependency_release and dependency_release.changes_major_version:
+            reasons.append(f"{dependency.id} moves to a new major version, {dependency_release.new}")
+    return reasons
+
+
 def plan_release(components: list[Component], repo: Path) -> list[Planned]:
-    """Everything that a release of the pending work contains, and the version each part gets.
-
-    A component with fragments is released with the version its fragments call for (`auto`).
-    Others follow only when they have to:
-
-    - an image that copies a released component's directory is rebuilt, so it gets a patch version.
-      That is how an agent follows `client` and `devkit` without anyone remembering to bump it;
-    - a package that depends on a released component by path gets a patch version when that
-      component's major version changes, because the range it publishes (`^MAJOR`) moves.
-
-    Nothing else is bumped, so a hotfix on one package releases that package and what contains it.
-    The plan is worked out completely before anything is written.
-    """
     planned: dict[str, Planned] = {}
     for component in components:
-        pending = fragments(component)
-        if pending:
-            planned[component.id] = Planned(
-                component, component.version, bump(component.version, "auto", published(pending))
-            )
-    grew = True
-    while grew:
-        grew = False
+        own_fragments = fragments(component)
+        if own_fragments:
+            new_version = bump(component.version, "auto", published(own_fragments))
+            planned[component.id] = Planned(component, component.version, new_version)
+    followers_were_added = True
+    while followers_were_added:
+        followers_were_added = False
         for component in components:
             if component.id in planned:
                 continue
-            reasons = [
-                f"its image contains {source.id}, which goes to {planned[source.id].new}"
-                for source in image_sources(component, components, repo)
-                if source.id in planned
-            ]
-            for dependency in path_dependencies(component, components):
-                moved = planned.get(dependency.id)
-                if moved and _major(moved.new) != _major(moved.old):
-                    reasons.append(f"{dependency.id} moves to a new major version, {moved.new}")
+            reasons = _reasons_to_follow(component, components, repo, planned)
             if reasons:
-                planned[component.id] = Planned(
-                    component, component.version, bump(component.version, "patch", []), reasons
-                )
-                grew = True
+                new_version = bump(component.version, "patch", [])
+                planned[component.id] = Planned(component, component.version, new_version, reasons)
+                followers_were_added = True
     return sorted(planned.values(), key=lambda p: p.component.id)
 
 
 def release_planned(planned: list[Planned], *, on: date | None = None) -> Report:
-    """Release every part of a plan: own fragments are stamped; the others get a note saying why they were rebuilt."""
     report = Report()
     for item in planned:
-        if item.reasons:
+        if item.has_own_fragments:
+            bump_how = "auto"
+        else:
+            bump_how = "patch"
             new_fragment(
                 item.component,
                 kind=INTERNAL,
@@ -804,19 +806,18 @@ def release_planned(planned: list[Planned], *, on: date | None = None) -> Report
                 body="\n".join(f"- {reason}" for reason in item.reasons),
                 slug="rebuilt-with-newer-packages",
             )
-        result = release(item.component, bump_how="patch" if item.reasons else "auto", on=on)
+        result = release(item.component, bump_how=bump_how, on=on)
         report.notes.extend(result.notes)
         report.errors.extend(result.errors)
     return report
 
 
 def describe_plan(planned: list[Planned]) -> list[str]:
-    """The plan as lines of text, one per component."""
-    width = max((len(p.component.id) for p in planned), default=0)
+    id_width = max((len(item.component.id) for item in planned), default=0)
     lines = []
     for item in planned:
-        why = "; ".join(item.reasons) if item.reasons else f"{len(fragments(item.component))} fragment(s)"
-        lines.append(f"{item.component.id:<{width}}  {item.old} -> {item.new}  ({why})")
+        why = f"{len(fragments(item.component))} fragment(s)" if item.has_own_fragments else "; ".join(item.reasons)
+        lines.append(f"{item.component.id:<{id_width}}  {item.old} -> {item.new}  ({why})")
     return lines or ["nothing to release: no component has pending fragments"]
 
 
@@ -886,24 +887,23 @@ def check(
                     f"  (stamps the version in {component.manifest_name}; add --bump if that version is already out)."
                 )
     if release_ready and base_versions is not None:
-        report.errors.extend(_images_behind(components, repo, base_versions))
+        report.errors.extend(_images_left_behind(components, repo, base_versions))
     return report
 
 
-def _images_behind(components: list[Component], repo: Path, base_versions: dict[str, str]) -> list[str]:
-    """Images that still have the version of the target branch although a package they contain has a new one.
-
-    An image is published under its version, so without a new one the change never reaches it.
-    """
+def _images_left_behind(components: list[Component], repo: Path, base_versions: dict[str, str]) -> list[str]:
     errors = []
     for component in components:
-        if component.id not in base_versions or component.version != base_versions[component.id]:
-            continue  # unknown to the target branch (first release) or already bumped
-        moved = [
-            s for s in image_sources(component, components, repo) if s.version != base_versions.get(s.id, s.version)
+        is_first_release = component.id not in base_versions
+        if is_first_release or component.version != base_versions[component.id]:
+            continue
+        sources_with_new_version = [
+            source
+            for source in components_in_image(component, components, repo)
+            if source.version != base_versions.get(source.id, source.version)
         ]
-        if moved:
-            names = ", ".join(f"{s.id} {s.version}" for s in moved)
+        if sources_with_new_version:
+            names = ", ".join(f"{source.id} {source.version}" for source in sources_with_new_version)
             errors.append(
                 f"{component.id}: its image contains {names}, which changed version, but {component.id} is still "
                 f"{component.version}, so no new image is published. Run the Release workflow, or\n"

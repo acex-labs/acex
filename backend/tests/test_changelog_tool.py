@@ -947,7 +947,6 @@ python = "^3.13"
 
 
 def add_package(repo: Path, directory: str, name: str, version: str, *, needs=(), copies=()):
-    """A package with a `changelog.d/`: `needs` are its path dependencies, `copies` the COPY lines of its Dockerfile."""
     root = repo / directory
     (root / "src" / name.replace("-", "_")).mkdir(parents=True)
     (root / "changelog.d").mkdir()
@@ -964,7 +963,6 @@ def add_package(repo: Path, directory: str, name: str, version: str, *, needs=()
 
 @pytest.fixture
 def workspace(tmp_path):
-    """The shape of the real repository, small: libraries, drivers, images that copy them."""
     add_package(tmp_path, "devkit", "acex-devkit", "2.11.0")
     add_package(tmp_path, "client", "acex-client", "4.11.0", needs=[("acex-devkit", "devkit")])
     add_package(tmp_path, "cli", "acex-cli", "4.6.0", needs=[("acex-client", "client"), ("acex-devkit", "devkit")])
@@ -1016,7 +1014,15 @@ class TestReleasePlan:
 
         assert planned["acex-collection-agent"] == ("0.16.0", "0.16.1")
         assert planned["acex-client"] == ("4.11.0", "4.11.1")
-        assert "acex-cli" not in planned  # a library takes a patch of its dependency by its ^MAJOR range
+
+    def should_leave_libraries_alone_when_a_dependency_gets_a_patch(self, workspace):
+        due(workspace, "devkit")
+
+        planned = versions(plan(workspace))
+
+        assert "acex-client" not in planned
+        assert "acex-cli" not in planned
+        assert "acex-driver-ios" not in planned
 
     def should_say_why_an_image_was_pulled_in(self, workspace):
         due(workspace, "devkit")
@@ -1036,7 +1042,7 @@ class TestReleasePlan:
     def should_not_count_the_copy_of_a_single_file(self, workspace):
         due(workspace, "cli", kind="added", title="A new command")
 
-        assert versions(plan(workspace)) == {"acex-cli": ("4.6.0", "4.7.0")}  # the backend copies cli's notes only
+        assert versions(plan(workspace)) == {"acex-cli": ("4.6.0", "4.7.0")}
 
     def should_leave_everything_else_alone_for_a_hotfix_on_one_image(self, workspace):
         due(workspace, "agents/collection-agent")
@@ -1049,7 +1055,7 @@ class TestReleasePlan:
         planned = versions(plan(workspace))
 
         assert planned["acex-devkit"] == ("2.11.0", "3.0.0")
-        assert planned["acex-client"] == ("4.11.0", "4.11.1")  # publishes ^3 from now on
+        assert planned["acex-client"] == ("4.11.0", "4.11.1")
         assert planned["acex-cli"] == ("4.6.0", "4.6.1")
         assert planned["acex-driver-ios"] == ("5.0.0", "5.0.1")
         assert planned["acex-collection-agent"] == ("0.16.0", "0.16.1")
@@ -1081,7 +1087,7 @@ class TestReleaseAll:
         assert 'version = "4.12.0"' in (workspace / "client" / "pyproject.toml").read_text(encoding="utf-8")
         assert 'version = "0.16.1"' in (agent / "pyproject.toml").read_text(encoding="utf-8")
         assert 'version = "4.6.0"' in (workspace / "cli" / "pyproject.toml").read_text(encoding="utf-8")
-        assert list((agent / "changelog.d").glob("*.md")) == []  # the rebuild note was consumed too
+        assert list((agent / "changelog.d").glob("*.md")) == []
         [release] = json.loads((workspace / "client/src/acex_client/changelog.json").read_text())["releases"]
         assert (release["version"], release["date"]) == ("4.12.0", "2026-11-03")
 
@@ -1143,7 +1149,7 @@ class TestImagesFollowTheirSources:
     def should_not_ask_for_a_new_image_when_nothing_it_contains_moved(self, workspace):
         self.set_version(workspace, "cli", "4.6.0", "4.7.0")
 
-        assert self.run_check(workspace).ok  # the backend copies only cli's notes, a single file
+        assert self.run_check(workspace).ok
 
     def should_leave_a_component_that_is_new_to_the_target_branch_alone(self, workspace):
         self.set_version(workspace, "client", "4.11.0", "4.12.0")
