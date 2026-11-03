@@ -2,18 +2,20 @@ name: Changelog
 
 # Every pull request that changes a component carries a changelog fragment
 # (for example backend/changelog.d/<date>-<slug>.md), written for the people
-# who use ACEX. See docs/guides/changelog.md. Label a pull request
-# `no-changelog` to skip the check, or add a `kind: internal` fragment.
+# who use ACEX. See docs/guides/changelog.md. The entry is not required for draft
+# pull requests, with the label `no-changelog`, or from chore, docs, test, ci,
+# refactor and build branches (unless they go into main).
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
     branches: [main, stage, dev]
 
 jobs:
   fragments:
     name: Changelog entry
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+    if: ${{ !github.event.pull_request.draft && !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
     steps:
       - name: Checkout (full history, for the diff against the target branch)
         uses: actions/checkout@v5
@@ -25,7 +27,21 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Does the branch call for an entry
+        id: branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          case "${HEAD_REF%%/*}" in
+            chore|docs|test|ci|refactor|build) calls_for_entry=false ;;
+            *) calls_for_entry=true ;;
+          esac
+          if [ "$BASE_REF" = main ]; then calls_for_entry=true; fi
+          echo "calls_for_entry=$calls_for_entry" >> "$GITHUB_OUTPUT"
+
       - name: Changed components have an entry, and entries are well-formed
+        if: steps.branch.outputs.calls_for_entry == 'true'
         env:
           BASE: origin/${{ github.base_ref }}
           # Into main, a version that is about to be published must carry its notes.

@@ -59,9 +59,12 @@ The `Changelog` workflow runs on every pull request:
    roadmap.
 2. A component with code changes in the pull request has at least one *new*
    fragment. Changes under `tests/`, to `README.md` and to `changelog.d/`
-   itself do not count. Label the pull request `no-changelog` to skip the
-   check, or add a `kind: internal` fragment: that leaves a trace in the
-   repository.
+   itself do not count. Add a `kind: internal` fragment when users cannot
+   notice the change: that leaves a trace in the repository. The entry is not
+   required for a draft pull request, for one with the label `no-changelog`,
+   or for a branch named `chore/`, `docs/`, `test/`, `ci/`, `refactor/` or
+   `build/`, since those prefixes mean the behaviour does not change. A pull
+   request into `main` always needs it.
 3. The compiled `changelog.json` files are current (`build --check`): they
    change only when a release is cut.
 4. Into `main`: a component whose version differs from `main`'s has no
