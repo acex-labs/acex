@@ -933,3 +933,175 @@ class TestBrief:
 
         assert tool.main(["validate"], repo=repo) == 1
         assert "must start with the day it arrived" in capsys.readouterr().err
+
+
+MANIFEST = """[tool.poetry]
+name = "{name}"
+version = "{version}"
+packages = [{{ include = "{module}", from = "src" }}]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+{dependencies}
+"""
+
+
+def add_package(repo: Path, directory: str, name: str, version: str, *, needs=(), copies=()):
+    """A package with a `changelog.d/`: `needs` are its path dependencies, `copies` the COPY lines of its Dockerfile."""
+    root = repo / directory
+    (root / "src" / name.replace("-", "_")).mkdir(parents=True)
+    (root / "changelog.d").mkdir()
+    dependencies = "\n".join(
+        f'{dep} = {{ path = "{"../" * (directory.count("/") + 1)}{where}", develop = true }}' for dep, where in needs
+    )
+    manifest = MANIFEST.format(name=name, version=version, module=name.replace("-", "_"), dependencies=dependencies)
+    (root / "pyproject.toml").write_text(manifest, encoding="utf-8")
+    if copies:
+        lines = [f"COPY {source} /deps/" for source in copies]
+        (root / "Dockerfile").write_text("FROM python:3.13-slim\n" + "\n".join(lines) + "\n", encoding="utf-8")
+    return root
+
+
+@pytest.fixture
+def workspace(tmp_path):
+    """The shape of the real repository, small: libraries, drivers, images that copy them."""
+    add_package(tmp_path, "devkit", "acex-devkit", "2.11.0")
+    add_package(tmp_path, "client", "acex-client", "4.11.0", needs=[("acex-devkit", "devkit")])
+    add_package(tmp_path, "cli", "acex-cli", "4.6.0", needs=[("acex-client", "client"), ("acex-devkit", "devkit")])
+    add_package(tmp_path, "drivers/ios", "acex-driver-ios", "5.0.0", needs=[("acex-devkit", "devkit")])
+    add_package(
+        tmp_path,
+        "agents/collection-agent",
+        "acex-collection-agent",
+        "0.16.0",
+        needs=[("acex-client", "client")],
+        copies=["client/", "devkit/", "agents/collection-agent/"],
+    )
+    add_package(
+        tmp_path,
+        "backend",
+        "acex",
+        "6.27.0",
+        needs=[("acex-devkit", "devkit")],
+        copies=["devkit/", "drivers/ios/", "backend/src/", "cli/src/acex_cli/changelog.json"],
+    )
+    return tmp_path
+
+
+def due(repo: Path, directory: str, **fields):
+    write_fragment(repo / directory / "changelog.d" / "change.md", **{"kind": "fixed", "title": "A fix", **fields})
+
+
+def versions(planned):
+    return {p.component.id: (p.old, p.new) for p in planned}
+
+
+def plan(repo: Path):
+    return tool.plan_release(tool.discover(repo), repo)
+
+
+class TestReleasePlan:
+    def should_release_nothing_without_fragments(self, workspace):
+        assert plan(workspace) == []
+
+    def should_bump_a_component_from_its_own_fragments(self, workspace):
+        due(workspace, "client", kind="added", title="A new call")
+
+        assert versions(plan(workspace))["acex-client"] == ("4.11.0", "4.12.0")
+
+    def should_rebuild_an_image_when_a_directory_it_copies_is_released(self, workspace):
+        due(workspace, "client")
+
+        planned = versions(plan(workspace))
+
+        assert planned["acex-collection-agent"] == ("0.16.0", "0.16.1")
+        assert planned["acex-client"] == ("4.11.0", "4.11.1")
+        assert "acex-cli" not in planned  # a library takes a patch of its dependency by its ^MAJOR range
+
+    def should_say_why_an_image_was_pulled_in(self, workspace):
+        due(workspace, "devkit")
+
+        [agent] = [p for p in plan(workspace) if p.component.id == "acex-collection-agent"]
+
+        assert agent.reasons == ["its image contains acex-devkit, which goes to 2.11.1"]
+
+    def should_rebuild_the_backend_when_a_driver_it_bundles_is_released(self, workspace):
+        due(workspace, "drivers/ios")
+
+        assert versions(plan(workspace)) == {
+            "acex-driver-ios": ("5.0.0", "5.0.1"),
+            "acex": ("6.27.0", "6.27.1"),
+        }
+
+    def should_not_count_the_copy_of_a_single_file(self, workspace):
+        due(workspace, "cli", kind="added", title="A new command")
+
+        assert versions(plan(workspace)) == {"acex-cli": ("4.6.0", "4.7.0")}  # the backend copies cli's notes only
+
+    def should_leave_everything_else_alone_for_a_hotfix_on_one_image(self, workspace):
+        due(workspace, "agents/collection-agent")
+
+        assert versions(plan(workspace)) == {"acex-collection-agent": ("0.16.0", "0.16.1")}
+
+    def should_release_what_depends_on_a_package_whose_major_version_moves(self, workspace):
+        due(workspace, "devkit", kind="changed", title="Models are renamed", breaking="true")
+
+        planned = versions(plan(workspace))
+
+        assert planned["acex-devkit"] == ("2.11.0", "3.0.0")
+        assert planned["acex-client"] == ("4.11.0", "4.11.1")  # publishes ^3 from now on
+        assert planned["acex-cli"] == ("4.6.0", "4.6.1")
+        assert planned["acex-driver-ios"] == ("5.0.0", "5.0.1")
+        assert planned["acex-collection-agent"] == ("0.16.0", "0.16.1")
+        assert planned["acex"] == ("6.27.0", "6.27.1")
+
+    def should_keep_the_version_a_component_earns_from_its_own_fragments(self, workspace):
+        due(workspace, "client", kind="added", title="A new call")
+        due(workspace, "agents/collection-agent", kind="added", title="Collects more")
+
+        assert versions(plan(workspace))["acex-collection-agent"] == ("0.16.0", "0.17.0")
+
+    def should_fail_before_anything_is_written_on_a_bad_fragment(self, workspace):
+        due(workspace, "client")
+        (workspace / "devkit" / "changelog.d" / "bad.md").write_text("---\nkind: fixed\n---\n", encoding="utf-8")
+
+        with pytest.raises(tool.FragmentError, match="'title' is required"):
+            plan(workspace)
+        assert 'version = "4.11.0"' in (workspace / "client" / "pyproject.toml").read_text(encoding="utf-8")
+
+
+class TestReleaseAll:
+    def should_write_versions_and_notes_for_the_whole_plan(self, workspace):
+        due(workspace, "client", kind="added", title="A new call")
+        agent = workspace / "agents" / "collection-agent"
+
+        report = tool.release_planned(plan(workspace), on=date(2026, 11, 3))
+
+        assert report.ok, report.errors
+        assert 'version = "4.12.0"' in (workspace / "client" / "pyproject.toml").read_text(encoding="utf-8")
+        assert 'version = "0.16.1"' in (agent / "pyproject.toml").read_text(encoding="utf-8")
+        assert 'version = "4.6.0"' in (workspace / "cli" / "pyproject.toml").read_text(encoding="utf-8")
+        assert list((agent / "changelog.d").glob("*.md")) == []  # the rebuild note was consumed too
+        [release] = json.loads((workspace / "client/src/acex_client/changelog.json").read_text())["releases"]
+        assert (release["version"], release["date"]) == ("4.12.0", "2026-11-03")
+
+    def should_leave_nothing_to_release_afterwards(self, workspace):
+        due(workspace, "devkit", kind="changed", title="Models are renamed", breaking="true")
+
+        assert tool.release_planned(plan(workspace)).ok
+
+        assert plan(workspace) == []
+
+    def should_be_available_as_plan_and_release_all(self, workspace, capsys):
+        due(workspace, "client")
+
+        assert tool.main(["plan"], repo=workspace) == 0
+        out = capsys.readouterr().out
+        assert "acex-collection-agent  0.16.0 -> 0.16.1  (its image contains acex-client, which goes to 4.11.1)" in out
+        assert 'version = "4.11.0"' in (workspace / "client" / "pyproject.toml").read_text(encoding="utf-8")
+
+        assert tool.main(["release-all", "--date", "2026-11-03"], repo=workspace) == 0
+        assert 'version = "4.11.1"' in (workspace / "client" / "pyproject.toml").read_text(encoding="utf-8")
+
+        assert tool.main(["plan"], repo=workspace) == 0
+        assert "nothing to release" in capsys.readouterr().out

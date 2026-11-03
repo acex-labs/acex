@@ -93,6 +93,32 @@ refused. Nobody types a version into an entry.
 `--bump auto` reads the fragments: a breaking entry bumps the major version,
 new or changed behaviour the minor one, fixes only the patch one.
 
+### Releasing everything that is due
+
+Nobody has to remember which packages a release contains or which images must
+follow them:
+
+```bash
+python scripts/changelog.py plan          # what a release would contain, nothing is changed
+python scripts/changelog.py release-all   # does it
+```
+
+A component with fragments is released with the version they call for, as
+with `--bump auto`. Others follow only when they have to:
+
+- An image whose `Dockerfile` copies a released component's directory is
+  rebuilt, so it gets a patch version and a note that says why. That is how the
+  agents follow `client` and `devkit`. Copying a single file does not count.
+- A package that depends on a released component by path gets a patch version
+  when that component's major version changes, because the range it publishes
+  (`^MAJOR`) moves with it.
+
+Nothing else is bumped. A hotfix therefore releases only the package that has a
+fragment and the images that contain it: branch from `main`, add the fix with
+its fragment, run `release-all`, and the other packages keep their versions.
+The plan is worked out completely before anything is written, so a fragment
+that cannot be read stops the release before it starts.
+
 ### A summary of the release
 
 A release with many entries is hard to scan. Give it one sentence about what
