@@ -6,8 +6,9 @@ a worker has found out what it is.
 
 from collections import defaultdict
 
-from acex.models.job import Job, JobState
+from acex.models.job import Job
 from acex.models.ztp_discovery import ZtpDiscovery
+from acex_devkit.models.job import JobState
 from acex_devkit.models.pagination import PaginatedResponse
 from acex_devkit.models.ztp import ZtpCall, ZtpCallAttempt, ZtpCallStage, ZtpDiscoverData
 from sqlmodel import select

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from acex.config_map import ConfigMap
 from acex.configuration import Configuration
-from acex.models import ExternalValue
+from acex_devkit.models import ExternalValue
 from acex_devkit.models.attribute_value import AttributeValue
 
 from .compiled_logical_node import CompiledLogicalNode

@@ -1,5 +1,7 @@
-from acex.models import Asset, AssetResponse, LogicalNode, LogicalNodeResponse
+from acex.models import Asset, LogicalNode
 from acex.utils import RestClient
+from acex_devkit.models.asset import AssetResponse
+from acex_devkit.models.logical_node import LogicalNodeResponse
 from pydantic import BaseModel
 
 

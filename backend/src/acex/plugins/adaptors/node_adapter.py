@@ -1,4 +1,5 @@
-from acex.models import Node, NodeInstance
+from acex.models import Node
+from acex_devkit.models.node_response import NodeInstance
 from sqlalchemy.orm import joinedload, selectinload
 
 from .adapter_base import AdapterBase

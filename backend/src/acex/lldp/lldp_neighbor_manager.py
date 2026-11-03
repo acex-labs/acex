@@ -2,13 +2,10 @@ import hashlib
 import json
 from datetime import UTC, datetime
 
-from acex.models.lldp_neighbor import (
-    LldpNeighbor,
-    LldpNeighborResponse,
-    LldpNeighborUpload,
-)
+from acex.models.lldp_neighbor import LldpNeighbor
 from acex.models.logical_node import LogicalNode
 from acex.models.node import Node
+from acex_devkit.models.lldp_neighbor import LldpNeighborResponse, LldpNeighborUpload
 from fastapi import HTTPException
 from sqlmodel import delete, select
 

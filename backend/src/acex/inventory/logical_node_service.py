@@ -1,14 +1,10 @@
 import inspect
 
-from acex.models import (
-    LogicalNode,
-    LogicalNodeConfigResponse,
-    LogicalNodeListResponse,
-    LogicalNodeResponse,
-    PaginatedResponse,
-)
+from acex.models import LogicalNode
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
+from acex_devkit.models.logical_node import LogicalNodeConfigResponse, LogicalNodeListResponse, LogicalNodeResponse
+from acex_devkit.models.pagination import PaginatedResponse
 from sqlmodel import select
 
 

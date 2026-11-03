@@ -7,8 +7,9 @@ from types import SimpleNamespace
 import pytest
 from acex.api.routers.ztp import create_router
 from acex.jobs import JobManager
-from acex.models.job import Job, JobState
+from acex.models.job import Job
 from acex.ztp import ZtpMethodManager
+from acex_devkit.models.job import JobState
 from acex_devkit.models.ztp import ZtpMethod, ZtpMethodUpdate
 from fastapi import FastAPI
 from fastapi.testclient import TestClient

@@ -4,8 +4,8 @@ purge reach every level."""
 
 import pytest
 from acex.jobs import JobConflict, JobManager, JobType, JobTypeRegistry
-from acex.models.job import Job, JobState, JobSubjectType
-from acex_devkit.models.job import JobUpdate
+from acex.models.job import Job
+from acex_devkit.models.job import JobState, JobSubjectType, JobUpdate
 from pydantic import BaseModel
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select

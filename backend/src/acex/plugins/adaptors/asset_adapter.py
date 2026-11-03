@@ -1,4 +1,5 @@
-from acex.models import Asset, AssetResponse, AssetUpdate
+from acex.models import Asset
+from acex_devkit.models.asset import AssetResponse, AssetUpdate
 
 from .adapter_base import AdapterBase
 
