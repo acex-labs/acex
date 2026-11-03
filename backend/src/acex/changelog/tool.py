@@ -885,7 +885,31 @@ def check(
                     f"    python scripts/changelog.py release {component.id}\n"
                     f"  (stamps the version in {component.manifest_name}; add --bump if that version is already out)."
                 )
+    if release_ready and base_versions is not None:
+        report.errors.extend(_images_behind(components, repo, base_versions))
     return report
+
+
+def _images_behind(components: list[Component], repo: Path, base_versions: dict[str, str]) -> list[str]:
+    """Images that still have the version of the target branch although a package they contain has a new one.
+
+    An image is published under its version, so without a new one the change never reaches it.
+    """
+    errors = []
+    for component in components:
+        if component.id not in base_versions or component.version != base_versions[component.id]:
+            continue  # unknown to the target branch (first release) or already bumped
+        moved = [
+            s for s in image_sources(component, components, repo) if s.version != base_versions.get(s.id, s.version)
+        ]
+        if moved:
+            names = ", ".join(f"{s.id} {s.version}" for s in moved)
+            errors.append(
+                f"{component.id}: its image contains {names}, which changed version, but {component.id} is still "
+                f"{component.version}, so no new image is published. Run the Release workflow, or\n"
+                f"    python scripts/changelog.py release-all"
+            )
+    return errors
 
 
 def git_versions_at(repo: Path, ref: str, components: list[Component]) -> dict[str, str]:

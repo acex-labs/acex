@@ -1,0 +1,130 @@
+name: Release
+
+# The release button. Actions > Release > Run workflow: on `dev` for a release, on a
+# `hotfix/*` branch for a hotfix.
+#
+#   Plan     what would be released, in the run summary. Nothing is changed.
+#   Gate     the `release` environment waits for a reviewer. Read the plan, then approve.
+#   Release  `scripts/changelog.py release-all` sets the versions and compiles the release
+#            notes, and the bot commits the result: as a pull request into dev when run on
+#            dev, as a commit on the branch when run on a hotfix branch.
+#
+# Publishing does not change: a push to main publishes every version that is new on PyPI and
+# GHCR (ci.yml). See docs/guides/changelog.md.
+#
+# Secret RELEASE_TOKEN (optional): a token that may push and open pull requests in this
+# repository. Pushes and pull requests made with the default token do not start other
+# workflows, so without it the checks do not run on the release pull request.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      due: ${{ steps.plan.outputs.due }}
+    steps:
+      - name: Only dev and hotfix branches are released
+        if: github.ref_name != 'dev' && !startsWith(github.ref_name, 'hotfix/')
+        run: |
+          echo "::error::Run this workflow on dev, or on a hotfix/* branch, not on ${GITHUB_REF_NAME}"
+          exit 1
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Fragments are valid
+        run: python scripts/changelog.py validate
+
+      - name: What a release contains
+        id: plan
+        run: |
+          python scripts/changelog.py plan | tee "$RUNNER_TEMP/plan.txt"
+          if grep -q '^nothing to release' "$RUNNER_TEMP/plan.txt"; then
+            echo "due=false" >> "$GITHUB_OUTPUT"
+            hint="Nothing is due, so there is nothing to approve."
+          else
+            echo "due=true" >> "$GITHUB_OUTPUT"
+            hint="Approve the pending deployment of the Release job to release this."
+          fi
+          {
+            echo "### Release plan for \`${GITHUB_REF_NAME}\` at \`${GITHUB_SHA::7}\`"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/plan.txt"
+            echo '```'
+            echo
+            echo "$hint"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Release
+    needs: plan
+    if: needs.plan.outputs.due == 'true'
+    runs-on: ubuntu-latest
+    # The gate: the release environment has required reviewers.
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Release everything that is due
+        run: python scripts/changelog.py release-all | tee "$RUNNER_TEMP/release.txt"
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "chore(release): version what is due" -m "$(cat "$RUNNER_TEMP/release.txt")"
+
+      - name: Hotfix branch, push the commit to it
+        if: github.ref_name != 'dev'
+        run: git push origin "HEAD:refs/heads/${GITHUB_REF_NAME}"
+
+      - name: Dev, open a pull request into dev
+        if: github.ref_name == 'dev'
+        run: |
+          branch="chore/release-$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}"
+          git push origin "HEAD:refs/heads/${branch}"
+          {
+            echo "Versions and release notes for everything that was due at \`${GITHUB_SHA::7}\`,"
+            echo "made by the Release workflow ($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/release.txt"
+            echo '```'
+            echo
+            echo "Merge this into dev, then open the pull request from dev into main: its merge publishes."
+          } > "$RUNNER_TEMP/body.md"
+          gh pr create --base dev --head "$branch" \
+            --title "chore(release): version what is due" --body-file "$RUNNER_TEMP/body.md"

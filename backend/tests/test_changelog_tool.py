@@ -1105,3 +1105,50 @@ class TestReleaseAll:
 
         assert tool.main(["plan"], repo=workspace) == 0
         assert "nothing to release" in capsys.readouterr().out
+
+
+class TestImagesFollowTheirSources:
+    BASE = {
+        "acex-devkit": "2.11.0",
+        "acex-client": "4.11.0",
+        "acex-cli": "4.6.0",
+        "acex-driver-ios": "5.0.0",
+        "acex-collection-agent": "0.16.0",
+        "acex": "6.27.0",
+    }
+
+    def run_check(self, repo: Path):
+        return tool.check(tool.discover(repo), [], repo, release_ready=True, base_versions=self.BASE)
+
+    def set_version(self, repo: Path, directory: str, old: str, new: str):
+        path = repo / directory / "pyproject.toml"
+        path.write_text(path.read_text(encoding="utf-8").replace(f'version = "{old}"', f'version = "{new}"'))
+
+    def should_fail_when_an_image_keeps_its_version_after_a_package_it_contains_moved(self, workspace):
+        self.set_version(workspace, "client", "4.11.0", "4.12.0")
+
+        report = self.run_check(workspace)
+
+        [error] = [e for e in report.errors if e.startswith("acex-collection-agent")]
+        assert "its image contains acex-client 4.12.0, which changed version" in error
+        assert "release-all" in error
+
+    def should_pass_when_the_images_were_bumped_too(self, workspace):
+        self.set_version(workspace, "client", "4.11.0", "4.12.0")
+        for directory, old, new in [("agents/collection-agent", "0.16.0", "0.16.1"), ("backend", "6.27.0", "6.27.1")]:
+            self.set_version(workspace, directory, old, new)
+
+        assert self.run_check(workspace).ok
+
+    def should_not_ask_for_a_new_image_when_nothing_it_contains_moved(self, workspace):
+        self.set_version(workspace, "cli", "4.6.0", "4.7.0")
+
+        assert self.run_check(workspace).ok  # the backend copies only cli's notes, a single file
+
+    def should_leave_a_component_that_is_new_to_the_target_branch_alone(self, workspace):
+        self.set_version(workspace, "client", "4.11.0", "4.12.0")
+        base = {k: v for k, v in self.BASE.items() if k != "acex-collection-agent"}
+
+        report = tool.check(tool.discover(workspace), [], workspace, release_ready=True, base_versions=base)
+
+        assert not any(e.startswith("acex-collection-agent") for e in report.errors)
