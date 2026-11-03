@@ -696,6 +696,25 @@ def release(
     return report
 
 
+STABLE = "stable"
+CANDIDATE = "rc"
+CHANNELS = (STABLE, CANDIDATE)
+_CANDIDATE_VERSION = re.compile(r"^(\d+\.\d+\.\d+)rc(\d+)$")
+
+
+def is_release_candidate(version: str) -> bool:
+    return _CANDIDATE_VERSION.match(version) is not None
+
+
+def _next_version(component: Component, own_entries: list[dict] | None, channel: str) -> str:
+    candidate = _CANDIDATE_VERSION.match(component.version)
+    if candidate:
+        stable_version, number = candidate.group(1), int(candidate.group(2))
+        return stable_version if channel == STABLE else f"{stable_version}rc{number + 1}"
+    stable_version = bump(component.version, "patch" if own_entries is None else "auto", own_entries or [])
+    return stable_version if channel == STABLE else f"{stable_version}rc1"
+
+
 @dataclass
 class Planned:
     component: Component
@@ -771,13 +790,19 @@ def _reasons_to_follow(
     return reasons
 
 
-def plan_release(components: list[Component], repo: Path) -> list[Planned]:
+def plan_release(components: list[Component], repo: Path, channel: str = STABLE) -> list[Planned]:
     planned: dict[str, Planned] = {}
     for component in components:
         own_fragments = fragments(component)
         if own_fragments:
-            new_version = bump(component.version, "auto", published(own_fragments))
+            new_version = _next_version(component, published(own_fragments), channel)
             planned[component.id] = Planned(component, component.version, new_version)
+    if channel == STABLE:
+        for component in components:
+            if component.id not in planned and is_release_candidate(component.version):
+                new_version = _next_version(component, None, channel)
+                reasons = [f"its release candidate {component.version} becomes stable"]
+                planned[component.id] = Planned(component, component.version, new_version, reasons)
     followers_were_added = True
     while followers_were_added:
         followers_were_added = False
@@ -786,19 +811,20 @@ def plan_release(components: list[Component], repo: Path) -> list[Planned]:
                 continue
             reasons = _reasons_to_follow(component, components, repo, planned)
             if reasons:
-                new_version = bump(component.version, "patch", [])
+                new_version = _next_version(component, None, channel)
                 planned[component.id] = Planned(component, component.version, new_version, reasons)
                 followers_were_added = True
     return sorted(planned.values(), key=lambda p: p.component.id)
 
 
-def release_planned(planned: list[Planned], *, on: date | None = None) -> Report:
+def release_planned(planned: list[Planned], *, channel: str = STABLE, on: date | None = None) -> Report:
     report = Report()
     for item in planned:
-        if item.has_own_fragments:
-            bump_how = "auto"
-        else:
-            bump_how = "patch"
+        set_version(item.component, item.new)
+        report.notes.append(f"{item.component.manifest}: version {item.new}")
+        if channel == CANDIDATE:
+            continue
+        if not item.has_own_fragments:
             new_fragment(
                 item.component,
                 kind=INTERNAL,
@@ -806,7 +832,7 @@ def release_planned(planned: list[Planned], *, on: date | None = None) -> Report
                 body="\n".join(f"- {reason}" for reason in item.reasons),
                 slug="rebuilt-with-newer-packages",
             )
-        result = release(item.component, bump_how=bump_how, on=on)
+        result = release(item.component, on=on)
         report.notes.extend(result.notes)
         report.errors.extend(result.errors)
     return report
@@ -886,9 +912,20 @@ def check(
                     f"    python scripts/changelog.py release {component.id}\n"
                     f"  (stamps the version in {component.manifest_name}; add --bump if that version is already out)."
                 )
+    if release_ready:
+        report.errors.extend(_release_candidates_on_release_branch(components))
     if release_ready and base_versions is not None:
         report.errors.extend(_images_left_behind(components, repo, base_versions))
     return report
+
+
+def _release_candidates_on_release_branch(components: list[Component]) -> list[str]:
+    return [
+        f"{component.id}: version {component.version} is a release candidate and cannot go to the release branch. "
+        f"Run the Release workflow with channel stable."
+        for component in components
+        if is_release_candidate(component.version)
+    ]
 
 
 def _images_left_behind(components: list[Component], repo: Path, base_versions: dict[str, str]) -> list[str]:
@@ -1088,10 +1125,16 @@ def _parser() -> argparse.ArgumentParser:
     release_cmd.add_argument("--date", default=None, help="release date, YYYY-MM-DD (default: today)")
     release_cmd.add_argument("--summary", default=None, help="one sentence about the release, shown above its entries")
 
-    commands.add_parser("plan", help="what a release of everything pending would contain, without changing anything")
+    plan_cmd = commands.add_parser(
+        "plan", help="what a release of everything pending would contain, without changing anything"
+    )
+    plan_cmd.add_argument("--channel", choices=CHANNELS, default=STABLE, help="rc for a release candidate")
 
     all_cmd = commands.add_parser(
         "release-all", help="release everything that is due: the plan, with versions, notes and rebuilt images"
+    )
+    all_cmd.add_argument(
+        "--channel", choices=CHANNELS, default=STABLE, help="rc for a release candidate: versions only"
     )
     all_cmd.add_argument("--date", default=None, help="release date, YYYY-MM-DD (default: today)")
 
@@ -1143,13 +1186,13 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
             component = find(components, args.component)
             return _print(release(component, version=args.version, bump_how=args.bump, on=on, summary=args.summary))
         if args.command == "plan":
-            print("\n".join(describe_plan(plan_release(components, repo))))
+            print("\n".join(describe_plan(plan_release(components, repo, args.channel))))
             return 0
         if args.command == "release-all":
             on = date.fromisoformat(args.date) if args.date else None
-            planned = plan_release(components, repo)
+            planned = plan_release(components, repo, args.channel)
             print("\n".join(describe_plan(planned)))
-            return _print(release_planned(planned, on=on))
+            return _print(release_planned(planned, channel=args.channel, on=on))
         if args.command == "check":
             base_versions = git_versions_at(repo, args.base, components) if args.release_ready else None
             changed = git_changed(repo, args.base)

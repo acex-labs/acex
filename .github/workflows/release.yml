@@ -6,6 +6,12 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      channel:
+        description: rc cuts release candidates for stage (dev only), stable releases for prod
+        type: choice
+        options: [stable, rc]
+        default: stable
 
 concurrency:
   group: release
@@ -27,6 +33,12 @@ jobs:
           echo "::error::Run this workflow on dev, or on a hotfix/* branch, not on ${GITHUB_REF_NAME}"
           exit 1
 
+      - name: Release candidates are cut on dev
+        if: inputs.channel == 'rc' && github.ref_name != 'dev'
+        run: |
+          echo "::error::Release candidates are published from dev, not from ${GITHUB_REF_NAME}"
+          exit 1
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -42,8 +54,10 @@ jobs:
 
       - name: What a release contains
         id: plan
+        env:
+          CHANNEL: ${{ inputs.channel }}
         run: |
-          python scripts/changelog.py plan | tee "$RUNNER_TEMP/plan.txt"
+          python scripts/changelog.py plan --channel "$CHANNEL" | tee "$RUNNER_TEMP/plan.txt"
           if grep -q '^nothing to release' "$RUNNER_TEMP/plan.txt"; then
             echo "due=false" >> "$GITHUB_OUTPUT"
             hint="Nothing is due, so there is nothing to approve."
@@ -52,7 +66,7 @@ jobs:
             hint="Approve the pending deployment of the Release job to release this."
           fi
           {
-            echo "### Release plan for \`${GITHUB_REF_NAME}\` at \`${GITHUB_SHA::7}\`"
+            echo "### Release plan (${CHANNEL}) for \`${GITHUB_REF_NAME}\` at \`${GITHUB_SHA::7}\`"
             echo
             echo '```'
             cat "$RUNNER_TEMP/plan.txt"
@@ -72,6 +86,7 @@ jobs:
       pull-requests: write
     env:
       GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+      CHANNEL: ${{ inputs.channel }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -85,14 +100,14 @@ jobs:
           python-version: "3.13"
 
       - name: Release everything that is due
-        run: python scripts/changelog.py release-all | tee "$RUNNER_TEMP/release.txt"
+        run: python scripts/changelog.py release-all --channel "$CHANNEL" | tee "$RUNNER_TEMP/release.txt"
 
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -q -m "chore(release): version what is due" -m "$(cat "$RUNNER_TEMP/release.txt")"
+          git commit -q -m "chore(release): version what is due (${CHANNEL})" -m "$(cat "$RUNNER_TEMP/release.txt")"
 
       - name: Hotfix branch, push the commit to it
         if: github.ref_name != 'dev'
@@ -111,7 +126,11 @@ jobs:
             cat "$RUNNER_TEMP/release.txt"
             echo '```'
             echo
-            echo "Merge this into dev, then open the pull request from dev into main: its merge publishes."
+            if [ "$CHANNEL" = "rc" ]; then
+              echo "Merging this into dev publishes the release candidate images to GHCR."
+            else
+              echo "Merge this into dev, then open the pull request from dev into main: its merge publishes."
+            fi
           } > "$RUNNER_TEMP/body.md"
           gh pr create --base dev --head "$branch" \
-            --title "chore(release): version what is due" --body-file "$RUNNER_TEMP/body.md"
+            --title "chore(release): version what is due (${CHANNEL})" --body-file "$RUNNER_TEMP/body.md"

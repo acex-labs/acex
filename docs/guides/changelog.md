@@ -138,6 +138,32 @@ publishes every version that is new on PyPI and GHCR. A pull request into
 contains has a new one (`check --release-ready`), so the images cannot be left
 behind.
 
+### Release candidates
+
+Run the workflow with **channel `rc`** on `dev` to cut release candidates for
+stage. Every package in the plan gets the next version with an `rcN` suffix
+(`4.12.0rc1`, then `rc2` if it is cut again). Only the versions change: the
+fragments stay where they are, so the candidate's images show them as
+unreleased, like the `dev` images do.
+
+Merging the release pull request into `dev` publishes the candidates as
+container images on GHCR, tagged `4.12.0rc1` and never `latest`. Packages are
+not published to PyPI until the stable release. Images that are built from
+a candidate use the packages in the repository and not the ones on PyPI.
+
+Run the workflow with **channel `stable`** (the default) when stage has
+passed. A candidate loses its suffix (`4.12.0rc2` becomes `4.12.0`), its
+fragments are compiled into the release notes, and the usual merge of `dev`
+into `main` publishes the stable versions with `latest`. The stable images are
+built again from the same sources, with the suffix removed: an image reads its
+version from its package metadata, so retagging a candidate would still
+report `rc`.
+
+`main` never receives a candidate. A pull request into `main` fails while a
+version still has an `rc` suffix. A fix that is already known to be stable can
+skip the candidate step: run `stable` straight away, which is also what a
+hotfix does.
+
 For the checks to run on the release pull request, add a repository secret
 `RELEASE_TOKEN` (a token that may push and open pull requests). Without it the
 workflow uses the default token, whose pushes and pull requests do not start
