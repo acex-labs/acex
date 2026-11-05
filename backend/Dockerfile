@@ -22,11 +22,14 @@ COPY agents/collection-agent/src/acex_collection_agent/changelog.json /deps/back
 COPY agents/telemetry-agent/src/acex_telemetry_agent/changelog.json /deps/backend/src/acex/changelog_components/acex-telemetry-agent.json
 COPY agents/grafana-sync/src/acex_grafana_sync/changelog.json /deps/backend/src/acex/changelog_components/acex-grafana-sync.json
 
+# Pinned versions of the third-party dependencies, written by scripts/lock-images.sh.
+COPY backend/constraints.txt /deps/constraints.txt
+
 # Replace local path dependencies with version requirements
 RUN sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_cli/pyproject.toml && \
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/juniper_junos_cli/pyproject.toml && \
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/backend/pyproject.toml && \
-    pip install --no-cache-dir /deps/devkit /deps/client /deps/cisco_ios_cli /deps/juniper_junos_cli /deps/backend[vault]
+    pip install --no-cache-dir -c /deps/constraints.txt /deps/devkit /deps/client /deps/cisco_ios_cli /deps/juniper_junos_cli /deps/backend[vault]
 
 
 ARG BUILD_ID=""
