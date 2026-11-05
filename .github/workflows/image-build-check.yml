@@ -1,0 +1,84 @@
+name: Image build check
+
+# A pull request that changes how an image is built, such as its Dockerfile, its pinned base image or its pinned
+# dependencies, builds that image once without publishing it. A pin that no longer installs then fails here and
+# not on the next push to dev. Dependabot's pull requests for the base image get the same check.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "**/Dockerfile"
+      - "**/Dockerfile.*"
+      - "**/constraints.txt"
+      - "**/poetry.lock"
+      - ".github/workflows/image-build-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  changed:
+    name: Images to build
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.which.outputs.images }}
+    steps:
+      - name: Checkout code (full history, for the diff against the target branch)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Which images changed
+        id: which
+        env:
+          BASE: origin/${{ github.base_ref }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os, subprocess
+
+          IMAGES = {
+              "backend": "acex-backend",
+              "worker": "acex-worker",
+              "agents/collection-agent": "acex-collection-agent",
+              "agents/telemetry-agent": "acex-telemetry-agent",
+              "agents/grafana-sync": "acex-grafana-sync-agent",
+              "mcp": "acex-mcp",
+          }
+          changed = subprocess.run(
+              ["git", "diff", "--name-only", f"{os.environ['BASE']}...HEAD"], capture_output=True, text=True, check=True
+          ).stdout.split()
+          everything = ".github/workflows/image-build-check.yml" in changed
+          chosen = [
+              {"image": image, "directory": directory}
+              for directory, image in IMAGES.items()
+              if everything or any(path.startswith(directory + "/") for path in changed)
+          ]
+          print("images=" + json.dumps(chosen))
+          EOF
+
+  build:
+    name: Build ${{ matrix.image }}
+    needs: changed
+    if: needs.changed.outputs.images != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.changed.outputs.images) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build without publishing
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./${{ matrix.directory }}/Dockerfile
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha,scope=check-${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=check-${{ matrix.image }}
