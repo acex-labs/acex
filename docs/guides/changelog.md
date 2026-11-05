@@ -5,9 +5,12 @@ and fixed in each release, and what is planned. It is served by
 `GET /api/v1/changelog`. Which versions are running is shown on
 **Settings > About**, which is fed by `GET /api/v1/health/about`.
 
-The notes are written by the person who makes the change, in the same pull
-request, for the network engineers who use ACEX. They ship inside the
-packages, so an installation without internet access sees the same notes.
+The notes are written by the person who makes the change, preferably in the
+same pull request, for the network engineers who use ACEX. A package needs them
+when it is sent to stage. They ship inside the packages, so an installation
+without internet access sees the same notes. How a release is made, step by
+step, is in [Releasing](../releasing.md); this page is about the notes and the
+tool behind it.
 
 ## Writing an entry
 
