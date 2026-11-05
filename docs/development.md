@@ -216,13 +216,13 @@ scripts/check_branch_name.sh fix/my-fix   # validate a given name
 
 ## Release Notes
 
-Every pull request that changes a package adds a changelog fragment for it, a small file in the package's `changelog.d/` directory:
+A change can carry its release note, a small file in the package's `changelog.d/` directory:
 
 ```bash
 python scripts/changelog.py new backend --kind fixed --title "Static routes no longer fail on an empty next hop"
 ```
 
-CI fails a pull request without one (`Changelog entry`). Use `--kind internal` for a change that users cannot notice. The fragments become the release notes under Settings > What's new when a release is cut. The format, the kinds and how a release is cut are in [Release notes](guides/changelog.md).
+A pull request into `dev` does not need one. A package needs its notes when it is sent to stage, and a pull request into `main` needs them for every package it changes (`Changelog entry`). Use `--kind internal` for a change that users cannot notice. The fragments become the release notes under Settings > What's new when a release is cut. The format, the kinds and how a release is cut are in [Release notes](guides/changelog.md).
 
 ## Development Images
 
