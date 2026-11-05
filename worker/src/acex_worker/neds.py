@@ -13,6 +13,10 @@ from acex_devkit.models.ned import Ned
 
 log = logging.getLogger("acex_worker")
 
+# The NED interfaces this worker can run, as opposed to the one devkit currently defines: a driver that
+# implements another one is not installed (see the client's Neds) until a worker that runs it is released.
+SUPPORTED_NED_INTERFACES = frozenset({2})
+
 # Jobs run in threads; two of them must not pip install into the same environment at once.
 _install_lock = threading.Lock()
 
@@ -62,6 +66,9 @@ def load_ned(client: Acex, name: str):
 
     driver = client.neds.get_driver_instance(name)
     if driver is None:
+        reason = client.neds.incompatible.get(name)
+        if reason:
+            raise NedUnavailable(f"NED {name} cannot be used: {reason}")
         raise NedUnavailable(f"NED {name} was installed but its driver class could not be loaded")
     return driver
 

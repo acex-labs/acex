@@ -21,6 +21,20 @@ cisco-ios-cli = "acex_driver_cisco_ioscli:CiscoIOSCLIDriver"
 
 The `NEDManager` scans all installed packages for this entry point and registers the drivers. Collection agents download any missing drivers from the backend's `/api/v1/neds/download/{filename}` endpoint and install them via pip at startup.
 
+### Keeping a driver and the process that runs it in step
+
+Agents and workers install their drivers from the backend, so they can meet a driver that is newer or older than the code they run. Every driver therefore implements a **NED interface**: a number that devkit defines (`acex_devkit.drivers.NED_INTERFACE`) and that a driver inherits from `NetworkElementDriver` as `interface_version`. It is raised only when the contract between a driver and the process that runs it changes in a way that breaks either side. The backend lists it for each driver as `interface_version` in `GET /api/v1/neds`.
+
+An agent or worker names the interfaces it can run. A driver that implements another one is not installed and not used. The process says why in its log, and what needs the driver fails with the reason, for example:
+
+```text
+NED 'CiscoIOSCLIDriver' not loaded: CiscoIOSCLIDriver v5.0.0 implements NED interface 3, this process runs 2: update this agent or worker
+```
+
+An agent keeps the driver it already has: only a newer one that it cannot run is refused. A worker, which must render what the backend publishes, fails the job with the reason. When the backend serves a driver that is older than the process runs, the message says to update the API instead. A driver with no `interface_version`, which is what a driver or a backend from before devkit numbered the interface looks like, counts as interface 1.
+
+When devkit raises `NED_INTERFACE`, the collection agent and the worker have to be changed to run the new interface (`SUPPORTED_NED_INTERFACES`). Their tests fail until they are.
+
 ## Driver roles
 
 ### Renderer — `render(config, asset) -> str`

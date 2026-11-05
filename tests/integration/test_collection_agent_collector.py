@@ -12,14 +12,15 @@ from types import SimpleNamespace
 
 import pytest
 from acex_client.exceptions import AcexHTTPError
-from acex_collection_agent.collector import Collector
-from acex_devkit.drivers import NetworkElementDriver, State, Transport
+from acex_collection_agent.collector import SUPPORTED_NED_INTERFACES, Collector
+from acex_devkit.drivers import NED_INTERFACE, NetworkElementDriver, State, Transport
 from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_devkit.models.agent_manifest import ManifestTarget
 from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry
 from acex_driver_cisco_ioscli.cisco_ios_cli import CiscoIOSCLIDriver
 from acex_driver_cisco_ioscli.transport.transport import CiscoIOSTransport
+from acex_driver_juniper_junos_cli.junos_cli import JunosCLI
 
 CONFIG = "hostname core-1\n!\nend\n"
 NEIGHBOR = LldpNeighborEntry(local_interface="Gi1/0/1", remote_device="dist-1", remote_interface="Gi0/1")
@@ -63,7 +64,7 @@ def make_driver(config=CONFIG, neighbors=(NEIGHBOR,), open_error=None, lldp=True
 class FakeClient:
     """The parts of acex_client.Acex the collector uses, recording what it uploads."""
 
-    def __init__(self, driver, ned_id="FakeDriver", secrets=None, upload_error=None):
+    def __init__(self, driver, ned_id="FakeDriver", secrets=None, upload_error=None, incompatible=None):
         self.fetched, self.config_uploads, self.neighbor_uploads = [], [], []
         secrets = LOGIN_SECRETS if secrets is None else secrets
 
@@ -78,7 +79,9 @@ class FakeClient:
                 raise upload_error
             self.config_uploads.append((node_id, payload.content))
 
-        self.neds = SimpleNamespace(get_driver_instance=lambda name: driver if name == ned_id else None)
+        self.neds = SimpleNamespace(
+            get_driver_instance=lambda name: driver if name == ned_id else None, incompatible=incompatible or {}
+        )
         self.inventory = SimpleNamespace(
             credentials=SimpleNamespace(secret=secret),
             node_instances=SimpleNamespace(upload_observed=upload_observed),
@@ -208,6 +211,27 @@ def test_one_node_failing_does_not_stop_the_others():
         (2, "NED 'Missing' not loaded"),
         (3, "Config uploaded"),
     ]
+
+
+def test_a_driver_the_collector_cannot_run_is_reported_with_the_reason():
+    reason = "Newer v9.0.0 implements NED interface 3, this process runs 2: update this agent or worker"
+    client = FakeClient(None, incompatible={"Newer": reason})
+
+    (result,) = collect(client, target(ned_id="Newer"))
+
+    assert (result["status"], result["message"]) == ("error", f"NED 'Newer' not loaded: {reason}")
+
+
+def test_the_collector_runs_the_interface_devkit_defines():
+    assert NED_INTERFACE in SUPPORTED_NED_INTERFACES, (
+        f"devkit defines NED interface {NED_INTERFACE}: make the collector run it and add it to "
+        "SUPPORTED_NED_INTERFACES, otherwise agents install no driver"
+    )
+
+
+@pytest.mark.parametrize("driver", [CiscoIOSCLIDriver, JunosCLI], ids=["cisco", "junos"])
+def test_the_real_drivers_implement_an_interface_the_collector_runs(driver):
+    assert driver.interface_version in SUPPORTED_NED_INTERFACES
 
 
 class OfflineIOSTransport(CiscoIOSTransport):

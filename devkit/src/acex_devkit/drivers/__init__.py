@@ -1,6 +1,7 @@
 """The NED interface for ACE-X network element drivers."""
 
 from acex_devkit.drivers.base import (
+    NED_INTERFACE,
     Actions,
     Codec,
     NetworkElementDriver,
@@ -10,6 +11,7 @@ from acex_devkit.drivers.base import (
 )
 
 __all__ = [
+    "NED_INTERFACE",
     "NetworkElementDriver",
     "Session",
     "Codec",

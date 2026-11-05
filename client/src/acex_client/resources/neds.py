@@ -6,12 +6,13 @@ import logging
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 
 from acex_devkit.drivers import NetworkElementDriver
 from acex_devkit.models.ned import Ned
 
-from acex_client.exceptions import AcexNedInstallError
+from acex_client.exceptions import AcexNedIncompatibleError, AcexNedInstallError
 from acex_client.resources.base import (
     ActionMixin,
     Resource,
@@ -49,11 +50,32 @@ def _local_drivers() -> dict[str, dict]:
     return result
 
 
+# What a driver without an interface number implements: the interface from before devkit numbered it.
+LEGACY_NED_INTERFACE = 1
+
+
+def _interface_problem(name: str, version: str, interface: int | None, runs: frozenset[int] | None) -> str | None:
+    if runs is None:
+        return None
+    interface = LEGACY_NED_INTERFACE if interface is None else interface
+    if interface in runs:
+        return None
+    runs_text = ", ".join(str(number) for number in sorted(runs)) or "none"
+    if interface > max(runs, default=0):
+        remedy = "update this agent or worker"
+    else:
+        remedy = "update the API, whose driver is older"
+    return f"{name} v{version} implements NED interface {interface}, this process runs {runs_text}: {remedy}"
+
+
 class Neds(Resource, ActionMixin):
     """NED (Network Element Driver) metadata and downloads — `/neds/*`.
 
     Also exposes local-driver operations (`get_missing`, `install`,
     `get_driver_instance`) used by the collection agent to sync and load drivers.
+
+    With `ned_interfaces`, the NED interfaces the process can run, a driver that
+    implements another one is not installed or handed out, and `incompatible` says why.
     """
 
     path = "/neds"
@@ -62,9 +84,20 @@ class Neds(Resource, ActionMixin):
     create_model = None  # type: ignore
     update_model = None  # type: ignore
 
-    def __init__(self, rest):
+    def __init__(self, rest, ned_interfaces: Iterable[int] | None = None):
         super().__init__(rest)
         self._loaded: dict[str, NetworkElementDriver] = {}
+        self.ned_interfaces = None if ned_interfaces is None else frozenset(ned_interfaces)
+        self.incompatible: dict[str, str] = {}
+
+    def refusal(self, ned: Ned) -> str | None:
+        """Why this process cannot run the NED, or None when it can."""
+        return _interface_problem(ned.name, ned.version, ned.interface_version, self.ned_interfaces)
+
+    def _note_incompatible(self, ned_id: str, problem: str) -> None:
+        if self.incompatible.get(ned_id) != problem:
+            self.incompatible[ned_id] = problem
+            logger.warning("NED not used: %s", problem)
 
     @action("GET", "")
     def query(self) -> list[Ned]: ...
@@ -83,6 +116,11 @@ class Neds(Resource, ActionMixin):
         local = _local_drivers()
         missing: list[Ned] = []
         for ned in remote:
+            problem = self.refusal(ned)
+            if problem is not None:
+                self._note_incompatible(ned.name, problem)
+                continue
+            self.incompatible.pop(ned.name, None)
             installed = local.get(ned.name)
             if installed is None or installed["version"] != ned.version:
                 missing.append(ned)
@@ -103,8 +141,13 @@ class Neds(Resource, ActionMixin):
         module it already loaded, so that case needs an agent restart.
 
         Raises AcexNedInstallError if pip fails or the installed distribution
-        does not show up afterwards.
+        does not show up afterwards, and AcexNedIncompatibleError, before anything
+        is downloaded, if the NED implements an interface this process cannot run.
         """
+        problem = self.refusal(ned)
+        if problem is not None:
+            raise AcexNedIncompatibleError(problem)
+
         wheel_bytes = self.download(filename=ned.filename)
 
         # Installing an upgrade over an already-imported package cannot take
@@ -172,6 +215,10 @@ class Neds(Resource, ActionMixin):
             raise AcexNedInstallError("No NED assigned")
 
         ned = self.get(ned_id=ned_id)
+        problem = self.refusal(ned)
+        if problem is not None:
+            self._note_incompatible(ned_id, problem)
+            raise AcexNedIncompatibleError(problem)
         if self.installed_version(ned_id) != ned.version and not self.install(ned):
             raise AcexNedInstallError(f"{ned_id} upgraded to {ned.version}, restart the process to load it")
 
@@ -183,9 +230,16 @@ class Neds(Resource, ActionMixin):
         """Return an instantiated NED driver class by its class name.
 
         Looks up locally installed NEDs via the `acex.neds` entry-point group.
-        Returns None if the driver is not installed.
+        Returns None if the driver is not installed, or if it implements an
+        interface this process cannot run (see `incompatible`).
         """
         for ep in importlib.metadata.entry_points(group=_ENTRY_POINT_GROUP):
             if ep.value.split(":")[-1] == ned_id:
-                return ep.load()()
+                driver_class = ep.load()
+                interface = getattr(driver_class, "interface_version", None)
+                problem = _interface_problem(ned_id, ep.dist.version, interface, self.ned_interfaces)
+                if problem is not None:
+                    self._note_incompatible(ned_id, problem)
+                    return None
+                return driver_class()
         return None

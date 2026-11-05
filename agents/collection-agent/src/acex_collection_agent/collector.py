@@ -18,6 +18,10 @@ logger = logging.getLogger("acex_collection_agent")
 # are not this agent's to fetch.
 CREDENTIAL_TYPES = ("userpass", "privilege_escalation")
 
+# The NED interfaces this collector can run, as opposed to the one devkit currently defines: a driver that
+# implements another one is not installed (see the client's Neds) until a collector that runs it is released.
+SUPPORTED_NED_INTERFACES = frozenset({2})
+
 
 class Collector:
     def __init__(self, client: Acex):
@@ -76,7 +80,8 @@ class Collector:
 
         driver = self.client.neds.get_driver_instance(ned_id)
         if driver is None:
-            return err(f"NED '{ned_id}' not loaded")
+            reason = self.client.neds.incompatible.get(ned_id)
+            return err(f"NED '{ned_id}' not loaded: {reason}" if reason else f"NED '{ned_id}' not loaded")
 
         logger.info(f"Collecting config from {hostname} ({target_ip}) via {ned_id}")
         try:

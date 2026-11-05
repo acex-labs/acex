@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import pytest
-from acex_client.exceptions import AcexNedInstallError
+from acex_client.exceptions import AcexNedIncompatibleError, AcexNedInstallError
+from acex_devkit.drivers import NED_INTERFACE
 from acex_devkit.models.ned import Ned
 from acex_worker import neds
-from acex_worker.neds import NedUnavailable, load_ned, sync_neds
+from acex_worker.neds import SUPPORTED_NED_INTERFACES, NedUnavailable, load_ned, sync_neds
 
 
 def ned(version: str) -> Ned:
@@ -31,6 +32,7 @@ class FakeNeds:
         self.local = local
         self.usable = usable
         self.installed: list[str] = []
+        self.incompatible: dict[str, str] = {}
 
     def get(self, ned_id: str) -> Ned:
         return ned(self.published)
@@ -107,3 +109,31 @@ def test_an_upgrade_over_an_imported_ned_restarts_the_worker(restarts):
     with pytest.raises(NedUnavailable, match="restarting"):
         load_ned(client, "CiscoIOSCLIDriver")
     assert client.neds.installed == ["0.0.3"]
+
+
+def test_a_job_learns_why_a_driver_of_another_interface_was_not_installed():
+    fake = FakeNeds(published="0.0.3", local="0.0.2")
+
+    def refused(n):
+        raise AcexNedIncompatibleError(f"{n.name} v{n.version} implements NED interface 3: update this agent or worker")
+
+    fake.install = refused
+
+    with pytest.raises(NedUnavailable, match="v0.0.3 could not be installed: .*update this agent or worker"):
+        load_ned(FakeClient(fake), "CiscoIOSCLIDriver")
+
+
+def test_a_job_learns_why_an_installed_driver_is_not_handed_out():
+    fake = FakeNeds(published="0.0.2", local="0.0.2")
+    fake.get_driver_instance = lambda ned_id: None
+    fake.incompatible["CiscoIOSCLIDriver"] = "implements NED interface 3: update this agent or worker"
+
+    with pytest.raises(NedUnavailable, match="cannot be used: implements NED interface 3"):
+        load_ned(FakeClient(fake), "CiscoIOSCLIDriver")
+
+
+def test_the_worker_runs_the_interface_devkit_defines():
+    assert NED_INTERFACE in SUPPORTED_NED_INTERFACES, (
+        f"devkit defines NED interface {NED_INTERFACE}: make the worker run it and add it to "
+        "SUPPORTED_NED_INTERFACES, otherwise workers install no driver"
+    )

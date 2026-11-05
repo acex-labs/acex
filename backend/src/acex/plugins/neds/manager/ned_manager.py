@@ -71,6 +71,7 @@ class NEDManager:
             "description": type(ned_instance).__doc__,
             "filename": filename,
             "capabilities": ned_instance.capabilities,
+            "interface_version": getattr(type(ned_instance), "interface_version", None),
         }
 
         return response
@@ -90,17 +91,20 @@ class NEDManager:
                     description = type(cached["instance"]).__doc__ or "n/a"
                     filename = self._driver_filename(class_name)
                     capabilities = cached["instance"].capabilities
+                    interface_version = getattr(type(cached["instance"]), "interface_version", None)
                 else:
                     klass = ep.load()
                     description = klass.__doc__ or "n/a"
                     filename = None
                     capabilities = None
+                    interface_version = getattr(klass, "interface_version", None)
             except Exception:
                 version = "n/a"
                 package_name = "n/a"
                 description = "n/a"
                 filename = None
                 capabilities = None
+                interface_version = None
             result.append(
                 {
                     "name": class_name,
@@ -109,6 +113,7 @@ class NEDManager:
                     "description": description,
                     "filename": filename,
                     "capabilities": capabilities,
+                    "interface_version": interface_version,
                 }
             )
         return result

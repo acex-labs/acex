@@ -31,6 +31,10 @@ from acex_devkit.models.ned import Capabilities, Platform
 from acex_devkit.models.node_response import NodeInstance
 from acex_devkit.models.state import ArpEntry, DeviceFacts, StateKind
 
+# Bumped when the contract between a driver and the process that runs it changes in a way that breaks either side.
+# Agents and workers name the interfaces they can run and refuse a driver that implements another one.
+NED_INTERFACE = 2
+
 
 class Facade:
     """Detects which optional methods a facade implements, so capabilities are never declared by hand."""
@@ -226,6 +230,8 @@ class NetworkElementDriver:
     actions_class: ClassVar[type[Actions] | None] = None
 
     platforms: ClassVar[list[Platform]] = []
+
+    interface_version: ClassVar[int] = NED_INTERFACE
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

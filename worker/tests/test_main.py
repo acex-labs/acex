@@ -7,6 +7,7 @@ import json
 import pytest
 import respx
 from acex_worker.main import JOB_TYPES, StartupError, connect_client, start
+from acex_worker.neds import SUPPORTED_NED_INTERFACES
 from httpx import Response
 
 BASE = "http://test"
@@ -35,6 +36,13 @@ def test_start_asks_for_the_queues_of_its_job_types():
     assert json.loads(route.calls[0].request.content) == {"job_types": JOB_TYPES}
     assert connection.broker.host == "rabbitmq"
     assert [queue.name for queue in connection.queues] == ["acex.ztp"]
+
+
+@respx.mock
+def test_the_client_names_the_ned_interfaces_the_worker_runs():
+    respx.get(f"{API}/auth/config").mock(return_value=Response(200, json={"enabled": False}))
+
+    assert connect_client().neds.ned_interfaces == SUPPORTED_NED_INTERFACES
 
 
 @respx.mock

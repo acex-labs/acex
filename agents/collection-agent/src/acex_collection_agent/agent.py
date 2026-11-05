@@ -10,7 +10,7 @@ from acex_client import Acex
 from acex_devkit.models.agent_manifest import CollectionAgentManifest
 from acex_devkit.models.collection_agent import CollectionAgentAck
 
-from acex_collection_agent.collector import Collector
+from acex_collection_agent.collector import SUPPORTED_NED_INTERFACES, Collector
 
 logger = logging.getLogger("acex_collection_agent")
 
@@ -30,7 +30,7 @@ class CollectionAgent:
     def __init__(self, api_url: str, agent_id: int, verify_ssl: bool = False, max_concurrent: int = 20):
         self.agent_id = agent_id
         self.max_concurrent = max_concurrent
-        self.client = Acex(base_url=api_url, verify=verify_ssl)
+        self.client = Acex(base_url=api_url, verify=verify_ssl, ned_interfaces=SUPPORTED_NED_INTERFACES)
         self.collector = Collector(self.client)
         self._last_revision = None
         self._last_collection = 0
