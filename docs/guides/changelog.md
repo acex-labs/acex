@@ -122,10 +122,13 @@ that cannot be read stops the release before it starts.
 ### The Release workflow
 
 Nobody has to run the script by hand. **Actions > Release > Run workflow**, on
-`dev` for a release or on a `hotfix/*` branch for a hotfix:
+`dev` for a release or on a `hotfix/*` branch for a hotfix. Choose the channel
+and, to send only some packages, name them (see
+[Sending packages to stage](#sending-packages-to-stage)):
 
 1. **Plan.** The run summary lists every package, its old and new version and
-   why it is in the release. Nothing is changed.
+   why it is in the release. Nothing is changed. A package that changed without
+   an entry stops the plan here.
 2. **Gate.** The `release` environment waits for a reviewer. Read the plan; if
    it looks right, approve. That is the play button.
 3. **Release.** The workflow runs `release-all` and the bot commits the
@@ -137,6 +140,70 @@ publishes every version that is new on PyPI and GHCR. A pull request into
 `main` fails if an image still has the version of `main` although a package it
 contains has a new one (`check --release-ready`), so the images cannot be left
 behind.
+
+### Sending packages to stage
+
+`dev` is free: anything can be merged there without a changelog entry. The entry
+is required when a package is sent to stage, because stage is where a release
+candidate is tried before it goes to production. Send the packages you choose,
+not the whole of `dev`:
+
+```bash
+python scripts/changelog.py plan --channel rc acex-collection-agent drivers/cisco_ios_cli
+```
+
+In the workflow, give the same names, ids or directories separated by spaces, in
+the field **packages**. Leave it empty to send everything that is due. A package
+that is not named stays on `dev` with its fragments, and nothing about it
+changes.
+
+Naming a package sends more than that package, because an image holds whatever
+its `Dockerfile` copies:
+
+- An image that copies a chosen package follows it, as in any release.
+- Code that a sent image bakes in is sent with it when it has fragments waiting.
+  The agents copy `client` and `devkit`, and the backend copies `devkit` and the
+  drivers, so sending the backend also sends a driver or `devkit` with changes
+  waiting. Those packages are in the plan with the note *its code is in the image
+  of ...*. Without that, the image on stage would contain changes that no
+  version and no note describes.
+
+The plan stops when a change has no entry. For each package it is about to send,
+each package you named and each package its images bake in, it looks at what
+changed since the package's version last changed (its last release or candidate).
+Code changed and no fragment was added since: the plan fails and names the
+package and the command that creates the fragment. The entry can be written
+before or at the time of sending, by whoever sends.
+
+Prod is not per package yet. Merging `dev` into `main` publishes every version
+that is new there and fails while any package is still a candidate, so all
+candidates have to be made stable first.
+
+### Release candidates
+
+Run the workflow with **channel `rc`** on `dev` to cut release candidates for
+stage. Every package in the plan gets the next version with an `rcN` suffix
+(`4.12.0rc1`, then `rc2` if it is cut again). Only the versions change: the
+fragments stay where they are, so the candidate's images show them as
+unreleased, like the `dev` images do.
+
+Merging the release pull request into `dev` publishes the candidates as
+container images on GHCR, tagged `4.12.0rc1` and never `latest`. Packages are
+not published to PyPI until the stable release. Images that are built from
+a candidate use the packages in the repository and not the ones on PyPI.
+
+Run the workflow with **channel `stable`** (the default) when stage has
+passed. A candidate loses its suffix (`4.12.0rc2` becomes `4.12.0`), its
+fragments are compiled into the release notes, and the usual merge of `dev`
+into `main` publishes the stable versions with `latest`. The stable images are
+built again from the same sources, with the suffix removed: an image reads its
+version from its package metadata, so retagging a candidate would still
+report `rc`.
+
+`main` never receives a candidate. A pull request into `main` fails while a
+version still has an `rc` suffix. A fix that is already known to be stable can
+skip the candidate step: run `stable` straight away, which is also what a
+hotfix does.
 
 For the checks to run on the release pull request, add a repository secret
 `RELEASE_TOKEN` (a token that may push and open pull requests). Without it the

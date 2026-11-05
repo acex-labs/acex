@@ -2,10 +2,22 @@ name: Release
 
 # Run from the Actions tab on dev, or on a hotfix/* branch. The plan is shown in the run summary and
 # the reviewers of the release environment approve before anything is committed.
+# Sending packages to stage: channel rc on dev, with the packages to send. A package that changed
+# since its last release without a changelog entry stops the plan.
 # RELEASE_TOKEN lets the checks run on the release pull request, which the default token cannot start.
 
 on:
   workflow_dispatch:
+    inputs:
+      channel:
+        description: rc cuts release candidates for stage (dev only), stable releases for prod
+        type: choice
+        options: [stable, rc]
+        default: stable
+      packages:
+        description: Packages to send, ids or directories separated by spaces. Empty sends everything that is due
+        type: string
+        default: ""
 
 concurrency:
   group: release
@@ -27,6 +39,12 @@ jobs:
           echo "::error::Run this workflow on dev, or on a hotfix/* branch, not on ${GITHUB_REF_NAME}"
           exit 1
 
+      - name: Release candidates are cut on dev
+        if: inputs.channel == 'rc' && github.ref_name != 'dev'
+        run: |
+          echo "::error::Release candidates are published from dev, not from ${GITHUB_REF_NAME}"
+          exit 1
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -42,8 +60,26 @@ jobs:
 
       - name: What a release contains
         id: plan
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          PACKAGES: ${{ inputs.packages }}
         run: |
-          python scripts/changelog.py plan | tee "$RUNNER_TEMP/plan.txt"
+          read -ra packages <<< "$PACKAGES"
+          status=0
+          python scripts/changelog.py plan --channel "$CHANNEL" "${packages[@]}" > "$RUNNER_TEMP/plan.txt" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/plan.txt"
+          if [ "$status" -ne 0 ]; then
+            {
+              echo "### The plan is stopped"
+              echo
+              echo '```'
+              cat "$RUNNER_TEMP/plan.txt"
+              echo '```'
+              echo
+              echo "Add what is listed, then run the workflow again."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit "$status"
+          fi
           if grep -q '^nothing to release' "$RUNNER_TEMP/plan.txt"; then
             echo "due=false" >> "$GITHUB_OUTPUT"
             hint="Nothing is due, so there is nothing to approve."
@@ -52,7 +88,9 @@ jobs:
             hint="Approve the pending deployment of the Release job to release this."
           fi
           {
-            echo "### Release plan for \`${GITHUB_REF_NAME}\` at \`${GITHUB_SHA::7}\`"
+            echo "### Release plan (${CHANNEL}) for \`${GITHUB_REF_NAME}\` at \`${GITHUB_SHA::7}\`"
+            echo
+            echo "Chosen: ${PACKAGES:-everything that is due}"
             echo
             echo '```'
             cat "$RUNNER_TEMP/plan.txt"
@@ -72,6 +110,8 @@ jobs:
       pull-requests: write
     env:
       GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+      CHANNEL: ${{ inputs.channel }}
+      PACKAGES: ${{ inputs.packages }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -84,15 +124,18 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Release everything that is due
-        run: python scripts/changelog.py release-all | tee "$RUNNER_TEMP/release.txt"
+      - name: Release what the plan contains
+        run: |
+          set -o pipefail
+          read -ra packages <<< "$PACKAGES"
+          python scripts/changelog.py release-all --channel "$CHANNEL" "${packages[@]}" | tee "$RUNNER_TEMP/release.txt"
 
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -q -m "chore(release): version what is due" -m "$(cat "$RUNNER_TEMP/release.txt")"
+          git commit -q -m "chore(release): version what is due (${CHANNEL})" -m "$(cat "$RUNNER_TEMP/release.txt")"
 
       - name: Hotfix branch, push the commit to it
         if: github.ref_name != 'dev'
@@ -104,14 +147,18 @@ jobs:
           branch="chore/release-$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}"
           git push origin "HEAD:refs/heads/${branch}"
           {
-            echo "Versions and release notes for everything that was due at \`${GITHUB_SHA::7}\`,"
+            echo "Versions and release notes for ${PACKAGES:-everything that was due} at \`${GITHUB_SHA::7}\`,"
             echo "made by the Release workflow ($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
             echo
             echo '```'
             cat "$RUNNER_TEMP/release.txt"
             echo '```'
             echo
-            echo "Merge this into dev, then open the pull request from dev into main: its merge publishes."
+            if [ "$CHANNEL" = "rc" ]; then
+              echo "Merging this into dev publishes the release candidate images to GHCR."
+            else
+              echo "Merge this into dev, then open the pull request from dev into main: its merge publishes."
+            fi
           } > "$RUNNER_TEMP/body.md"
           gh pr create --base dev --head "$branch" \
-            --title "chore(release): version what is due" --body-file "$RUNNER_TEMP/body.md"
+            --title "chore(release): version what is due (${CHANNEL})" --body-file "$RUNNER_TEMP/body.md"

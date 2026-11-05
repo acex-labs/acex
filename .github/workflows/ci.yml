@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
     # Feature → dev (testar innan merge; docker-dev.yml publicerar dev-images efter merge)
     # Feature → stage (testar innan merge till stage)
@@ -997,9 +997,10 @@ jobs:
   check-backend-image:
     name: Check Backend image
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: contains(fromJSON('["refs/heads/main","refs/heads/dev"]'), github.ref)
     outputs:
       exists: ${{ steps.check-image.outputs.exists }}
+      publish: ${{ steps.check-image.outputs.publish }}
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Checkout code
@@ -1017,6 +1018,11 @@ jobs:
         id: check-image
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
+          if ! scripts/branch_publishes_version.sh "$GITHUB_REF_NAME" "$VERSION"; then
+            echo "publish=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Version $VERSION is not published from $GITHUB_REF_NAME"
+            exit 0
+          fi
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-backend/manifests/${VERSION}")
@@ -1026,10 +1032,12 @@ jobs:
 
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
+            echo "publish=false" >> $GITHUB_OUTPUT
             echo "⏭️  Image version $VERSION already exists - skipping"
             echo "| acex-backend | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "publish=true" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
             echo "| acex-backend | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
           fi
@@ -1041,13 +1049,14 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: github.ref == 'refs/heads/main' && needs.check-backend-image.outputs.exists == 'false'
+    if: ${{ !cancelled() && needs.check-backend-image.outputs.publish == 'true' && (github.ref == 'refs/heads/dev' || (!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'skipped'))) }}
     # Ingen manuell godkännande-gate längre — se publish-packages ovan.
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
       - name: Switch client dependencies to version (prod)
+        if: ${{ !contains(needs.check-backend-image.outputs.version, 'rc') }}
         working-directory: ./client
         run: bash switch_deps.sh prod
 
@@ -1076,16 +1085,17 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-backend:${{ needs.check-backend-image.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/acex-backend:latest
+            ${{ !contains(needs.check-backend-image.outputs.version, 'rc') && format('ghcr.io/{0}/acex-backend:latest', github.repository_owner) || '' }}
 
   # Container images for agents
 
   check-collection-agent-image:
     name: Check Collection Agent image
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: contains(fromJSON('["refs/heads/main","refs/heads/dev"]'), github.ref)
     outputs:
       exists: ${{ steps.check-image.outputs.exists }}
+      publish: ${{ steps.check-image.outputs.publish }}
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Checkout code
@@ -1103,6 +1113,11 @@ jobs:
         id: check-image
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
+          if ! scripts/branch_publishes_version.sh "$GITHUB_REF_NAME" "$VERSION"; then
+            echo "publish=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Version $VERSION is not published from $GITHUB_REF_NAME"
+            exit 0
+          fi
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-collection-agent/manifests/${VERSION}")
@@ -1112,10 +1127,12 @@ jobs:
 
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
+            echo "publish=false" >> $GITHUB_OUTPUT
             echo "⏭️  Image version $VERSION already exists - skipping"
             echo "| acex-collection-agent | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "publish=true" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
             echo "| acex-collection-agent | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
           fi
@@ -1128,13 +1145,14 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: github.ref == 'refs/heads/main' && needs.check-collection-agent-image.outputs.exists == 'false'
+    if: ${{ !cancelled() && needs.check-collection-agent-image.outputs.publish == 'true' && (github.ref == 'refs/heads/dev' || (!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'skipped'))) }}
     # Ingen manuell godkännande-gate längre — se publish-packages ovan.
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
       - name: Switch client dependencies to version (prod)
+        if: ${{ !contains(needs.check-collection-agent-image.outputs.version, 'rc') }}
         working-directory: ./client
         run: bash switch_deps.sh prod
 
@@ -1163,14 +1181,15 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-collection-agent:${{ needs.check-collection-agent-image.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/acex-collection-agent:latest
+            ${{ !contains(needs.check-collection-agent-image.outputs.version, 'rc') && format('ghcr.io/{0}/acex-collection-agent:latest', github.repository_owner) || '' }}
 
   check-telemetry-agent-image:
     name: Check Telemetry Agent image
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: contains(fromJSON('["refs/heads/main","refs/heads/dev"]'), github.ref)
     outputs:
       exists: ${{ steps.check-image.outputs.exists }}
+      publish: ${{ steps.check-image.outputs.publish }}
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Checkout code
@@ -1188,6 +1207,11 @@ jobs:
         id: check-image
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
+          if ! scripts/branch_publishes_version.sh "$GITHUB_REF_NAME" "$VERSION"; then
+            echo "publish=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Version $VERSION is not published from $GITHUB_REF_NAME"
+            exit 0
+          fi
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-telemetry-agent/manifests/${VERSION}")
@@ -1197,10 +1221,12 @@ jobs:
 
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
+            echo "publish=false" >> $GITHUB_OUTPUT
             echo "⏭️  Image version $VERSION already exists - skipping"
             echo "| acex-telemetry-agent | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "publish=true" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
             echo "| acex-telemetry-agent | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
           fi
@@ -1212,13 +1238,14 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: github.ref == 'refs/heads/main' && needs.check-telemetry-agent-image.outputs.exists == 'false'
+    if: ${{ !cancelled() && needs.check-telemetry-agent-image.outputs.publish == 'true' && (github.ref == 'refs/heads/dev' || (!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'skipped'))) }}
     # Ingen manuell godkännande-gate längre — se publish-packages ovan.
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
       - name: Switch client dependencies to version (prod)
+        if: ${{ !contains(needs.check-telemetry-agent-image.outputs.version, 'rc') }}
         working-directory: ./client
         run: bash switch_deps.sh prod
 
@@ -1247,14 +1274,15 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-telemetry-agent:${{ needs.check-telemetry-agent-image.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/acex-telemetry-agent:latest
+            ${{ !contains(needs.check-telemetry-agent-image.outputs.version, 'rc') && format('ghcr.io/{0}/acex-telemetry-agent:latest', github.repository_owner) || '' }}
 
   check-grafana-sync-agent-image:
     name: Check Grafana Sync Agent image
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: contains(fromJSON('["refs/heads/main","refs/heads/dev"]'), github.ref)
     outputs:
       exists: ${{ steps.check-image.outputs.exists }}
+      publish: ${{ steps.check-image.outputs.publish }}
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Checkout code
@@ -1272,6 +1300,11 @@ jobs:
         id: check-image
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
+          if ! scripts/branch_publishes_version.sh "$GITHUB_REF_NAME" "$VERSION"; then
+            echo "publish=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Version $VERSION is not published from $GITHUB_REF_NAME"
+            exit 0
+          fi
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-grafana-sync-agent/manifests/${VERSION}")
@@ -1281,10 +1314,12 @@ jobs:
 
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
+            echo "publish=false" >> $GITHUB_OUTPUT
             echo "⏭️  Image version $VERSION already exists - skipping"
             echo "| acex-grafana-sync-agent | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "publish=true" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
             echo "| acex-grafana-sync-agent | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
           fi
@@ -1296,13 +1331,14 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: github.ref == 'refs/heads/main' && needs.check-grafana-sync-agent-image.outputs.exists == 'false'
+    if: ${{ !cancelled() && needs.check-grafana-sync-agent-image.outputs.publish == 'true' && (github.ref == 'refs/heads/dev' || (!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'skipped'))) }}
     # Ingen manuell godkännande-gate längre — se publish-packages ovan.
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
       - name: Switch client dependencies to version (prod)
+        if: ${{ !contains(needs.check-grafana-sync-agent-image.outputs.version, 'rc') }}
         working-directory: ./client
         run: bash switch_deps.sh prod
 
@@ -1328,16 +1364,17 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-grafana-sync-agent:${{ needs.check-grafana-sync-agent-image.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/acex-grafana-sync-agent:latest
+            ${{ !contains(needs.check-grafana-sync-agent-image.outputs.version, 'rc') && format('ghcr.io/{0}/acex-grafana-sync-agent:latest', github.repository_owner) || '' }}
 
   # Container image for MCP server
 
   check-mcp-image:
     name: Check MCP image
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: contains(fromJSON('["refs/heads/main","refs/heads/dev"]'), github.ref)
     outputs:
       exists: ${{ steps.check-image.outputs.exists }}
+      publish: ${{ steps.check-image.outputs.publish }}
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Checkout code
@@ -1355,6 +1392,11 @@ jobs:
         id: check-image
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
+          if ! scripts/branch_publishes_version.sh "$GITHUB_REF_NAME" "$VERSION"; then
+            echo "publish=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Version $VERSION is not published from $GITHUB_REF_NAME"
+            exit 0
+          fi
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-mcp/manifests/${VERSION}")
@@ -1364,10 +1406,12 @@ jobs:
 
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
+            echo "publish=false" >> $GITHUB_OUTPUT
             echo "⏭️  Image version $VERSION already exists - skipping"
             echo "| acex-mcp | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "publish=true" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
             echo "| acex-mcp | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
           fi
@@ -1379,7 +1423,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: github.ref == 'refs/heads/main' && needs.check-mcp-image.outputs.exists == 'false'
+    if: ${{ !cancelled() && needs.check-mcp-image.outputs.publish == 'true' && (github.ref == 'refs/heads/dev' || (!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'skipped'))) }}
     # Ingen manuell godkännande-gate längre — se publish-packages ovan.
     steps:
       - name: Checkout code
@@ -1407,14 +1451,15 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-mcp:${{ needs.check-mcp-image.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/acex-mcp:latest
+            ${{ !contains(needs.check-mcp-image.outputs.version, 'rc') && format('ghcr.io/{0}/acex-mcp:latest', github.repository_owner) || '' }}
 
   check-worker-image:
     name: Check Worker image
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: contains(fromJSON('["refs/heads/main","refs/heads/dev"]'), github.ref)
     outputs:
       exists: ${{ steps.check-image.outputs.exists }}
+      publish: ${{ steps.check-image.outputs.publish }}
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Checkout code
@@ -1432,6 +1477,11 @@ jobs:
         id: check-image
         run: |
           VERSION="${{ steps.get-version.outputs.version }}"
+          if ! scripts/branch_publishes_version.sh "$GITHUB_REF_NAME" "$VERSION"; then
+            echo "publish=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Version $VERSION is not published from $GITHUB_REF_NAME"
+            exit 0
+          fi
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://ghcr.io/v2/${{ github.repository_owner }}/acex-worker/manifests/${VERSION}")
@@ -1441,10 +1491,12 @@ jobs:
 
           if [ "$HTTP_CODE" = "200" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
+            echo "publish=false" >> $GITHUB_OUTPUT
             echo "⏭️  Image version $VERSION already exists - skipping"
             echo "| acex-worker | $VERSION | ⏭️ Redan pushad |" >> $GITHUB_STEP_SUMMARY
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "publish=true" >> $GITHUB_OUTPUT
             echo "✅ Image version $VERSION is new - will build and push"
             echo "| acex-worker | $VERSION | ✅ Ny version — pushas automatiskt |" >> $GITHUB_STEP_SUMMARY
           fi
@@ -1456,7 +1508,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: github.ref == 'refs/heads/main' && needs.check-worker-image.outputs.exists == 'false'
+    if: ${{ !cancelled() && needs.check-worker-image.outputs.publish == 'true' && (github.ref == 'refs/heads/dev' || (!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'skipped'))) }}
     # Ingen manuell godkännande-gate längre — se publish-packages ovan.
     steps:
       - name: Checkout code
@@ -1484,4 +1536,4 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-worker:${{ needs.check-worker-image.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/acex-worker:latest
+            ${{ !contains(needs.check-worker-image.outputs.version, 'rc') && format('ghcr.io/{0}/acex-worker:latest', github.repository_owner) || '' }}

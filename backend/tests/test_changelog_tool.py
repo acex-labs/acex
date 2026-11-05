@@ -994,8 +994,14 @@ def versions(planned):
     return {p.component.id: (p.old, p.new) for p in planned}
 
 
-def plan(repo: Path):
-    return tool.plan_release(tool.discover(repo), repo)
+def plan(repo: Path, channel: str = tool.STABLE, only: list[str] | None = None):
+    return tool.plan_release(tool.discover(repo), repo, channel, only)
+
+
+def version_in(repo: Path, directory: str) -> str:
+    return tool.discover(repo)[
+        [c.root.relative_to(repo).as_posix() for c in tool.discover(repo)].index(directory)
+    ].version
 
 
 class TestReleasePlan:
@@ -1158,3 +1164,276 @@ class TestImagesFollowTheirSources:
         report = tool.check(tool.discover(workspace), [], workspace, release_ready=True, base_versions=base)
 
         assert not any(e.startswith("acex-collection-agent") for e in report.errors)
+
+
+class TestReleaseCandidates:
+    def should_give_the_next_version_a_release_candidate_suffix(self, workspace):
+        due(workspace, "client", kind="added", title="A new call")
+
+        planned = versions(plan(workspace, tool.CANDIDATE))
+
+        assert planned["acex-client"] == ("4.11.0", "4.12.0rc1")
+        assert planned["acex-collection-agent"] == ("0.16.0", "0.16.1rc1")
+        assert "acex" not in planned
+
+    def should_only_set_versions_for_a_release_candidate(self, workspace):
+        due(workspace, "client", kind="added", title="A new call")
+
+        report = tool.release_planned(plan(workspace, tool.CANDIDATE), channel=tool.CANDIDATE)
+
+        assert report.ok, report.errors
+        assert version_in(workspace, "client") == "4.12.0rc1"
+        assert version_in(workspace, "agents/collection-agent") == "0.16.1rc1"
+        assert len(list((workspace / "client" / "changelog.d").glob("*.md"))) == 1
+        assert list((workspace / "agents/collection-agent/changelog.d").glob("*.md")) == []
+        assert not (workspace / "client/src/acex_client/changelog.json").exists()
+
+    def should_count_up_the_candidate_when_cut_again(self, workspace):
+        due(workspace, "client", kind="added", title="A new call")
+        tool.release_planned(plan(workspace, tool.CANDIDATE), channel=tool.CANDIDATE)
+
+        planned = versions(plan(workspace, tool.CANDIDATE))
+
+        assert planned["acex-client"] == ("4.12.0rc1", "4.12.0rc2")
+        assert planned["acex-collection-agent"] == ("0.16.1rc1", "0.16.1rc2")
+
+    def should_release_candidates_as_stable_with_their_notes(self, workspace):
+        due(workspace, "client", kind="added", title="A new call")
+        tool.release_planned(plan(workspace, tool.CANDIDATE), channel=tool.CANDIDATE)
+
+        planned = versions(plan(workspace))
+
+        assert planned["acex-client"] == ("4.12.0rc1", "4.12.0")
+        assert planned["acex-collection-agent"] == ("0.16.1rc1", "0.16.1")
+
+        assert tool.release_planned(plan(workspace), on=date(2026, 11, 3)).ok
+        [release] = json.loads((workspace / "client/src/acex_client/changelog.json").read_text())["releases"]
+        assert (release["version"], release["date"]) == ("4.12.0", "2026-11-03")
+        assert version_in(workspace, "agents/collection-agent") == "0.16.1"
+        assert plan(workspace) == []
+
+    def should_make_a_candidate_stable_even_without_fragments(self, workspace):
+        due(workspace, "agents/collection-agent")
+        tool.release_planned(plan(workspace, tool.CANDIDATE), channel=tool.CANDIDATE)
+        (workspace / "agents/collection-agent/changelog.d/change.md").unlink()
+
+        [item] = plan(workspace)
+
+        assert (item.old, item.new) == ("0.16.1rc1", "0.16.1")
+        assert item.reasons == ["its release candidate 0.16.1rc1 becomes stable"]
+
+    def should_leave_a_candidate_alone_in_another_candidate_when_nothing_moved(self, workspace):
+        due(workspace, "agents/collection-agent")
+        tool.release_planned(plan(workspace, tool.CANDIDATE), channel=tool.CANDIDATE)
+        (workspace / "agents/collection-agent/changelog.d/change.md").unlink()
+
+        assert plan(workspace, tool.CANDIDATE) == []
+
+    def should_version_a_new_change_normally_next_to_a_candidate(self, workspace):
+        due(workspace, "drivers/ios")
+        tool.release_planned(plan(workspace, tool.CANDIDATE), channel=tool.CANDIDATE)
+        due(workspace, "devkit", kind="added", title="A new model")
+
+        planned = versions(plan(workspace))
+
+        assert planned["acex-devkit"] == ("2.11.0", "2.12.0")
+        assert planned["acex-driver-ios"] == ("5.0.1rc1", "5.0.1")
+
+    def should_refuse_a_candidate_on_the_release_branch(self, workspace):
+        due(workspace, "client")
+        tool.release_planned(plan(workspace, tool.CANDIDATE), channel=tool.CANDIDATE)
+
+        report = tool.check(tool.discover(workspace), [], workspace, release_ready=True, base_versions={})
+
+        assert any(e.startswith("acex-client: version 4.11.1rc1 is a release candidate") for e in report.errors)
+
+    def should_be_available_as_a_channel_on_the_command_line(self, workspace, capsys):
+        due(workspace, "client")
+
+        assert tool.main(["plan", "--channel", "rc"], repo=workspace) == 0
+        assert "4.11.0 -> 4.11.1rc1" in capsys.readouterr().out
+
+        assert tool.main(["release-all", "--channel", "rc"], repo=workspace) == 0
+        assert version_in(workspace, "client") == "4.11.1rc1"
+
+
+class TestSendingChosenPackages:
+    def should_plan_only_the_chosen_package(self, workspace):
+        due(workspace, "cli", kind="added", title="A new command")
+        due(workspace, "client")
+
+        assert versions(plan(workspace, only=["acex-cli"])) == {"acex-cli": ("4.6.0", "4.7.0")}
+
+    def should_take_a_directory_as_well_as_an_id(self, workspace):
+        due(workspace, "agents/collection-agent")
+
+        assert versions(plan(workspace, only=[str(workspace / "agents" / "collection-agent")])) == {
+            "acex-collection-agent": ("0.16.0", "0.16.1")
+        }
+
+    def should_let_the_images_that_contain_the_chosen_package_follow(self, workspace):
+        due(workspace, "drivers/ios")
+        due(workspace, "client")
+
+        assert versions(plan(workspace, only=["acex-driver-ios"])) == {
+            "acex-driver-ios": ("5.0.0", "5.0.1"),
+            "acex": ("6.27.0", "6.27.1"),
+        }
+
+    def should_bring_along_changed_code_that_an_image_bakes_in(self, workspace):
+        due(workspace, "agents/collection-agent", kind="added", title="Collects more")
+        due(workspace, "devkit")
+
+        planned = plan(workspace, only=["acex-collection-agent"])
+
+        assert versions(planned) == {
+            "acex-collection-agent": ("0.16.0", "0.17.0"),
+            "acex-devkit": ("2.11.0", "2.11.1"),
+            "acex": ("6.27.0", "6.27.1"),
+        }
+        [devkit] = [p for p in planned if p.component.id == "acex-devkit"]
+        assert devkit.carried_by == "acex-collection-agent"
+        assert "its code is in the image of acex-collection-agent" in "\n".join(tool.describe_plan(planned))
+
+    def should_leave_other_due_packages_for_a_later_release(self, workspace):
+        due(workspace, "cli", kind="added", title="A new command")
+        due(workspace, "client")
+
+        assert "acex-client" not in versions(plan(workspace, only=["acex-cli"]))
+
+    def should_plan_nothing_for_a_chosen_package_without_entries(self, workspace):
+        due(workspace, "cli")
+
+        assert plan(workspace, only=["acex-client"]) == []
+
+    def should_refuse_a_package_that_does_not_exist(self, workspace):
+        with pytest.raises(tool.FragmentError, match="No component 'nope'"):
+            plan(workspace, only=["nope"])
+
+    def should_make_only_the_chosen_candidate_stable(self, workspace):
+        due(workspace, "client")
+        due(workspace, "cli")
+        tool.release_planned(plan(workspace, tool.CANDIDATE), channel=tool.CANDIDATE)
+
+        assert versions(plan(workspace, tool.STABLE, ["acex-cli"])) == {"acex-cli": ("4.6.1rc1", "4.6.1")}
+
+    def should_take_the_packages_on_the_command_line(self, workspace, capsys):
+        due(workspace, "cli", kind="added", title="A new command")
+        due(workspace, "client")
+
+        assert tool.main(["plan", "--channel", "rc", "acex-cli"], repo=workspace) == 0
+        out = capsys.readouterr().out
+        assert "4.6.0 -> 4.7.0rc1" in out
+        assert "acex-client" not in out
+
+        assert tool.main(["release-all", "--channel", "rc", "acex-cli"], repo=workspace) == 0
+        assert version_in(workspace, "cli") == "4.7.0rc1"
+        assert version_in(workspace, "client") == "4.11.0"
+
+
+@pytest.fixture
+def in_git(workspace):
+    git(workspace, "init", "-q", "-b", "dev")
+    git(workspace, "add", ".")
+    git(workspace, "commit", "-q", "-m", "base")
+    return workspace
+
+
+def commit_all(repo: Path, message: str = "change") -> None:
+    git(repo, "add", ".")
+    git(repo, "commit", "-q", "-m", message)
+
+
+def change_code(repo: Path, relative: str) -> None:
+    (repo / relative).write_text("x = 1\n", encoding="utf-8")
+    commit_all(repo, f"change {relative}")
+
+
+def entries_missing_before_sending(repo: Path, *refs: str, channel: str = tool.CANDIDATE) -> list[str]:
+    components = tool.discover(repo)
+    planned = tool.plan_release(components, repo, channel, list(refs))
+    chosen = tool.chosen_components(components, list(refs))
+    return tool.changes_without_entry_before_sending(planned, chosen, components, repo)
+
+
+class TestChangesWithoutAnEntryBeforeSending:
+    def should_accept_a_package_whose_change_has_an_entry(self, in_git):
+        change_code(in_git, "client/src/acex_client/calls.py")
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+
+        assert entries_missing_before_sending(in_git, "acex-client") == []
+
+    def should_name_a_chosen_package_that_changed_without_an_entry(self, in_git):
+        change_code(in_git, "client/src/acex_client/calls.py")
+
+        [error] = entries_missing_before_sending(in_git, "acex-client")
+
+        assert error.startswith("acex-client: changed without a changelog entry")
+
+    def should_count_only_the_changes_since_the_last_version(self, in_git):
+        change_code(in_git, "client/src/acex_client/calls.py")
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        tool.release_planned(plan(in_git, tool.CANDIDATE, ["acex-client"]), channel=tool.CANDIDATE)
+        commit_all(in_git, "candidate")
+
+        assert entries_missing_before_sending(in_git, "acex-client") == []
+
+        change_code(in_git, "client/src/acex_client/more.py")
+
+        [error] = entries_missing_before_sending(in_git, "acex-client")
+        assert error.startswith("acex-client: changed without a changelog entry")
+
+    def should_name_changed_code_that_an_image_in_the_plan_bakes_in(self, in_git):
+        change_code(in_git, "devkit/src/acex_devkit/models.py")
+        change_code(in_git, "agents/collection-agent/src/acex_collection_agent/collect.py")
+        due(in_git, "agents/collection-agent")
+        commit_all(in_git, "entry")
+
+        [error] = entries_missing_before_sending(in_git, "acex-collection-agent")
+
+        assert error.startswith("acex-devkit: changed without a changelog entry")
+
+    def should_not_look_at_what_is_not_going(self, in_git):
+        change_code(in_git, "cli/src/acex_cli/commands.py")
+        change_code(in_git, "client/src/acex_client/calls.py")
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+
+        assert entries_missing_before_sending(in_git, "acex-client") == []
+
+    def should_say_nothing_outside_a_git_repository(self, workspace):
+        assert entries_missing_before_sending(workspace, "acex-client") == []
+
+    def should_stop_the_plan_and_the_release_on_the_command_line(self, in_git, capsys):
+        change_code(in_git, "client/src/acex_client/calls.py")
+
+        assert tool.main(["plan", "--channel", "rc", "acex-client"], repo=in_git) == 1
+        assert "acex-client: changed without a changelog entry" in capsys.readouterr().err
+
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        assert tool.main(["release-all", "--channel", "rc", "acex-client"], repo=in_git) == 0
+        assert version_in(in_git, "client") == "4.11.1rc1"
+
+
+BRANCH_RULE = Path(__file__).resolve().parents[2] / "scripts" / "branch_publishes_version.sh"
+
+
+class TestBranchPublishesVersion:
+    @pytest.mark.parametrize(
+        ("branch", "version", "publishes"),
+        [
+            ("main", "1.2.3", True),
+            ("main", "1.2.3rc1", False),
+            ("dev", "1.2.3rc2", True),
+            ("dev", "1.2.3", False),
+            ("feat/something", "1.2.3", False),
+            ("feat/something", "1.2.3rc1", False),
+        ],
+    )
+    def should_publish_stable_versions_from_main_and_candidates_from_dev(self, branch, version, publishes):
+        result = subprocess.run([str(BRANCH_RULE), branch, version], check=False)
+
+        assert (result.returncode == 0) is publishes
