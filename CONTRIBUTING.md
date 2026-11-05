@@ -167,12 +167,9 @@ ruff check .
 
 ### Versioning
 
-When releasing new versions:
+Contributors do not bump versions or tag releases. Maintainers release with the Release workflow, which versions the packages, compiles their release notes and opens the pull request; CI publishes when `dev` is merged into `main`. See [Releasing](https://acex-labs.github.io/acex/releasing/).
 
-1. Update version in each affected package's `pyproject.toml`
-2. Update version in each affected package's `__init__.py`
-3. Update CHANGELOG.md
-4. Tag the release: `git tag v0.2.0`
+A change can carry its release note, a small file made with `python scripts/changelog.py new <package> --kind <kind> --title "..."`. A pull request into `dev` does not need one, but a package needs its notes when it is sent to stage.
 
 ## Questions?
 

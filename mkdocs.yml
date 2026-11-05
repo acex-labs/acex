@@ -77,3 +77,4 @@ nav:
   - AI Ops: examples/ai_ops.md
   - Contributing: contributing.md
   - Development: development.md
+  - Releasing: releasing.md
