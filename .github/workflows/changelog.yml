@@ -1,15 +1,14 @@
 name: Changelog
 
-# Every pull request that changes a component carries a changelog fragment
-# (for example backend/changelog.d/<date>-<slug>.md), written for the people
-# who use ACEX. See docs/guides/changelog.md. The entry is not required for draft
-# pull requests, with the label `no-changelog`, or from chore, docs, test, ci,
-# refactor and build branches (unless they go into main).
+# dev is free: a pull request into dev is not asked for a changelog fragment. The entry is
+# required when a package is sent to stage (the Release workflow), and for every changed
+# component in a pull request into main. Fragments that exist must be well-formed.
+# See docs/guides/changelog.md.
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
-    branches: [main, stage, dev]
+    branches: [main, dev]
 
 jobs:
   fragments:
@@ -27,26 +26,12 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Does the branch call for an entry
-        id: branch
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          case "${HEAD_REF%%/*}" in
-            chore|docs|test|ci|refactor|build) calls_for_entry=false ;;
-            *) calls_for_entry=true ;;
-          esac
-          if [ "$BASE_REF" = main ]; then calls_for_entry=true; fi
-          echo "calls_for_entry=$calls_for_entry" >> "$GITHUB_OUTPUT"
+      - name: Fragments are well-formed
+        run: python scripts/changelog.py validate
 
-      - name: Changed components have an entry, and entries are well-formed
-        if: steps.branch.outputs.calls_for_entry == 'true'
-        env:
-          BASE: origin/${{ github.base_ref }}
-          # Into main, a version that is about to be published must carry its notes.
-          RELEASE_READY: ${{ github.base_ref == 'main' && '--release-ready' || '' }}
-        run: python scripts/changelog.py check --base "$BASE" $RELEASE_READY
+      - name: Into main, changed components have an entry and the version carries its notes
+        if: github.base_ref == 'main'
+        run: python scripts/changelog.py check --base "origin/${{ github.base_ref }}" --release-ready
 
       - name: Compiled changelog files are current
         run: python scripts/changelog.py build --check
