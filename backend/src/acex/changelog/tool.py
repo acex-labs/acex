@@ -721,6 +721,7 @@ class Planned:
     old: str
     new: str
     reasons: list[str] = field(default_factory=list)
+    carried_by: str | None = None
 
     @property
     def has_own_fragments(self) -> bool:
@@ -790,22 +791,30 @@ def _reasons_to_follow(
     return reasons
 
 
-def plan_release(components: list[Component], repo: Path, channel: str = STABLE) -> list[Planned]:
+def chosen_components(components: list[Component], refs: list[str] | None) -> list[Component]:
+    return [find(components, ref) for ref in refs or []]
+
+
+def plan_release(
+    components: list[Component], repo: Path, channel: str = STABLE, only: list[str] | None = None
+) -> list[Planned]:
+    chosen = {component.id for component in chosen_components(components, only)} if only else None
     planned: dict[str, Planned] = {}
     for component in components:
         own_fragments = fragments(component)
-        if own_fragments:
+        if own_fragments and (chosen is None or component.id in chosen):
             new_version = _next_version(component, published(own_fragments), channel)
             planned[component.id] = Planned(component, component.version, new_version)
     if channel == STABLE:
         for component in components:
-            if component.id not in planned and is_release_candidate(component.version):
+            is_chosen = chosen is None or component.id in chosen
+            if is_chosen and component.id not in planned and is_release_candidate(component.version):
                 new_version = _next_version(component, None, channel)
                 reasons = [f"its release candidate {component.version} becomes stable"]
                 planned[component.id] = Planned(component, component.version, new_version, reasons)
-    followers_were_added = True
-    while followers_were_added:
-        followers_were_added = False
+    plan_grew = True
+    while plan_grew:
+        plan_grew = False
         for component in components:
             if component.id in planned:
                 continue
@@ -813,8 +822,24 @@ def plan_release(components: list[Component], repo: Path, channel: str = STABLE)
             if reasons:
                 new_version = _next_version(component, None, channel)
                 planned[component.id] = Planned(component, component.version, new_version, reasons)
-                followers_were_added = True
+                plan_grew = True
+        if chosen is not None:
+            for item in list(planned.values()):
+                for carried in _carried_with_changes(item.component, components, repo, planned):
+                    new_version = _next_version(carried, published(fragments(carried)), channel)
+                    planned[carried.id] = Planned(carried, carried.version, new_version, carried_by=item.component.id)
+                    plan_grew = True
     return sorted(planned.values(), key=lambda p: p.component.id)
+
+
+def _carried_with_changes(
+    image: Component, components: list[Component], repo: Path, planned: dict[str, Planned]
+) -> list[Component]:
+    return [
+        carried
+        for carried in components_in_image(image, components, repo)
+        if carried.id not in planned and fragments(carried)
+    ]
 
 
 def release_planned(planned: list[Planned], *, channel: str = STABLE, on: date | None = None) -> Report:
@@ -843,6 +868,8 @@ def describe_plan(planned: list[Planned]) -> list[str]:
     lines = []
     for item in planned:
         why = f"{len(fragments(item.component))} fragment(s)" if item.has_own_fragments else "; ".join(item.reasons)
+        if item.carried_by:
+            why += f"; its code is in the image of {item.carried_by}"
         lines.append(f"{item.component.id:<{id_width}}  {item.old} -> {item.new}  ({why})")
     return lines or ["nothing to release: no component has pending fragments"]
 
@@ -854,6 +881,42 @@ def _is_exempt(relative: Path, paths: tuple[str, ...] = ()) -> bool:
     if paths:
         return not any(relative.parts[: len(Path(p).parts)] == Path(p).parts for p in paths)
     return relative.parts[0] in EXEMPT_PATHS
+
+
+def _root_in_repo(component: Component, repo: Path) -> Path | None:
+    try:
+        return component.root.resolve().relative_to(repo.resolve())
+    except ValueError:
+        return None
+
+
+def is_changed_without_entry(component: Component, changed: list[tuple[str, str]], repo: Path) -> bool:
+    root = _root_in_repo(component, repo)
+    if root is None:
+        return False
+    touched = added_fragment = False
+    for status, path in changed:
+        relative = Path(path)
+        if relative.is_relative_to(CONTENT_PATH):
+            continue  # the highlights and the roadmap are edited on their own, with no entry for it
+        if root != Path(".") and not relative.is_relative_to(root):
+            continue
+        inside = relative.relative_to(root) if root != Path(".") else relative
+        if inside.parts[:1] == (FRAGMENT_DIR,):
+            # Only a file directly in the directory is a change note, and not its README.
+            if len(inside.parts) == 2 and inside.suffix == ".md" and not inside.name.upper().startswith("README"):
+                added_fragment |= status.startswith("A")
+        elif not _is_exempt(inside, component.paths):
+            touched = True
+    return touched and not added_fragment
+
+
+def _missing_entry_message(component: Component) -> str:
+    return (
+        f"{component.id}: changed without a changelog entry. Add one with\n"
+        f'    python scripts/changelog.py new {component.id} --kind <{"|".join(KINDS)}> --title "..."\n'
+        f"  or `--kind {INTERNAL}` when users cannot notice the change."
+    )
 
 
 def check(
@@ -875,30 +938,10 @@ def check(
     """
     report = validate(components, content=repo / CONTENT_PATH)
     for component in components:
-        try:
-            root = component.root.resolve().relative_to(repo.resolve())
-        except ValueError:
+        if _root_in_repo(component, repo) is None:
             continue
-        touched = added_fragment = False
-        for status, path in changed:
-            relative = Path(path)
-            if relative.is_relative_to(CONTENT_PATH):
-                continue  # the highlights and the roadmap are edited on their own, with no entry for it
-            if root != Path(".") and not relative.is_relative_to(root):
-                continue
-            inside = relative.relative_to(root) if root != Path(".") else relative
-            if inside.parts[:1] == (FRAGMENT_DIR,):
-                # Only a file directly in the directory is a change note, and not its README.
-                if len(inside.parts) == 2 and inside.suffix == ".md" and not inside.name.upper().startswith("README"):
-                    added_fragment |= status.startswith("A")
-            elif not _is_exempt(inside, component.paths):
-                touched = True
-        if touched and not added_fragment:
-            report.errors.append(
-                f"{component.id}: changed without a changelog entry. Add one with\n"
-                f'    python scripts/changelog.py new {component.id} --kind <{"|".join(KINDS)}> --title "..."\n'
-                f"  or `--kind {INTERNAL}` when users cannot notice the change."
-            )
+        if is_changed_without_entry(component, changed, repo):
+            report.errors.append(_missing_entry_message(component))
         if release_ready:
             try:
                 pending = published(fragments(component))
@@ -969,6 +1012,44 @@ def git_versions_at(repo: Path, ref: str, components: list[Component]) -> dict[s
         if version:
             versions[component.id] = version
     return versions
+
+
+#: The line of a manifest that holds the version, as `git log -G` reads it.
+_GIT_VERSION_LINE = {
+    "pyproject.toml": r"^version[[:space:]]*=",
+    "package.json": r'"version"[[:space:]]*:',
+}
+
+
+def git_last_version_change(repo: Path, component: Component) -> str | None:
+    manifest = component.manifest.resolve().relative_to(repo.resolve()).as_posix()
+    result = subprocess.run(
+        ["git", "log", "-1", "--format=%H", "-G", _GIT_VERSION_LINE[component.manifest_name], "--", manifest],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    commit = result.stdout.strip()
+    return commit if result.returncode == 0 and commit else None
+
+
+def changes_without_entry_before_sending(
+    planned: list[Planned], chosen: list[Component], components: list[Component], repo: Path
+) -> list[str]:
+    going = {item.component.id: item.component for item in planned}
+    going.update({component.id: component for component in chosen})
+    for component in list(going.values()):
+        for carried in components_in_image(component, components, repo):
+            going.setdefault(carried.id, carried)
+    errors = []
+    for component in going.values():
+        last_release = git_last_version_change(repo, component)
+        if last_release is None:
+            continue
+        if is_changed_without_entry(component, git_changed(repo, last_release), repo):
+            errors.append(_missing_entry_message(component))
+    return errors
 
 
 def git_changed(repo: Path, base: str) -> list[tuple[str, str]]:
@@ -1094,6 +1175,12 @@ def brief(components: list[Component], content: Path, *, since: date | None = No
 # ---------------------------------------------------------------------------
 
 
+_PACKAGES_HELP = (
+    "send only these packages (id or directory), with the images that must follow and the changed code "
+    "those images bake in; none: everything that is due"
+)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="changelog.py", description=__doc__.split("\n\n")[0])
     parser.add_argument("--repo", type=Path, default=None, help="repository root (default: the current directory)")
@@ -1129,6 +1216,7 @@ def _parser() -> argparse.ArgumentParser:
         "plan", help="what a release of everything pending would contain, without changing anything"
     )
     plan_cmd.add_argument("--channel", choices=CHANNELS, default=STABLE, help="rc for a release candidate")
+    plan_cmd.add_argument("packages", nargs="*", metavar="package", help=_PACKAGES_HELP)
 
     all_cmd = commands.add_parser(
         "release-all", help="release everything that is due: the plan, with versions, notes and rebuilt images"
@@ -1137,6 +1225,7 @@ def _parser() -> argparse.ArgumentParser:
         "--channel", choices=CHANNELS, default=STABLE, help="rc for a release candidate: versions only"
     )
     all_cmd.add_argument("--date", default=None, help="release date, YYYY-MM-DD (default: today)")
+    all_cmd.add_argument("packages", nargs="*", metavar="package", help=_PACKAGES_HELP)
 
     check_cmd = commands.add_parser("check", help="pull request check: changed components have a fragment")
     check_cmd.add_argument("--base", required=True, help="the branch the pull request targets, e.g. origin/dev")
@@ -1186,12 +1275,18 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
             component = find(components, args.component)
             return _print(release(component, version=args.version, bump_how=args.bump, on=on, summary=args.summary))
         if args.command == "plan":
-            print("\n".join(describe_plan(plan_release(components, repo, args.channel))))
-            return 0
+            planned = plan_release(components, repo, args.channel, args.packages)
+            print("\n".join(describe_plan(planned)))
+            chosen = chosen_components(components, args.packages)
+            return _print(Report(errors=changes_without_entry_before_sending(planned, chosen, components, repo)))
         if args.command == "release-all":
             on = date.fromisoformat(args.date) if args.date else None
-            planned = plan_release(components, repo, args.channel)
+            planned = plan_release(components, repo, args.channel, args.packages)
             print("\n".join(describe_plan(planned)))
+            chosen = chosen_components(components, args.packages)
+            problems = Report(errors=changes_without_entry_before_sending(planned, chosen, components, repo))
+            if not problems.ok:
+                return _print(problems)
             return _print(release_planned(planned, channel=args.channel, on=on))
         if args.command == "check":
             base_versions = git_versions_at(repo, args.base, components) if args.release_ready else None
