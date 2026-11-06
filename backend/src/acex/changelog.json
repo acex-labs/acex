@@ -4,6 +4,305 @@
   "name": "ACEX backend",
   "releases": [
     {
+      "version": "7.0.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261013-node-provision-status-enrolled-replaces-",
+          "kind": "changed",
+          "title": "Node provision status 'enrolled' replaces 'pending' and 'bootstrapping'",
+          "description": "A node waiting in ZTP now has the provision status `enrolled`; its stage (awaiting device, awaiting approval, ready) is shown by the ZTP pipeline. The database migration converts existing `pending` and `bootstrapping` nodes and agent match rules. Update scripts or filters that use the old values.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-the-ztp-script-moved-to-a-new-url-and-ne",
+          "kind": "changed",
+          "title": "The ZTP script moved to a new URL and needs a bootstrap login to be set",
+          "description": "The Cisco IOS XE script is now served at `/api/v1/ztp/init_config/cisco_iosxe_python/ztp.py` (it was `.../cisco_iosxe/ztp.py`), and the list at `/api/v1/ztp` is gone. The script uses the bootstrap login set for the method and answers 503 until one is set. Update the URL that devices are pointed at and set the login before devices boot.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-a-setting-tells-the-server-which-proxies",
+          "kind": "added",
+          "title": "A setting tells the server which proxies to trust for the client address",
+          "description": "ZTP identifies a device by the address it fetched its script from, so behind a reverse proxy the server must trust the proxy's forwarded address. Set `forwarded_allow_ips` in the server section to the proxy's address or network; unset, only local connections are trusted.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261027-agents-report-which-version-and-build",
+          "kind": "added",
+          "title": "Agents report which version and build they run",
+          "description": "Collection and telemetry agents now send the version of their package, the commit their image was built from and the branch that build ran on (`dev` for development images) with every acknowledgement. The API stores them and returns them as `agent_version`, `build_id` and `build_ref` on each agent, and `/api/v1/health/about` returns `build_ref` next to `build_id`. An agent that is too old to report them shows none until it is updated; an agent that stops reporting after a rollback shows none as well.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-background-jobs-for-workers-run-through-",
+          "kind": "added",
+          "title": "Background jobs for workers run through a RabbitMQ broker",
+          "description": "The backend can now hand work (such as device discovery and provisioning) to separate worker processes through RabbitMQ. Set `ACEX_RABBITMQ_HOST` to switch it on; port, virtual host, user and password are set the same way. Without a host, the job features answer 503 and nothing is queued.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#312",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261029-timestamped-console-logging",
+          "kind": "added",
+          "title": "Console logs include timestamps",
+          "description": "The API server now includes timestamps in application and HTTP access logs.\nDevelopment mode shows INFO-level logs from all loggers; production mode keeps\nACEX logs at INFO and other application logs at WARNING.\n\nCustom applications can enable the same process-wide logging configuration with\n`AutomationEngine(configure_logging=True)`. It is disabled by default for custom\napplications, preserving their existing logging configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-devices-that-fetch-their-ztp-bootstrap-a",
+          "kind": "added",
+          "title": "Devices that fetch their ZTP bootstrap are discovered automatically",
+          "description": "When a new device downloads its ZTP script, the backend queues a discovery: a worker logs in and reports the device's serial number, vendor, model and OS version, starting with Cisco IOS XE. `GET /api/v1/ztp_calls` shows which devices called in and how discovery went; `POST /api/v1/ztp_calls/{source_ip}/retry` runs it again. Needs a RabbitMQ broker and a worker.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            },
+            {
+              "label": "#312",
+              "url": null
+            },
+            {
+              "label": "#318",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-discovered-devices-are-reviewed-before-a",
+          "kind": "added",
+          "title": "Discovered devices are reviewed before an asset is created or updated",
+          "description": "Each discovery lists what approving it would do (create the asset with that serial, update it, leave it, or blocked and why) and any conflicts such as the same serial on another address. Discoveries can be approved or rejected one by one or in bulk, with a dry run, under `/api/v1/ztp_discoveries`. Approving never changes a node.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-jobs-can-be-listed-cancelled-requeued-an",
+          "kind": "added",
+          "title": "Jobs can be listed, cancelled, requeued and deleted through the API",
+          "description": "A new `/api/v1/workers` API lists jobs (filter by state, type or subject), shows one job with its result or error, and lets you cancel, requeue a failed or cancelled job, delete one, or purge them by state. It also tells a starting worker which broker and queues to use.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#312",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261028-manage-cves-and-queue-nvd-discovery",
+          "kind": "added",
+          "title": "Manage CVEs and queue discovery from NVD",
+          "description": "The CVE API supports paginated listing, individual retrieval, creation, updates,\nand bulk ingestion, including CVSS scores and base severity. Queue background\ndiscovery by vendor and optional date range through `/api/v1/cves/discover`.\n\nAuthenticated callers can store, retrieve, replace, or remove the optional NVD\nAPI key through `/api/v1/cves/api_key`. The key is encrypted at rest using\n`ACEX_CREDENTIALS_ENCRYPTION_KEY`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-nodes-can-be-enrolled-in-ztp-provisioned",
+          "kind": "added",
+          "title": "Nodes can be enrolled in ZTP, provisioned and cancelled from a pipeline view",
+          "description": "`/api/v1/ztp_nodes` shows each ZTP node's stage (awaiting device, awaiting approval, ready, provisioning, failed) with stalled ones first, plus a summary count. A ready node can be provisioned, which queues a job for a worker; a node can also be cancelled back to its earlier status or reset to enrolled.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261028-patch-a-path-of-the-configuration-on",
+          "kind": "added",
+          "title": "Patch a path of the configuration on selected nodes, from a reviewed plan",
+          "description": "`POST /api/v1/operations/patch/render` reads each node live and renders the patch that brings its configuration at the chosen paths, such as `system.ntp.servers`, to the desired state; nothing is sent. With `prune`, what the device holds there that the desired configuration doesn't declare is removed too. `POST /api/v1/operations/patch/apply` sends the plan's patches to the nodes you choose from it: each node is read again and patched only if it still renders the planned patch, then read once more to verify. Plans and applies are runs like the others, listed with `kind=patch`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-whats-new-page",
+          "kind": "added",
+          "title": "Release notes are shown under Settings > What's new",
+          "description": "What was added, changed and fixed in each release is now part of ACEX itself,\ntogether with a short list of what is planned next. The notes cover the\nbackend and every installed component that publishes its own, such as device\ndrivers. They ship inside the packages, so an installation without internet\naccess sees the same notes.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261023-run-commands-on-selected-nodes-and-read",
+          "kind": "added",
+          "title": "Run commands and ping on nodes, and read each node's response",
+          "description": "Runs order an operation on a list of nodes, one job per node. `POST /api/v1/operations/execute` runs raw commands; `POST /api/v1/operations/actions/ping` pings with the same params on every vendor (target, count 1–100, timeout, VRF, source interface, size 36–9216 with don't-fragment). Only nodes whose driver supports the operation are accepted. `GET /api/v1/operations/runs` lists runs, `GET /api/v1/operations/runs/{id}` gives each node's response sorted by hostname, and `/report?format=csv|json` downloads it. Failed jobs are not retried. Drivers now report what they support under `capabilities` in `/api/v1/neds`. Runs need RabbitMQ and a worker; the new `acex.operations` queue is declared on its own, but running workers must be restarted to consume it.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261024-runs-and-batches-show-when-their-last",
+          "kind": "added",
+          "title": "Runs and batches show when their last job finished",
+          "description": "`finished_at` on a run in `/api/v1/operations/runs`, and on a batch's parent in `/api/v1/jobs`, is when the last of its jobs finished. It stays empty while any job is queued or running, so a run's duration is `finished_at` minus `created_at`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261022-see-when-a-node-s-configuration-was-last",
+          "kind": "added",
+          "title": "See when a node's configuration was last collected",
+          "description": "The observed configuration of a node now says when the collection agent last polled the node, in a new `last_collected_at` field next to `created_at`. Until now ACEX only kept the time of the last change, so a node that had not changed for days looked the same as one that was never polled. `GET .../configuration/observed/latest`, `GET .../configuration/observed/{config_id}` and the list of observed configurations return it. A configuration stored before this release has no value until the node is polled again, which happens at the next collection.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-running-versions",
+          "kind": "added",
+          "title": "Settings > About shows which versions are running",
+          "description": "The About page lists the version of the web interface and the backend, the\nPython version, the ACEX packages installed in the backend and every device\ndriver, and the build a development image was made from. Use it when\nreporting a problem, or to check that an update has reached all parts of the\ninstallation.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-stalled-ztp-provisioning-is-flagged-afte",
+          "kind": "added",
+          "title": "Stalled ZTP provisioning is flagged after a configurable time",
+          "description": "A provisioning job that nobody picks up for 10 minutes, or that runs for more than 30 minutes without finishing, is shown as stalled in the ZTP pipeline. Both limits are settings in the `ztp` section (`provision_queue_timeout_minutes`, `provision_run_timeout_minutes`).",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-the-driver-and-bootstrap-login-for-each-",
+          "kind": "added",
+          "title": "The driver and bootstrap login for each ZTP method can be set in the API",
+          "description": "`GET /api/v1/ztp_methods` lists the ZTP methods; `PUT /api/v1/ztp_methods/{method}` sets which driver discovery uses and the temporary bootstrap username and password. A driver that is not installed in the backend is refused with 422.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261024-workflows-run-saved-steps-in-order-on",
+          "kind": "added",
+          "title": "Workflows run steps on a graph, each on its own nodes",
+          "description": "A workflow is a graph from start to end under `/api/v1/operations/workflows`. Each box is a step with its own nodes:\n\n- execute: raw commands\n- action: an abstract action run from the node, such as ping\n- probe: a ping from ACEX itself, to the nodes' management IPs or to an address\n- compute: values computed from earlier artifacts\n- assert: checks that must hold, or the run fails\n- condition: chooses the edges of its true or false side\n- wait: waits without holding a worker\n\nEach step names the artifacts it leaves as expressions over its own `result`, for example\n`version = regex(result.output, \"Version (\\S+)\")`. Later steps read them by name: `show interface {iface}` or\n`percent(reachable) >= 95`. Expressions are a fixed language, not code.\n\nEdges may branch, rejoin and loop back. A step waits for every branch into it that can still finish, and a\nstep that fails stops the run. A step that runs more often than the workflow's `max_rounds` (100 by default)\nfails the run too.\n\nA workflow is saved as it is drawn. Its `check` lists what keeps it from running, warns about loops with no way\nout or no wait, and lists the artifacts each step can read. `POST /api/v1/operations/workflows/check` checks a\ngraph without saving it.\n\n`POST /api/v1/operations/workflows/{id}/runs` starts a run in one of three modes:\n\n- `run` goes to the end.\n- `evaluate` pauses after each step until it is continued.\n- `dry_run` reaches no device and shows what each step would send.\n\nRuns can be stopped, and finished runs deleted with everything they produced. Workflow runs are not listed\namong bulk runs.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-driver-packages-for-workers-are-built-fr",
+          "kind": "changed",
+          "title": "Driver packages for workers are built from the installed code at startup",
+          "description": "The backend now packages each installed driver into a temporary directory when it starts, so the wheel always matches the code that runs; the `packages/neds/` folder in the working directory is no longer created or used. Downloads from the drivers API serve only these wheels.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#312",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261024-runs-are-ordered-by-username",
+          "kind": "changed",
+          "title": "Runs and ZTP retries record who ordered them by username",
+          "description": "`created_by` on new runs and on retried ZTP discoveries is the user's username instead of their user id. Runs ordered before keep the id.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-updating-a-node-returns-the-node-in-the-",
+          "kind": "changed",
+          "title": "Updating a node returns the node in the same form as reading it",
+          "description": "The response to a node update now has the same fields as `GET` on that node, so a client can read both the same way.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261024-a-node-read-on-its-own-includes-its",
+          "kind": "fixed",
+          "title": "A node read on its own includes its management connections",
+          "description": "`GET /api/v1/inventory/node_instances/{id}` returned an empty `management_connections` list, so workers could not log in to the node, e.g. a ping failed with \"has no management connection of type ssh\". It now holds the node's connections, primary first, as the node list does.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261029-create-cve-tables-on-startup",
+          "kind": "fixed",
+          "title": "Create CVE tables when the backend starts",
+          "description": "The backend now migrates the database to create the CVE records, workflow state\nand sync checkpoint tables. This fixes CVE requests failing with\n`relation \"cve\" does not exist`. Restart the backend after updating to apply\nthe migration automatically.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "6.27.0",
       "date": "2026-10-15",
       "summary": "The backend's settings use new ACEX_* names and the old names are no longer read; rename them before upgrading.",

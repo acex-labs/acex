@@ -4,6 +4,48 @@
   "name": "Cisco IOS CLI driver",
   "releases": [
     {
+      "version": "5.1.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261028-cisco-ios-renders-configuration-patches",
+          "kind": "added",
+          "title": "Cisco IOS renders configuration patches",
+          "description": "Patches are written in the device's own syntax: changed lines under the block they sit in, and removals as `no` lines, or `no` and the block's header for a whole block.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261024-ping-from-cisco-ios-devices",
+          "kind": "added",
+          "title": "Ping from Cisco IOS devices",
+          "description": "The driver runs the ping action: `ping [vrf X] target repeat N [size S df-bit] timeout T [source IF]`, reporting packets sent and received and round-trip times. A ping the device refuses, e.g. to an unknown host, fails with the device's reason.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-discovery-of-a-bare-device-reads-the-rea",
+          "kind": "fixed",
+          "title": "Discovery of a bare device reads the real model, serial and software version",
+          "description": "Discovery now logs in to the device over SSH with the given credentials and runs `show version`, instead of returning the same fixed model, serial number and software version for every device. The model, serial number and software version are taken from that output; a value the device does not report is returned empty. The operating system is still always reported as `cisco_iosxe`, and the vendor as `cisco`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#317",
+              "url": null
+            },
+            {
+              "label": "#318",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "2.7.4",
       "date": "2026-10-15",
       "entries": [

@@ -4,6 +4,26 @@
   "name": "ACEX CLI",
   "releases": [
     {
+      "version": "5.0.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261013-node-status-is-split-into-admin-status-a",
+          "kind": "changed",
+          "title": "Node `status` is split into `admin_status` and `provision_status`",
+          "description": "`acex node list` no longer has `--status`; use `--admin-status` (planned, active, decommissioned) and `--provision-status` instead. The node table, `acex node show`, and JSON/CSV output now carry `admin_status` and `provision_status` instead of `status`, so scripts that read `status` or pass `--columns status` must be updated. Needs a server that has the same change.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#292",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "4.5.1",
       "date": "2026-09-02",
       "summary": "The compact and flat diff views work with changes, and `acex version` prints a version again.",

@@ -4,6 +4,44 @@
   "name": "ACEX collection agent",
   "releases": [
     {
+      "version": "0.17.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261027-the-agent-reports-its-version-and-build",
+          "kind": "added",
+          "title": "The agent reports its version and build to ACEX",
+          "description": "Every acknowledgement carries the version of the package, the commit the image was built from and the branch that build ran on, so Settings > About can show what each agent runs. The image takes them from the build arguments `BUILD_ID` and `BUILD_REF` and exposes them as `ACEX_BUILD_ID` and `ACEX_BUILD_REF`; an image built without them reports no build.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": []
+        },
+        {
+          "id": "20261013-collection-agent-container-starts-again-",
+          "kind": "fixed",
+          "title": "Collection agent container starts again after the 0.15.0 dependency update",
+          "description": "The container image could end up with an older `acex-devkit` than the agent needs and stop at startup with an `ImportError` for `AgentNodeSet`. The image build now installs the bundled devkit last, so the right version is always used. Rebuild or pull the new image.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#290",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261024-the-collection-agent-collects-through",
+          "kind": "fixed",
+          "title": "The collection agent collects through the new driver interface",
+          "description": "Since the drivers moved to the new interface, the agent failed on every device with `'CiscoIOSCLIDriver' object has no attribute 'transport'` and collected nothing. It now opens a session on the driver, reads the configuration and the neighbors through it and uploads them as before. It needs a backend that serves the new drivers (Cisco IOS driver 5 and Junos driver 2).",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "0.15.0",
       "date": "2026-09-25",
       "summary": "The agent finds itself by name, picks up new drivers without a restart and no longer bundles the Cisco IOS driver.",
