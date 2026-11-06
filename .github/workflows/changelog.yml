@@ -13,7 +13,8 @@ jobs:
   fragments:
     name: Changelog entry
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+    # The Release workflow's own pull request only stamps versions and compiles notes.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') && !startsWith(github.head_ref, 'chore/release-') }}
     steps:
       - name: Checkout (full history, for the diff against the target branch)
         uses: actions/checkout@v5
