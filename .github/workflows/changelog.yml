@@ -1,19 +1,20 @@
 name: Changelog
 
-# Every pull request that changes a component carries a changelog fragment
-# (for example backend/changelog.d/<date>-<slug>.md), written for the people
-# who use ACEX. See docs/guides/changelog.md. Label a pull request
-# `no-changelog` to skip the check, or add a `kind: internal` fragment.
+# dev is free: a pull request into dev is not asked for a changelog fragment. The entry is
+# required when a package is sent to stage (the Release workflow), and for every changed
+# component in a pull request into main. Fragments that exist must be well-formed.
+# See docs/guides/changelog.md.
 
 on:
   pull_request:
-    branches: [main, stage, dev]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    branches: [main, dev]
 
 jobs:
   fragments:
     name: Changelog entry
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+    if: ${{ !github.event.pull_request.draft && !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
     steps:
       - name: Checkout (full history, for the diff against the target branch)
         uses: actions/checkout@v5
@@ -25,12 +26,12 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Changed components have an entry, and entries are well-formed
-        env:
-          BASE: origin/${{ github.base_ref }}
-          # Into main, a version that is about to be published must carry its notes.
-          RELEASE_READY: ${{ github.base_ref == 'main' && '--release-ready' || '' }}
-        run: python scripts/changelog.py check --base "$BASE" $RELEASE_READY
+      - name: Fragments are well-formed
+        run: python scripts/changelog.py validate
+
+      - name: Into main, changed components have an entry and the version carries its notes
+        if: github.base_ref == 'main'
+        run: python scripts/changelog.py check --base "origin/${{ github.base_ref }}" --release-ready
 
       - name: Compiled changelog files are current
         run: python scripts/changelog.py build --check
