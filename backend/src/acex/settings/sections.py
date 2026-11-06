@@ -143,11 +143,6 @@ class GitSyncSettings(Section, name="git_sync"):
     checkout_dir: str | None = None
     #: How long one git command may run, in seconds.
     timeout_seconds: int = Field(default=120, ge=1)
-    #: The realm role (the token's `realm_access.roles`) a caller needs to see or change
-    #: repositories; the same role the web interface shows admin mode for. ConfigMaps are code
-    #: the backend runs, so whoever can point it at a repository can run code on it. Empty to let
-    #: every signed-in user in.
-    admin_role: str = "naas-admin"
 
 
 class ChangelogSettings(Section, name="changelog"):

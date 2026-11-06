@@ -103,3 +103,83 @@ ae.add_configmap_dir("./config_maps")   # scan all .py files in directory
 ```
 
 Any module-level `ConfigMap` instance found in the scanned files is registered automatically.
+
+## Syncing ConfigMaps from git
+
+ConfigMaps can also be read from a git repository, so the backend needs nothing mounted. Add the
+repository under **Settings > Git Repositories** in the web interface, or through the API as below; the backend checks it out, loads the ConfigMaps in it the same way as
+from a directory, and loads them again when the branch moves.
+
+1. Create a personal access token on the git host with read access to the repository, and store it as a
+   `token` credential:
+
+    ```bash
+    curl -X POST $ACEX/api/v1/inventory/credentials \
+      -d '{"name": "config-maps-pat", "credential_type": "token", "fields": {"token": "<PAT>"}}'
+    ```
+
+2. Add the repository, naming the credential's id:
+
+    ```bash
+    curl -X POST $ACEX/api/v1/git_repositories -d '{
+      "name": "network-config",
+      "url": "https://github.com/example/network-config.git",
+      "branch": "main",
+      "path": "config_maps",
+      "auth_method": "https_token",
+      "credential_id": 12
+    }'
+    ```
+
+    The answer says which commit was loaded (`commit`), which ConfigMaps it holds (`config_maps`) and,
+    if it failed, why (`last_error`).
+
+| Field | Meaning |
+|---|---|
+| `url` | The HTTPS clone URL. Credentials in the URL are refused. |
+| `branch` | The branch to follow. Default `main`. |
+| `path` | The directory in the repository that holds the ConfigMaps. Empty for its root. |
+| `auth_method` | `https_token`: a personal access token from a `token` credential. `https_anonymous`: a public repository. |
+| `credential_id` | The credential holding the token. A Vault-backed credential works too. |
+| `username` | Sent with the token. Most hosts accept any; Bitbucket wants the account's username. |
+| `ca_certificate` | PEM certificates to trust for the host, for one whose certificate an internal CA signed. Include intermediates the host doesn't send. Left out, the system's trusted CAs are used. |
+| `enabled` | A disabled repository is not synced and its ConfigMaps are not used. |
+
+### When ConfigMaps are loaded again
+
+Every API process checks each repository when it starts and then every 30 minutes. A check asks the host
+for the branch's latest commit (`git ls-remote`); only when it has moved, or the repository's settings
+changed, is the commit fetched and loaded. `POST /api/v1/git_repositories/{id}/sync` fetches and loads
+the latest commit at once.
+
+A commit is loaded only if every file in it imports. If one fails, the ConfigMaps already loaded stay in
+use and `last_error` names the file, so a broken push never leaves devices compiled from part of the
+ConfigMaps. The commit is not tried again until the branch moves or a sync is requested.
+
+If the host can't be reached, the loaded ConfigMaps stay in use. A process that starts while the host is
+unreachable loads the last checkout, if `ACEX_GIT_SYNC_CHECKOUT_DIR` points at a volume that kept it.
+
+With several API processes, the one that answers a change loads it at once; the others pick it up at
+their next check. `config_maps` in an answer is what the answering process has loaded.
+
+### Settings
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `ACEX_GIT_SYNC_POLL_INTERVAL_SECONDS` | `1800` | How often each repository is checked. At least 60. |
+| `ACEX_GIT_SYNC_CHECKOUT_DIR` | a directory under the system temp directory | Where repositories are checked out. |
+| `ACEX_GIT_SYNC_TIMEOUT_SECONDS` | `120` | How long one git command may run. |
+
+!!! warning
+    A ConfigMap is Python code that the backend runs. Anyone who can change the repository, or point the
+    backend at another one, can run code on the backend. Keep write access to the repository as tight as
+    access to the backend itself.
+
+A host signed by an internal CA fails with `SSL certificate problem: unable to get local issuer certificate`.
+Give the repository the CA chain as `ca_certificate` (in the web interface: *Trust an internal CA…*), or
+trust the CA for every repository by building it into the backend image's trust store or pointing
+`GIT_SSL_CAINFO` at a bundle. Turning certificate checks off is not offered: the token would go to whoever
+can intercept the connection.
+
+The token never appears in a URL, in the checkout's `.git/config` or on a command line: git reads it from
+the environment of the one command that needs it.

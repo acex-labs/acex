@@ -277,29 +277,25 @@ def test_only_allowed_protocols_are_used(remote):
 def _client(env, monkeypatch):
     manager, *_ = env
     monkeypatch.setattr(auth, "OIDC_ISSUER_URL", "https://idp.example.com")
-    # The bearer token here is the caller's one realm role.
-    monkeypatch.setattr(
-        auth,
-        "_decode",
-        lambda token, force_jwks_refresh=False: {"sub": token, "realm_access": {"roles": [token]}},
-    )
+    # The bearer token here is the caller's username.
+    monkeypatch.setattr(auth, "_decode", lambda token, force_jwks_refresh=False: {"sub": token})
     engine = type("Engine", (), {"git_sync": manager, "settings": type("S", (), {"git_sync": manager.settings})})
     app = FastAPI()
     app.include_router(git_repositories.create_router(engine))
     return TestClient(app)
 
 
-def test_the_api_is_for_administrators_only(env, monkeypatch):
+def test_the_api_is_open_to_every_signed_in_user_and_no_one_else(env, monkeypatch):
     client = _client(env, monkeypatch)
 
-    assert client.get("/api/v1/git_repositories", headers={"Authorization": "Bearer naas-user"}).status_code == 403
-    assert client.get("/api/v1/git_repositories", headers={"Authorization": "Bearer naas-admin"}).json() == []
+    assert client.get("/api/v1/git_repositories").status_code == 401
+    assert client.get("/api/v1/git_repositories", headers={"Authorization": "Bearer anna"}).json() == []
 
 
 def test_the_api_adds_syncs_and_deletes_a_repository(env, monkeypatch, remote):
     manager, compiler, credentials, _ = env
     client = _client(env, monkeypatch)
-    admin = {"Authorization": "Bearer naas-admin"}
+    admin = {"Authorization": "Bearer anna"}
     token = credentials.create(CredentialCreate(name="pat", credential_type="token", fields={"token": "t"}))
 
     rejected = client.post(
@@ -314,7 +310,7 @@ def test_the_api_adds_syncs_and_deletes_a_repository(env, monkeypatch, remote):
     )
     assert created.status_code == 201
     body = created.json()
-    assert body["created_by"] == "naas-admin"
+    assert body["created_by"] == "anna"
     assert body["last_error"].startswith("Could not reach the repository")
 
     duplicate = client.post(

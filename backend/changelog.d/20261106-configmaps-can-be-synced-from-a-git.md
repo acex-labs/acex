@@ -15,6 +15,5 @@ A host whose certificate an internal CA signed is trusted by giving the reposito
 A commit in which a file fails to import is not loaded: the ConfigMaps already in use stay, and the
 repository's `last_error` names the file.
 
-ConfigMaps are code the backend runs, so only users with the `naas-admin` realm role, the same role that
-turns on admin mode in the web interface, can see or change repositories. Name another role with
-`ACEX_GIT_SYNC_ADMIN_ROLE`. The backend image now includes git.
+Every signed-in user can add and change repositories. ConfigMaps are code the backend runs, so keep write
+access to the repositories as tight as access to ACEX itself. The backend image now includes git.
