@@ -1,8 +1,9 @@
 name: Image build check
 
-# A pull request that changes how an image is built, such as its Dockerfile, its pinned base image or its pinned
-# dependencies, builds that image once without publishing it. A pin that no longer installs then fails here and
-# not on the next push to dev. Dependabot's pull requests for the base image get the same check.
+# A pull request that changes how an image is built, such as its Dockerfile, its pinned base image, its pinned
+# dependencies or the dependencies in its pyproject.toml, builds that image once without publishing it. A pin that
+# no longer installs then fails here and not on the next push to dev. Dependabot's pull requests for the base image
+# get the same check.
 
 on:
   pull_request:
@@ -12,6 +13,7 @@ on:
       - "**/Dockerfile.*"
       - "**/constraints.txt"
       - "**/poetry.lock"
+      - "**/pyproject.toml"
       - ".github/workflows/image-build-check.yml"
 
 permissions:
