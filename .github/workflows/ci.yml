@@ -1537,3 +1537,39 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/acex-worker:${{ needs.check-worker-image.outputs.version }}
             ${{ !contains(needs.check-worker-image.outputs.version, 'rc') && format('ghcr.io/{0}/acex-worker:latest', github.repository_owner) || '' }}
+
+  # A version that a push published is tagged <package>-<version> on the commit that published it: release candidates
+  # on dev, stable versions on main. A stable release is compared with the tag of its release candidate, so a tag
+  # must stay where it was put.
+  tag-versions:
+    name: Tag the versions
+    needs:
+      - publish-packages
+      - publish-drivers
+      - build-and-push-backend
+      - build-and-push-collection-agent
+      - build-and-push-telemetry-agent
+      - build-and-push-grafana-sync-agent
+      - build-and-push-mcp
+      - build-and-push-worker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # failure() is true when any job this one depends on, directly or not, failed. A job that was skipped does not
+    # count: on dev the packages and images of a stable version are skipped, and there is nothing to tag for them.
+    if: ${{ github.event_name == 'push' && !cancelled() && !failure() }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Tag what this push published
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: scripts/tag_published_versions.sh "$GITHUB_REF_NAME" "$BEFORE" "$GITHUB_SHA"

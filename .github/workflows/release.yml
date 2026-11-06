@@ -63,6 +63,8 @@ jobs:
         env:
           CHANNEL: ${{ inputs.channel }}
           PACKAGES: ${{ inputs.packages }}
+          # The plan goes to a file together with the errors; unbuffered, the errors do not come before the plan.
+          PYTHONUNBUFFERED: "1"
         run: |
           read -ra packages <<< "$PACKAGES"
           status=0
@@ -76,7 +78,7 @@ jobs:
               cat "$RUNNER_TEMP/plan.txt"
               echo '```'
               echo
-              echo "Add what is listed, then run the workflow again."
+              echo "Fix what is listed (write the entry, send a new candidate, or revert the change), then run the workflow again."
             } >> "$GITHUB_STEP_SUMMARY"
             exit "$status"
           fi

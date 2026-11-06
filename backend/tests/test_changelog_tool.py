@@ -2,7 +2,10 @@
 version when the release is cut. Nobody edits a shared file and nobody types a version."""
 
 import json
+import os
+import shutil
 import subprocess
+import sys
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -1344,8 +1347,10 @@ def commit_all(repo: Path, message: str = "change") -> None:
     git(repo, "commit", "-q", "-m", message)
 
 
-def change_code(repo: Path, relative: str) -> None:
-    (repo / relative).write_text("x = 1\n", encoding="utf-8")
+def change_code(repo: Path, relative: str, text: str = "x = 1\n") -> None:
+    path = repo / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
     commit_all(repo, f"change {relative}")
 
 
@@ -1416,6 +1421,787 @@ class TestChangesWithoutAnEntryBeforeSending:
         commit_all(in_git, "entry")
         assert tool.main(["release-all", "--channel", "rc", "acex-client"], repo=in_git) == 0
         assert version_in(in_git, "client") == "4.11.1rc1"
+
+
+def cut_candidate(repo: Path, *refs: str) -> list[tool.Planned]:
+    planned = plan(repo, tool.CANDIDATE, list(refs))
+    tool.release_planned(planned, channel=tool.CANDIDATE)
+    commit_all(repo, "candidate")
+    for item in planned:
+        git(repo, "tag", tool.release_tag(item.component, item.new))
+    return planned
+
+
+def release_as_stable(repo: Path, *refs: str) -> None:
+    tool.release_planned(plan(repo, tool.STABLE, list(refs)), channel=tool.STABLE)
+    commit_all(repo, "stable")
+
+
+def changed_since_candidates_of(repo: Path, *refs: str, channel: str = tool.STABLE) -> list[str]:
+    return tool.changes_since_candidates(plan(repo, channel, list(refs)), repo)
+
+
+def component_of(repo: Path, component_id: str) -> tool.Component:
+    return next(c for c in tool.discover(repo) if c.id == component_id)
+
+
+def about(errors: list[str], component_id: str) -> list[str]:
+    return [error for error in errors if error.startswith(f"{component_id}: ")]
+
+
+class TestReleaseTags:
+    def should_name_a_tag_after_the_component_and_its_version(self, workspace):
+        agent = component_of(workspace, "acex-collection-agent")
+
+        assert tool.release_tag(agent, "0.17.0rc1") == "acex-collection-agent-0.17.0rc1"
+
+    def should_list_the_tags_of_the_versions_that_changed_since_a_commit(self, in_git):
+        before = git(in_git, "rev-parse", "HEAD").strip()
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex-client")
+
+        assert tool.versions_changed_since(tool.discover(in_git), in_git, before) == [
+            "acex-client-4.11.1rc1",
+            "acex-collection-agent-0.16.1rc1",
+        ]
+        assert tool.versions_changed_since(tool.discover(in_git), in_git, "HEAD") == []
+
+    def should_list_the_candidates_of_a_version_with_the_newest_first(self, in_git):
+        client = component_of(in_git, "acex-client")
+        for tag in ("acex-client-4.12.0rc1", "acex-client-4.12.0rc2", "acex-client-4.12.0rc10", "acex-client-4.12.0"):
+            git(in_git, "tag", tag)
+        for decoy in (
+            "acex-client-4.12.0rc2-test",
+            "acex-client-4.12.0rcX",
+            "acex-client-4.12.0rc",
+            "acex-cli-4.12.0rc3",
+        ):
+            git(in_git, "tag", decoy)
+
+        assert tool.candidate_tags(in_git, client, "4.12.0") == [
+            "acex-client-4.12.0rc10",
+            "acex-client-4.12.0rc2",
+            "acex-client-4.12.0rc1",
+        ]
+
+    def should_leave_out_a_candidate_that_is_not_in_the_history_being_released(self, in_git):
+        client = component_of(in_git, "acex-client")
+        git(in_git, "tag", "acex-client-4.12.0rc1")
+        git(in_git, "switch", "-q", "-c", "elsewhere")
+        change_code(in_git, "client/src/acex_client/elsewhere.py")
+        git(in_git, "tag", "acex-client-4.12.0rc2")
+        git(in_git, "switch", "-q", "dev")
+
+        assert tool.candidate_tags(in_git, client, "4.12.0") == ["acex-client-4.12.0rc1"]
+
+    def should_tag_a_package_that_did_not_exist_before(self, in_git):
+        before = git(in_git, "rev-parse", "HEAD").strip()
+        add_package(in_git, "drivers/new", "acex-driver-new", "1.0.0")
+        commit_all(in_git, "a new package")
+
+        assert tool.versions_changed_since(tool.discover(in_git), in_git, before) == ["acex-driver-new-1.0.0"]
+
+    def should_refuse_a_commit_that_is_not_in_the_clone(self, in_git, capsys):
+        missing = "1" * 40
+
+        with pytest.raises(tool.FragmentError, match="is not a commit in this clone"):
+            tool.versions_changed_since(tool.discover(in_git), in_git, missing)
+
+        assert tool.main(["tag-versions", "--since", missing], repo=in_git) == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "is not a commit in this clone" in captured.err
+
+    def should_publish_the_tags_from_the_command_line(self, in_git, capsys):
+        before = git(in_git, "rev-parse", "HEAD").strip()
+        due(in_git, "cli", kind="added", title="A new command")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex-cli")
+
+        assert tool.main(["tag-versions", "--since", before], repo=in_git) == 0
+        assert capsys.readouterr().out.split() == ["acex-cli-4.7.0rc1"]
+
+
+class TestBuildInputs:
+    def should_be_the_directory_alone_for_a_library(self, workspace):
+        assert tool.build_inputs(component_of(workspace, "acex-client"), workspace) == ["client"]
+
+    def should_add_what_the_dockerfile_copies_for_an_image(self, workspace):
+        assert tool.build_inputs(component_of(workspace, "acex-collection-agent"), workspace) == [
+            ".dockerignore",
+            "agents/collection-agent",
+            "client",
+            "devkit",
+        ]
+
+    def should_keep_a_single_copied_file_as_it_is(self, workspace):
+        assert tool.build_inputs(component_of(workspace, "acex"), workspace) == [
+            ".dockerignore",
+            "backend",
+            "backend/src",
+            "cli/src/acex_cli/changelog.json",
+            "devkit",
+            "drivers/ios",
+        ]
+
+    def should_add_the_ignore_file_of_the_build_context_to_an_image_and_to_nothing_else(self, workspace):
+        assert ".dockerignore" in tool.build_inputs(component_of(workspace, "acex-collection-agent"), workspace)
+        assert ".dockerignore" not in tool.build_inputs(component_of(workspace, "acex-client"), workspace)
+
+    def should_be_the_listed_paths_with_the_manifest_and_the_locks_for_a_project_at_the_root(self, web):
+        repo, component = web
+
+        assert tool.build_inputs(component, repo) == [
+            "Dockerfile",
+            "index.html",
+            "package-lock.json",
+            "package.json",
+            "poetry.lock",
+            "public",
+            "src",
+            "uv.lock",
+        ]
+
+
+def dockerfile(directory: Path, text: str) -> Path:
+    path = directory / "Dockerfile"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+class TestWhatADockerfileCopies:
+    def should_read_the_plain_form_with_several_sources_and_flags(self, tmp_path):
+        path = dockerfile(
+            tmp_path, "FROM python:3.13-slim\nCOPY --chown=1:1 client/ devkit/ /deps/\nCOPY a.txt /b.txt\n"
+        )
+
+        assert tool._copy_sources(path) == ["client/", "devkit/", "a.txt"]
+
+    def should_not_count_what_is_copied_from_another_stage(self, tmp_path):
+        path = dockerfile(tmp_path, "FROM x AS build\nFROM y\nCOPY --from=build /out /app\nCOPY src/ /app/\n")
+
+        assert tool._copy_sources(path) == ["src/"]
+
+    def should_read_the_json_form(self, tmp_path):
+        path = dockerfile(tmp_path, 'COPY ["client/", "devkit/", "/deps/"]\nCOPY --chown=1:1 ["a b.txt", "/c"]\n')
+
+        assert tool._copy_sources(path) == ["client/", "devkit/", "a b.txt"]
+
+    def should_read_add_as_it_reads_copy_and_leave_out_what_is_fetched(self, tmp_path):
+        path = dockerfile(tmp_path, "ADD devkit/ /deps/devkit/\nADD https://example.org/x.tar /x\n")
+
+        assert tool._copy_sources(path) == ["devkit/"]
+
+    def should_join_a_continued_line_and_skip_a_comment_inside_it(self, tmp_path):
+        path = dockerfile(tmp_path, "COPY client/ \\\n    # not a source\n    devkit/ \\\n    /deps/\nRUN true\n")
+
+        assert tool._copy_sources(path) == ["client/", "devkit/"]
+
+    def should_ignore_comments_and_instructions_that_only_mention_copy(self, tmp_path):
+        path = dockerfile(tmp_path, "# COPY nothing/ /x\nRUN echo COPY a /b\nLABEL note='COPY c /d'\n")
+
+        assert tool._copy_sources(path) == []
+
+    def should_take_the_whole_context_for_a_dot(self, tmp_path):
+        path = dockerfile(tmp_path, "COPY . /app/\n")
+
+        assert tool._copy_sources(path) == ["."]
+
+    @pytest.mark.parametrize(
+        "line",
+        ["COPY ${SOURCE_DIR} /app/", "COPY $SRC /app/", "COPY <<EOF /app/x\nbody\nEOF", 'COPY ["client/", /deps/]'],
+    )
+    def should_refuse_what_it_cannot_name_instead_of_leaving_it_out(self, tmp_path, line):
+        path = dockerfile(tmp_path, f"FROM x\n{line}\n")
+
+        with pytest.raises(tool.FragmentError, match="cannot tell what"):
+            tool._copy_sources(path)
+
+
+class TestChangedSinceCandidate:
+    @pytest.fixture
+    def candidate(self, in_git):
+        change_code(in_git, "client/src/acex_client/calls.py")
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex-client")
+        return in_git
+
+    def should_accept_a_stable_release_of_what_the_candidate_was(self, candidate):
+        assert changed_since_candidates_of(candidate, "acex-client") == []
+
+    def should_accept_what_a_release_itself_changes(self, candidate):
+        release_as_stable(candidate, "acex-client")
+
+        assert version_in(candidate, "client") == "4.11.1"
+        assert (
+            tool.changed_since_candidate(candidate, component_of(candidate, "acex-client"), "acex-client-4.11.1rc1")
+            == []
+        )
+
+    def should_name_a_source_file_changed_since_the_candidate(self, candidate):
+        change_code(candidate, "client/src/acex_client/calls.py", "x = 2\n")
+
+        [error] = about(changed_since_candidates_of(candidate, "acex-client"), "acex-client")
+
+        assert error.startswith("acex-client: changed since its release candidate acex-client-4.11.1rc1")
+        assert "  client/src/acex_client/calls.py" in error
+        assert error.endswith("Send a new candidate (the Release workflow, channel rc), or revert those changes.")
+
+    def should_name_a_new_file_and_a_deleted_one(self, candidate):
+        change_code(candidate, "client/src/acex_client/added.py")
+        git(candidate, "rm", "-q", "client/src/acex_client/calls.py")
+        commit_all(candidate, "remove")
+
+        [error] = about(changed_since_candidates_of(candidate, "acex-client"), "acex-client")
+
+        assert "client/src/acex_client/added.py" in error
+        assert "client/src/acex_client/calls.py" in error
+
+    def should_ignore_notes_readme_and_tests(self, candidate):
+        change_code(candidate, "client/README.md", "new words\n")
+        change_code(candidate, "client/tests/test_calls.py", "def test_calls(): ...\n")
+        change_code(candidate, "client/src/acex_client/changelog.json", "{}\n")
+        change_code(candidate, "client/changelog.d/another.md", "---\nkind: fixed\ntitle: Another\n---\n")
+
+        assert changed_since_candidates_of(candidate, "acex-client") == []
+
+    def should_accept_a_new_version_in_the_manifest_but_not_a_new_dependency(self, candidate):
+        manifest = candidate / "client" / "pyproject.toml"
+        text = manifest.read_text(encoding="utf-8")
+        change_code(candidate, "client/pyproject.toml", text.replace('version = "4.11.1rc1"', 'version = "4.11.1"'))
+        assert changed_since_candidates_of(candidate, "acex-client") == []
+
+        change_code(candidate, "client/pyproject.toml", text.replace('python = "^3.13"', 'python = "^3.14"'))
+
+        [error] = about(changed_since_candidates_of(candidate, "acex-client"), "acex-client")
+        assert "client/pyproject.toml" in error
+
+    def should_name_a_changed_lock_file(self, candidate):
+        change_code(candidate, "client/poetry.lock", "# a different set of pins\n")
+
+        [error] = about(changed_since_candidates_of(candidate, "acex-client"), "acex-client")
+
+        assert "client/poetry.lock" in error
+
+    def should_say_how_many_more_files_there_are(self, candidate):
+        for number in range(12):
+            (candidate / f"client/src/acex_client/module_{number}.py").write_text("x = 1\n", encoding="utf-8")
+        commit_all(candidate, "many")
+
+        [error] = about(changed_since_candidates_of(candidate, "acex-client"), "acex-client")
+
+        assert error.count("\n  client/src/acex_client/module_") == 10
+        assert "  ... and 2 more" in error
+
+    def should_not_say_there_are_more_files_when_there_are_exactly_ten(self, candidate):
+        for number in range(10):
+            (candidate / f"client/src/acex_client/module_{number}.py").write_text("x = 1\n", encoding="utf-8")
+        commit_all(candidate, "ten")
+
+        [error] = about(changed_since_candidates_of(candidate, "acex-client"), "acex-client")
+
+        assert error.count("\n  client/src/acex_client/module_") == 10
+        assert "more" not in error
+
+    def should_name_a_source_file_that_only_has_readme_in_its_name(self, candidate):
+        change_code(candidate, "client/src/acex_client/readme_renderer.py")
+
+        [error] = about(changed_since_candidates_of(candidate, "acex-client"), "acex-client")
+
+        assert "client/src/acex_client/readme_renderer.py" in error
+
+    def should_ignore_a_readme_wherever_it_is_and_whatever_its_extension(self, candidate):
+        change_code(candidate, "client/docs/README.md", "words\n")
+        change_code(candidate, "client/README.rst", "words\n")
+        change_code(candidate, "client/README", "words\n")
+
+        assert changed_since_candidates_of(candidate, "acex-client") == []
+
+    def should_not_look_at_the_highlights_and_the_roadmap_of_the_backend(self, in_git):
+        due(in_git, "backend")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex")
+        content = tool.CONTENT_PATH
+        change_code(in_git, f"{content}/highlights.md", "## 2026-11-06 Release candidates for stage\n\nText.\n")
+        change_code(in_git, f"{content}/roadmap.md", "## A plan\n\nStatus: planned\n")
+
+        assert about(changed_since_candidates_of(in_git, "acex"), "acex") == []
+
+    def should_see_a_change_to_a_compiled_file_that_is_not_the_notes(self, candidate):
+        change_code(candidate, "client/src/acex_client/changelog.py", "x = 1\n")
+
+        [error] = about(changed_since_candidates_of(candidate, "acex-client"), "acex-client")
+
+        assert "client/src/acex_client/changelog.py" in error
+
+
+@pytest.fixture
+def web_candidate(web):
+    """The web interface, a project at the root of its repository, with a release candidate cut and tagged."""
+    repo, component = web
+    (repo / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
+    (repo / "src").mkdir(exist_ok=True)
+    (repo / "src" / "app.js").write_text("export default 1\n", encoding="utf-8")
+    git(repo, "init", "-q", "-b", "dev")
+    commit_all(repo, "base")
+    write_fragment(component.fragments_dir / "a.md", kind="fixed", title="The table keeps its sort order")
+    commit_all(repo, "entry")
+    tool.release_planned(plan(repo, tool.CANDIDATE), channel=tool.CANDIDATE)
+    commit_all(repo, "candidate")
+    git(repo, "tag", "example-ui-0.4.3rc1")
+    return repo
+
+
+def changes_in(repo: Path) -> list[str]:
+    return tool.changed_since_candidate(repo, component_of(repo, "example-ui"), "example-ui-0.4.3rc1")
+
+
+class TestAJavaScriptComponentHeldToItsCandidate:
+    def should_accept_the_stable_release_with_its_lock_file(self, web_candidate):
+        release_as_stable(web_candidate)
+
+        assert version_in_manifest(web_candidate) == "0.4.3"
+        assert changes_in(web_candidate) == []
+
+    def should_name_a_lock_file_that_got_a_new_dependency(self, web_candidate):
+        release_as_stable(web_candidate)
+        lock = web_candidate / "package-lock.json"
+        text = lock.read_text(encoding="utf-8")
+        change_code(
+            web_candidate, "package-lock.json", text.replace('"node_modules/left-pad"', '"node_modules/right-pad"')
+        )
+
+        assert changes_in(web_candidate) == ["package-lock.json"]
+
+    def should_name_a_changed_source_file_and_not_a_file_outside_the_listed_paths(self, web_candidate):
+        change_code(web_candidate, "ci/pipeline.yml", "steps: []\n")
+        assert changes_in(web_candidate) == []
+
+        change_code(web_candidate, "src/app.js", "export default 2\n")
+        assert changes_in(web_candidate) == ["src/app.js"]
+
+    def should_not_count_the_notes_in_the_file_the_project_names(self, web_candidate):
+        manifest = web_candidate / "package.json"
+        text = manifest.read_text(encoding="utf-8")
+        change_code(web_candidate, "package.json", text.replace("src/changelog.json", "src/whats-new.json"))
+        assert changes_in(web_candidate) == ["package.json"]
+        git(web_candidate, "tag", "-f", "example-ui-0.4.3rc1")
+
+        change_code(web_candidate, "src/whats-new.json", '{"releases": []}\n')
+
+        assert changes_in(web_candidate) == []
+
+
+def version_in_manifest(repo: Path) -> str:
+    return json.loads((repo / "package.json").read_text(encoding="utf-8"))["version"]
+
+
+class TestImagesAreHeldToTheirCandidate:
+    @pytest.fixture
+    def image_candidate(self, in_git):
+        due(in_git, "agents/collection-agent")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex-collection-agent")
+        return in_git
+
+    def should_name_baked_in_code_that_changed_after_the_candidate(self, image_candidate):
+        change_code(image_candidate, "devkit/src/acex_devkit/models.py")
+
+        [error] = changed_since_candidates_of(image_candidate, "acex-collection-agent")
+
+        assert error.startswith("acex-collection-agent: changed since its release candidate")
+        assert "  devkit/src/acex_devkit/models.py" in error
+
+    def should_name_a_changed_dockerfile(self, image_candidate):
+        change_code(image_candidate, "agents/collection-agent/Dockerfile", "FROM python:3.13-slim\n")
+
+        [error] = changed_since_candidates_of(image_candidate, "acex-collection-agent")
+
+        assert "agents/collection-agent/Dockerfile" in error
+
+    def should_not_mind_what_the_image_does_not_copy(self, image_candidate):
+        change_code(image_candidate, "cli/src/acex_cli/commands.py")
+        change_code(image_candidate, "worker/src/acex_worker/jobs.py")
+
+        assert changed_since_candidates_of(image_candidate, "acex-collection-agent") == []
+
+
+class TestCandidatesBeforeAStableRelease:
+    def should_ask_for_the_tag_of_a_candidate_that_has_none(self, in_git):
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        tool.release_planned(plan(in_git, tool.CANDIDATE, ["acex-client"]), channel=tool.CANDIDATE)
+        commit_all(in_git, "candidate, never tagged")
+
+        [error] = about(changed_since_candidates_of(in_git, "acex-client"), "acex-client")
+
+        assert error.startswith("acex-client: its release candidate has no tag acex-client-4.11.1rc1")
+
+    def should_not_look_at_a_release_that_never_was_a_candidate(self, in_git):
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+
+        assert changed_since_candidates_of(in_git, "acex-client") == []
+
+    def should_not_look_when_the_plan_is_a_candidate(self, in_git):
+        change_code(in_git, "client/src/acex_client/calls.py")
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex-client")
+        change_code(in_git, "client/src/acex_client/calls.py", "x = 2\n")
+
+        components = tool.discover(in_git)
+        planned = tool.plan_release(components, in_git, tool.CANDIDATE, ["acex-client"])
+        blockers = tool.blockers_before_release(planned, [], components, in_git, tool.CANDIDATE)
+
+        assert [error for error in blockers if "changed since its release candidate" in error] == []
+
+    def should_say_nothing_outside_a_git_repository(self, workspace):
+        due(workspace, "client")
+        tool.release_planned(plan(workspace, tool.CANDIDATE, ["acex-client"]), channel=tool.CANDIDATE)
+
+        assert changed_since_candidates_of(workspace, "acex-client") == []
+
+    def should_say_how_to_tag_a_candidate_by_hand(self, in_git):
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        tool.release_planned(plan(in_git, tool.CANDIDATE, ["acex-client"]), channel=tool.CANDIDATE)
+        commit_all(in_git, "candidate, never tagged")
+        sha = git(in_git, "rev-parse", "HEAD").strip()
+
+        [error] = about(changed_since_candidates_of(in_git, "acex-client"), "acex-client")
+
+        assert f"git tag acex-client-4.11.1rc1 {sha}" in error
+        assert "or send a new candidate" in error
+
+    def should_not_accept_a_candidate_that_was_cut_on_another_branch(self, in_git):
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        git(in_git, "switch", "-q", "-c", "elsewhere")
+        tool.release_planned(plan(in_git, tool.CANDIDATE, ["acex-client"]), channel=tool.CANDIDATE)
+        commit_all(in_git, "candidate")
+        git(in_git, "tag", "acex-client-4.11.1rc1")
+        git(in_git, "switch", "-q", "dev")
+        tool.release_planned(plan(in_git, tool.CANDIDATE, ["acex-client"]), channel=tool.CANDIDATE)
+        commit_all(in_git, "the same version again, here")
+
+        [error] = about(changed_since_candidates_of(in_git, "acex-client"), "acex-client")
+
+        assert "acex-client-4.11.1rc1 is not in the history of this branch" in error
+
+    def should_stop_the_plan_command_for_a_changed_candidate(self, in_git, capsys):
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex-client")
+        change_code(in_git, "client/src/acex_client/calls.py")
+
+        assert tool.main(["plan", "acex-client"], repo=in_git) == 1
+        assert "changed since its release candidate acex-client-4.11.1rc1" in capsys.readouterr().err
+
+        git(in_git, "rm", "-q", "client/src/acex_client/calls.py")
+        commit_all(in_git, "revert")
+        assert tool.main(["plan", "acex-client"], repo=in_git) == 0
+
+    def should_stop_a_stable_release_on_the_command_line_and_let_a_clean_one_through(self, in_git, capsys):
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex-client")
+        change_code(in_git, "client/src/acex_client/calls.py")
+
+        assert tool.main(["release-all", "acex-client"], repo=in_git) == 1
+        assert "changed since its release candidate acex-client-4.11.1rc1" in capsys.readouterr().err
+        assert version_in(in_git, "client") == "4.11.1rc1"
+
+        git(in_git, "rm", "-q", "client/src/acex_client/calls.py")
+        commit_all(in_git, "revert")
+        assert tool.main(["release-all", "acex-client"], repo=in_git) == 0
+        assert version_in(in_git, "client") == "4.11.1"
+
+
+class TestThePullRequestIntoTheReleaseBranch:
+    @pytest.fixture
+    def stable_after_a_candidate(self, in_git):
+        components = tool.discover(in_git)
+        base_versions = tool.git_versions_at(in_git, "HEAD", components)
+        change_code(in_git, "client/src/acex_client/calls.py")
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex-client")
+        return in_git, base_versions
+
+    def drift_errors(self, repo: Path, base_versions: dict[str, str]) -> list[str]:
+        report = tool.check(tool.discover(repo), [], repo, release_ready=True, base_versions=base_versions)
+        return [error for error in report.errors if "changed since its release candidate" in error]
+
+    def should_accept_a_release_that_is_what_the_candidate_was(self, stable_after_a_candidate):
+        repo, base_versions = stable_after_a_candidate
+        release_as_stable(repo, "acex-client")
+
+        assert self.drift_errors(repo, base_versions) == []
+
+    def should_name_code_that_reached_dev_after_the_candidate(self, stable_after_a_candidate):
+        repo, base_versions = stable_after_a_candidate
+        release_as_stable(repo, "acex-client")
+        change_code(repo, "client/src/acex_client/later.py")
+
+        [error] = about(self.drift_errors(repo, base_versions), "acex-client")
+
+        assert error.startswith("acex-client: changed since its release candidate acex-client-4.11.1rc1")
+        assert "  client/src/acex_client/later.py" in error
+
+    def should_compare_with_the_newest_candidate(self, stable_after_a_candidate):
+        repo, base_versions = stable_after_a_candidate
+        change_code(repo, "client/src/acex_client/later.py")
+        git(repo, "tag", "acex-client-4.11.1rc2")
+        git(repo, "tag", "acex-collection-agent-0.16.1rc2")
+        tool.release_planned(plan(repo, tool.STABLE, ["acex-client"]), channel=tool.STABLE)
+        commit_all(repo, "stable")
+
+        assert self.drift_errors(repo, base_versions) == []
+
+    def should_let_a_release_that_never_was_a_candidate_through(self, in_git):
+        base_versions = tool.git_versions_at(in_git, "HEAD", tool.discover(in_git))
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        release_as_stable(in_git, "acex-client")
+        change_code(in_git, "client/src/acex_client/later.py")
+
+        assert self.drift_errors(in_git, base_versions) == []
+
+    def should_not_compare_a_package_that_main_already_has_at_that_version(self, stable_after_a_candidate):
+        repo, _ = stable_after_a_candidate
+        release_as_stable(repo, "acex-client")
+        on_main = tool.git_versions_at(repo, "HEAD", tool.discover(repo))
+        change_code(repo, "client/src/acex_client/later.py")
+
+        assert self.drift_errors(repo, on_main) == []
+
+    def should_compare_a_package_main_does_not_have_yet(self, stable_after_a_candidate):
+        repo, _ = stable_after_a_candidate
+        release_as_stable(repo, "acex-client")
+        change_code(repo, "client/src/acex_client/later.py")
+
+        [error] = about(self.drift_errors(repo, {}), "acex-client")
+
+        assert "client/src/acex_client/later.py" in error
+
+    def should_say_the_change_came_after_the_stable_release_and_what_to_do(self, stable_after_a_candidate):
+        repo, base_versions = stable_after_a_candidate
+        release_as_stable(repo, "acex-client")
+        change_code(repo, "client/src/acex_client/later.py")
+
+        [error] = about(self.drift_errors(repo, base_versions), "acex-client")
+
+        assert "Revert them on dev for now, or release them as the next version" in error
+        assert "merge main into dev first" in error
+        assert "Send a new candidate" not in error
+
+    def should_not_hold_a_hotfix_to_a_candidate_of_the_same_version_cut_on_dev(self, in_git):
+        git(in_git, "branch", "main")
+        base_versions = tool.git_versions_at(in_git, "main", tool.discover(in_git))
+        due(in_git, "client")
+        commit_all(in_git, "entry")
+        cut_candidate(in_git, "acex-client")
+        git(in_git, "switch", "-q", "-c", "hotfix/client", "main")
+        change_code(in_git, "client/src/acex_client/hotfix.py")
+        due(in_git, "client", title="A hotfix")
+        commit_all(in_git, "entry")
+        release_as_stable(in_git, "acex-client")
+
+        assert version_in(in_git, "client") == "4.11.1"
+        assert self.drift_errors(in_git, base_versions) == []
+
+
+class TestAPublishedComponentNeedsNoNewEntry:
+    """A release has compiled the notes and deleted the fragments, so a pull request into main has none to add."""
+
+    RELEASE = [
+        ("M", "client/pyproject.toml"),
+        ("M", "client/src/acex_client/changelog.json"),
+        ("D", "client/changelog.d/20261105-a-fix.md"),
+        ("M", "client/src/acex_client/calls.py"),
+    ]
+
+    def errors(self, repo: Path, changed, *, published: bool, release_ready: bool = True) -> list[str]:
+        components = tool.discover(repo)
+        base = {c.id: c.version for c in components}
+        if published:
+            base["acex-client"] = "4.10.0"
+        report = tool.check(components, changed, repo, release_ready=release_ready, base_versions=base)
+        return about(report.errors, "acex-client")
+
+    def should_not_ask_a_component_that_is_being_published(self, workspace):
+        assert self.errors(workspace, self.RELEASE, published=True) == []
+
+    def should_still_ask_a_component_that_keeps_the_version_main_has(self, workspace):
+        [error] = self.errors(workspace, self.RELEASE, published=False)
+
+        assert "changed without a changelog entry" in error
+
+    def should_still_ask_when_the_pull_request_is_not_into_the_release_branch(self, workspace):
+        [error] = self.errors(workspace, self.RELEASE, published=True, release_ready=False)
+
+        assert "changed without a changelog entry" in error
+
+    def should_still_stop_a_published_component_whose_fragments_are_not_released(self, workspace):
+        due(workspace, "client")
+
+        [error] = self.errors(workspace, self.RELEASE, published=True)
+
+        assert "about to be published but 1 fragment(s) are not released" in error
+
+
+SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
+TOOL_FILE = Path(tool.__file__)
+
+
+class Pushes:
+    """A clone with an origin to push tags to, and the scripts CI runs, to run the step that tags a push."""
+
+    def __init__(self, repo: Path, origin: Path, bin_directory: Path):
+        self.repo, self.origin = repo, origin
+        self.env = {**os.environ, "PATH": f"{bin_directory}{os.pathsep}{os.environ['PATH']}"}
+
+    def head(self) -> str:
+        return git(self.repo, "rev-parse", "HEAD").strip()
+
+    def tag(self, branch: str, before: str, sha: str | None = None) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [str(self.repo / "scripts" / "tag_published_versions.sh"), branch, before, sha or self.head()],
+            cwd=self.repo,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def tags_on_origin(self) -> dict[str, str]:
+        listed = subprocess.run(
+            ["git", "ls-remote", "--tags", str(self.origin)], capture_output=True, text=True, check=True
+        ).stdout
+        return {line.split("\t")[1].removeprefix("refs/tags/"): line.split("\t")[0] for line in listed.splitlines()}
+
+    def send(self, channel: str, *refs: str) -> str:
+        """Release `refs` on the current branch the way the Release workflow does, and return the new commit."""
+        tool.release_planned(plan(self.repo, channel, list(refs)), channel=channel)
+        commit_all(self.repo, f"release {channel}")
+        return self.head()
+
+
+@pytest.fixture
+def pushes(in_git, tmp_path_factory):
+    origin = tmp_path_factory.mktemp("origin") / "origin.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
+    bin_directory = tmp_path_factory.mktemp("bin")
+    (bin_directory / "python").symlink_to(sys.executable)
+    (in_git / "scripts").mkdir()
+    for name in ("changelog.py", "branch_publishes_version.sh", "tag_published_versions.sh"):
+        shutil.copy2(SCRIPTS / name, in_git / "scripts" / name)
+    (in_git / "backend" / "src" / "acex" / "changelog").mkdir(parents=True)
+    shutil.copy2(TOOL_FILE, in_git / "backend" / "src" / "acex" / "changelog" / "tool.py")
+    commit_all(in_git, "the scripts CI runs")
+    git(in_git, "remote", "add", "origin", str(origin))
+    git(in_git, "branch", "main")
+    git(in_git, "push", "-q", "origin", "dev", "main")
+    return Pushes(in_git, origin, bin_directory)
+
+
+class TestTagPublishedVersions:
+    @pytest.fixture
+    def candidate_on_dev(self, pushes):
+        repo = pushes.repo
+        before = pushes.head()
+        due(repo, "client")
+        commit_all(repo, "entry")
+        sha = pushes.send(tool.CANDIDATE, "acex-client")
+        return pushes, before, sha
+
+    def should_tag_a_candidate_on_the_commit_that_published_it(self, candidate_on_dev):
+        pushes, before, sha = candidate_on_dev
+
+        result = pushes.tag("dev", before, sha)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert pushes.tags_on_origin() == {"acex-client-4.11.1rc1": sha, "acex-collection-agent-0.16.1rc1": sha}
+
+    def should_not_tag_a_stable_version_on_dev(self, candidate_on_dev):
+        pushes, before, sha = candidate_on_dev
+        pushes.tag("dev", before, sha)
+
+        stable = pushes.send(tool.STABLE, "acex-client")
+        result = pushes.tag("dev", sha, stable)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "acex-client-4.11.1 is not published from dev" in result.stdout
+        assert set(pushes.tags_on_origin()) == {"acex-client-4.11.1rc1", "acex-collection-agent-0.16.1rc1"}
+
+    def should_tag_the_stable_version_on_the_commit_on_main_that_published_it(self, candidate_on_dev):
+        pushes, before, sha = candidate_on_dev
+        base = git(pushes.repo, "rev-parse", "main").strip()
+        pushes.tag("dev", before, sha)
+        stable = pushes.send(tool.STABLE, "acex-client")
+        pushes.tag("dev", sha, stable)
+        git(pushes.repo, "switch", "-q", "main")
+        git(pushes.repo, "merge", "-q", "--no-ff", "-m", "Dev", "dev")
+        merge = pushes.head()
+
+        result = pushes.tag("main", base, merge)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        tags = pushes.tags_on_origin()
+        assert tags["acex-client-4.11.1"] == tags["acex-collection-agent-0.16.1"] == merge
+        assert tags["acex-client-4.11.1rc1"] == sha
+
+    def should_be_able_to_run_again_on_the_same_push(self, candidate_on_dev):
+        pushes, before, sha = candidate_on_dev
+        pushes.tag("dev", before, sha)
+
+        result = pushes.tag("dev", before, sha)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "acex-client-4.11.1rc1 is already on this commit" in result.stdout
+
+    def should_not_move_a_tag_that_is_somewhere_else(self, candidate_on_dev):
+        pushes, before, sha = candidate_on_dev
+        git(pushes.repo, "tag", "acex-client-4.11.1rc1", before)
+
+        result = pushes.tag("dev", before, sha)
+
+        assert result.returncode == 1
+        assert f"::error::acex-client-4.11.1rc1 already exists on {before}, not on {sha}" in result.stdout
+
+    def should_fail_when_the_versions_cannot_be_read(self, candidate_on_dev):
+        pushes, before, _ = candidate_on_dev
+        manifest = pushes.repo / "client" / "pyproject.toml"
+        manifest.write_text(manifest.read_text(encoding="utf-8").replace("version =", "release ="), encoding="utf-8")
+        commit_all(pushes.repo, "broken manifest")
+
+        result = pushes.tag("dev", before)
+
+        assert result.returncode != 0
+        assert "needs a package name and version" in result.stderr
+        assert pushes.tags_on_origin() == {}
+
+    def should_fail_when_the_commit_before_the_push_is_not_in_the_clone(self, candidate_on_dev):
+        pushes, _, sha = candidate_on_dev
+
+        result = pushes.tag("dev", "1" * 40, sha)
+
+        assert result.returncode == 1
+        assert "is not in this clone" in result.stdout
+        assert pushes.tags_on_origin() == {}
+
+    @pytest.mark.parametrize("before", ["", "0" * 40])
+    def should_have_nothing_to_compare_with_for_the_first_push_of_a_branch(self, candidate_on_dev, before):
+        pushes, _, sha = candidate_on_dev
+
+        result = pushes.tag("dev", before, sha)
+
+        assert result.returncode == 0
+        assert "nothing to compare with" in result.stdout
+        assert pushes.tags_on_origin() == {}
 
 
 BRANCH_RULE = Path(__file__).resolve().parents[2] / "scripts" / "branch_publishes_version.sh"

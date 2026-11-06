@@ -736,16 +736,61 @@ def _major(version: str) -> str:
     return version.split(".")[0]
 
 
-def _copy_sources(dockerfile: Path) -> list[str]:
-    sources = []
-    for line in dockerfile.read_text(encoding="utf-8").splitlines():
-        words = line.split()
-        if not words or words[0].upper() != "COPY" or any(word.startswith("--from") for word in words):
+def _instructions(dockerfile: Path) -> list[str]:
+    """The instructions of a Dockerfile, each continued line joined into one and the comments left out."""
+    instructions, pending = [], ""
+    for raw in dockerfile.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
             continue
-        arguments = [word for word in words[1:] if not word.startswith("--")]
-        if len(arguments) >= 2:
-            *copied, _destination = arguments
-            sources.extend(copied)
+        continued = line.endswith("\\")
+        pending += (line[:-1] if continued else line).strip() + " "
+        if not continued:
+            instructions.append(pending.strip())
+            pending = ""
+    if pending:
+        instructions.append(pending.strip())
+    return instructions
+
+
+def _copy_sources(dockerfile: Path) -> list[str]:
+    """What the image takes from the build context with COPY and ADD, as the Dockerfile spells it.
+
+    A source it cannot name, such as a variable or a heredoc, is an error: leaving it out would let a change
+    to what the image bakes in pass unnoticed.
+    """
+    sources = []
+    for instruction in _instructions(dockerfile):
+        keyword, _, rest = instruction.partition(" ")
+        if keyword.upper() not in ("COPY", "ADD"):
+            continue
+        flags = []
+        rest = rest.strip()
+        while rest.startswith("--"):
+            flag, _, rest = rest.partition(" ")
+            flags.append(flag)
+            rest = rest.strip()
+        if any(flag.startswith("--from") for flag in flags):
+            continue  # taken from another stage or image, not from the context
+        if rest.startswith("["):
+            try:
+                words = json.loads(rest)
+            except json.JSONDecodeError as exc:
+                raise FragmentError(f"{dockerfile}: cannot tell what '{instruction}' copies ({exc})") from exc
+        else:
+            words = rest.split()
+        if len(words) < 2:
+            continue
+        *copied, _destination = words
+        for source in copied:
+            if "$" in source or source.startswith("<<"):
+                raise FragmentError(
+                    f"{dockerfile}: cannot tell what '{instruction}' copies. "
+                    f"Write the path out, so a change to it can be told from the release candidate."
+                )
+            if keyword.upper() == "ADD" and re.match(r"^(https?://|git@)", source):
+                continue  # fetched, not in the repository
+            sources.append(source)
     return sources
 
 
@@ -933,21 +978,24 @@ def check(
     `release_ready` (pull requests into the release branch), a component whose
     version differs from the target branch's (`base_versions`, what the
     pipeline will publish) must have had its fragments released, so the
-    version being published carries its notes. A component unknown to the
-    target branch is about to be published for the first time.
+    version being published carries its notes, and is not asked for a new
+    entry. A component unknown to the target branch is about to be published
+    for the first time.
     """
     report = validate(components, content=repo / CONTENT_PATH)
     for component in components:
         if _root_in_repo(component, repo) is None:
             continue
-        if is_changed_without_entry(component, changed, repo):
+        publishing = release_ready and component.version != (base_versions or {}).get(component.id)
+        # A release has compiled the notes of a version that is about to be published and deleted its fragments, so
+        # there is none to add; every change was asked for its entry in the pull request that brought it to dev.
+        if is_changed_without_entry(component, changed, repo) and not publishing:
             report.errors.append(_missing_entry_message(component))
         if release_ready:
             try:
                 pending = published(fragments(component))
             except FragmentError:
                 continue  # already reported by validate()
-            publishing = component.version != (base_versions or {}).get(component.id)
             if pending and publishing:
                 report.errors.append(
                     f"{component.id}: version {component.version} is about to be published but "
@@ -959,6 +1007,7 @@ def check(
         report.errors.extend(_release_candidates_on_release_branch(components))
     if release_ready and base_versions is not None:
         report.errors.extend(_images_left_behind(components, repo, base_versions))
+        report.errors.extend(_published_with_a_changed_candidate(components, repo, base_versions))
     return report
 
 
@@ -1069,6 +1118,239 @@ def git_changed(repo: Path, base: str) -> list[tuple[str, str]]:
         if path:
             pairs.append((status, path))
     return pairs
+
+
+def release_tag(component: Component, version: str) -> str:
+    return f"{component.id}-{version}"
+
+
+def _is_commit(repo: Path, ref: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], cwd=repo, capture_output=True, check=False
+        ).returncode
+        == 0
+    )
+
+
+def versions_changed_since(components: list[Component], repo: Path, ref: str) -> list[str]:
+    if not _is_commit(repo, ref):
+        raise FragmentError(
+            f"'{ref}' is not a commit in this clone, so there is nothing to compare the versions with "
+            f"(a force push removes the commit a push came after)"
+        )
+    before = git_versions_at(repo, ref, components)
+    return [
+        release_tag(component, component.version)
+        for component in components
+        if before.get(component.id) != component.version
+    ]
+
+
+def _is_git_repository(repo: Path) -> bool:
+    return subprocess.run(["git", "rev-parse", "--git-dir"], cwd=repo, capture_output=True, check=False).returncode == 0
+
+
+def _tag_exists(repo: Path, tag: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"refs/tags/{tag}^{{commit}}"],
+            cwd=repo,
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+def _is_ancestor(repo: Path, tag: str) -> bool:
+    """Whether the tag is in the history of what is checked out. A candidate cut on another branch is not."""
+    return (
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", f"refs/tags/{tag}", "HEAD"],
+            cwd=repo,
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+def candidate_tags(repo: Path, component: Component, stable_version: str) -> list[str]:
+    """The candidates of a stable version that are in the history being released, the newest first."""
+    prefix = release_tag(component, stable_version)
+    listed = subprocess.run(
+        ["git", "tag", "--list", f"{prefix}rc*"], cwd=repo, capture_output=True, text=True, check=False
+    ).stdout.split()
+    candidate = re.compile(re.escape(prefix) + r"rc(\d+)")
+    matching = [tag for tag in listed if candidate.fullmatch(tag) and _is_ancestor(repo, tag)]
+    return sorted(matching, key=lambda tag: int(candidate.fullmatch(tag).group(1)), reverse=True)
+
+
+#: What an image build reads besides the Dockerfile's own sources: the ignore file of the build context.
+_BUILD_CONTEXT_FILES = (".dockerignore",)
+
+#: Lock files that decide which dependencies a package or image gets.
+_LOCK_FILES = ("poetry.lock", "uv.lock", "package-lock.json")
+
+
+def build_inputs(component: Component, repo: Path) -> list[str]:
+    """The paths a built package or image is made from, as paths in the repository.
+
+    The component's directory, or only its `paths` (with its manifest, lock files and Dockerfile) when it lists
+    them, and for an image whatever its Dockerfile copies from the repository.
+    """
+    root = _root_in_repo(component, repo)
+    if root is None:
+        return []
+    if component.paths:
+        names = (component.manifest_name, "Dockerfile", *_LOCK_FILES)
+        paths = {(root / name).as_posix() for name in names} | {(root / path).as_posix() for path in component.paths}
+    else:
+        paths = {root.as_posix()}
+    dockerfile = component.root / "Dockerfile"
+    if dockerfile.is_file():
+        paths.update(source.rstrip("/") for source in _copy_sources(dockerfile))
+        paths.update(_BUILD_CONTEXT_FILES)
+    return sorted(paths)
+
+
+def _manifest_without_version(repo: Path, ref: str, path: str) -> dict | None:
+    """A manifest or lock file at `ref` without the project's own version, which is what a release changes."""
+    shown = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=repo, capture_output=True, text=True, check=False)
+    if shown.returncode != 0:
+        return None
+    try:
+        if path.endswith("package-lock.json"):
+            manifest = json.loads(shown.stdout)
+            manifest.pop("version", None)
+            manifest.get("packages", {}).get("", {}).pop("version", None)
+        elif path.endswith("package.json"):
+            manifest = json.loads(shown.stdout)
+            manifest.pop("version", None)
+        else:
+            manifest = tomllib.loads(shown.stdout)
+            manifest.get("tool", {}).get("poetry", {}).pop("version", None)
+            manifest.get("project", {}).pop("version", None)
+    except (json.JSONDecodeError, tomllib.TOMLDecodeError):
+        return None
+    return manifest
+
+
+def _is_what_a_release_changes(repo: Path, component: Component, candidate_tag: str, path: str) -> bool:
+    """Whether a changed file is only release notes, a readme, a test or the version a release stamps."""
+    relative = Path(path)
+    if relative.is_relative_to(CONTENT_PATH):
+        return True  # the highlights and the roadmap are written in the release pull request
+    if relative.name == OUTPUT_NAME or FRAGMENT_DIR in relative.parts or "tests" in relative.parts:
+        return True
+    if (repo / relative).resolve() == component.output.resolve():
+        return True
+    if relative.name.upper() == "README" or relative.name.upper().startswith("README."):
+        return True
+    if relative.name in _VERSION_LINE or relative.name == "package-lock.json":
+        at_candidate = _manifest_without_version(repo, candidate_tag, path)
+        return at_candidate is not None and at_candidate == _manifest_without_version(repo, "HEAD", path)
+    return False
+
+
+def changed_since_candidate(repo: Path, component: Component, candidate_tag: str) -> list[str]:
+    result = subprocess.run(
+        ["git", "diff", "--name-status", "--no-renames", candidate_tag, "HEAD", "--", *build_inputs(component, repo)],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise FragmentError(f"git diff against '{candidate_tag}' failed: {result.stderr.strip()}")
+    paths = (line.partition("\t")[2] for line in result.stdout.splitlines())
+    return sorted(
+        path for path in paths if path and not _is_what_a_release_changes(repo, component, candidate_tag, path)
+    )
+
+
+def _changed_since_candidate_message(
+    component: Component, candidate_tag: str, files: list[str], *, stable_is_on_dev: bool
+) -> str:
+    listed = "\n".join(f"  {path}" for path in files[:10])
+    more = f"\n  ... and {len(files) - 10} more" if len(files) > 10 else ""
+    if stable_is_on_dev:
+        remedy = (
+            "They came after the candidate was tried. Revert them on dev for now, or release them as the next "
+            "version (a new candidate, then stable). If one of them is only on main, such as a hotfix, merge main "
+            "into dev first."
+        )
+    else:
+        remedy = "Send a new candidate (the Release workflow, channel rc), or revert those changes."
+    return (
+        f"{component.id}: changed since its release candidate {candidate_tag}, so the release would not be what "
+        f"the candidate was:\n{listed}{more}\n{remedy}"
+    )
+
+
+def _missing_tag_message(repo: Path, component: Component, candidate_tag: str) -> str:
+    commit = git_last_version_change(repo, component)
+    by_hand = (
+        f"tag the commit that set the version with `git tag {candidate_tag} {commit}` and push the tag"
+        if commit
+        else "tag the commit that published it by hand"
+    )
+    return (
+        f"{component.id}: its release candidate has no tag {candidate_tag}. CI tags a candidate when the push that "
+        f"published it has finished without a failed job. If that push is long past, {by_hand}, or send a new "
+        f"candidate."
+    )
+
+
+def _candidate_problems(repo: Path, component: Component, candidate_tag: str, *, stable_is_on_dev: bool) -> list[str]:
+    if not _tag_exists(repo, candidate_tag):
+        return [_missing_tag_message(repo, component, candidate_tag)]
+    if not _is_ancestor(repo, candidate_tag):
+        return [
+            f"{component.id}: its release candidate {candidate_tag} is not in the history of this branch, so what "
+            f"the candidate was cannot be told. Release from the branch the candidate was cut on."
+        ]
+    files = changed_since_candidate(repo, component, candidate_tag)
+    if not files:
+        return []
+    return [_changed_since_candidate_message(component, candidate_tag, files, stable_is_on_dev=stable_is_on_dev)]
+
+
+def changes_since_candidates(planned: list[Planned], repo: Path) -> list[str]:
+    if not _is_git_repository(repo):
+        return []
+    errors = []
+    for item in planned:
+        if is_release_candidate(item.old):
+            tag = release_tag(item.component, item.old)
+            errors.extend(_candidate_problems(repo, item.component, tag, stable_is_on_dev=False))
+    return errors
+
+
+def _published_with_a_changed_candidate(
+    components: list[Component], repo: Path, base_versions: dict[str, str]
+) -> list[str]:
+    if not _is_git_repository(repo):
+        return []
+    errors = []
+    for component in components:
+        publishing = component.version != base_versions.get(component.id)
+        if not publishing or is_release_candidate(component.version):
+            continue
+        candidates = candidate_tags(repo, component, component.version)
+        if candidates:
+            errors.extend(_candidate_problems(repo, component, candidates[0], stable_is_on_dev=True))
+    return errors
+
+
+def blockers_before_release(
+    planned: list[Planned], chosen: list[Component], components: list[Component], repo: Path, channel: str
+) -> list[str]:
+    errors = changes_without_entry_before_sending(planned, chosen, components, repo)
+    if channel == STABLE:
+        errors += changes_since_candidates(planned, repo)
+    return errors
 
 
 # ---------------------------------------------------------------------------
@@ -1227,6 +1509,11 @@ def _parser() -> argparse.ArgumentParser:
     all_cmd.add_argument("--date", default=None, help="release date, YYYY-MM-DD (default: today)")
     all_cmd.add_argument("packages", nargs="*", metavar="package", help=_PACKAGES_HELP)
 
+    tag_cmd = commands.add_parser(
+        "tag-versions", help="the tags of the versions that changed since a commit, one per line"
+    )
+    tag_cmd.add_argument("--since", required=True, help="the commit before the push, e.g. github.event.before")
+
     check_cmd = commands.add_parser("check", help="pull request check: changed components have a fragment")
     check_cmd.add_argument("--base", required=True, help="the branch the pull request targets, e.g. origin/dev")
     check_cmd.add_argument("--release-ready", action="store_true", help="also require fragments to be released")
@@ -1278,16 +1565,19 @@ def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
             planned = plan_release(components, repo, args.channel, args.packages)
             print("\n".join(describe_plan(planned)))
             chosen = chosen_components(components, args.packages)
-            return _print(Report(errors=changes_without_entry_before_sending(planned, chosen, components, repo)))
+            return _print(Report(errors=blockers_before_release(planned, chosen, components, repo, args.channel)))
         if args.command == "release-all":
             on = date.fromisoformat(args.date) if args.date else None
             planned = plan_release(components, repo, args.channel, args.packages)
             print("\n".join(describe_plan(planned)))
             chosen = chosen_components(components, args.packages)
-            problems = Report(errors=changes_without_entry_before_sending(planned, chosen, components, repo))
+            problems = Report(errors=blockers_before_release(planned, chosen, components, repo, args.channel))
             if not problems.ok:
                 return _print(problems)
             return _print(release_planned(planned, channel=args.channel, on=on))
+        if args.command == "tag-versions":
+            print("\n".join(versions_changed_since(components, repo, args.since)))
+            return 0
         if args.command == "check":
             base_versions = git_versions_at(repo, args.base, components) if args.release_ready else None
             changed = git_changed(repo, args.base)
