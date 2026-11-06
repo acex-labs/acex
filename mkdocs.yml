@@ -69,6 +69,7 @@ nav:
     - Filters: guides/filters.md
     - Integrations: guides/integrations.md
     - Release notes: guides/changelog.md
+    - Image builds: guides/image-builds.md
   - Components:
     - CLI: components/cli.md
     - Agents: components/agents.md

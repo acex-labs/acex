@@ -1,0 +1,27 @@
+# The container images start from a Python base image that is pinned by digest, so a new Python release reaches
+# them as a pull request and not as a silent change between two builds. Dependabot reads this file from the
+# default branch and opens those pull requests against dev, one for all images, for new releases of Python 3.13.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /worker
+      - /agents/collection-agent
+      - /agents/telemetry-agent
+      - /agents/grafana-sync
+      - /mcp
+      - /mock-device
+      - /scripts
+    target-branch: dev
+    schedule:
+      interval: weekly
+    groups:
+      python-base-image:
+        patterns:
+          - python
+    ignore:
+      - dependency-name: python
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
