@@ -253,6 +253,27 @@ def get_bearer_token(
     return credentials.credentials if credentials else None
 
 
+def require_role(role: str):
+    """Dependency factory: reject with 403 (and log) unless the token holds the realm role `role`.
+
+    Reads Keycloak's `realm_access.roles` claim, the same one the web interface shows admin mode from.
+    """
+
+    def dep(request: Request, user: dict = Depends(get_current_user)) -> dict:  # noqa: B008
+        if OIDC_ISSUER_URL is None:
+            return user  # auth disabled — allow everything
+        roles = (user.get("realm_access") or {}).get("roles") or []
+        if role not in roles:
+            logger.warning(
+                f"Authorization denied ({request.method} {request.url.path}): "
+                f"user '{user.get('sub', 'unknown')}' lacks role {role!r}"
+            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Requires the {role} role")
+        return user
+
+    return dep
+
+
 def require_scopes(*required: str):
     """Dependency factory: reject with 403 (and log) if the token lacks any of the given scopes.
 
