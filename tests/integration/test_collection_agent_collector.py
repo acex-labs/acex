@@ -11,13 +11,17 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
+from acex_client.auth import NullAuthProvider
 from acex_client.exceptions import AcexHTTPError
+from acex_client.http import RestClient
+from acex_client.resources.neds import Neds
 from acex_collection_agent.collector import SUPPORTED_NED_INTERFACES, Collector
 from acex_devkit.drivers import NED_INTERFACE, NetworkElementDriver, State, Transport
 from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_devkit.models.agent_manifest import ManifestTarget
 from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry
+from acex_devkit.models.ned import Ned
 from acex_driver_cisco_ioscli.cisco_ios_cli import CiscoIOSCLIDriver
 from acex_driver_cisco_ioscli.transport.transport import CiscoIOSTransport
 from acex_driver_juniper_junos_cli.junos_cli import JunosCLI
@@ -220,6 +224,62 @@ def test_a_driver_the_collector_cannot_run_is_reported_with_the_reason():
     (result,) = collect(client, target(ned_id="Newer"))
 
     assert (result["status"], result["message"]) == ("error", f"NED 'Newer' not loaded: {reason}")
+    assert result["driver_unavailable"] is True
+
+
+def test_a_node_without_a_driver_costs_no_credentials():
+    client = FakeClient(None, incompatible={"Newer": "update this agent or worker"})
+
+    collect(client, *[target(node_id=n, ned_id="Newer") for n in range(1, 4)])
+
+    assert client.fetched == []
+
+
+def test_a_node_that_fails_for_another_reason_is_not_waiting_for_a_driver():
+    driver, _ = make_driver(config="")
+    client = FakeClient(driver)
+
+    results = collect(client, target(node_id=1), target(node_id=2, target_ip=None), target(node_id=3, ned_id=None))
+
+    assert [r["status"] for r in results] == ["error", "error", "error"]
+    assert not any(r.get("driver_unavailable") for r in results)
+
+
+def test_a_driver_the_collector_has_is_used_while_the_api_publishes_a_newer_one_it_cannot_run():
+    driver, _ = make_driver()
+    reason = "FakeDriver v9.0.0 implements NED interface 3, this process runs 2: update this agent or worker"
+    client = FakeClient(driver, incompatible={"FakeDriver": reason})
+
+    (result,) = collect(client, target())
+
+    assert result["status"] == "ok"
+
+
+def test_the_reason_the_real_client_keeps_is_what_the_collector_reports(monkeypatch):
+    rest = RestClient("http://unused.invalid/api/v1", NullAuthProvider(), timeout=5.0)
+    try:
+        neds = Neds(rest, ned_interfaces=SUPPORTED_NED_INTERFACES)
+        newer = Ned(
+            name="CiscoIOS",
+            package_name="acex-driver-cisco-ioscli",
+            version="9.0.0",
+            description="",
+            filename="acex_driver_cisco_ioscli-9.0.0-py3-none-any.whl",
+            interface_version=NED_INTERFACE + 1,
+        )
+        monkeypatch.setattr(Neds, "query", lambda self: [newer])
+        monkeypatch.setattr("acex_client.resources.neds.importlib.metadata.entry_points", lambda group: [])
+
+        assert neds.get_missing() == []
+        (result,) = collect(SimpleNamespace(neds=neds), target(ned_id="CiscoIOS"))
+    finally:
+        rest.close()
+
+    assert result["driver_unavailable"] is True
+    assert result["message"] == (
+        f"NED 'CiscoIOS' not loaded: CiscoIOS v9.0.0 implements NED interface {NED_INTERFACE + 1}, "
+        f"this process runs {NED_INTERFACE}: update this agent or worker"
+    )
 
 
 def test_the_collector_runs_the_interface_devkit_defines():
@@ -230,7 +290,11 @@ def test_the_collector_runs_the_interface_devkit_defines():
 
 
 @pytest.mark.parametrize("driver", [CiscoIOSCLIDriver, JunosCLI], ids=["cisco", "junos"])
-def test_the_real_drivers_implement_an_interface_the_collector_runs(driver):
+def test_the_real_drivers_declare_the_interface_devkit_defines(driver):
+    assert vars(driver).get("interface_version") == NED_INTERFACE, (
+        f"{driver.__name__} declares NED interface {vars(driver).get('interface_version')} and devkit defines "
+        f"{NED_INTERFACE}: port the driver to it, then set interface_version = {NED_INTERFACE} in its class body"
+    )
     assert driver.interface_version in SUPPORTED_NED_INTERFACES
 
 

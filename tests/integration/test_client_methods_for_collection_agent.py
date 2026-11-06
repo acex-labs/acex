@@ -22,6 +22,8 @@ collector for loading driver instances:
     client.neds.get_missing()        — returns list of NEDs missing locally
     client.neds.install(ned)          — downloads + pip-installs a NED wheel
     client.neds.get_driver_instance(ned_id) — resolves an installed driver instance
+    client.neds.incompatible          — dict of NED name -> why this process does not use it
+    Acex(..., ned_interfaces=)       — the NED interfaces the agent can run
 """
 
 import pytest
@@ -77,3 +79,11 @@ class TestClientInterfaceContract:
     )
     def test_method_exists(self, client_shape, dotted_path):
         assert _resolves(client_shape, dotted_path), f"Acex is missing client.{dotted_path}"
+
+    def test_neds_say_why_a_driver_is_not_used(self, client_shape):
+        assert isinstance(client_shape.neds.incompatible, dict)
+
+    def test_the_client_takes_the_ned_interfaces_the_agent_runs(self):
+        client = Acex(base_url="http://unused.invalid/", auth=_NoAuth(), ned_interfaces=[2])
+
+        assert client.neds.ned_interfaces == frozenset({2})

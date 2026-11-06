@@ -32,7 +32,7 @@ from acex_devkit.models.node_response import NodeInstance
 from acex_devkit.models.state import ArpEntry, DeviceFacts, StateKind
 
 # Bumped when the contract between a driver and the process that runs it changes in a way that breaks either side.
-# Agents and workers name the interfaces they can run and refuse a driver that implements another one.
+# Agents and workers name the interfaces they can run and refuse a driver that declares another one.
 NED_INTERFACE = 2
 
 
@@ -231,7 +231,9 @@ class NetworkElementDriver:
 
     platforms: ClassVar[list[Platform]] = []
 
-    interface_version: ClassVar[int] = NED_INTERFACE
+    # The NED interface the driver was written for. Set it in the class body: a driver that does not say is not
+    # checked, and a value inherited from the devkit the driver is loaded under would only say where it runs.
+    interface_version: ClassVar[int | None] = None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

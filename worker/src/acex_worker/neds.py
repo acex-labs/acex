@@ -14,7 +14,7 @@ from acex_devkit.models.ned import Ned
 log = logging.getLogger("acex_worker")
 
 # The NED interfaces this worker can run, as opposed to the one devkit currently defines: a driver that
-# implements another one is not installed (see the client's Neds) until a worker that runs it is released.
+# declares another one is not installed (see the client's Neds) until a worker that runs it is released.
 SUPPORTED_NED_INTERFACES = frozenset({2})
 
 # Jobs run in threads; two of them must not pip install into the same environment at once.
@@ -37,7 +37,11 @@ def sync_neds(client: Acex) -> None:
     """
     missing = client.neds.get_missing()
     if not missing:
-        log.info("All NEDs are installed and up to date")
+        not_used = sorted(client.neds.incompatible)
+        if not_used:
+            log.warning(f"No NED to install; not used by this worker: {', '.join(not_used)}")
+        else:
+            log.info("All NEDs are installed and up to date")
         return
     for ned in missing:
         try:

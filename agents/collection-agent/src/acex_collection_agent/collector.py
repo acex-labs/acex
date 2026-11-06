@@ -19,7 +19,7 @@ logger = logging.getLogger("acex_collection_agent")
 CREDENTIAL_TYPES = ("userpass", "privilege_escalation")
 
 # The NED interfaces this collector can run, as opposed to the one devkit currently defines: a driver that
-# implements another one is not installed (see the client's Neds) until a collector that runs it is released.
+# declares another one is not installed (see the client's Neds) until a collector that runs it is released.
 SUPPORTED_NED_INTERFACES = frozenset({2})
 
 
@@ -52,18 +52,25 @@ class Collector:
         target_ip = target.target_ip
         ned_id = target.ned_id
 
-        def err(message: str) -> dict:
+        def err(message: str, **extra) -> dict:
             return {
                 "node_id": node_id,
                 "hostname": hostname,
                 "status": "error",
                 "message": message,
+                **extra,
             }
 
         if not target_ip:
             return err("No management IP")
         if not ned_id:
             return err("No NED configured")
+
+        driver = self.client.neds.get_driver_instance(ned_id)
+        if driver is None:
+            reason = self.client.neds.incompatible.get(ned_id)
+            message = f"NED '{ned_id}' not loaded: {reason}" if reason else f"NED '{ned_id}' not loaded"
+            return err(message, driver_unavailable=True)
 
         credentials = []
         for credential_type in CREDENTIAL_TYPES:
@@ -77,11 +84,6 @@ class Collector:
                 return err("Failed to fetch credentials")
             else:
                 logger.warning(f"Failed to fetch {credential_type} credential for node {node_id}")
-
-        driver = self.client.neds.get_driver_instance(ned_id)
-        if driver is None:
-            reason = self.client.neds.incompatible.get(ned_id)
-            return err(f"NED '{ned_id}' not loaded: {reason}" if reason else f"NED '{ned_id}' not loaded")
 
         logger.info(f"Collecting config from {hostname} ({target_ip}) via {ned_id}")
         try:

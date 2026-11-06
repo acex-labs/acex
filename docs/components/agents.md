@@ -34,8 +34,9 @@ The collection agent:
   cycle — no driver is baked into the agent image, so a NED added or upgraded on the backend is
   picked up without rebuilding or restarting the agent (an upgrade of a driver the process has
   already imported is the exception and is logged as needing a restart)
-- Does not install a driver that implements a NED interface it cannot run. The log and the
-  collection result of the nodes that need it say why, and a driver it already has keeps working
+- Does not install a driver that declares a NED interface it cannot run. If it already has a driver
+  for that NED it keeps using it and logs the reason; if it has none, the nodes that need the NED report
+  the reason and are tried again every five minutes
   (see [Drivers](drivers.md#keeping-a-driver-and-the-process-that-runs-it-in-step))
 - Parses the raw config through the NED driver's parser before uploading — the backend stores the structured `ComposedConfiguration`, not raw text
 

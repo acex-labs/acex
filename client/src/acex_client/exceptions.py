@@ -52,7 +52,8 @@ class AcexNedInstallError(AcexError):
 
 
 class AcexNedIncompatibleError(AcexNedInstallError):
-    """A NED implements an interface the running process cannot run, so it was not installed."""
+    """The running process cannot use a NED: it declares an interface the process cannot run, so it is
+    not installed, or the installed code cannot be loaded."""
 
 
 __all__ = [

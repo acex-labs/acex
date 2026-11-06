@@ -17,3 +17,5 @@ class CiscoIOSCLIDriver(NetworkElementDriver):
     actions_class = CiscoIOSActions
 
     platforms = [Platform(vendor=Vendor.cisco, os=OS.cisco_iosxe)]
+
+    interface_version = 2
