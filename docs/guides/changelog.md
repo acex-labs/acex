@@ -131,7 +131,9 @@ and, to send only some packages, name them (see
 
 1. **Plan.** The run summary lists every package, its old and new version and
    why it is in the release. Nothing is changed. A package that changed without
-   an entry stops the plan here.
+   an entry stops the plan here, and so does a stable release of a package that
+   changed since its release candidate was tagged, or whose candidate has no
+   tag (see below).
 2. **Gate.** The `release` environment waits for a reviewer. Read the plan; if
    it looks right, approve. That is the play button.
 3. **Release.** The workflow runs `release-all` and the bot commits the
@@ -202,6 +204,24 @@ into `main` publishes the stable versions with `latest`. The stable images are
 built again from the same sources, with the suffix removed: an image reads its
 version from its package metadata, so retagging a candidate would still
 report `rc`.
+
+"The same sources" is checked. When a push publishes a version, CI tags the
+commit `<package>-<version>` (`acex-client-4.12.0rc1`): candidates when `dev`
+is pushed, stable versions when `main` is. The plan of a stable release, and
+the pull request into `main`, compare what a package ships with the tag of its
+candidate: its directory (or the `paths` it lists) and, for an image,
+everything its `Dockerfile` copies, with the `Dockerfile`, the ignore file of
+the build and the lock files. Anything that differs, apart from the compiled
+notes, the highlights and the roadmap, the version in the manifest (and in
+`package-lock.json`), `README` files and tests, is listed, the first ten files
+and how many more, and stops the release until a new candidate has been cut or
+the change is reverted. A package that never was a candidate is not compared,
+and neither is a candidate cut on another branch.
+
+A candidate that has no tag also stops the plan. The tag is put on when the push
+that published the candidate finishes without a failed job; for a candidate
+cut before tagging existed, or one whose push failed, tag the commit that set
+the version by hand. The message names the command.
 
 `main` never receives a candidate. A pull request into `main` fails while a
 version still has an `rc` suffix. A fix that is already known to be stable can
@@ -413,10 +433,12 @@ it as a component, the same as a `pyproject.toml`. Options sit under
 - `name` is what Settings > What's new shows.
 - `output` is the compiled file. It must end up in the bundle; the page
   imports it and adds it to the product section next to the backend's notes.
-- `paths` lists what changes call for an entry. Without it every file counts
-  except tests, READMEs and lock files, which is wrong for a project whose
-  root holds CI and tooling files too. A Python package can set `paths` under
-  `[tool.acex.changelog]` for the same reason.
+- `paths` lists what changes call for an entry, and what a stable release is
+  compared with its candidate by (with the manifest, the `Dockerfile` and the
+  lock files). Without it every file counts except tests, READMEs and lock
+  files, which is wrong for a project whose root holds CI and tooling files
+  too. A Python package can set `paths` under `[tool.acex.changelog]` for the
+  same reason.
 
 Copy `backend/src/acex/changelog/tool.py` to `scripts/changelog.py` in that
 repository and run it from the repository root. `release --bump patch` bumps
