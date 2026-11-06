@@ -4,6 +4,108 @@
   "name": "ACEX client",
   "releases": [
     {
+      "version": "4.12.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261013-acexconflicterror-is-raised-for-http-409",
+          "kind": "added",
+          "title": "`AcexConflictError` is raised for HTTP 409 responses",
+          "description": "A request that does not fit the resource's current state, such as claiming a job that was already taken, now raises `AcexConflictError` (an `AcexHTTPError`) instead of the generic `AcexHTTPError`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-client-workers-lets-a-worker-connect-and",
+          "kind": "added",
+          "title": "`client.workers` lets a worker connect and process jobs",
+          "description": "`workers.connect(payload)` returns the broker and queues for the job types a worker runs, and `workers.job_types()` lists every job type and its queue. `workers.jobs` has `query()`, `get(job_id)`, `claim(job_id)`, `succeed(job_id, result)`, `fail(job_id, error)` and `report(job_id, payload)`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#312",
+              "url": null
+            },
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-client-ztp-methods-reads-and-changes-the",
+          "kind": "added",
+          "title": "`client.ztp_methods` reads and changes the settings of each ZTP method",
+          "description": "`ztp_methods.query()` lists the ZTP methods, `get(method)` returns the chosen `ned` and bootstrap login for one, and `update(method, payload)` changes them; fields left out keep their value. An unknown NED raises `AcexValidationError`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-neds-installed-version-ned-id-returns-th",
+          "kind": "added",
+          "title": "`neds.installed_version(ned_id)` returns the locally installed NED version",
+          "description": "Returns the version string of an installed driver, or `None` if it is not installed, without loading the driver.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261023-client-operations-execute-runs-commands",
+          "kind": "added",
+          "title": "client.operations runs commands and pings on nodes",
+          "description": "`client.operations.execute(node_ids, commands)` and `client.operations.actions.ping(node_ids, target=...)` order a run; `client.operations.runs.query()`, `.get(run_id)` and `.report(run_id, format)` read it back.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261028-client-operations-patch-renders-and",
+          "kind": "added",
+          "title": "client.operations.patch renders and applies configuration patches",
+          "description": "`client.operations.patch.render(node_ids, paths=[...], prune=...)` orders a plan, and `client.operations.patch.apply(plan_id, node_ids)` sends it.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261024-client-operations-workflows-starts-and-r",
+          "kind": "added",
+          "title": "client.operations.workflows starts and reads workflow runs",
+          "description": "The new methods are `start(workflow_id, payload)`, `get_run(run_id)`, `artifacts(run_id, names)`,\n`resume(run_id, to_end)` and `stop(run_id)`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261028-manage-cves-through-the-python-client",
+          "kind": "added",
+          "title": "Manage CVEs through the Python client",
+          "description": "Use `client.cves` to list, retrieve, create, update, and bulk-ingest CVEs, or\nqueue NVD discovery. Use `client.cves.api_key` to manage the backend's optional\nNVD API key.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "4.10.0",
       "date": "2026-09-30",
       "entries": [
