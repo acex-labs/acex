@@ -397,10 +397,11 @@ def test_a_host_signed_by_an_internal_ca_is_trusted_with_its_ca_certificate(env,
         repo = manager.create(
             GitRepositoryCreate(name="maps", url=url, auth_method=GitAuthMethod.HTTPS_ANONYMOUS), created_by="admin"
         )
-        assert "SSL certificate problem" in repo.last_error
+        # OpenSSL words it "SSL certificate problem", GnuTLS "server certificate verification failed".
+        assert "certificate" in repo.last_error.lower()
 
         trusted = manager.update(repo.id, GitRepositoryUpdate(ca_certificate=ca_pem), updated_by="admin")
-        assert "SSL certificate problem" not in (trusted.last_error or "")
+        assert "certificate" not in (trusted.last_error or "").lower()
         ca_file = manager.checkout_root / f"{repo.id}.ca.pem"
         assert manager.git.remote_commit(url, "main", GitAuth(), ca_file) == commit
     finally:
