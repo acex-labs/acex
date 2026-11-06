@@ -148,3 +148,5 @@ class JunosCLI(NetworkElementDriver):
     state_class = JunosState
 
     platforms = [Platform(vendor=Vendor.juniper, os=OS.juniper_junos)]
+
+    interface_version = 2
