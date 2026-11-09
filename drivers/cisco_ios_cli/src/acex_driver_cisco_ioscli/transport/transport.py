@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from acex_devkit.drivers import Transport
 from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
@@ -32,7 +33,7 @@ class CiscoIOSTransport(Transport[str]):
             host=self.address,
             auth_username=login.fields["username"],
             auth_password=login.fields["password"],
-            auth_secondary=enable.fields["password"] if enable else login.fields["password"],
+            auth_secondary=(enable.fields["password"] if enable else login.fields["password"]),
             auth_strict_key=False,
             port=self.PORT,
             timeout_socket=30,
@@ -56,7 +57,34 @@ class CiscoIOSTransport(Transport[str]):
             pass
 
     async def get_config(self) -> str:
-        return (await self.conn.send_command("show running-config", timeout_ops=120)).result
+        config = (await self.conn.send_command("show running-config", timeout_ops=120)).result
+        try:
+            vtp_output = (await self.conn.send_command("show vtp status", timeout_ops=30)).result
+        except Exception:
+            return config
+
+        additions = self.vtp_config(vtp_output)
+        added_config = "\n".join(part for part in (config.rstrip(), *additions) if part)
+        return added_config
+
+    @staticmethod
+    def vtp_config(output: str) -> list[str]:
+        def find(pattern: str) -> str | None:
+            match = re.search(pattern, output, re.IGNORECASE | re.MULTILINE)
+            return match.group(1).strip() if match else None
+
+        lines = []
+        domain_name = find(r"^VTP Domain Name\s*:\s*(.*?)\s*$")
+        mode = find(r"VTP Operating Mode\s+:\s+(\S+)")
+        version = find(r"VTP version running\s+:\s+(\d+)")
+
+        if domain_name:
+            lines.append(f"vtp domain {domain_name}")
+        if mode and mode.casefold() in {"server", "client", "transparent", "off"}:
+            lines.append(f"vtp mode {mode.casefold()}")
+        if version in {"1", "2", "3"}:
+            lines.append(f"vtp version {version}")
+        return lines
 
     async def apply(self, payload: str) -> str:
         commands = [line.strip() for line in payload.splitlines() if line.strip() and line.strip() != "!"]
