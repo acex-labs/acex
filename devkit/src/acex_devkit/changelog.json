@@ -4,6 +4,167 @@
   "name": "ACEX devkit",
   "releases": [
     {
+      "version": "3.0.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261013-nodeprovisionstatus-pending-and-bootstra",
+          "kind": "changed",
+          "title": "NodeProvisionStatus: `pending` and `bootstrapping` replaced by `enrolled`",
+          "description": "The `NodeProvisionStatus` values `pending` and `bootstrapping` are removed and `enrolled` is added (a node in ZTP waiting to be discovered, approved and provisioned). Code that compares against, or sends, the removed values must use `enrolled`; the ZTP stage within `enrolled` now comes from the asset (`ZtpStage`). This is also a change to the backend and client API.",
+          "breaking": true,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#312",
+              "url": null
+            },
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261027-agent-acknowledgements-and-agent",
+          "kind": "added",
+          "title": "Agent acks and responses carry agent_version, build_id and build_ref",
+          "description": "`CollectionAgentAck` and `TelemetryAgentAck` take the optional fields `agent_version`, `build_id` and `build_ref`, and `CollectionAgentResponse` and `TelemetryAgentResponse` return them. Both default to `None`, so existing agents and clients keep working.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261022-config-snapshot-models-have-last-collected",
+          "kind": "added",
+          "title": "Config snapshot models have last_collected_at",
+          "description": "`ConfigSnapshotDetail` and `ConfigSnapshotListItem` have a new optional field, `last_collected_at`: the last time the node was polled and still had this configuration. It is empty for a configuration stored before the field existed, until the node is polled again.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261028-drivers-built-on-the-mapper-render",
+          "kind": "added",
+          "title": "Drivers built on the mapper render configuration patches",
+          "description": "`Mapper.render_patch` renders a diff as the lines that take the device from observed to desired: added and changed components from the desired render, removed ones negated from the observed render. `Diff.scoped(path, prune)` narrows a diff to a path. A diff now holds the trees it was made from, so `Codec.render_patch` gets everything it needs from it.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261013-job-models-for-background-work-jobrespon",
+          "kind": "added",
+          "title": "Job models for background work: JobResponse, JobSummary, JobUpdate",
+          "description": "New module `acex_devkit.models.job` with `JobState` (`queued`, `running`, `succeeded`, `failed`, `cancelled`), `JobSubjectType`, `JobResponse`, `JobSummary` (listings, without `data`/`result`/`error`), `JobPurge` and `JobUpdate`. `JobUpdate` is what a worker reports; it rejects a `result` unless the state is `succeeded` and a `failed` state without an `error`. These are also the backend API's job payloads.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#312",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261023-models-for-running-commands-on-nodes-as",
+          "kind": "added",
+          "title": "Models for runs of operations on nodes, and ping params and result",
+          "description": "`acex_devkit.models.operations` holds the requests, job data, results and run reports. `PingParams` gains vrf, source, timeout and size, and `PingResult` round-trip times, success rate and success. `Ned` carries the driver's `capabilities`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261024-models-and-expression-language-for-work",
+          "kind": "added",
+          "title": "Models, checks and the expression language for workflows",
+          "description": "`acex_devkit.models.workflows` holds the step types, the workflow graph, artifacts and the run views.\n`acex_devkit.workflows` parses and evaluates the expressions steps use, such as `success_rate >= 80`,\n`regex(...)`, `all(...)` and `{...}` templates. Artifacts are referenced by name, and a step's own result as\n`result`. The language refuses anything outside itself and runs patterns with RE2.\n\n`acex_devkit.workflows.check.WorkflowChecker` reports a graph's problems and warnings, and what each step can\nread. The devkit now depends on `google-re2`, and `JobState` has `scheduled` and `paused`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261024-run-has-finished-at",
+          "kind": "added",
+          "title": "Run has finished_at, when the last of its jobs finished",
+          "description": null,
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261028-shared-models-for-cve-management-and-discovery",
+          "kind": "added",
+          "title": "Shared models for CVE management and discovery",
+          "description": "The `acex_devkit.models.cve` module provides CVE creation, update, and response\nmodels, including CVSS scores and base severity, plus discovery request and\nresult models and an NVD API key update model.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261013-worker-connection-models-workerconnectre",
+          "kind": "added",
+          "title": "Worker connection models: WorkerConnectRequest and WorkerConnection",
+          "description": "New module `acex_devkit.models.worker`. A starting worker sends `WorkerConnectRequest(job_types=[...])` and gets a `WorkerConnection` with the `broker` (`BrokerConnection`: `host`, `port`, `vhost`, `user`, `password`) and the `queues` (`QueueDeclaration`: `name`, `durable`) to declare. `JobTypeInfo` pairs a job type `name` with its `queue`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#312",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-ztp-discovery-review-models-ztpdiscovery",
+          "kind": "added",
+          "title": "ZTP discovery review models: ZtpDiscoveryResponse, proposal, bulk approve/reject",
+          "description": "`ZtpDiscoveryResponse` carries the device's self-reported facts, `review_status` (`ZtpReviewStatus`), `conflicts` (`ZtpConflict`, `ZtpConflictKind`) and a `proposal` (`ZtpApprovalProposal`, with an `action` and a `hash` echoed back as `proposal_hash` in `ZtpApproveRequest`). `ZtpBulkApprove` (with `dry_run`), `ZtpBulkReject` and `ZtpBulkResult` cover bulk review.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-ztp-methods-and-job-payloads-ztpmethod-z",
+          "kind": "added",
+          "title": "ZTP methods and job payloads: ZtpMethod, ZtpMethodResponse, ZtpDiscoverData",
+          "description": "New module `acex_devkit.models.ztp` with `ZtpMethod` (currently `cisco_iosxe_python`), `ZtpMethodResponse` and `ZtpMethodUpdate` (per-method `ned` and bootstrap login, only sent fields change), and the job payloads `ZtpDiscoverData`, `ZtpDiscoverResult`, `ZtpProvisionData` and `ZtpProvisionResult`. New methods are added to `ZtpMethod` and `ZTP_METHOD_INFO` together.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#312",
+              "url": null
+            },
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-ztp-pipeline-models-ztpcall-ztppipelinen",
+          "kind": "added",
+          "title": "ZTP pipeline models: ZtpCall, ZtpPipelineNode, ZtpNodeDetail, ZtpPipelineSummary",
+          "description": "`ZtpCall` lists a device that fetched its bootstrap, with its `stage` (`ZtpCallStage`) and `attempts`. `ZtpPipelineNode` and `ZtpNodeDetail` show a node's `stage` (`ZtpStage`), `readiness` (`ZtpAssetReadiness`), `stalled` reason, `discoveries` and `provision_jobs`; `ZtpPipelineSummary` counts nodes per stage and approved assets in the `pool`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "2.10.0",
       "date": "2026-09-30",
       "entries": [
