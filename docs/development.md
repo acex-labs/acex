@@ -19,7 +19,7 @@
    ./scripts/dev-setup.sh
    ```
 
-   This installs all packages using Poetry and creates `.venv` in each package directory.
+   This runs `poetry install` for devkit, backend, cli, worker and mcp and creates `.venv` in each of those package directories. The client and the drivers come in as path dependencies of them. To work on one of the others (an agent, a driver), run `poetry install` in its directory, for example `agents/collection-agent`.
 
 3. **Activate a package environment:**
    ```bash
@@ -41,25 +41,29 @@
 
 ```
 acex/
-├── backend/          # Core backend package (acex)
-│   ├── .venv/       # Backend virtual environment
-│   ├── src/acex/
-│   └── pyproject.toml
-├── cli/             # CLI package (acex-cli)
-│   ├── .venv/
-│   ├── src/acex_cli/
-│   └── pyproject.toml
-├── worker/          # Worker package (acex-worker)
-│   ├── .venv/
-│   ├── src/acex_worker/
-│   └── pyproject.toml
-├── mcp/             # MCP server (acex-mcp-server)
-│   ├── .venv/
-│   └── pyproject.toml
-└── devkit/          # Shared models (acex-devkit)
-    ├── .venv/
-    └── pyproject.toml
+├── backend/             # acex: the API, the configuration model and its components
+├── cli/                 # acex-cli
+├── client/              # acex-client: API client used by the CLI, worker, MCP server and agents
+├── devkit/              # acex-devkit: models shared by every package
+├── worker/              # acex-worker: background jobs for the backend
+├── mcp/                 # acex-mcp: MCP tool server
+├── agents/
+│   ├── collection-agent/
+│   ├── telemetry-agent/
+│   └── grafana-sync/
+├── drivers/
+│   ├── cisco_ios_cli/   # acex-driver-cisco-ioscli
+│   └── juniper_junos_cli/   # acex-driver-juniper-junoscli
+├── mock-device/         # SSH mock devices for the local stack
+├── keycloak/            # realm for the local stack
+├── scripts/             # dev-setup.sh, changelog.py, seed scripts
+├── tests/integration/   # tests that span several packages
+├── docs/                # this site
+├── docker-compose.yml   # the local stack
+└── Taskfile.yml         # tasks for the local stack
 ```
+
+Each package has its own `pyproject.toml`, `src/` and, after setup, its own `.venv/`.
 
 ## Switching Between Package Environments
 
@@ -124,11 +128,14 @@ poetry install
 
 ## Package Dependencies
 
-- `acex` (backend) - No internal dependencies
-- `acex-cli` - Depends on `acex` (via `path = "../backend"`)
-- `acex-worker` - Depends on `acex` (via `path = "../backend"`)
+- `acex-devkit`: no internal dependencies. The models everything else shares.
+- `acex-client` and the two drivers: depend on `acex-devkit`.
+- `acex` (backend): depends on `acex-devkit`. The drivers are development dependencies, used by its tests.
+- `acex-cli`: depends on `acex-client`, `acex-devkit` and the Cisco driver.
+- `acex-worker`: depends on `acex-client` and `acex-devkit`.
+- `acex-mcp` and the three agents: depend on `acex-client`.
 
-The dependencies use local paths during development, so changes in backend are immediately available in CLI and Worker.
+In the repository these are local paths (`path = "../devkit"`, editable), so a change in devkit or client is live in every package that uses it. When a package is published, CI runs `switch_deps.sh prod` to replace the paths with version ranges (`^<major>`). You do not run it yourself, and the development images do not use it.
 
 ## Adding Dependencies
 
@@ -144,12 +151,32 @@ poetry add <package-name>
 
 ## Testing
 
+Each package has its own tests:
+
 ```bash
 cd backend
 poetry run pytest
+```
 
-cd cli
-poetry run pytest
+Tests that span several packages are in `tests/integration`. On every pull request CI runs the lint and format checks, the unit tests of each package and the integration tests.
+
+## Linting and Formatting
+
+The repository uses [Ruff](https://docs.astral.sh/ruff/), configured in `ruff.toml` (line length 120):
+
+```bash
+ruff check .
+ruff format .
+```
+
+The pre-commit hooks run the same checks. Install them with `pre-commit install`.
+
+## Running the Full Stack
+
+Everything (backend, frontend, agents, mock devices, Keycloak, Grafana, InfluxDB) runs with Docker Compose and `task setup`, described in [Installation](getting-started/installation.md). To run the API from source against the database of that stack, with authentication off and any origin allowed:
+
+```bash
+task api
 ```
 
 ## Branch Naming
@@ -187,18 +214,28 @@ scripts/check_branch_name.sh              # validate the current branch
 scripts/check_branch_name.sh fix/my-fix   # validate a given name
 ```
 
+## Release Notes
+
+A change can carry its release note, a small file in the package's `changelog.d/` directory:
+
+```bash
+python scripts/changelog.py new backend --kind fixed --title "Static routes no longer fail on an empty next hop"
+```
+
+A pull request into `dev` does not need one. A package needs its notes when it is sent to stage, and a pull request into `main` needs them for every package it changes (`Changelog entry`). Use `--kind internal` for a change that users cannot notice. The fragments become the release notes under Settings > What's new when a release is cut. The format, the kinds and how a release is cut are in [Release notes](guides/changelog.md).
+
 ## Development Images
 
-Every push to `dev` runs `.github/workflows/docker-dev.yml`, which publishes the backend, agent and MCP images to the same GHCR repositories as a release, under development tags:
+Every push to `dev` runs `.github/workflows/docker-dev.yml`, which publishes the backend, worker, agent and MCP images to the same GHCR repositories as a release, under development tags:
 
 ```
 ghcr.io/acex-labs/acex-backend:dev              # moving: newest successful dev build
 ghcr.io/acex-labs/acex-backend:dev-<short-sha>  # fixed: one commit
 ```
 
-The same pattern applies to `acex-collection-agent`, `acex-telemetry-agent`, `acex-grafana-sync-agent` and `acex-mcp`. Development builds install devkit, client and the drivers from the checked-out source, so they always contain the code of the commit they were built from, even when no package version has been bumped. They never publish `latest`, upload to PyPI or create a release; that remains the `main` pipeline in `ci.yml`.
+The same pattern applies to `acex-worker`, `acex-collection-agent`, `acex-telemetry-agent`, `acex-grafana-sync-agent` and `acex-mcp`. Development builds install devkit, client and the drivers from the checked-out source, so they always contain the code of the commit they were built from, even when no package version has been bumped. They never publish `latest`, upload to PyPI or create a release; that remains the `main` pipeline in `ci.yml`.
 
-The five images are built independently. If one build fails, the others still receive the new tags and the failed image keeps its previous `dev` tag, so `:dev` can temporarily mix commits. The run summary lists, per image, whether `dev-<short-sha>` was published and its digest.
+The six images are built independently. If one build fails, the others still receive the new tags and the failed image keeps its previous `dev` tag, so `:dev` can temporarily mix commits. The run summary lists, per image, whether `dev-<short-sha>` was published and its digest.
 
 A `dev-<short-sha>` tag tells you which commit an image was built from, but tags are not immutable: a rebuild of the same commit (for example after a base image or dependency update) replaces it. When a deployment must be pinned to exactly one image, reference the digest from the run summary instead, e.g. `ghcr.io/acex-labs/acex-backend@sha256:…`.
 
@@ -216,20 +253,14 @@ If a secret has accidentally ended up in history it must be rotated/invalidated 
 
 ## Building for Distribution
 
-To build individual packages:
+To build a package:
 
 ```bash
 cd backend
 poetry build
-
-cd cli
-poetry build
-
-cd worker
-poetry build
 ```
 
-Distribution files will be in `dist/` folder of each package.
+The distribution files are in `dist/` of the package. Releases are published by CI from `main`; see [Release notes](guides/changelog.md).
 
 ## Tips
 
