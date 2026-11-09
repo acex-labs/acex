@@ -1,22 +1,35 @@
 import inspect
+import logging
 from datetime import UTC, datetime
+from typing import Literal
 
-from acex.models import (
-    ManagementConnection,
-    ManagementConnectionResponse,
-    Node,
-    NodeListResponse,
-    NodeResponse,
-    PaginatedResponse,
-)
-from acex.models.node import NodeAdminStatus, NodeProvisionStatus
+from acex.models import Asset, AssetCluster, ManagementConnection, Node
 from acex.plugins.neds.manager.ned_manager import NEDManager
+from acex_devkit.models.config_origin import AnnotatedConfigResponse, ComponentOrigin, OriginSpan
+from acex_devkit.models.management_connection import ManagementConnectionResponse
+from acex_devkit.models.node_response import AssetRefType, NodeAdminStatus, NodeInstance, NodeProvisionStatus
+from acex_devkit.models.node_response import NodeListItem as NodeListResponse
+from acex_devkit.models.pagination import PaginatedResponse
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import Integer, case, cast, func, select
+from sqlalchemy.dialects.postgresql import INET
+
+log = logging.getLogger(__name__)
 
 
 class NodeService:
     """Service layer för Node business logik."""
+
+    SORTABLE_COLUMNS = {
+        "id": "id",
+        "hostname": "logical_node.hostname",
+        "site": "logical_node.site",
+        "role": "logical_node.role",
+        "admin_status": "admin_status",
+        "provision_status": "provision_status",
+        "ip": "ip",
+        "ned_id": "ned_id",
+    }
 
     def __init__(self, adapter, inventory):
         self.adapter = adapter
@@ -35,7 +48,10 @@ class NodeService:
         if node is None:
             return None
 
+        # A relationship, so model_dump() leaves it out; primary first, as nodes are listed.
+        connections = sorted(getattr(node, "management_connections", None) or [], key=lambda c: (not c.primary, c.id))
         node = node.model_dump()
+        node["management_connections"] = [c.model_dump() for c in connections]
         if node.get("asset_ref_type") == "asset_cluster":
             node["asset"] = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"]).model_dump()
         else:
@@ -48,44 +64,47 @@ class NodeService:
         if ln is not None:
             node["logical_node"] = ln.model_dump()
             node["regions"] = ln.regions if ln.regions else []
-        return NodeResponse(**node)
+        if self.inventory.credential_manager is not None:
+            node["credentials"] = self.inventory.credential_manager.node_credential_refs(node["id"])
+        return NodeInstance(**node)
 
     async def get_rendered_config(self, id: str):
         """
         Renderar konfigurationen för en nod instans.
         """
         ni = await self.get(id)
-        ln_config = await self.inventory.logical_nodes.get_configuration(ni.logical_node_id)
-        composed_config = ln_config.configuration
-
-        asset = ni.asset
-
-        ned_manager = NEDManager()
-        ned = ned_manager.get_driver_instance(asset.ned_id)
-
+        compiled = await self.inventory.logical_nodes.compile(ni.logical_node_id)
+        ned = NEDManager().get_driver_instance(ni.asset.ned_id)
         if ned is None:
             return "error: NED not found"
         try:
-            config = ned.render(configuration=composed_config, asset=asset)
-        except Exception as e:
-            # Skriver ut felmeddelandet
-            print("Fel:", e)
-            # Skriver ut hela tracebacken
-            import traceback
+            return ned.render(compiled.config_response.configuration, ni).payload
+        except Exception:
+            log.exception(f"Rendering configuration for node instance {id} failed")
+            return ""
 
-            traceback.print_exc()
-            # Todo, printa ut mer info från vilken render och vad som pajjat
-            # Fel: render trasig
-            # Render XYZ trasig
-            # Node ID X triggade fel
-            # På den här filen kommer tracen
-            # Här kommer traceback mannen:
-            # tracen
+    async def get_annotated_config(self, id: str) -> AnnotatedConfigResponse:
+        """The rendered configuration with each block of text tied to the config component behind it."""
+        ni = await self.get(id)
+        compiled = await self.inventory.logical_nodes.compile(ni.logical_node_id)
+        ned = NEDManager().get_driver_instance(ni.asset.ned_id)
+        if ned is None:
+            raise HTTPException(status_code=404, detail=f"No NED configured for node instance {id}")
+        result = ned.render(compiled.config_response.configuration, ni)
+        origins = compiled.configuration.origins()  # read after config_response, which places the components
+        spans = [
+            OriginSpan(**span.model_dump(), origin=self.origin(span.path, origins)) for span in result.metadata.spans
+        ]
+        return AnnotatedConfigResponse(content=result.payload, spans=spans)
 
-            config = ""
-        return config
+    @staticmethod
+    def origin(path: list[str], origins: list[ComponentOrigin]) -> ComponentOrigin | None:
+        """The component whose path is the longest prefix of `path`: a line belongs to the most specific
+        component placed at or above it."""
+        matches = [o for o in origins if path[: len(o.path)] == o.path]
+        return max(matches, key=lambda o: len(o.path), default=None)
 
-    async def create(self, logical_node: Node) -> NodeResponse:
+    async def create(self, logical_node: Node) -> NodeInstance:
         if logical_node.asset_ref_type == "asset_cluster":
             self.inventory.asset_cluster_manager.get_cluster(logical_node.asset_ref_id)  # raises 404 itself
         else:
@@ -98,7 +117,7 @@ class NodeService:
             self.inventory.telemetry_agent_manager.bump_revisions_for_node(node_id)
         return await self._enrich_data(result)
 
-    async def get(self, id: str) -> NodeResponse:
+    async def get(self, id: str) -> NodeInstance:
         result = await self._call_method(self.adapter.get, id)
         if result is None:
             raise HTTPException(status_code=404, detail=f"Node instance {id} not found")
@@ -120,6 +139,8 @@ class NodeService:
         provision_status: NodeProvisionStatus | None = None,
         limit: int = 100,
         offset: int = 0,
+        sort: str | None = None,
+        order: Literal["asc", "desc"] = "asc",
     ) -> PaginatedResponse[NodeListResponse]:
 
         query_filters = {
@@ -167,8 +188,71 @@ class NodeService:
                 )
             ]
 
+        sort_column = None
+        if sort is not None:
+            if sort not in self.SORTABLE_COLUMNS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid sort field '{sort}'. Valid: {sorted(self.SORTABLE_COLUMNS)}",
+                )
+            if sort == "ip":
+                # Order by the primary management connection's IP, numerically.
+                # Non-IP values (hostnames, blanks) and nodes without a
+                # connection become NULL and follow the database's NULL order.
+                ip = ManagementConnection.target_ip
+                if self.adapter.plugin.db.connection.backend == "postgresql":
+                    numeric_ip = cast(ip, INET)
+                else:
+                    # No INET outside PostgreSQL: split the dotted quad on its dots and combine the octets.
+                    rest, octets = ip, []
+                    for _ in range(3):
+                        dot = func.instr(rest, ".")
+                        octets.append(cast(func.substr(rest, 1, dot - 1), Integer))
+                        rest = func.substr(rest, dot + 1)
+                    octets.append(cast(rest, Integer))
+                    numeric_ip = ((octets[0] * 256 + octets[1]) * 256 + octets[2]) * 256 + octets[3]
+                sort_column = (
+                    select(
+                        case(
+                            (
+                                ip.regexp_match(
+                                    r"^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
+                                ),
+                                numeric_ip,
+                            ),
+                            else_=None,
+                        )
+                    )
+                    .where(ManagementConnection.node_id == Node.id)
+                    .order_by(ManagementConnection.primary.desc(), ManagementConnection.id)
+                    .limit(1)
+                    .scalar_subquery()
+                )
+            elif sort == "ned_id":
+                # Order by the referenced asset's (or asset cluster's) NED.
+                # NULL ned_id sorts per Postgres defaults (last asc, first desc).
+                sort_column = case(
+                    (
+                        Node.asset_ref_type == AssetRefType.asset,
+                        select(Asset.ned_id).where(Asset.id == Node.asset_ref_id).scalar_subquery(),
+                    ),
+                    (
+                        Node.asset_ref_type == AssetRefType.asset_cluster,
+                        select(AssetCluster.ned_id).where(AssetCluster.id == Node.asset_ref_id).scalar_subquery(),
+                    ),
+                    else_=None,
+                )
+            else:
+                sort_column = self.SORTABLE_COLUMNS[sort]
+
         result = await self._call_method(
-            self.adapter.query, filters=query_filters, extra_filters=extra_filters, limit=limit, offset=offset
+            self.adapter.query,
+            filters=query_filters,
+            extra_filters=extra_filters,
+            limit=limit,
+            offset=offset,
+            sort=sort_column,
+            order=order,
         )
 
         # Bulk-fetch unique assets and clusters to avoid N+1
@@ -226,7 +310,7 @@ class NodeService:
 
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
-    async def update(self, id: str, logical_node: Node) -> NodeResponse:
+    async def update(self, id: str, logical_node: Node) -> NodeInstance:
         """Update the node instance and answer it as `get` does, so a client can read both the same way."""
         logical_node.updated_at = datetime.now(UTC)
         # admin_status, provision_status and logical_node_id affect telemetry rule matching.

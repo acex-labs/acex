@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-mcp"
-version = "1.2.0"
+version = "2.0.0"
 description = "ACE-X MCP Server - Model Context Protocol server for ACE-X"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -26,6 +26,13 @@ pytest-asyncio = "^0.23.0"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.poetry.plugins."acex.changelog"]
+acex-mcp = "acex_mcp"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX MCP server"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

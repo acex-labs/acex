@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-cli"
-version = "4.6.0"
+version = "5.0.0"
 description = "ACE-X CLI - Command-line interface for ACE-X"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -28,6 +28,13 @@ acex = "acex_cli.main:app"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
+
+[tool.poetry.plugins."acex.changelog"]
+acex-cli = "acex_cli"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX CLI"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

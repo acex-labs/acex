@@ -68,6 +68,7 @@ nav:
     - Config Maps: guides/config-maps.md
     - Filters: guides/filters.md
     - Integrations: guides/integrations.md
+    - Release notes: guides/changelog.md
   - Components:
     - CLI: components/cli.md
     - Agents: components/agents.md

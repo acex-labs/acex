@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-telemetry-agent"
-version = "0.8.0"
+version = "0.9.0"
 description = "ACE-X Telemetry Agent - Polls config manifest and writes telegraf.conf"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -18,6 +18,13 @@ pytest = "^8.0.0"
 
 [tool.poetry.scripts]
 acex-telemetry-agent = "acex_telemetry_agent.main:main"
+
+[tool.poetry.plugins."acex.changelog"]
+acex-telemetry-agent = "acex_telemetry_agent"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX telemetry agent"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

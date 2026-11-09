@@ -1,5 +1,6 @@
-from acex.models import AssetResponse, LogicalNodeResponse
 from acex.utils import RestClient
+from acex_devkit.models.asset import AssetResponse
+from acex_devkit.models.logical_node import LogicalNodeResponse
 
 from .integration_plugin_base import IntegrationPluginBase
 from .integration_plugin_factory_base import IntegrationPluginFactoryBase

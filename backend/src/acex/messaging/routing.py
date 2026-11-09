@@ -5,6 +5,8 @@ from fnmatch import fnmatchcase
 #: jobs forever without an error.
 ROUTES: dict[str, str] = {
     "acex.ztp.*": "acex.ztp",
+    "acex.operations.*": "acex.operations",
+    "acex.cve.*": "acex.cve",
 }
 
 QUEUES: tuple[str, ...] = tuple(dict.fromkeys(ROUTES.values()))

@@ -45,6 +45,7 @@ def create_router(automation_engine):
         return {
             "version": version("acex"),
             "build_id": os.environ.get("ACEX_BUILD_ID") or None,
+            "build_ref": os.environ.get("ACEX_BUILD_REF") or None,
             "python": platform.python_version(),
             "packages": dict(sorted(packages.items())),
             "drivers": sorted(drivers, key=lambda d: d["name"]),

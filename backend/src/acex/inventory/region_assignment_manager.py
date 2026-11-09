@@ -1,5 +1,6 @@
 from acex.models.regions import RegionAssignmentCreate, SiteRegionAssignment
 from fastapi import HTTPException
+from sqlmodel import select
 
 
 class RegionAssignmentManager:
@@ -41,14 +42,14 @@ class RegionAssignmentManager:
     ) -> list[SiteRegionAssignment]:
         session = next(self.db.get_session())
         try:
-            query = session.query(SiteRegionAssignment)
+            statement = select(SiteRegionAssignment)
             if region_name:
-                query = query.filter(SiteRegionAssignment.region_name.ilike(f"%{region_name}%"))
+                statement = statement.where(SiteRegionAssignment.region_name.ilike(f"%{region_name}%"))
             if site_name:
-                query = query.filter(SiteRegionAssignment.site_name == site_name)
+                statement = statement.where(SiteRegionAssignment.site_name == site_name)
             if site_names:
-                query = query.filter(SiteRegionAssignment.site_name.in_(site_names))
-            return query.all()
+                statement = statement.where(SiteRegionAssignment.site_name.in_(site_names))
+            return session.exec(statement).all()
         finally:
             session.close()
 

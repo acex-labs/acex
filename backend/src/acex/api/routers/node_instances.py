@@ -5,6 +5,7 @@ from acex.config_diff import DiffLogicalNode
 from acex.constants import BASE_URL
 from acex.device_configs.device_config_manager import ConfigOutput
 from acex.models.device_config import DeviceConfig
+from acex_devkit.models.config_origin import AnnotatedConfigResponse
 from acex_devkit.models.config_snapshot import DeviceConfigUpload
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
@@ -49,6 +50,15 @@ def create_router(automation_engine):
         plug.get_rendered_config,
         methods=["GET"],
         response_class=PlainTextResponse,
+        tags=tags,
+    )
+
+    # Configuration — desired, with each block of text tied to the config component behind it
+    router.add_api_route(
+        "/node_instances/{id}/configuration/desired/annotated",
+        plug.get_annotated_config,
+        methods=["GET"],
+        response_model=AnnotatedConfigResponse,
         tags=tags,
     )
 

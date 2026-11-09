@@ -9,6 +9,7 @@ from acex.api import auth
 from acex.api.routers.workers import create_router
 from acex.jobs import JobManager, JobType, JobTypeRegistry
 from acex.settings import RabbitMQSettings
+from acex_devkit.models.cve import CveDiscoverData, CveDiscoverResult
 from acex_devkit.models.job import JobSubjectType
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -54,6 +55,7 @@ def _registry() -> JobTypeRegistry:
     job_types.register(
         JobType("acex.ztp.ping", data=_NodeData, result=_PingResult, subject=(JobSubjectType.node, "node_id"))
     )
+    job_types.register(JobType("acex.cve.discover", data=CveDiscoverData, result=CveDiscoverResult))
     return job_types
 
 
@@ -471,6 +473,7 @@ class TestConnect:
 class TestJobTypes:
     def should_list_every_job_type_and_its_queue(self, api):
         assert api.client.get("/api/v1/workers/job_types").json() == [
+            {"name": "acex.cve.discover", "queue": "acex.cve"},
             {"name": "acex.ztp.discover", "queue": "acex.ztp"},
             {"name": "acex.ztp.ping", "queue": "acex.ztp"},
         ]

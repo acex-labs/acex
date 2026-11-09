@@ -1,4 +1,5 @@
-from acex.models.sites import Site, SiteResponse
+from acex.models.sites import Site
+from acex_devkit.models.site import SiteResponse
 
 from .adapter_base import AdapterBase
 

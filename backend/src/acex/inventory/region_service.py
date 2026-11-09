@@ -1,7 +1,8 @@
 import inspect
 
-from acex.models.pagination import PaginatedResponse
-from acex.models.regions import Region, RegionBase, RegionResponse, RegionSiteInfo
+from acex.models.regions import Region, RegionBase
+from acex_devkit.models.pagination import PaginatedResponse
+from acex_devkit.models.region import RegionResponse, RegionSiteInfo
 
 
 class RegionService:

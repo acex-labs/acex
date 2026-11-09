@@ -1,5 +1,6 @@
 """Polls observability agent manifest, writes telegraf.conf when revision changes, acks."""
 
+import importlib.metadata
 import logging
 import os
 import time
@@ -8,6 +9,15 @@ from acex_client import Acex
 from acex_devkit.models.telemetry_agent import TelemetryAgentAck
 
 logger = logging.getLogger("acex_telemetry_agent")
+
+
+def _build_info() -> tuple[str | None, str | None, str | None]:
+    """The version of this package, the commit its image was built from and the branch that build ran on."""
+    try:
+        version = importlib.metadata.version("acex-telemetry-agent")
+    except importlib.metadata.PackageNotFoundError:
+        version = None
+    return version, os.environ.get("ACEX_BUILD_ID") or None, os.environ.get("ACEX_BUILD_REF") or None
 
 
 class TelemetryAgent:
@@ -81,10 +91,13 @@ class TelemetryAgent:
             return False
 
     def _ack(self, config_revision: int):
+        agent_version, build_id, build_ref = _build_info()
         try:
             self.client.observability.agents.ack(
                 id=self.agent_id,
-                payload=TelemetryAgentAck(config_revision=config_revision),
+                payload=TelemetryAgentAck(
+                    config_revision=config_revision, agent_version=agent_version, build_id=build_id, build_ref=build_ref
+                ),
             )
         except Exception as e:
             logger.warning(f"Failed to ack revision {config_revision}: {e}")

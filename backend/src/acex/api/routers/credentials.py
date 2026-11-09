@@ -18,7 +18,10 @@ def create_router(automation_engine):
 
     # Node ↔ Credential mapping
     router.add_api_route("/nodes/{node_id}/credentials", cm.assign_to_node, methods=["POST"], tags=tags)
-    router.add_api_route("/nodes/{node_id}/credentials", cm.list_node_credentials, methods=["GET"], tags=tags)
+    # Deprecated: credentials are joined into GET /node_instances/{id}.
+    router.add_api_route(
+        "/nodes/{node_id}/credentials", cm.list_node_credentials, methods=["GET"], tags=tags, deprecated=True
+    )
     router.add_api_route(
         "/nodes/{node_id}/credentials/{credential_id}", cm.remove_node_credential, methods=["DELETE"], tags=tags
     )

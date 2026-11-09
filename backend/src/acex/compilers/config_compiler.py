@@ -7,7 +7,7 @@ from pathlib import Path
 
 from acex.config_map import ConfigMap
 from acex.configuration import Configuration
-from acex.models import ExternalValue
+from acex_devkit.models import ExternalValue
 from acex_devkit.models.attribute_value import AttributeValue
 
 from .compiled_logical_node import CompiledLogicalNode
@@ -162,7 +162,7 @@ class ConfigCompiler:
             session.close()
 
     async def compile(self, logical_node, integrations, resolve: bool = False) -> dict:
-        configuration = Configuration(logical_node.id)  # Instanciates a config object
+        configuration = Configuration(logical_node.id, source_roots=self.config_map_paths)
         self.ln = CompiledLogicalNode(configuration, logical_node, integrations)
         self._find_processors_for_ln()
         await self.ln.compile()

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-client"
-version = "4.11.0"
+version = "4.12.0"
 description = "ACE-X CLIENT - Client for ACE-X"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -20,6 +20,13 @@ acex-devkit = { path = "../devkit", develop = true }
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
 respx = "^0.22.0"
+
+[tool.poetry.plugins."acex.changelog"]
+acex-client = "acex_client"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX client"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

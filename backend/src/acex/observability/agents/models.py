@@ -19,6 +19,9 @@ class TelemetryAgent(_TelemetryAgentSchema, SQLModel, table=True):
     last_config_poll: str | None = None
     acked_revision: int = Field(default=0)
     acked_at: str | None = None
+    agent_version: str | None = None
+    build_id: str | None = None
+    build_ref: str | None = None
     snmpv2c_credential_id: int | None = Field(default=None, foreign_key="credential.id")
     snmpv3_credential_id: int | None = Field(default=None, foreign_key="credential.id")
 

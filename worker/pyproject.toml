@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-worker"
-version = "0.3.0"
+version = "0.4.0"
 description = "ACE-X Worker - Distributed task execution for ACE-X"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -17,6 +17,8 @@ python = "^3.13"
 acex-client = { path = "../client", develop = true }
 acex-devkit = { path = "../devkit", develop = true }
 celery = ">=5.5"
+icmplib = "^3.0"
+requests = "^2.31.0"
 
 [tool.poetry.scripts]
 acex-worker = "acex_worker.main:run"
@@ -25,6 +27,13 @@ acex-worker = "acex_worker.main:run"
 pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
 respx = "^0.22.0"
+
+[tool.poetry.plugins."acex.changelog"]
+acex-worker = "acex_worker"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX worker"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

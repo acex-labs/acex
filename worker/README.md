@@ -33,3 +33,27 @@ queues that carry the job types it has code for.
 | `ACEX_CLIENT_SECRET` | Required when the backend has auth enabled. |
 | `ACEX_ISSUER_URL` | Overrides the issuer from `/auth/config`. |
 | `ACEX_VERIFY_SSL` | `false` turns off TLS verification. |
+
+## NVD API key
+
+The worker fetches the optional NVD key from the backend once per discovery job.
+Without a key, it uses NVD's lower request rate. The worker does not read
+`NVD_API_KEY` from its environment.
+
+Manage the key with an authenticated `acex-client`:
+
+```python
+from acex_devkit.models.cve import CveApiKeyUpdate
+
+client.cves.api_key.update(payload=CveApiKeyUpdate(api_key=nvd_api_key))  # Save or replace
+key = client.cves.api_key.get()  # None if not configured
+client.cves.api_key.delete()  # Remove
+```
+
+The same operations are available through `PUT`, `GET`, and `DELETE` at
+`/api/v1/cves/api_key`. For `PUT`, send `{"api_key": "<nvd-api-key>"}`.
+
+The backend stores the key encrypted using `ACEX_CREDENTIALS_ENCRYPTION_KEY`.
+Keep that encryption key stable across restarts and replicas. Any authenticated
+caller can manage or retrieve the NVD key. Use HTTPS outside local development;
+dev mode disables authentication.

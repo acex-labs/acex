@@ -131,3 +131,15 @@ class ZtpSettings(Section, name="ztp"):
     provision_queue_timeout_minutes: int = 10
     #: A provisioning job running longer than this is taken as lost: its worker stopped reporting.
     provision_run_timeout_minutes: int = 30
+
+
+class ChangelogSettings(Section, name="changelog"):
+    """Release notes that belong to this deployment only.
+
+    A directory of `changelog.json` files in the same format the packages
+    use, each with a `section` of its own. They are shown apart from the
+    product's notes and never ship with it. Mount it from a ConfigMap or
+    write it from your own pipeline; see docs/guides/changelog.md.
+    """
+
+    extra_dir: str | None = None

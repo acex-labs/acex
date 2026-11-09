@@ -45,7 +45,7 @@ def _decode_config_content(content: str) -> str:
 
 
 def _fetch_node_instance(sdk, identifier: str):
-    """Resolve identifier to full NodeResponse. Used by show/apply that need asset info."""
+    """Resolve identifier to full NodeInstance. Used by show/apply that need asset info."""
     if identifier.isdigit():
         node = sdk.node_instances.get(identifier)
     else:
@@ -177,7 +177,7 @@ def _fetch_desired_config(sdk, identifier: str):
         typer.echo("No desired configuration found.")
         raise typer.Exit(1)
 
-    # Return quick node + config. Config commands that need full NodeResponse
+    # Return quick node + config. Config commands that need full NodeInstance
     # (e.g. render, apply) will call _fetch_node_instance separately.
     return quick, config
 
@@ -638,7 +638,7 @@ def _print_config_section(console, data: dict, path: str):
 
 
 def _flatten_node(node, node_id: str = None) -> dict:
-    """Flatten NodeResponse into a single-level dict for display."""
+    """Flatten NodeInstance into a single-level dict for display."""
     data = node.model_dump() if hasattr(node, "model_dump") else dict(node)
     asset = data.pop("asset", {}) or {}
     logical_node = data.pop("logical_node", {}) or {}
@@ -666,7 +666,7 @@ def _flatten_node(node, node_id: str = None) -> dict:
 
 
 def _resolve_node(sdk, identifier: str):
-    """Resolve a node by ID or hostname. Returns NodeResponse or exits."""
+    """Resolve a node by ID or hostname. Returns NodeInstance or exits."""
     # Try as numeric ID first
     if identifier.isdigit():
         node = sdk.node_instances.get(identifier)

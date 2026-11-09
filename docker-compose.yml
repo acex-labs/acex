@@ -247,6 +247,7 @@ services:
       MOCK_HOSTNAME: mock-router-1
       SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
       SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+      MOCK_LATENCY_MS: ${MOCK_LATENCY_MS:-0}
     volumes:
       - ./mock-device/configs:/configs:ro
 
@@ -259,6 +260,7 @@ services:
       MOCK_HOSTNAME: mock-router-2
       SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
       SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+      MOCK_LATENCY_MS: ${MOCK_LATENCY_MS:-0}
     volumes:
       - ./mock-device/configs:/configs:ro
 
@@ -271,6 +273,7 @@ services:
       MOCK_HOSTNAME: mock-switch-1
       SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
       SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+      MOCK_LATENCY_MS: ${MOCK_LATENCY_MS:-0}
     volumes:
       - ./mock-device/configs:/configs:ro
 
@@ -283,6 +286,7 @@ services:
       MOCK_HOSTNAME: mock-switch-2
       SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
       SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+      MOCK_LATENCY_MS: ${MOCK_LATENCY_MS:-0}
     volumes:
       - ./mock-device/configs:/configs:ro
 
@@ -295,6 +299,7 @@ services:
       MOCK_HOSTNAME: mock-switch-3
       SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
       SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+      MOCK_LATENCY_MS: ${MOCK_LATENCY_MS:-0}
     volumes:
       - ./mock-device/configs:/configs:ro
 
@@ -307,6 +312,7 @@ services:
       MOCK_HOSTNAME: mock-switch-4
       SSH_USERNAME: ${MOCK_SSH_USERNAME:-admin}
       SSH_PASSWORD: ${MOCK_SSH_PASSWORD:-admin}
+      MOCK_LATENCY_MS: ${MOCK_LATENCY_MS:-0}
     volumes:
       - ./mock-device/configs:/configs:ro
 

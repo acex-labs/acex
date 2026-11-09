@@ -87,6 +87,7 @@ class Inventory:
         self.node_instances = NodeService(node_instances_adapter, self)
         self.asset_cluster_manager = AssetClusterManager(db_connection)
         self.collection_agent_manager = CollectionAgentManager(db_connection)
+        self.credential_manager = None  # set by AutomationEngine.create_app()
 
         self.grafana_renderer = GrafanaRenderer(self.telemetry_registry, influxdb_settings)
 

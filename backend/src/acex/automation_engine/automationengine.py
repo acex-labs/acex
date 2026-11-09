@@ -22,6 +22,7 @@ class AutomationEngine:
         contacts_plugin: "IntegrationPluginBase|None" = None,
         dev_mode: bool | None = None,
         settings: "Settings|None" = None,
+        configure_logging: bool = False,
     ):
         """Build the engine.
 
@@ -32,11 +33,15 @@ class AutomationEngine:
 
         `db_connection` overrides `settings.db` with a ready-made Connection.
         `dev_mode` is deprecated in favour of `Settings(dev=True)`.
+
+        `configure_logging` enables timestamped console logging and replaces
+        the process-wide logging configuration. Disabled by default.
         """
         # Lazy imports - only load when AutomationEngine is instantiated
         from acex.api.api import Api
         from acex.automation_engine.integrations import Integrations
         from acex.compilers import ConfigCompiler
+        from acex.cve.cve_manager import CveManager
         from acex.database import Connection, DatabaseManager
         from acex.device_configs import DeviceConfigManager
         from acex.inventory import Inventory
@@ -62,6 +67,13 @@ class AutomationEngine:
             settings = Settings(dev=dev_mode)
         self.settings = settings if settings is not None else Settings()
 
+        if configure_logging:
+            import logging.config
+
+            from acex.logging_config import build_logging_config
+
+            logging.config.dictConfig(build_logging_config(dev=self.settings.dev))
+
         if db_connection is None:
             db = self.settings.db
             db_connection = Connection(
@@ -77,6 +89,7 @@ class AutomationEngine:
         self.plugin_manager = PluginManager()
         self.integrations = Integrations(self.plugin_manager)
         self.db = DatabaseManager(db_connection)
+        self.cves = CveManager(self.db)
         self.config_compiler = ConfigCompiler(self.db)
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
         self.influxdb_settings = self.settings.influxdb
@@ -123,6 +136,16 @@ class AutomationEngine:
 
         self.lldp_neighbor_manager = LldpNeighborManager(self.db)
 
+        # Workflows: saved steps and workflows, and the runs the backend moves on as their jobs finish.
+        from acex.operations.runs import OperationRuns
+        from acex.plugins.neds.manager import NEDManager
+        from acex.workflows.library import WorkflowLibrary
+        from acex.workflows.runs import WorkflowRuns
+
+        self.workflows = WorkflowLibrary(self.db)
+        operations = OperationRuns(self.jobs, self.inventory.node_instances, NEDManager())
+        self.workflow_runs = WorkflowRuns(self.jobs, self.workflows, operations)
+
         # Built in create_app() from settings.credentials
         self.credential_manager = None
 
@@ -167,6 +190,7 @@ class AutomationEngine:
         self.settings.check()
         self._build_credential_manager()
         self.inventory.telemetry_registry.credential_manager = self.credential_manager
+        self.inventory.credential_manager = self.credential_manager
         if not hasattr(self, "ai_ops_manager") and self.settings.ai_ops.enabled:
             from acex.ai_ops import AIOpsManager
 

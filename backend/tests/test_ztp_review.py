@@ -12,11 +12,11 @@ from acex.api.routers.workers import create_router as workers_router
 from acex.api.routers.ztp_discoveries import create_router as discoveries_router
 from acex.jobs import JobManager, JobType, JobTypeRegistry
 from acex.models import Asset, LogicalNode, Node
-from acex.models.node import NodeAdminStatus, NodeProvisionStatus
 from acex.models.ztp_method import ZtpMethodRow
 from acex.settings import RabbitMQSettings
 from acex.ztp import ZtpDiscoveryManager
 from acex_devkit.models.job import JobUpdate
+from acex_devkit.models.node_response import NodeAdminStatus, NodeProvisionStatus
 from acex_devkit.models.ztp import ZtpDiscoverData, ZtpDiscoverResult
 from fastapi import FastAPI
 from fastapi.testclient import TestClient

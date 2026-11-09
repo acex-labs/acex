@@ -9,6 +9,12 @@ class DHCPSnooping(ConfigComponent):
     type = "dhcp_snooping"
     model_cls = DHCPSnoopingAttributes
 
+    def pre_init(self):
+        # VLANs may be given as Vlan components or as VLAN IDs.
+        vlans = self.kwargs.get("vlans")
+        if vlans is not None:
+            self.kwargs["vlans"] = [v if isinstance(v, int) else v.model.vlan_id.value for v in vlans]
+
 
 class DhcpRelayServer(ConfigComponent):
     type = "dhcp_relay_server"

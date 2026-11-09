@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-collection-agent"
-version = "0.16.0"
+version = "0.17.0"
 description = "ACE-X Collection Agent - Collects device data via NEDs"
 authors = ["Johan Lahti <johan.lahti@acebit.se>"]
 readme = "README.md"
@@ -18,6 +18,13 @@ pytest = "^8.0.0"
 
 [tool.poetry.scripts]
 acex-collection-agent = "acex_collection_agent.main:main"
+
+[tool.poetry.plugins."acex.changelog"]
+acex-collection-agent = "acex_collection_agent"
+
+# Shown as the component's name in Settings > What's new.
+[tool.acex.changelog]
+name = "ACEX collection agent"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

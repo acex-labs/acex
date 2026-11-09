@@ -1,6 +1,7 @@
 import json
 
-from acex.models import Asset, ExternalValue
+from acex.models import Asset
+from acex_devkit.models import ExternalValue
 
 from .adapter_base import AdapterBase
 

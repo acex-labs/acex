@@ -1,5 +1,8 @@
+import os
+import sys
 from string import Template
 
+from acex.config_map import ConfigMap
 from acex.configuration.components.acl import Ipv4Acl, Ipv4AclEntry, Ipv6Acl, Ipv6AclEntry
 from acex.configuration.components.augments import Augment
 from acex.configuration.components.cdp import (
@@ -8,12 +11,14 @@ from acex.configuration.components.cdp import (
 from acex.configuration.components.interfaces import (
     # Physical,
     FrontpanelPort,
+    HsrpGroup,
     InterfaceTemplate,
     LagInterface,
     Loopback,
     ManagementPort,
     Subinterface,
     Svi,
+    VrrpGroup,
 )
 from acex.configuration.components.lacp import LacpConfig
 from acex.configuration.components.lldp import (
@@ -47,6 +52,7 @@ from acex.configuration.components.system import (
     SystemConfig,
 )
 from acex.configuration.components.system.aaa import (
+    LocalUser,
     aaaAccountingConfig,
     aaaAccountingEvents,
     aaaAccountingMethods,
@@ -94,6 +100,7 @@ from acex_devkit.models.composed_configuration import (
     ReferenceTo,
     RenderedReference,
 )
+from acex_devkit.models.config_origin import ComponentOrigin
 from pydantic import BaseModel
 
 
@@ -131,6 +138,7 @@ class Configuration:
         aaaTacacs: Template("system.aaa.server_groups.${server_group}.tacacs"),
         aaaRadius: Template("system.aaa.server_groups.${server_group}.radius"),
         aaaAuthenticationConfig: "system.aaa.authentication.config",
+        LocalUser: "system.aaa.authentication.users",
         aaaAuthenticationMethods: "system.aaa.authentication.config.methods",
         aaaAuthorizationConfig: "system.aaa.authorization.config",
         aaaAuthorizationMethods: "system.aaa.authorization.config.methods",
@@ -157,6 +165,8 @@ class Configuration:
             "network_instances.${network_instance}.protocols.static_routes.${static_route}.next_hops"
         ),
         Svi: Template("interfaces"),
+        HsrpGroup: Template("interfaces.${interface}.hsrp_groups"),
+        VrrpGroup: Template("interfaces.${interface}.vrrp_groups"),
         NtpServer: "system.ntp.servers",
         SshServer: "system.ssh.config",
         SpanningTreeGlobal: "stp.config",
@@ -194,9 +204,15 @@ class Configuration:
         "motd_banner": "system.config.motd_banner",
     }
 
-    def __init__(self, logical_node_id):
+    def __init__(self, logical_node_id, source_roots: list[str] | None = None):
         self.composed = ComposedConfiguration()
         self.logical_node_id = logical_node_id
+        # Config map directories, so a component's origin can name its file relative to one.
+        self.source_roots = source_roots or []
+
+        # Where each component was added from, by id(component), and where as_model() last placed it.
+        self._sites: dict[int, tuple[str | None, str | None, int | None]] = {}
+        self._placements: list[tuple[list[str], object]] = []
 
         # Komponenter lagras som objekt, mappade till sin position
         self._components = []  # Lagra alla Reference object. Läggs till efter att komponenter lagts till
@@ -244,6 +260,7 @@ class Configuration:
         {
             "ConfigComponent",
             "Interface",
+            "FirstHopGroup",
             "Augment",
             "Routing",
         }
@@ -366,6 +383,8 @@ class Configuration:
         if self._lookup_mapping(component) is None:
             raise ValueError(f"Unknown component type: {type(component).__name__}")
 
+        self._sites[id(component)] = self._call_site()
+
         # pop references
         self._pop_all_references(component)
 
@@ -388,6 +407,7 @@ class Configuration:
         # Apply all values from components to the composed model.
         # Parent paths must be created before child paths (e.g. ACL before ACL entries).
         components = sorted(self._components, key=lambda item: item[0].count("."))
+        self._placements = []
         for path, component in components:
             # Set metadata of the component
             if hasattr(component.model, "metadata"):
@@ -422,10 +442,12 @@ class Configuration:
             # If the value of the ptr is a dict, the item has to be keyed
             if isinstance(value, dict):
                 value[component.name] = model_value
+                self._placements.append(([*path_parts, attribute_name, component.name], component))
             else:
                 # Cant set value directly, since NoneType is a singleton.
                 # Instead we use setattr using the pointer and attribute name.
                 setattr(ptr, attribute_name, model_value)
+                self._placements.append(([*path_parts, attribute_name], component))
 
         # Add and resolve references:
         for reference in self._references:
@@ -494,6 +516,41 @@ class Configuration:
             ptr.augments[aug_key] = aug.model
 
         return config
+
+    def origins(self) -> list[ComponentOrigin]:
+        """The component behind each path of the tree as_model() last built, and where it was added."""
+        origins = []
+        for path, component in self._placements:
+            config_map, file, line = self._sites.get(id(component), (None, None, None))
+            origins.append(
+                ComponentOrigin(
+                    path=path,
+                    component=type(component).__name__,
+                    name=component.name,
+                    config_map=config_map,
+                    file=file,
+                    line=line,
+                )
+            )
+        return origins
+
+    def _call_site(self) -> tuple[str | None, str | None, int | None]:
+        """The config map and the file and line that called add(): the caller of add(), and the nearest
+        ConfigMap above it on the stack."""
+        caller = sys._getframe(2)
+        frame, config_map = caller, None
+        while frame is not None and config_map is None:
+            owner = frame.f_locals.get("self")
+            config_map = owner.name if isinstance(owner, ConfigMap) else None
+            frame = frame.f_back
+        return config_map, self._relative(caller.f_code.co_filename), caller.f_lineno
+
+    def _relative(self, file: str) -> str:
+        for root in self.source_roots:
+            root = os.path.abspath(root)
+            if os.path.abspath(file).startswith(root + os.sep):
+                return os.path.relpath(file, root)
+        return file
 
     def to_json(self):
         """

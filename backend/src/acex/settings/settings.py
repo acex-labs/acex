@@ -5,6 +5,7 @@ from acex.settings.bug_report import BugReportSettings
 from acex.settings.influxdb import InfluxDBSettings
 from acex.settings.section import Section
 from acex.settings.sections import (
+    ChangelogSettings,
     CorsSettings,
     CredentialSettings,
     DatabaseSettings,
@@ -36,6 +37,7 @@ class Settings(Section):
     bug_report: BugReportSettings = Field(default_factory=BugReportSettings)
     rabbitmq: RabbitMQSettings = Field(default_factory=RabbitMQSettings)
     ztp: ZtpSettings = Field(default_factory=ZtpSettings)
+    changelog: ChangelogSettings = Field(default_factory=ChangelogSettings)
 
     @model_validator(mode="after")
     def _dev_conveniences(self) -> "Settings":

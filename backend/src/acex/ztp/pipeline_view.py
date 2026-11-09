@@ -5,12 +5,13 @@ from datetime import UTC, datetime, timedelta
 from functools import partial
 
 from acex.models.asset import Asset
-from acex.models.job import Job, JobState
+from acex.models.job import Job
 from acex.models.logical_node import LogicalNode
-from acex.models.node import AssetRefType, Node, NodeProvisionStatus
+from acex.models.node import Node
 from acex.models.ztp_discovery import ZtpDiscovery
 from acex.settings import ZtpSettings
-from acex_devkit.models.job import JobSubjectType
+from acex_devkit.models.job import JobState, JobSubjectType
+from acex_devkit.models.node_response import AssetRefType, NodeProvisionStatus
 from acex_devkit.models.ztp import ZtpAssetReadiness, ZtpNodeAsset, ZtpPipelineNode, ZtpReviewStatus, ZtpStage
 from sqlmodel import select
 

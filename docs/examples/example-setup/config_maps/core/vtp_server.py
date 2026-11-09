@@ -16,4 +16,4 @@ class ConfigVTP(ConfigMap):
 
 
 config_vtp = ConfigVTP()
-config_vtp.filters = FilterAttribute("role").eq("lan_csw")
+config_vtp.filters = FilterAttribute("role").eq("core")

@@ -25,6 +25,9 @@ class CollectionAgent(CollectionAgentBase, table=True):
     last_manifest_poll: str | None = None
     acked_revision: int = Field(default=0)
     acked_at: str | None = None
+    agent_version: str | None = None
+    build_id: str | None = None
+    build_ref: str | None = None
 
 
 class CollectionAgentNodeLink(SQLModel, table=True):

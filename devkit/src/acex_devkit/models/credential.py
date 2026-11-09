@@ -93,6 +93,14 @@ class CredentialSecret(BaseModel):
     fields: dict[str, str] = {}
 
 
+class CredentialRef(BaseModel):
+    """A credential assigned to a node instance, without its secret fields."""
+
+    id: int
+    name: str
+    credential_type: str
+
+
 class NodeCredentialCreate(BaseModel):
     credential_id: int
 

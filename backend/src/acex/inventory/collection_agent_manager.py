@@ -3,22 +3,25 @@ from datetime import datetime
 from acex.models.asset import Asset, AssetCluster
 from acex.models.collection_agent import (
     CollectionAgent,
-    CollectionAgentAck,
-    CollectionAgentCreate,
     CollectionAgentMatchRule,
     CollectionAgentMatchRuleCreate,
-    CollectionAgentMatchRuleResponse,
     CollectionAgentNodeLink,
-    CollectionAgentResponse,
-    CollectionAgentUpdate,
 )
 from acex.models.credential import Credential, NodeCredential
 from acex.models.logical_node import LogicalNode
 from acex.models.management_connections import ManagementConnection
-from acex.models.node import AssetRefType, Node
+from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
 from acex.utils.agent_node_links import set_agent_nodes
 from acex_devkit.models.agent_manifest import AckResult, AgentNodeSet, AgentNodeSetResult
+from acex_devkit.models.collection_agent import (
+    CollectionAgentAck,
+    CollectionAgentCreate,
+    CollectionAgentMatchRuleResponse,
+    CollectionAgentResponse,
+    CollectionAgentUpdate,
+)
+from acex_devkit.models.node_response import AssetRefType
 from fastapi import HTTPException
 from sqlalchemy import delete
 from sqlmodel import select
@@ -100,6 +103,9 @@ class CollectionAgentManager:
             last_manifest_poll=agent.last_manifest_poll,
             acked_revision=agent.acked_revision or 0,
             acked_at=agent.acked_at,
+            agent_version=agent.agent_version,
+            build_id=agent.build_id,
+            build_ref=agent.build_ref,
             nodes=explicit_node_ids,
             rules=[
                 CollectionAgentMatchRuleResponse(
@@ -323,6 +329,9 @@ class CollectionAgentManager:
                 raise HTTPException(status_code=404, detail="CollectionAgent not found")
             agent.acked_revision = payload.config_revision
             agent.acked_at = datetime.utcnow().isoformat()
+            agent.agent_version = payload.agent_version
+            agent.build_id = payload.build_id
+            agent.build_ref = payload.build_ref
             session.commit()
             return AckResult(
                 id=agent.id,

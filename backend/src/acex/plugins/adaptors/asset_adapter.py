@@ -1,4 +1,5 @@
-from acex.models import Asset, AssetResponse, AssetUpdate
+from acex.models import Asset
+from acex_devkit.models.asset import AssetResponse, AssetUpdate
 
 from .adapter_base import AdapterBase
 
@@ -13,10 +14,23 @@ class AssetAdapter(AdapterBase):
             return self.plugin.get(id)
 
     def query(
-        self, filters: dict = None, extra_filters: list = None, limit: int = 100, offset: int = 0
+        self,
+        filters: dict = None,
+        extra_filters: list = None,
+        limit: int = 100,
+        offset: int = 0,
+        sort: str | None = None,
+        order: str = "asc",
     ) -> list[AssetResponse]:
         if hasattr(self.plugin, "query"):
-            return self.plugin.query(filters, extra_filters=extra_filters, limit=limit, offset=offset)
+            return self.plugin.query(
+                filters,
+                extra_filters=extra_filters,
+                limit=limit,
+                offset=offset,
+                sort=sort,
+                order=order,
+            )
 
     def update(self, id: str, asset: AssetUpdate):
         if hasattr(self.plugin, "update"):

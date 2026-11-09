@@ -2,6 +2,8 @@ from enum import Enum
 
 from acex.database import DatabaseManager
 from pydantic import BaseModel
+from sqlalchemy import func
+from sqlmodel import select
 
 from .integration_plugin_base import IntegrationPluginBase
 
@@ -27,12 +29,12 @@ class DatabasePlugin(IntegrationPluginBase):
             session.close()
         return data
 
-    def get(self, id: str, *args, **kwargs):
+    def get(self, id: str, *args, options: list | None = None, **kwargs):
         session_gen = self.db.get_session()
         session = next(session_gen)
         try:
             # Anta att tabellens modellklass är tillgänglig via self.table_model
-            result = session.get(self.table, id)
+            result = session.get(self.table, id, options=options or [])
             return result
         finally:
             session.close()
@@ -44,16 +46,15 @@ class DatabasePlugin(IntegrationPluginBase):
         extra_filters: list = None,
         limit: int = 100,
         offset: int = 0,
+        sort: str | None = None,
+        order: str = "asc",
     ) -> list:
         session_gen = self.db.get_session()
         session = next(session_gen)
         try:
-            query = session.query(self.table)
-            if options:
-                for opt in options:
-                    query = query.options(opt)
+            query = select(self.table)
+            joined_tables = set()
             if filters:
-                joined_tables = set()
                 for key, value in filters.items():
                     if "." in key:
                         rel_name, col_name = key.split(".", 1)
@@ -64,28 +65,49 @@ class DatabasePlugin(IntegrationPluginBase):
                             joined_tables.add(related_table)
                         col = getattr(related_table, col_name)
                         if isinstance(value, list):
-                            query = query.filter(col.in_(value))
+                            query = query.where(col.in_(value))
                         elif isinstance(value, Enum):
-                            query = query.filter(col == value)
+                            query = query.where(col == value)
                         elif isinstance(value, str):
-                            query = query.filter(col.ilike(f"%{value}%"))
+                            query = query.where(col.ilike(f"%{value}%"))
                         else:
-                            query = query.filter(col == value)
+                            query = query.where(col == value)
                     else:
                         col = getattr(self.table, key)
                         if isinstance(value, list):
-                            query = query.filter(col.in_(value))
+                            query = query.where(col.in_(value))
                         elif isinstance(value, Enum):
-                            query = query.filter(col == value)
+                            query = query.where(col == value)
                         elif isinstance(value, str):
-                            query = query.filter(col.ilike(f"%{value}%"))
+                            query = query.where(col.ilike(f"%{value}%"))
                         else:
-                            query = query.filter(col == value)
+                            query = query.where(col == value)
             if extra_filters:
                 for f in extra_filters:
-                    query = query.filter(f)
-            total = query.count()
-            items = query.offset(offset).limit(limit).all()
+                    query = query.where(f)
+            total = session.exec(select(func.count()).select_from(query.subquery())).one()
+            if sort is not None:
+                if not isinstance(sort, str):
+                    sort_col = sort
+                elif "." in sort:
+                    rel_name, col_name = sort.split(".", 1)
+                    rel_prop = getattr(self.table, rel_name).property
+                    related_table = rel_prop.mapper.class_
+                    if related_table not in joined_tables:
+                        query = query.join(related_table)
+                        joined_tables.add(related_table)
+                    sort_col = getattr(related_table, col_name)
+                else:
+                    sort_col = getattr(self.table, sort)
+                query = query.order_by(sort_col.desc() if order == "desc" else sort_col.asc())
+                # tiebreaker for stable pagination
+                pk_col = getattr(self.table, "id", None)
+                if pk_col is not None and not (isinstance(sort, str) and sort == "id"):
+                    query = query.order_by(pk_col)
+            # Loader options only shape how items load, so they are left out of the count above.
+            for opt in options or ():
+                query = query.options(opt)
+            items = session.exec(query.offset(offset).limit(limit)).all()
             return {"items": items, "total": total}
         finally:
             session.close()

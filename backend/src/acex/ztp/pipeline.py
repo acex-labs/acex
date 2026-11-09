@@ -13,12 +13,13 @@ failed instead, since nothing can be said about its configuration.
 import logging
 from datetime import UTC, datetime
 
-from acex.models.job import Job, JobState
-from acex.models.node import AssetRefType, Node, NodeProvisionStatus
+from acex.models.job import Job
+from acex.models.node import Node
 from acex.models.ztp_discovery import ZtpDiscovery
 from acex.settings import ZtpSettings
 from acex.ztp.pipeline_view import ACTIVE_JOB_STATES, ZTP_PROVISION, PipelineView
-from acex_devkit.models.job import JobResponse, JobSubjectType
+from acex_devkit.models.job import JobResponse, JobState, JobSubjectType
+from acex_devkit.models.node_response import AssetRefType, NodeProvisionStatus
 from acex_devkit.models.pagination import PaginatedResponse
 from acex_devkit.models.ztp import (
     PIPELINE_STAGES,

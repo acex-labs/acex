@@ -1,15 +1,11 @@
 import inspect
 
-from acex.models import (
-    LogicalNode,
-    LogicalNodeConfigResponse,
-    LogicalNodeListResponse,
-    LogicalNodeResponse,
-    PaginatedResponse,
-)
+from acex.models import LogicalNode
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
-from sqlalchemy import select
+from acex_devkit.models.logical_node import LogicalNodeConfigResponse, LogicalNodeListResponse, LogicalNodeResponse
+from acex_devkit.models.pagination import PaginatedResponse
+from sqlmodel import select
 
 
 class LogicalNodeService:
@@ -47,7 +43,7 @@ class LogicalNodeService:
             return []
         session = next(self.db_manager.get_session())
         try:
-            assignments = session.query(SiteRegionAssignment).filter(SiteRegionAssignment.site_name == site).all()
+            assignments = session.exec(select(SiteRegionAssignment).where(SiteRegionAssignment.site_name == site)).all()
             return [a.region_name for a in assignments]
         finally:
             session.close()
@@ -57,10 +53,14 @@ class LogicalNodeService:
         regions = await self._get_regions(ln.site if ln else None)
         return LogicalNodeResponse(**ln.model_dump(), regions=regions)
 
-    async def get_configuration(self, id: str, resolve: bool = False) -> LogicalNodeConfigResponse:
+    async def compile(self, id: str, resolve: bool = False):
+        """The logical node compiled: its composed configuration and the components behind it."""
         ln = await self._call_method(self.adapter.get, id)
-        compiled = await self._apply_compilation(ln, resolve=resolve)
-        regions = await self._get_regions(ln.site if ln else None)
+        return await self._apply_compilation(ln, resolve=resolve)
+
+    async def get_configuration(self, id: str, resolve: bool = False) -> LogicalNodeConfigResponse:
+        compiled = await self.compile(id, resolve=resolve)
+        regions = await self._get_regions(compiled.logical_node.site if compiled.logical_node else None)
         return compiled.config_response.model_copy(update={"regions": regions})
 
     async def query(
@@ -88,12 +88,13 @@ class LogicalNodeService:
         if region and self.db_manager:
             session = next(self.db_manager.get_session())
             try:
-                site_names = [
-                    row[0]
-                    for row in session.query(SiteRegionAssignment.site_name)
-                    .filter(SiteRegionAssignment.region_name.ilike(f"%{region}%"))
-                    .all()
-                ]
+                site_names = list(
+                    session.exec(
+                        select(SiteRegionAssignment.site_name).where(
+                            SiteRegionAssignment.region_name.ilike(f"%{region}%")
+                        )
+                    ).all()
+                )
             finally:
                 session.close()
             if not site_names:
@@ -122,11 +123,9 @@ class LogicalNodeService:
             if unique_sites:
                 session = next(self.db_manager.get_session())
                 try:
-                    assignments = (
-                        session.query(SiteRegionAssignment)
-                        .filter(SiteRegionAssignment.site_name.in_(unique_sites))
-                        .all()
-                    )
+                    assignments = session.exec(
+                        select(SiteRegionAssignment).where(SiteRegionAssignment.site_name.in_(unique_sites))
+                    ).all()
                     for a in assignments:
                         site_region_map.setdefault(a.site_name, []).append(a.region_name)
                 finally:

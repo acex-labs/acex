@@ -1,4 +1,5 @@
-from acex.models.contacts import Contact, ContactResponse
+from acex.models.contacts import Contact
+from acex_devkit.models.contact import ContactResponse
 
 from .adapter_base import AdapterBase
 

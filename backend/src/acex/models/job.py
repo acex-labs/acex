@@ -25,6 +25,8 @@ class Job(JobSchema, SQLModel, table=True):
     result: dict | None = Field(default=None, sa_column=Column(_JSON, nullable=True))
     state: JobState = Field(default=JobState.queued, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
+    # Naive UTC, so it compares alike on every database.
+    run_at: datetime | None = Field(default=None, index=True)
 
 
 __all__ = ["Job", "JobResponse", "JobState", "JobSubjectType"]

@@ -382,12 +382,12 @@ from acex_devkit.drivers import NetworkElementDriver
 
 
 class MyDriver(NetworkElementDriver):
-    renderer_class = MyRenderer  # ComposedConfiguration + Asset → device config
-    parser_class = MyParser  # device config → ComposedConfiguration
-    transport_class = MyTransport  # get_config / send_config / execute
+    codec_class = MyCodec  # render and parse: ComposedConfiguration ↔ device config
+    transport_class = MyTransport  # get_config / apply / execute
+    state_class = MyState  # optional: facts, LLDP neighbors
 ```
 
-Shipped: `acex-driver-cisco-ioscli`, `acex-driver-juniper-junoscli` — with **121 hardware model definitions** describing real port layouts.
+Shipped: `acex-driver-cisco-ioscli`, `acex-driver-juniper-junoscli`. Hardware models (165 of them, describing real port layouts) are declared once in the devkit and shared by every driver.
 
 **Config normalizers** — declarative rules that strip non-intent lines (counters, timestamps) and redact secrets from collected configurations, in two isolated passes, so diffs mean something and secrets are never stored.
 

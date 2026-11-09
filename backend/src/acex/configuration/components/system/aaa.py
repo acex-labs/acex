@@ -6,6 +6,7 @@ from acex_devkit.models.composed_configuration import (
     aaaRadiusAttributes,
     aaaServerGroupAttributes,
     aaaTacacsAttributes,
+    authenticationUser,
 )
 from acex_devkit.models.composed_configuration import aaaAccountingConfig as aaaAccountingConfigAttributes
 from acex_devkit.models.composed_configuration import aaaAccountingEvents as aaaAccountingEventsAttributes
@@ -15,6 +16,13 @@ from acex_devkit.models.composed_configuration import aaaAuthenticationMethods a
 from acex_devkit.models.composed_configuration import aaaAuthorizationConfig as aaaAuthorizationConfigAttributes
 from acex_devkit.models.composed_configuration import aaaAuthorizationEvents as aaaAuthorizationEventsAttributes
 from acex_devkit.models.composed_configuration import aaaAuthorizationMethods as aaaAuthorizationMethodsAttributes
+
+
+class LocalUser(ConfigComponent):
+    """A user account on the device itself."""
+
+    type = "local_user"
+    model_cls = authenticationUser
 
 
 class aaaGlobal(ConfigComponent):

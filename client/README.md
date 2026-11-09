@@ -73,6 +73,9 @@ client.inventory.collection_agents.manifest(id=1)
 client.inventory.collection_agents.ack(id=1, payload=CollectionAgentAck(config_revision=5))
 ```
 
+CVE payload models format their date fields as ISO 8601 strings when dumped,
+so they work with the standard client actions without custom request handling.
+
 Bound sub-resources are accessed via `.parent_or_id`:
 
 ```python
