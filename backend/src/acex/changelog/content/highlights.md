@@ -13,6 +13,30 @@ writes the draft, a person or an assistant. `python scripts/changelog.py validat
 Nothing is compiled: an edit that is merged is live in the next image.
 -->
 
+## 2026-11-09 Run commands and pings on many nodes at once
+
+Choose a list of nodes, run a command or a ping on all of them and read each node's answer as it comes in. Steps can be chained into a workflow, where each step runs on its own nodes and later steps use what earlier ones found.
+
+## 2026-11-09 Change the configuration of many nodes from a reviewed plan
+
+Pick a part of the configuration, such as the NTP servers. ACEX reads each node live and shows the exact lines that would change, and you apply the plan to the nodes you choose. Cisco switches are supported; for Junos it lists what it cannot yet express.
+
+## 2026-11-09 ZTP finds devices that call in and asks before it acts
+
+A new device that fetches its bootstrap is discovered automatically: its serial number, model and software version are read. Before an asset is created or updated, an approvals page lists what approving would do and any conflicts, and the ZTP overview shows every node's stage, stalled ones first.
+
+## 2026-11-09 See compliance and how fresh each node's configuration is
+
+Sites show compliance on the Overview and per node on a Compliance tab, and every node says when its configuration was last collected from the device.
+
+## 2026-11-09 Browse CVEs for the vendors you run
+
+Browse known vulnerabilities with their severity. Discovery from the National Vulnerability Database runs in the background for a vendor and a date range.
+
+## 2026-11-09 Release notes and versions are part of the product
+
+Settings > What's new shows the highlights, what is planned and the notes of every release. Settings > About lists the version and build of every component, including each agent.
+
 ## 2026-10-15 The backend's settings use ACEX_* names
 
 Every backend setting now has a name of the form ACEX_<SECTION>_<FIELD>. The old names are no longer read, so an installation must rename them before upgrading.
