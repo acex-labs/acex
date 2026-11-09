@@ -42,4 +42,4 @@ class ConfigVRFs(ConfigMap):
         self.vrf_test = vrf_test
 
 vrfs = ConfigVRFs()
-vrfs.filters = (FilterAttribute("role").eq("lan_csw"))
+vrfs.filters = (FilterAttribute("role").eq("core"))

@@ -1,0 +1,1866 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Declarative network automation platform — config as code for network devices">
+      
+      
+      
+        <link rel="canonical" href="https://acex-labs.github.io/acex/guides/changelog/">
+      
+      
+        <link rel="prev" href="../integrations/">
+      
+      
+        <link rel="next" href="../../components/cli/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Release notes - ACE-X</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#release-notes" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ACE-X" class="md-header__button md-logo" aria-label="ACE-X" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ACE-X
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Release notes
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/acex-labs/acex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    acex-labs/acex
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../config-maps/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../components/cli/" class="md-tabs__link">
+          
+  
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../examples/ai_ops/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI Ops
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../contributing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Contributing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../development/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Development
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ACE-X" class="md-nav__button md-logo" aria-label="ACE-X" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    ACE-X
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/acex-labs/acex" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    acex-labs/acex
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config-maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config Maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../filters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Filters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#writing-an-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing an entry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-pull-request-check-does" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the pull request check does
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cutting-a-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cutting a release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cutting a release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-summary-of-the-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A summary of the release
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#highlights-and-the-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Highlights and the roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Highlights and the roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#highlights-at-a-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Highlights at a release
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The roadmap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-what-to-see" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing what to see
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development images
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#publishing-notes-from-your-own-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Publishing notes from your own package
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#components-that-run-as-their-own-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Components that run as their own service
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-project-that-is-not-a-python-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A project that is not a Python package
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes-that-belong-to-one-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes that belong to one deployment
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/drivers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drivers (NEDs)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/ai_ops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Ops
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#writing-an-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing an entry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-pull-request-check-does" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the pull request check does
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cutting-a-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cutting a release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cutting a release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-summary-of-the-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A summary of the release
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#highlights-and-the-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Highlights and the roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Highlights and the roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#highlights-at-a-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Highlights at a release
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The roadmap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-what-to-see" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing what to see
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development images
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#publishing-notes-from-your-own-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Publishing notes from your own package
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#components-that-run-as-their-own-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Components that run as their own service
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-project-that-is-not-a-python-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A project that is not a Python package
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes-that-belong-to-one-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes that belong to one deployment
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/acex-labs/acex/edit/main/docs/guides/changelog.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"></path></svg>
+    </a>
+  
+  
+
+
+<h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">¶</a></h1>
+<p><strong>Settings &gt; What's new</strong> in the web interface shows what was added, changed
+and fixed in each release, and what is planned. It is served by
+<code>GET /api/v1/changelog</code>. Which versions are running is shown on
+<strong>Settings &gt; About</strong>, which is fed by <code>GET /api/v1/health/about</code>.</p>
+<p>The notes are written by the person who makes the change, in the same pull
+request, for the network engineers who use ACEX. They ship inside the
+packages, so an installation without internet access sees the same notes.</p>
+<h2 id="writing-an-entry">Writing an entry<a class="headerlink" href="#writing-an-entry" title="Permanent link">¶</a></h2>
+<p>Every package that keeps notes has a <code>changelog.d/</code> directory beside its
+<code>pyproject.toml</code> (the backend's is <code>backend/changelog.d/</code>). One change, one
+file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>new<span class="w"> </span>backend<span class="w"> </span>--kind<span class="w"> </span>added<span class="w"> </span>--title<span class="w"> </span><span class="s2">"Choose which driver a ZTP method uses"</span>
+</code></pre></div>
+<p>This creates <code>backend/changelog.d/&lt;date&gt;-choose-which-driver-a-ztp-method-uses.md</code>.
+Open it and add the description:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>---
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kind: added
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>title: Choose which driver a ZTP method uses
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="gu">refs: #314</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="gu">---</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>Each ZTP method now has a driver setting under ZTP &gt; Methods. Devices that
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>boot through that method are handled by the chosen driver.
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code></td>
+<td>yes</td>
+<td><code>added</code>, <code>changed</code>, <code>fixed</code>, <code>removed</code>, <code>deprecated</code> or <code>security</code>. <code>internal</code> satisfies the pull request check without being published: for CI, refactoring and tests.</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>yes</td>
+<td>One line, at most 80 characters. What a user can now do, or what behaves differently.</td>
+</tr>
+<tr>
+<td>body</td>
+<td>no</td>
+<td>The text after the front matter, in Markdown. Anything the user has to do or should know.</td>
+</tr>
+<tr>
+<td><code>breaking</code></td>
+<td>no</td>
+<td><code>true</code> when users must act. Shown first.</td>
+</tr>
+<tr>
+<td><code>audience</code></td>
+<td>no</td>
+<td><code>user</code> (default), <code>admin</code> or <code>developer</code>. Developer entries are for integrators and driver authors.</td>
+</tr>
+<tr>
+<td><code>refs</code></td>
+<td>no</td>
+<td>Comma-separated pull request or work item references, each optionally followed by a URL: <code>#316, ADO-1234 https://dev.azure.com/...</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Write for the person at the screen, not for the reviewer:</p>
+<table>
+<thead>
+<tr>
+<th>Avoid</th>
+<th>Write</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Feat/ztp backend</td>
+<td>ZTP: devices can be discovered and provisioned from the web interface</td>
+</tr>
+<tr>
+<td>Install devkit after poetry to ensure local version wins</td>
+<td><em>(kind: internal)</em></td>
+</tr>
+<tr>
+<td>Split node status into admin_status and provision_status</td>
+<td>A node now shows an admin status and a provisioning status instead of one status</td>
+</tr>
+</tbody>
+</table>
+<p>The tool refuses titles that look like commit subjects or branch names.</p>
+<h2 id="what-the-pull-request-check-does">What the pull request check does<a class="headerlink" href="#what-the-pull-request-check-does" title="Permanent link">¶</a></h2>
+<p>The <code>Changelog</code> workflow runs on every pull request:</p>
+<ol>
+<li>Every fragment and compiled file parses, and so do the highlights and the
+   roadmap.</li>
+<li>A component with code changes in the pull request has at least one <em>new</em>
+   fragment. Changes under <code>tests/</code>, to <code>README.md</code> and to <code>changelog.d/</code>
+   itself do not count. Label the pull request <code>no-changelog</code> to skip the
+   check, or add a <code>kind: internal</code> fragment: that leaves a trace in the
+   repository.</li>
+<li>The compiled <code>changelog.json</code> files are current (<code>build --check</code>): they
+   change only when a release is cut.</li>
+<li>Into <code>main</code>: a component whose version differs from <code>main</code>'s has no
+   unreleased fragments, so the version the pipeline is about to publish
+   carries its notes.</li>
+</ol>
+<p>Locally:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>check<span class="w"> </span>--base<span class="w"> </span>origin/dev
+</code></pre></div>
+<h2 id="cutting-a-release">Cutting a release<a class="headerlink" href="#cutting-a-release" title="Permanent link">¶</a></h2>
+<p>The pipeline publishes a package when its version changes on <code>main</code>. The
+release notes are stamped in the same change as the version bump:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>release<span class="w"> </span>backend<span class="w"> </span>--bump<span class="w"> </span>minor<span class="w">   </span><span class="c1"># or --bump auto, patch, major</span>
+</code></pre></div>
+<p>This bumps <code>backend/pyproject.toml</code>, moves the fragments into
+<code>backend/src/acex/changelog.json</code> under the new version and today's date, and
+deletes the fragments. Commit
+the result with the release. Without <code>--bump</code>, the version already in
+<code>pyproject.toml</code> is used, and a version that is already in the file is
+refused. Nobody types a version into an entry.</p>
+<p><code>--bump auto</code> reads the fragments: a breaking entry bumps the major version,
+new or changed behaviour the minor one, fixes only the patch one.</p>
+<h3 id="a-summary-of-the-release">A summary of the release<a class="headerlink" href="#a-summary-of-the-release" title="Permanent link">¶</a></h3>
+<p>A release with many entries is hard to scan. Give it one sentence about what
+it is about, written by whoever cuts the release:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>release<span class="w"> </span>backend<span class="w"> </span>--bump<span class="w"> </span>minor<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--summary<span class="w"> </span><span class="s2">"ZTP for Cisco switches: discovery, approval and provisioning from the web interface."</span>
+</code></pre></div>
+<p>The sentence is stored with the release and shown above its entries in
+Settings &gt; What's new, and in the overview of a component's releases. It is
+for the reader who wants the gist (at most 200 characters), so write what
+changed for the people who use ACEX, not how. A release without a summary
+is shown as before. The summary of an older release can be added or
+corrected by editing the <code>summary</code> field of that release in <code>changelog.json</code>;
+<code>release</code> and <code>build</code> leave older releases as they are.</p>
+<h2 id="highlights-and-the-roadmap">Highlights and the roadmap<a class="headerlink" href="#highlights-and-the-roadmap" title="Permanent link">¶</a></h2>
+<p>Settings &gt; What's new opens on the product's highlights: the features worth
+telling an ordinary user about, newest first, each with the date it arrived.
+Next to them is the roadmap: what is coming. Both belong to the product as a
+whole, not to a package, and each is one plain Markdown file that is read as
+it is. Nothing is compiled and no tool is needed to edit them, so they can be
+changed in the web editor of the repository.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>File</th>
+<th>Written by</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Highlights</td>
+<td><code>backend/src/acex/changelog/content/highlights.md</code></td>
+<td>the team, together</td>
+<td>when a release is cut to <code>main</code></td>
+</tr>
+<tr>
+<td>Roadmap</td>
+<td><code>backend/src/acex/changelog/content/roadmap.md</code></td>
+<td>the person who owns the roadmap</td>
+<td>whenever the plan changes</td>
+</tr>
+</tbody>
+</table>
+<p>Editing either file needs no changelog entry, and the edit is live with the
+next image. A package outside this repository can still carry <code>highlights</code>
+and <code>coming</code> in its own compiled file; they are shown as before.</p>
+<h3 id="highlights-at-a-release">Highlights at a release<a class="headerlink" href="#highlights-at-a-release" title="Permanent link">¶</a></h3>
+<p>Nobody writes highlights per package or per pull request. When a release is
+cut, the team writes them once, together, in the release pull request (<code>dev</code>
+into <code>main</code>). The tool collects the material:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>brief<span class="w">                    </span><span class="c1"># everything since the newest highlight</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>brief<span class="w"> </span>--since<span class="w"> </span><span class="m">2026</span>-10-01
+</code></pre></div>
+<p>It prints a brief in Markdown: what a highlight is and how to write one, the
+format, what is already published, what is on the roadmap, and every change
+since then that matters to users and administrators, with the summary of each
+release. Give it to whoever drafts the highlights, a person or an AI
+assistant: they read the brief, add the entries to <code>highlights.md</code> and run
+<code>python scripts/changelog.py validate</code>. The draft is
+then reviewed like any other change in the release pull request, which is
+where the team agrees on what the release will be known for.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="gu">## 2026-10-05 ZTP for Cisco switches</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>A new, unconfigured Cisco switch can download its bootstrap from ACEX and be
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>given its rendered configuration. The web interface has a ZTP section for
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>following it.
+</code></pre></div>
+<ul>
+<li>A heading is the day the feature arrived (<code>YYYY-MM-DD</code>) and what people
+  would call it, at most 80 characters, at the level of "ZTP for Cisco
+  switches" and not "ZTP script URL moved". A date more than 31 days ahead is
+  refused.</li>
+<li>The text below it is one or two sentences, at most 400 characters, for
+  someone who does not know the packages. No versions, package names or ticket
+  numbers: the page does not lead from a highlight to a release, and the
+  releases are under Details.</li>
+<li>Anything before the first heading, and <code>&lt;!-- comments --&gt;</code> anywhere, are
+  notes to the next editor and are left out.</li>
+<li>Order in the file does not matter: the page lists the newest first, and the
+  same day in title order.</li>
+<li>An entry that cannot be read is reported by <code>validate</code> and by the pull
+  request check, and skipped with a warning by the backend; it never takes the
+  others with it.</li>
+<li>Nothing forces a highlight to be written. A release without one is simply
+  not in the highlights, and its details are still under each component.</li>
+</ul>
+<h3 id="the-roadmap">The roadmap<a class="headerlink" href="#the-roadmap" title="Permanent link">¶</a></h3>
+<p>One person keeps the roadmap, in this one file. An item is a heading,
+optionally a few lines directly below it, and the explanation:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="gu">## Background jobs on separate workers</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>Status: in progress
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>When: Q4 2026
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>Long-running work such as discovery and provisioning is handed to separate
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>workers, and Activity &gt; Jobs lists the jobs.
+</code></pre></div>
+<ul>
+<li><code>Status</code> is <code>considering</code> (weighed, not decided), <code>planned</code>, <code>in progress</code>
+  or <code>preview</code>; it is <code>planned</code> when left out.</li>
+<li><code>When</code> and <code>Version</code> are optional and free text (<code>2026-11</code>, <code>Q1 2027</code>,
+  <code>6.30.0</code>). <code>Refs</code> points at the ticket (<code>Refs: ADO-1234 https://...</code>). Who
+  asked for something belongs in the tracker, not here: this repository is
+  public.</li>
+<li>A line that looks like a field but is not one (<code>Staus: planned</code>) is refused
+  rather than shown as text.</li>
+<li>Settings &gt; What's new shows the items under <em>Roadmap</em>: under way first, then
+  preview, planned and considered. The product owner decides what goes here;
+  a backlog is not a roadmap.</li>
+<li>When an item ships, delete it and let the next release's highlights say so:
+  the brief lists the roadmap so that nothing that shipped is forgotten.</li>
+</ul>
+<h3 id="choosing-what-to-see">Choosing what to see<a class="headerlink" href="#choosing-what-to-see" title="Permanent link">¶</a></h3>
+<p>Highlights are not filtered. The Details view, which lists every change by
+component, shows a point of view:</p>
+<table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Shows entries tagged</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Users</td>
+<td><code>user</code></td>
+</tr>
+<tr>
+<td>Administrators</td>
+<td><code>user</code> and <code>admin</code> (an administrator is also a user)</td>
+</tr>
+<tr>
+<td>Developers</td>
+<td><code>developer</code></td>
+</tr>
+<tr>
+<td>Everyone</td>
+<td>all of them</td>
+</tr>
+</tbody>
+</table>
+<p>It starts on the person's role (Administrators for <code>naas-admin</code>, otherwise
+Users). A choice the person made before wins and is remembered in the
+browser. A component whose notes are all for another point of view is marked
+in the list and offers to show them.</p>
+<h2 id="development-images">Development images<a class="headerlink" href="#development-images" title="Permanent link">¶</a></h2>
+<p>Images built from <code>dev</code> carry the pending fragments as an "unreleased"
+release, so a development deployment shows what is coming. The workflow
+runs <code>python scripts/changelog.py build --include-unreleased</code> before the
+image build; nothing is committed.</p>
+<h2 id="publishing-notes-from-your-own-package">Publishing notes from your own package<a class="headerlink" href="#publishing-notes-from-your-own-package" title="Permanent link">¶</a></h2>
+<p>A driver, or any other package installed in the backend, publishes its notes
+by declaring where its compiled changelog lives:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">[tool.poetry.plugins.</span><span class="s2">"acex.changelog"</span><span class="k">]</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">acex-driver-cisco-ioscli</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"acex_driver_cisco_ioscli"</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="k">[tool.acex.changelog]</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Cisco IOS CLI driver"</span>
+</code></pre></div>
+<p>The entry point's value is the package that contains <code>changelog.json</code>; the
+backend reads it through <code>importlib.resources</code> at startup. The component is
+identified by its distribution name, which is unique on any package index,
+so two parties can never claim the same id. The display name comes from
+<code>[tool.acex.changelog]</code>, else from the distribution name.</p>
+<p>In your own repository, copy <code>backend/src/acex/changelog/tool.py</code> (it needs
+nothing but Python) or, with the backend installed, run
+<code>python -m acex.changelog.tool --repo . &lt;command&gt;</code>. Keep a <code>changelog.d/</code>
+next to your <code>pyproject.toml</code> and cut releases the same way.</p>
+<h2 id="components-that-run-as-their-own-service">Components that run as their own service<a class="headerlink" href="#components-that-run-as-their-own-service" title="Permanent link">¶</a></h2>
+<p>The command line, the MCP server, the worker and the agents are not installed
+in the backend, so the backend cannot find them through an entry point. They
+keep their notes like any other package (a <code>changelog.d/</code> beside the
+<code>pyproject.toml</code>, compiled into <code>changelog.json</code> inside the package), and
+<code>backend/Dockerfile</code> copies each compiled file into
+<code>acex/changelog_components/</code> when the image is built. The backend reads that
+directory with the others and lists them under the product, with the source
+<code>bundled</code>. A component that is also installed in the backend wins over its
+bundled copy.</p>
+<p>A new component of this kind needs one <code>COPY</code> line in <code>backend/Dockerfile</code>.
+The notes of a bundled component describe the repository state the image was
+built from, which is the release the product ships.</p>
+<h2 id="a-project-that-is-not-a-python-package">A project that is not a Python package<a class="headerlink" href="#a-project-that-is-not-a-python-package" title="Permanent link">¶</a></h2>
+<p>The web interface lives in its own repository and ships its notes inside its
+JavaScript bundle. The tool treats a <code>package.json</code> with a <code>changelog.d/</code> beside
+it as a component, the same as a <code>pyproject.toml</code>. Options sit under
+<code>acex.changelog</code> in <code>package.json</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">{</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"acex-frontend"</span><span class="p">,</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0.0.35"</span><span class="p">,</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">"acex"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="nt">"changelog"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ACEX web interface"</span><span class="p">,</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">      </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"src/changelog.json"</span><span class="p">,</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">      </span><span class="nt">"paths"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"src"</span><span class="p">,</span><span class="w"> </span><span class="s2">"public"</span><span class="p">,</span><span class="w"> </span><span class="s2">"index.html"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Dockerfile"</span><span class="p">]</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>name</code> is what Settings &gt; What's new shows.</li>
+<li><code>output</code> is the compiled file. It must end up in the bundle; the page
+  imports it and adds it to the product section next to the backend's notes.</li>
+<li><code>paths</code> lists what changes call for an entry. Without it every file counts
+  except tests, READMEs and lock files, which is wrong for a project whose
+  root holds CI and tooling files too. A Python package can set <code>paths</code> under
+  <code>[tool.acex.changelog]</code> for the same reason.</li>
+</ul>
+<p>Copy <code>backend/src/acex/changelog/tool.py</code> to <code>scripts/changelog.py</code> in that
+repository and run it from the repository root. <code>release --bump patch</code> bumps
+<code>package.json</code> (and the project's own version in <code>package-lock.json</code>, when the
+lock file is in step), compiles the fragments under the new version and removes
+them.</p>
+<h2 id="notes-that-belong-to-one-deployment">Notes that belong to one deployment<a class="headerlink" href="#notes-that-belong-to-one-deployment" title="Permanent link">¶</a></h2>
+<p>Some notes must never be part of the product: a customer's configuration
+templates, an integrator's config maps, internal rollout information. They
+go in a directory the backend reads at runtime:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nv">ACEX_CHANGELOG_EXTRA_DIR</span><span class="o">=</span>/etc/acex/changelog.d
+</code></pre></div>
+<p>Each <code>*.json</code> file in it has the same shape as a compiled <code>changelog.json</code>,
+plus a <code>section</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">"schema_version"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">"section"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"example"</span><span class="p">,</span><span class="w"> </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Notes from Example IT"</span><span class="p">},</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nt">"component"</span><span class="p">:</span><span class="w"> </span><span class="s2">"example-config"</span><span class="p">,</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Example network configuration"</span><span class="p">,</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="nt">"releases"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="p">{</span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026.10"</span><span class="p">,</span><span class="w"> </span><span class="nt">"date"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-10-18"</span><span class="p">,</span><span class="w"> </span><span class="nt">"entries"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">      </span><span class="p">{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"branch-template-v3"</span><span class="p">,</span><span class="w"> </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"changed"</span><span class="p">,</span><span class="w"> </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Branch office template v3"</span><span class="p">,</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">       </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"New branch offices get the v3 template with the updated VLAN plan."</span><span class="p">}</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">    </span><span class="p">]}</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">  </span><span class="nt">"coming"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="p">}</span>
+</code></pre></div>
+<p>They are shown as their own section after the product's notes, never mixed
+with them, and the <code>product</code> section id is refused. Who may write them is
+whoever can write that directory: mount it from a ConfigMap, or let your own
+pipeline generate it, for example from the work items your tracker marks as
+published. The directory is read on every request, so updating a file is
+enough.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+        <script src="../../javascripts/mermaid-zoom.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

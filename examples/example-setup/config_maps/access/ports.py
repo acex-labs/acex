@@ -95,4 +95,4 @@ class ConfigureAccessPorts(ConfigMap):
 
 
 config = ConfigureAccessPorts()
-config.filters = FilterAttribute("role").eq("lan_asw")
+config.filters = FilterAttribute("role").eq("access")
