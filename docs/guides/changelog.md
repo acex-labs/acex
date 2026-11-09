@@ -53,25 +53,33 @@ The tool refuses titles that look like commit subjects or branch names.
 
 ## What the pull request check does
 
-The `Changelog` workflow runs on every pull request:
+`dev` is free. A pull request into `dev` is not asked for a fragment, so
+something can be tried out there quickly. The entry is needed later, when a
+package is sent to stage with the Release workflow. It is fine to write it with
+the change, since the author knows best what changed, and the fragment travels
+with the code.
+
+The `Changelog` workflow runs on pull requests into `dev` and `main`, but not
+for drafts, not for ones with the label `no-changelog`, and not for a release
+pull request (a branch named `chore/release-…`), which only stamps versions and
+compiles notes:
 
 1. Every fragment and compiled file parses, and so do the highlights and the
    roadmap.
-2. A component with code changes in the pull request has at least one *new*
-   fragment. Changes under `tests/`, to `README.md` and to `changelog.d/`
-   itself do not count. Label the pull request `no-changelog` to skip the
-   check, or add a `kind: internal` fragment: that leaves a trace in the
-   repository.
-3. The compiled `changelog.json` files are current (`build --check`): they
+2. The compiled `changelog.json` files are current (`build --check`): they
    change only when a release is cut.
-4. Into `main`: a component whose version differs from `main`'s has no
+3. Into `main` only: a component with code changes in the pull request has at
+   least one *new* fragment. Changes under `tests/`, to `README.md` and to
+   `changelog.d/` itself do not count. Add a `kind: internal` fragment when
+   users cannot notice the change: that leaves a trace in the repository.
+4. Into `main` only: a component whose version differs from `main`'s has no
    unreleased fragments, so the version the pipeline is about to publish
    carries its notes.
 
-Locally:
+Locally, to see what a pull request into `main` would be asked for:
 
 ```bash
-python scripts/changelog.py check --base origin/dev
+python scripts/changelog.py check --base origin/main
 ```
 
 ## Cutting a release
