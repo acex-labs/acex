@@ -60,7 +60,9 @@ the change, since the author knows best what changed, and the fragment travels
 with the code.
 
 The `Changelog` workflow runs on pull requests into `dev` and `main`, but not
-for drafts and not for ones with the label `no-changelog`:
+for drafts, not for ones with the label `no-changelog`, and not for a release
+pull request (a branch named `chore/release-…`), which only stamps versions and
+compiles notes:
 
 1. Every fragment and compiled file parses, and so do the highlights and the
    roadmap.
@@ -98,6 +100,57 @@ refused. Nobody types a version into an entry.
 
 `--bump auto` reads the fragments: a breaking entry bumps the major version,
 new or changed behaviour the minor one, fixes only the patch one.
+
+### Releasing everything that is due
+
+Nobody has to remember which packages a release contains or which images must
+follow them:
+
+```bash
+python scripts/changelog.py plan          # what a release would contain, nothing is changed
+python scripts/changelog.py release-all   # does it
+```
+
+A component with fragments is released with the version they call for, as
+with `--bump auto`. Others follow only when they have to:
+
+- An image whose `Dockerfile` copies a released component's directory is
+  rebuilt, so it gets a patch version and a note that says why. That is how the
+  agents follow `client` and `devkit`. Copying a single file does not count.
+- A package that depends on a released component by path gets a patch version
+  when that component's major version changes, because the range it publishes
+  (`^MAJOR`) moves with it.
+
+Nothing else is bumped. A hotfix therefore releases only the package that has a
+fragment and the images that contain it: branch from `main`, add the fix with
+its fragment, run `release-all`, and the other packages keep their versions.
+The plan is worked out completely before anything is written, so a fragment
+that cannot be read stops the release before it starts.
+
+### The Release workflow
+
+Nobody has to run the script by hand. **Actions > Release > Run workflow**, on
+`dev` for a release or on a `hotfix/*` branch for a hotfix:
+
+1. **Plan.** The run summary lists every package, its old and new version and
+   why it is in the release. Nothing is changed.
+2. **Gate.** The `release` environment waits for a reviewer. Read the plan; if
+   it looks right, approve. That is the play button.
+3. **Release.** The workflow runs `release-all` and the bot commits the
+   result: as a pull request into `dev` (named `chore/release-<date>-<run>`) when
+   run on `dev`, as a commit on the branch when run on a hotfix branch.
+
+After that, publishing is what it always was: merging `dev` into `main`
+publishes every version that is new on PyPI and GHCR. A pull request into
+`main` fails if an image still has the version of `main` although a package it
+contains has a new one (`check --release-ready`), so the images cannot be left
+behind.
+
+For the checks to run on the release pull request, add a repository secret
+`RELEASE_TOKEN` (a token that may push and open pull requests). Without it the
+workflow uses the default token, whose pushes and pull requests do not start
+other workflows. The reviewers of the `release` environment are set in the
+repository settings.
 
 ### A summary of the release
 

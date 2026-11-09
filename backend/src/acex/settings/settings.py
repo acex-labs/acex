@@ -9,6 +9,7 @@ from acex.settings.sections import (
     CorsSettings,
     CredentialSettings,
     DatabaseSettings,
+    GitSyncSettings,
     OidcSettings,
     RabbitMQSettings,
     ServerSettings,
@@ -38,6 +39,7 @@ class Settings(Section):
     rabbitmq: RabbitMQSettings = Field(default_factory=RabbitMQSettings)
     ztp: ZtpSettings = Field(default_factory=ZtpSettings)
     changelog: ChangelogSettings = Field(default_factory=ChangelogSettings)
+    git_sync: GitSyncSettings = Field(default_factory=GitSyncSettings)
 
     @model_validator(mode="after")
     def _dev_conveniences(self) -> "Settings":

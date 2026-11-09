@@ -133,6 +133,18 @@ class ZtpSettings(Section, name="ztp"):
     provision_run_timeout_minutes: int = 30
 
 
+class GitSyncSettings(Section, name="git_sync"):
+    """Git repositories that ConfigMaps are read from (set up under /api/v1/git_repositories)."""
+
+    #: How often each repository is asked whether its branch has moved, in seconds.
+    poll_interval_seconds: int = Field(default=1800, ge=60)
+    #: Where repositories are checked out. Left unset, a directory under the system's temp
+    #: directory; set it to a volume to keep the last checkout when a restart can't reach the host.
+    checkout_dir: str | None = None
+    #: How long one git command may run, in seconds.
+    timeout_seconds: int = Field(default=120, ge=1)
+
+
 class ChangelogSettings(Section, name="changelog"):
     """Release notes that belong to this deployment only.
 

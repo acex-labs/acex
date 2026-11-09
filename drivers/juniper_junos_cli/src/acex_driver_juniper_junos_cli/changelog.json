@@ -4,6 +4,30 @@
   "name": "Juniper Junos CLI driver",
   "releases": [
     {
+      "version": "2.1.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261103-the-junos-driver-lists-the-changes-it",
+          "kind": "changed",
+          "title": "The Junos driver lists the changes it can't render in a patch",
+          "description": "`render_patch` returns a `RenderResult`: the commands as its payload, and in `metadata.unrendered` the paths of the changes no generator handles, which were left out before without a trace. Patch runs don't reach Junos devices yet, since the driver can't parse their configuration.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261022-the-junos-driver-installs-with-the",
+          "kind": "fixed",
+          "title": "The Junos driver installs with the jinja2 it needs",
+          "description": "The driver imports jinja2 but did not list it, so a collection agent that installed the driver at runtime in a container without jinja2 failed to load it, and the agent then collected nothing from any device. The driver now declares jinja2 like the Cisco driver does.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "1.0.3",
       "date": "2026-08-21",
       "entries": [
