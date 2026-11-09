@@ -33,9 +33,7 @@ class CiscoIOSTransport(Transport[str]):
             host=self.address,
             auth_username=login.fields["username"],
             auth_password=login.fields["password"],
-            auth_secondary=(
-                enable.fields["password"] if enable else login.fields["password"]
-            ),
+            auth_secondary=(enable.fields["password"] if enable else login.fields["password"]),
             auth_strict_key=False,
             port=self.PORT,
             timeout_socket=30,
@@ -47,12 +45,8 @@ class CiscoIOSTransport(Transport[str]):
             await self.conn.open()
         except ScrapliAuthenticationFailed as e:
             if isinstance(e.__cause__, asyncio.TimeoutError):
-                raise ConnectionTimeout(
-                    f"Connection to {self.address} timed out"
-                ) from e
-            raise AuthenticationFailed(
-                f"Authentication to {self.address} failed"
-            ) from e
+                raise ConnectionTimeout(f"Connection to {self.address} timed out") from e
+            raise AuthenticationFailed(f"Authentication to {self.address} failed") from e
         except ScrapliTimeout as e:
             raise ConnectionTimeout(f"Connection to {self.address} timed out") from e
 
@@ -63,13 +57,9 @@ class CiscoIOSTransport(Transport[str]):
             pass
 
     async def get_config(self) -> str:
-        config = (
-            await self.conn.send_command("show running-config", timeout_ops=120)
-        ).result
+        config = (await self.conn.send_command("show running-config", timeout_ops=120)).result
         try:
-            vtp_output = (
-                await self.conn.send_command("show vtp status", timeout_ops=30)
-            ).result
+            vtp_output = (await self.conn.send_command("show vtp status", timeout_ops=30)).result
         except Exception:
             return config
 
@@ -97,19 +87,13 @@ class CiscoIOSTransport(Transport[str]):
         return lines
 
     async def apply(self, payload: str) -> str:
-        commands = [
-            line.strip()
-            for line in payload.splitlines()
-            if line.strip() and line.strip() != "!"
-        ]
+        commands = [line.strip() for line in payload.splitlines() if line.strip() and line.strip() != "!"]
         if not commands:
             return ""
         return (await self.conn.send_configs(commands)).result
 
     async def execute(self, request: list[str]) -> list[str]:
-        return [
-            r.result for r in await self.conn.send_commands(request, timeout_ops=120)
-        ]
+        return [r.result for r in await self.conn.send_commands(request, timeout_ops=120)]
 
     async def send(self, command: str, timeout: float) -> str:
         """One command that may take longer than the usual operation timeout, e.g. a long ping."""
