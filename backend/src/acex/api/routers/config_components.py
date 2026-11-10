@@ -7,7 +7,7 @@ and Python code generation for ConfigMap files.
 
 import re
 from enum import Enum
-from types import NoneType
+from types import NoneType, UnionType
 from typing import (
     Any,
     Literal,
@@ -285,6 +285,11 @@ SKIP_FIELDS = {
 # ── Introspection helpers ─────────────────────────────────────────
 
 
+# `X | None` has the origin `types.UnionType`, while `Optional[X]` and `Union[X, Y]` have `typing.Union`.
+# From Python 3.14 they are the same object, so both have to be checked to behave the same on 3.13.
+_UNION_ORIGINS = (Union, UnionType)
+
+
 def _unwrap_attribute_value(annotation):
     """
     Unwrap Optional[AttributeValue[T]] and return (inner_type, is_optional).
@@ -294,7 +299,7 @@ def _unwrap_attribute_value(annotation):
     inner = annotation
 
     origin = get_origin(inner)
-    if origin is Union:
+    if origin in _UNION_ORIGINS:
         args = get_args(inner)
         non_none = [a for a in args if a is not NoneType]
         if NoneType in args and len(non_none) == 1:
@@ -316,7 +321,7 @@ def _unwrap_attribute_value(annotation):
             value_ann = inner.model_fields["value"].annotation
             # Unwrap Union[T, ExternalValue] → T
             v_origin = get_origin(value_ann)
-            if v_origin is Union:
+            if v_origin in _UNION_ORIGINS:
                 v_args = [a for a in get_args(value_ann) if not (isinstance(a, type) and a.__name__ == "ExternalValue")]
                 return (v_args[0] if v_args else str), is_optional
             return value_ann, is_optional
@@ -342,7 +347,7 @@ def _type_label(t) -> str:
         return f"list[{_type_label(args[0])}]" if args else "list"
     if origin is Literal:
         return "enum"
-    if origin is Union:
+    if origin in _UNION_ORIGINS:
         return "string"
     if isinstance(t, type) and issubclass(t, Enum):
         return "enum"
@@ -356,7 +361,7 @@ def _enum_values(t) -> list[str] | None:
         return [str(v) for v in get_args(t)]
     if isinstance(t, type) and issubclass(t, Enum):
         return [e.value for e in t]
-    if origin is Union:
+    if origin in _UNION_ORIGINS:
         for arg in get_args(t):
             vals = _enum_values(arg)
             if vals:
