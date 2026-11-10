@@ -61,22 +61,22 @@ class CiscoIOSTransport(Transport[str]):
 
     async def get_config(self) -> str:
         config = (await self.conn.send_command("show running-config", timeout_ops=120)).result
-        
+
         vtp_additions: list[str] = []
         vlan_additions: list[str] = []
-        
+
         try:
             vtp_output = (await self.conn.send_command("show vtp status", timeout_ops=30)).result
             vtp_additions = self.vtp_config(vtp_output) if vtp_output else []
         except Exception:
             log.exception("Could not run 'show vtp status' on %s; VTP config will be missing", self.address)
-            #return config
+            # return config
         try:
             vlan_output = (await self.conn.send_command("show vlan brief", timeout_ops=30)).result
             vlan_additions = self.vlan_config(vlan_output) if vlan_output else []
         except Exception:
             log.exception("Could not run 'show vlan brief' on %s; VLAN config will be missing", self.address)
-            #return config
+            # return config
 
         added_config = "\n".join(part for part in (config.rstrip(), *vtp_additions, *vlan_additions) if part)
         return added_config
