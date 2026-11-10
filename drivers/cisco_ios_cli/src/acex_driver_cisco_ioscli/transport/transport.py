@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 
 from acex_devkit.drivers import Transport
@@ -6,6 +7,8 @@ from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_devkit.models.management_connection import ConnectionType
 from scrapli.driver.core import AsyncIOSXEDriver
 from scrapli.exceptions import ScrapliAuthenticationFailed, ScrapliTimeout
+
+log = logging.getLogger(__name__)
 
 
 class CiscoIOSTransport(Transport[str]):
@@ -58,13 +61,24 @@ class CiscoIOSTransport(Transport[str]):
 
     async def get_config(self) -> str:
         config = (await self.conn.send_command("show running-config", timeout_ops=120)).result
+
+        vtp_additions: list[str] = []
+        vlan_additions: list[str] = []
+
         try:
             vtp_output = (await self.conn.send_command("show vtp status", timeout_ops=30)).result
+            vtp_additions = self.vtp_config(vtp_output) if vtp_output else []
         except Exception:
-            return config
+            log.exception("Could not run 'show vtp status' on %s; VTP config will be missing", self.address)
+            # return config
+        try:
+            vlan_output = (await self.conn.send_command("show vlan brief", timeout_ops=30)).result
+            vlan_additions = self.vlan_config(vlan_output) if vlan_output else []
+        except Exception:
+            log.exception("Could not run 'show vlan brief' on %s; VLAN config will be missing", self.address)
+            # return config
 
-        additions = self.vtp_config(vtp_output)
-        added_config = "\n".join(part for part in (config.rstrip(), *additions) if part)
+        added_config = "\n".join(part for part in (config.rstrip(), *vtp_additions, *vlan_additions) if part)
         return added_config
 
     @staticmethod
@@ -75,7 +89,7 @@ class CiscoIOSTransport(Transport[str]):
 
         lines = []
         domain_name = find(r"^VTP Domain Name\s*:\s*(.*?)\s*$")
-        mode = find(r"VTP Operating Mode\s+:\s+(\S+)")
+        mode = find(r"VTP Operating Mode[ \t]+:[ \t]+(?:primary[ \t]+)?(client|server|transparent|off)[ \t\r]*$")
         version = find(r"VTP version running\s+:\s+(\d+)")
 
         if domain_name:
@@ -84,6 +98,23 @@ class CiscoIOSTransport(Transport[str]):
             lines.append(f"vtp mode {mode.casefold()}")
         if version in {"1", "2", "3"}:
             lines.append(f"vtp version {version}")
+        return lines
+
+    # Output will be converted to VLAN configuration commands, e.g.:
+    # 1    default    ...
+    # 2    VLAN2      ...
+    # becomes:
+    # vlan 1
+    #  name default
+    # vlan 2
+    #  name VLAN2
+    @staticmethod
+    def vlan_config(output: str) -> list[str]:
+        lines = []
+        for match in re.finditer(r"^(\d+)\s+(\S+)\s+.*$", output, re.MULTILINE):
+            vlan_id, vlan_name = match.groups()
+            lines.append(f"vlan {vlan_id}")
+            lines.append(f" name {vlan_name}")
         return lines
 
     async def apply(self, payload: str) -> str:
