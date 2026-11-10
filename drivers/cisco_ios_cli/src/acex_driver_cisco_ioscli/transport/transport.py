@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 
 from acex_devkit.drivers import Transport
@@ -6,6 +7,8 @@ from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
 from acex_devkit.models.management_connection import ConnectionType
 from scrapli.driver.core import AsyncIOSXEDriver
 from scrapli.exceptions import ScrapliAuthenticationFailed, ScrapliTimeout
+
+log = logging.getLogger(__name__)
 
 
 class CiscoIOSTransport(Transport[str]):
@@ -61,6 +64,7 @@ class CiscoIOSTransport(Transport[str]):
         try:
             vtp_output = (await self.conn.send_command("show vtp status", timeout_ops=30)).result
         except Exception:
+            log.exception("Could not run 'show vtp status' on %s; VTP config will be missing", self.address)
             return config
 
         additions = self.vtp_config(vtp_output)
