@@ -75,7 +75,7 @@ class CiscoIOSTransport(Transport[str]):
 
         lines = []
         domain_name = find(r"^VTP Domain Name\s*:\s*(.*?)\s*$")
-        mode = find(r"VTP Operating Mode\s+:\s+(\S+)")
+        mode = find(r"VTP Operating Mode[ \t]+:[ \t]+(?:primary[ \t]+)?(client|server|transparent|off)[ \t\r]*$")
         version = find(r"VTP version running\s+:\s+(\d+)")
 
         if domain_name:
