@@ -60,10 +60,10 @@ class FilterSpec(BaseModel):
     operator: str = "eq"
     value: str = "/.*/"
 
-# Filter som lista är bättre än FilterSpec. Eller typ "list[FilterSpec]"
+
 class GenerateRequest(BaseModel):
     class_name: str = "MyConfigMap"
-    filter: list[FilterSpec] | None = None  #list[FilterSpec] | None = None  #FilterSpec | None = None
+    filter: list[FilterSpec] | None = None
     components: list[ComponentInstance]
 
 
@@ -73,7 +73,7 @@ class GenerateResponse(BaseModel):
 
 class ReconcileOptions(BaseModel):
     class_name: str = "ReconcileConfigMap"
-    filter: list[FilterSpec] | None = None  #FilterSpec | None = None
+    filter: list[FilterSpec] | None = None
     mode: Literal["diff", "full"] = "diff"
     # Only used in diff mode:
     include_removed: bool = True
@@ -83,7 +83,7 @@ class ReconcileOptions(BaseModel):
 class TranslateRequest(BaseModel):
     ned_id: str
     config_text: str
-    filter: list[FilterSpec] | None = None  #FilterSpec | None = None
+    filter: list[FilterSpec] | None = None
 
 
 # ── Component metadata ────────────────────────────────────────────
@@ -201,30 +201,54 @@ IMPORT_MAP_OVERRIDES = {
 # Synthetic fields (not in model_cls) are added to the catalog automatically.
 REFERENCE_FIELDS = {
     "FrontpanelPort": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
     },
     "ManagementPort": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
     },
     "Loopback": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
     },
     "Svi": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
         "vlan": {"target": "Vlan", "description": "VLAN to create SVI for"},
     },
     "Subinterface": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
         "vlan": {"target": "Vlan", "description": "VLAN for sub-interface"},
     },
     "SshServer": {
-        "source_interface": {"target": "Interface", "description": "Source interface for SSH"},
+        "source_interface": {
+            "target": "Interface",
+            "description": "Source interface for SSH",
+        },
     },
     "Vlan": {
-        "network_instance": {"target": "L3Vrf", "description": "Network instance for VLAN"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "Network instance for VLAN",
+        },
     },
     "StaticRoute": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF for the static route"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF for the static route",
+        },
     },
     "StaticRouteNextHop": {
         "network_instance": {"target": "L3Vrf", "description": "VRF for the next-hop"},
@@ -238,11 +262,17 @@ REFERENCE_FIELDS = {
     },
     "aaaTacacs": {
         "source_interface": {"target": "Interface", "description": "Source interface"},
-        "server_group": {"target": "aaaServerGroup", "description": "Server group membership"},
+        "server_group": {
+            "target": "aaaServerGroup",
+            "description": "Server group membership",
+        },
     },
     "aaaRadius": {
         "source_interface": {"target": "Interface", "description": "Source interface"},
-        "server_group": {"target": "aaaServerGroup", "description": "Server group membership"},
+        "server_group": {
+            "target": "aaaServerGroup",
+            "description": "Server group membership",
+        },
     },
     "SnmpCommunity": {
         "source_interface": {"target": "Interface", "description": "Source interface"},
@@ -559,37 +589,27 @@ def generate_configmap(request: GenerateRequest) -> GenerateResponse:
     else:
         body = "        pass"
 
-    
     # Instantiation and filter
     inst_var = _to_snake_case(request.class_name)
     filter_block = f"\n{inst_var} = {request.class_name}()\n"
+    # Build filter block based on request.filter list
     if request.filter:
-        # New list based filter code
+        # If several filters
         if len(request.filter) > 1:
-            filter_block += (
-                f'{inst_var}.filters = (\n'
-            )
-            for i,f in enumerate(request.filter): # should be list
-                filter_block += (
-                    f'\tFilterAttribute("{f.attribute}")'
-                    f'.{f.operator}("{f.value}")'
-                )
+            filter_block += f"{inst_var}.filters = (\n"
+            for i, f in enumerate(request.filter):
+                filter_block += f'\tFilterAttribute("{f.attribute}").{f.operator}("{f.value}")'
                 if i < len(request.filter) - 1:
                     filter_block += "| \n"
                 else:
                     filter_block += "\n"
             filter_block += ")"
+        # Single filter
         else:
             filter_block += (
                 f'{inst_var}.filters = FilterAttribute("{request.filter[0].attribute}")'
                 f'.{request.filter[0].operator}("{request.filter[0].value}")\n'
             )
-            
-        # old code (single filter)
-        #filter_block += (
-        #    f'{inst_var}.filters = FilterAttribute("{request.filter.attribute}")'
-        #    f'.{request.filter.operator}("{request.filter.value}")\n'
-        #)
 
     code = (
         "\n".join(import_lines)
@@ -925,7 +945,16 @@ def _extract_from_dict(obj, comp_name, single_attr, container, type_map, counter
             )
 
 
-def _walk_template_dict(config_dict, template_str, comp_name, single_attr, container, type_map, counter, results):
+def _walk_template_dict(
+    config_dict,
+    template_str,
+    comp_name,
+    single_attr,
+    container,
+    type_map,
+    counter,
+    results,
+):
     """Walk a template path on a plain dict, expanding ${var} as wildcards."""
     segments = []
     for part in template_str.split("."):
@@ -1024,12 +1053,6 @@ def create_router(automation_engine):
                 filter=options.filter,
                 components=[ci],
             )
-            # inför list[FilterSpec] om det behövs i framtiden
-            #request = GenerateRequest(
-            #    class_name=unique,
-            #    filter=[options.filter] if options.filter else [],
-            #    components=[ci],
-            #)
             result = generate_configmap(request)
             code_blocks.append(result.code)
 
