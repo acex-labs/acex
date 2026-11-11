@@ -17,21 +17,22 @@ Nothing is compiled: an edit that is merged is live in the next image.
 
 Choose a list of nodes, run a command or a ping on all of them and read each node's answer as it comes in. Steps can be chained into a workflow, where each step runs on its own nodes and later steps use what earlier ones found.
 
-## 2026-11-09 Change the configuration of many nodes from a reviewed plan
+## 2026-11-09 Apply the configuration of many nodes from a reviewed plan
 
-Pick a part of the configuration, such as the NTP servers. ACEX reads each node live and shows the exact lines that would change, and you apply the plan to the nodes you choose. Cisco switches are supported; for Junos it lists what it cannot yet express.
+Pick a part of the configuration, such as the NTP servers. ACEX reads each node live and shows the exact lines that would change, and you apply the plan to the nodes you choose. 
 
-## 2026-11-09 ZTP finds devices that call in and asks before it acts
+## 2026-11-09 ZTP, Zero touch provisioning
 
-A new device that fetches its bootstrap is discovered automatically: its serial number, model and software version are read. Before an asset is created or updated, an approvals page lists what approving would do and any conflicts, and the ZTP overview shows every node's stage, stalled ones first.
+Onboarding unconfigured using DHCP parameters. Complete safe onboarding workflow based on serial number. Discovered devices are acked manually before they receive any configuration to prevent spoofing attacks. 
+ZTP flow applies all desired configuration to new devices. If Assets is not defined before, they will be automatically created.
 
 ## 2026-11-09 See compliance and how fresh each node's configuration is
 
-Sites show compliance on the Overview and per node on a Compliance tab, and every node says when its configuration was last collected from the device.
+Sites show compliance on the Overview and per node on a Compliance tab, and every node says when its configuration was last collected from the device and when it was last changed.
 
-## 2026-11-09 Browse CVEs for the vendors you run
+## 2026-11-09 CVE tracker
 
-Browse known vulnerabilities with their severity. Discovery from the National Vulnerability Database runs in the background for a vendor and a date range.
+Initial functionality of the CVE tracker. Connect with your api key from nist.gov and download CVE:s for selected filter and fetch details. More functionality is on the roadmap.
 
 ## 2026-11-09 Release notes and versions are part of the product
 
