@@ -19,8 +19,10 @@ from acex.logging_config import build_logging_config
 from acex.management_connections import ManagementConnectionManager
 from acex.messaging import JobProducer
 from acex.operations.runs import OperationRuns
+from acex.platforms import HardwareModelManager
 from acex.plugins import PluginManager
 from acex.plugins.neds.manager import NEDManager
+from acex.policies import SoftwarePolicyManager
 from acex.settings import AIOpsSettings, InfluxDBOutput, OidcSettings, Settings, VaultSettings
 from acex.workflows.library import WorkflowLibrary
 from acex.workflows.runs import WorkflowRuns
@@ -97,10 +99,12 @@ class AutomationEngine:
         self.cves = CveManager(self.db)
         self.config_compiler = ConfigCompiler(self.db)
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
+        self.software_policies = SoftwarePolicyManager(self.db)
+        self.hardware_models = HardwareModelManager(self.db)
         self.influxdb_settings = self.settings.influxdb
         # Nothing connects to RabbitMQ until the first job is published.
         self.jobs = JobManager(self.db, JobProducer(self.settings.rabbitmq))
-        self.ztp_discoveries = ZtpDiscoveryManager(self.db)
+        self.ztp_discoveries = ZtpDiscoveryManager(self.db, self.hardware_models)
         self.ztp_calls = ZtpCallManager(self.db, self.jobs)
         self.ztp_methods = ZtpMethodManager(self.db)
         self.ztp_vendor_classes = ZtpVendorClassManager(self.db)
@@ -124,6 +128,7 @@ class AutomationEngine:
         # Create Inventory
         self.inventory = Inventory(
             db_connection=self.db,
+            hardware_models=self.hardware_models,
             assets_plugin=self.plugin_manager.get_plugin_for_object_type("assets"),
             logical_nodes_plugin=self.plugin_manager.get_plugin_for_object_type("logical_nodes"),
             sites_plugin=self.plugin_manager.get_plugin_for_object_type("sites"),

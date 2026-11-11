@@ -131,7 +131,8 @@ class OsVersionScheme(BaseModel):
         """Return ``raw`` stripped, or raise ``ValueError`` if the scheme rejects it."""
         text = raw.strip()
         if not self.accepts(text):
-            raise ValueError(f"{text!r} is not a valid {self.os.value} version")
+            examples = f", e.g. {', '.join(self.examples[:2])}" if self.examples else ""
+            raise ValueError(f"{text!r} is not a valid {self.os.value} version{examples}")
         return text
 
     # --- comparison -----------------------------------------------------

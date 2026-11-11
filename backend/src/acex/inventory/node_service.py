@@ -137,7 +137,7 @@ class NodeService:
         role: str = None,
         admin_status: NodeAdminStatus | None = None,
         provision_status: NodeProvisionStatus | None = None,
-        limit: int = 100,
+        limit: int | None = 100,  # None: every item
         offset: int = 0,
         sort: str | None = None,
         order: Literal["asc", "desc"] = "asc",

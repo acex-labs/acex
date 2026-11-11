@@ -275,8 +275,7 @@ component, shows a point of view:
 | Developers | `developer` |
 | Everyone | all of them |
 
-It starts on the person's role (Administrators for `naas-admin`, otherwise
-Users). A choice the person made before wins and is remembered in the
+It starts on Users. A choice the person made before wins and is remembered in the
 browser. A component whose notes are all for another point of view is marked
 in the list and offers to show them.
 

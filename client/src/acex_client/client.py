@@ -13,13 +13,15 @@ Namespaces:
                                 management_connections, node_instances,
                                 region_assignments, contact_assignments
     client.observability     — agents (with bound outputs/rules/nodes), grafana
-    client.operations        — compliance, config_history, lldp
+    client.operations        — config_history, lldp
+    client.compliance        — overview, node, site, region
+    client.policies          — software (OS and versions to run per vendor or hardware model)
     client.config_components — catalog, generate, reconcile, translate, drivers
     client.cves             — CVE records (including batch ingestion)
     client.neds              — list, get, download
     client.ai                — ask, analyze (SSE-streamed) or None if backend
                               does not mount ai_ops
-    client.system            — auth_config, health_node, health_site
+    client.system            — auth_config
     client.workers           — connect, job_types, jobs (query, get, claim, succeed, fail)
     client.ztp_methods       — query, get, update (the NED and bootstrap login of each ZTP method)
     client.ztp_vendor_classes — query, create, update, delete (DHCP vendor class → ZTP method)
@@ -32,12 +34,14 @@ from __future__ import annotations
 from acex_client.auth import AuthProvider, create_auth_provider
 from acex_client.http import RestClient
 from acex_client.resources.ai import Ai
+from acex_client.resources.compliance import Compliance
 from acex_client.resources.config_components import ConfigComponents
 from acex_client.resources.cve import Cves
 from acex_client.resources.inventory import InventoryNamespace
 from acex_client.resources.neds import Neds
 from acex_client.resources.observability import ObservabilityNamespace
 from acex_client.resources.operations import OperationsNamespace
+from acex_client.resources.policies import PoliciesNamespace
 from acex_client.resources.system import SystemNamespace
 from acex_client.resources.workers import Workers
 from acex_client.resources.ztp_dhcp import ZtpDhcp
@@ -71,6 +75,8 @@ class Acex:
         self.inventory = InventoryNamespace(self.rest)
         self.observability = ObservabilityNamespace(self.rest)
         self.operations = OperationsNamespace(self.rest)
+        self.compliance = Compliance(self.rest)
+        self.policies = PoliciesNamespace(self.rest)
         self.config_components = ConfigComponents(self.rest)
         self.cves = Cves(self.rest)
         self.neds = Neds(self.rest)

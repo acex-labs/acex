@@ -320,8 +320,8 @@ Everything talks to the same REST API. The web UI, the CLI and the AI tooling ar
 /api/v1/inventory/node_instances/{id}/configuration/desired      # rendered via NED
 /api/v1/inventory/node_instances/{id}/configuration/observed     # snapshot history
 /api/v1/inventory/node_instances/{id}/configuration/intent_diff  # desired vs observed
-/api/v1/operations/compliance/{node_instance_id}
-/api/v1/operations/compliance/site/{site_name}
+/api/v1/compliance                                               # summary per site and in total
+/api/v1/compliance/{nodes/{id},sites/{name},regions/{name}}
 /api/v1/config_components/{generate,reconcile,translate}
 /api/v1/observability/agents                                     # manifest, config, ack
 /api/v1/observability/grafana/{dashboards,datasources}           # generated definitions

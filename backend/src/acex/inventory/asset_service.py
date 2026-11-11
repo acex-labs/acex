@@ -24,8 +24,10 @@ class AssetService:
         "os_version": "os_version",
     }
 
-    def __init__(self, adapter):
+    def __init__(self, adapter, hardware_models):
         self.adapter = adapter
+        # An asset entering the inventory enables its hardware model.
+        self.hardware_models = hardware_models
 
     async def _call_method(self, method, *args, **kwargs):
         """Helper för att hantera både sync och async metoder."""
@@ -36,6 +38,7 @@ class AssetService:
 
     async def create(self, asset: Asset):
         result = await self._call_method(self.adapter.create, asset)
+        self.hardware_models.enable_for_asset(asset.hardware_model, enabled_by="inventory")
         return result
 
     async def get(self, id: str) -> AssetResponse:
@@ -121,6 +124,8 @@ class AssetService:
                 asset = asset.model_copy(update={"os_version": patch["os_version"]})
 
         result = await self._call_method(self.adapter.update, id, asset)
+        if "hardware_model" in patch:
+            self.hardware_models.enable_for_asset(patch["hardware_model"], enabled_by="inventory")
         return result
 
     async def delete(self, id: str):

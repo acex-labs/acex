@@ -163,13 +163,13 @@ class Diff(BaseModel):
 
     @computed_field
     @property
-    def compliance_percentage(self) -> float | None:
+    def compliance_percentage(self) -> float:
         """
         Percentage of desired config points that are compliant.
-        None when nothing is desired: there is nothing to be compliant with.
+        Nothing desired is fully compliant: nothing required is missing or wrong.
         """
         if self.total_desired == 0:
-            return None
+            return 100.0
         return round(self.compliant_count / self.total_desired * 100, 2)
 
     def is_empty(self) -> bool:
