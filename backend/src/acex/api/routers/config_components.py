@@ -60,10 +60,10 @@ class FilterSpec(BaseModel):
     operator: str = "eq"
     value: str = "/.*/"
 
-
+# Filter som lista är bättre än FilterSpec. Eller typ "list[FilterSpec]"
 class GenerateRequest(BaseModel):
     class_name: str = "MyConfigMap"
-    filter: FilterSpec | None = None
+    filter: list[FilterSpec] | None = None  #list[FilterSpec] | None = None  #FilterSpec | None = None
     components: list[ComponentInstance]
 
 
@@ -73,7 +73,7 @@ class GenerateResponse(BaseModel):
 
 class ReconcileOptions(BaseModel):
     class_name: str = "ReconcileConfigMap"
-    filter: FilterSpec | None = None
+    filter: list[FilterSpec] | None = None  #FilterSpec | None = None
     mode: Literal["diff", "full"] = "diff"
     # Only used in diff mode:
     include_removed: bool = True
@@ -83,7 +83,7 @@ class ReconcileOptions(BaseModel):
 class TranslateRequest(BaseModel):
     ned_id: str
     config_text: str
-    filter: FilterSpec | None = None
+    filter: list[FilterSpec] | None = None  #FilterSpec | None = None
 
 
 # ── Component metadata ────────────────────────────────────────────
@@ -559,14 +559,37 @@ def generate_configmap(request: GenerateRequest) -> GenerateResponse:
     else:
         body = "        pass"
 
+    
     # Instantiation and filter
     inst_var = _to_snake_case(request.class_name)
     filter_block = f"\n{inst_var} = {request.class_name}()\n"
     if request.filter:
-        filter_block += (
-            f'{inst_var}.filters = FilterAttribute("{request.filter.attribute}")'
-            f'.{request.filter.operator}("{request.filter.value}")\n'
-        )
+        # New list based filter code
+        if len(request.filter) > 1:
+            filter_block += (
+                f'{inst_var}.filters = (\n'
+            )
+            for i,f in enumerate(request.filter): # should be list
+                filter_block += (
+                    f'\tFilterAttribute("{f.attribute}")'
+                    f'.{f.operator}("{f.value}")'
+                )
+                if i < len(request.filter) - 1:
+                    filter_block += "| \n"
+                else:
+                    filter_block += "\n"
+            filter_block += ")"
+        else:
+            filter_block += (
+                f'{inst_var}.filters = FilterAttribute("{request.filter[0].attribute}")'
+                f'.{request.filter[0].operator}("{request.filter[0].value}")\n'
+            )
+            
+        # old code (single filter)
+        #filter_block += (
+        #    f'{inst_var}.filters = FilterAttribute("{request.filter.attribute}")'
+        #    f'.{request.filter.operator}("{request.filter.value}")\n'
+        #)
 
     code = (
         "\n".join(import_lines)
@@ -1001,6 +1024,12 @@ def create_router(automation_engine):
                 filter=options.filter,
                 components=[ci],
             )
+            # inför list[FilterSpec] om det behövs i framtiden
+            #request = GenerateRequest(
+            #    class_name=unique,
+            #    filter=[options.filter] if options.filter else [],
+            #    components=[ci],
+            #)
             result = generate_configmap(request)
             code_blocks.append(result.code)
 
