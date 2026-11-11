@@ -4,7 +4,7 @@ from sqlmodel import Field, SQLModel
 
 
 class SoftwarePolicyRow(SQLModel, table=True):
-    """A software version approved for a vendor's devices, or for one hardware model of it."""
+    """A software version approved for a vendor's devices, or for one hardware model of it, on one OS."""
 
     __tablename__ = "software_policy"
 
@@ -16,7 +16,7 @@ class SoftwarePolicyRow(SQLModel, table=True):
     #: An `OS` value.
     os: str
     os_version: str
-    #: At most one per vendor and hardware model, None included: checked on save, since a unique
+    #: At most one per vendor, hardware model and OS, None included: checked on save, since a unique
     #: constraint lets NULLs repeat.
     golden: bool = False
     updated_by: str | None = None

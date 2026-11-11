@@ -1,5 +1,5 @@
-"""Software policy: the software versions approved per vendor, or per hardware model, one of them golden.
-A version not approved is not allowed."""
+"""Software policy: the software versions approved per vendor, or per hardware model, for each OS it runs, one of
+them golden. A version not approved is not allowed."""
 
 from datetime import UTC, datetime
 
@@ -22,7 +22,7 @@ class SoftwarePolicyNotFound(LookupError):
 
 
 class SoftwarePolicyConflict(ValueError):
-    """The version is already approved, or another version is already golden, for the vendor and model."""
+    """The version is already approved, or another version is already golden on that OS, for the vendor and model."""
 
 
 class SoftwarePolicyManager:
@@ -30,13 +30,13 @@ class SoftwarePolicyManager:
         self.db = db_manager
 
     def list_policies(self) -> list[SoftwarePolicyResponse]:
-        """Vendor by vendor, the vendor's own versions before its models', the golden version first."""
+        """Vendor by vendor, the vendor's own versions before its models', OS by OS, the golden version first."""
         session = next(self.db.get_session())
         try:
             rows = session.exec(select(SoftwarePolicyRow)).all()
             rows = sorted(
                 rows,
-                key=lambda r: (r.vendor, r.hardware_model is not None, r.hardware_model or "", not r.golden, r.os),
+                key=lambda r: (r.vendor, r.hardware_model is not None, r.hardware_model or "", r.os, not r.golden),
             )
             return [SoftwarePolicyResponse.model_validate(row) for row in rows]
         finally:
@@ -111,7 +111,7 @@ class SoftwarePolicyManager:
 
     @staticmethod
     def _save(session, row: SoftwarePolicyRow, updated_by: str) -> SoftwarePolicyResponse:
-        """Save a validated `row`, unless it repeats an approved version or is a second golden one."""
+        """Save a validated `row`, unless it repeats an approved version or is a second golden one on its OS."""
         statement = select(SoftwarePolicyRow).where(
             SoftwarePolicyRow.vendor == row.vendor,
             SoftwarePolicyRow.hardware_model.is_(None)
@@ -127,8 +127,8 @@ class SoftwarePolicyManager:
         for other in others:
             if other.os == row.os and SoftwarePolicyCreate.version_key(other.os, other.os_version) == key:
                 raise SoftwarePolicyConflict(f"{row.os} {row.os_version} is already approved for {where}.")
-            if other.golden and row.golden:
-                raise SoftwarePolicyConflict(f"{where} already has a golden version: {other.os} {other.os_version}.")
+            if other.os == row.os and other.golden and row.golden:
+                raise SoftwarePolicyConflict(f"{where} already has a golden {row.os} version: {other.os_version}.")
         row.updated_by = updated_by
         row.updated_at = datetime.now(UTC)
         session.add(row)

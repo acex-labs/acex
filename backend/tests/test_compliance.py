@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 from acex.compliance import ComplianceService
+from acex.compliance.software import SoftwareCheck
 from acex_devkit.models.asset import AssetResponse
 from acex_devkit.models.compliance import ConfigurationStatus, SoftwareStatus
 from acex_devkit.models.node_response import NodeListItem
@@ -249,3 +250,47 @@ def test_a_node_that_cannot_be_measured_does_not_fail_the_overview(service):
     assert overview.summary.software.assets_total == 6  # the seventh asset belongs to the node left out
     assert overview.sites["sto-lab"].configuration.nodes_not_collected == 1
     assert asyncio.run(service.site("sto")).summary.configuration.nodes_total == 2
+
+
+def policy(id, os, os_version, golden=False, hardware_model=None):
+    return SoftwarePolicyResponse(
+        id=id, vendor="cisco", hardware_model=hardware_model, os=os, os_version=os_version, golden=golden
+    )
+
+
+def measure(asset, approved):
+    return SoftwareCheck(policies=None).asset(asset, approved)
+
+
+NEXUS = ("cisco", "N9K-C93180YC-FX", "cisco_nxos")
+VENDOR_BY_OS = [
+    policy(1, "cisco_iosxe", "17.9.4a", golden=True),
+    policy(2, "cisco_nxos", "10.2.5", golden=True),
+    policy(3, "cisco_nxos", "10.3.1"),
+]
+
+
+def test_an_asset_is_measured_against_the_versions_of_its_own_os():
+    accepted = measure(asset(1, *NEXUS, "10.3.1"), VENDOR_BY_OS)
+    golden = measure(asset(2, "cisco", "C9300-24T", "cisco_iosxe", "17.9.4a"), VENDOR_BY_OS)
+    outdated = measure(asset(3, *NEXUS, "9.3.8"), VENDOR_BY_OS)
+
+    # Each one's golden is the golden of its own OS.
+    assert (accepted.status, accepted.golden_version) == (SoftwareStatus.accepted, "10.2.5")
+    assert (golden.status, golden.golden_version) == (SoftwareStatus.golden, "17.9.4a")
+    assert (outdated.status, outdated.golden_version) == (SoftwareStatus.not_allowed, "10.2.5")
+
+
+def test_an_os_without_approved_versions_is_not_measured_against_another_os():
+    result = measure(asset(1, *NEXUS, "10.2.5"), [policy(1, "cisco_iosxe", "17.9.4a", golden=True)])
+
+    assert (result.status, result.golden_version) == (SoftwareStatus.no_policy, None)
+
+
+def test_a_models_versions_on_one_os_leave_the_vendors_on_another_in_force():
+    # No declared model runs two OSes yet, so this one is built by hand.
+    approved = [policy(1, "cisco_iosxe", "17.9.4a", golden=True, hardware_model="C9300-24T"), *VENDOR_BY_OS[1:]]
+
+    result = measure(asset(1, "cisco", "C9300-24T", "cisco_nxos", "10.2.5"), approved)
+
+    assert result.status == SoftwareStatus.golden

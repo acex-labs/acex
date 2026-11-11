@@ -14,15 +14,16 @@ from acex_devkit.models.platform import OS, Vendor
 
 
 class SoftwarePolicyBase(BaseModel):
-    """A software version approved for a vendor's devices, or for one hardware model of it. A version not
-    approved is not allowed; the golden one is the version to aim for."""
+    """A software version approved for a vendor's devices, or for one hardware model of it, on one OS. A version
+    not approved is not allowed; the golden one is the version to aim for on that OS. An asset is measured only
+    against the versions of the OS it runs."""
 
     vendor: Vendor
-    #: None for every model of the vendor; a model's own versions beat the vendor's.
+    #: None for every model of the vendor; a model's own versions on an OS beat the vendor's on that OS.
     hardware_model: str | None = None
     os: OS
     os_version: str
-    #: At most one golden version per vendor and hardware model; the others are accepted.
+    #: At most one golden version per vendor, hardware model and OS; the others are accepted.
     golden: bool = False
 
 
