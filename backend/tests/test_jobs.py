@@ -104,6 +104,19 @@ class TestProducer:
         settings = RabbitMQSettings(host="rabbitmq", user="acex", password="pw")
         assert JobProducer(settings)._app.conf.broker_url == settings.url
 
+    def should_publish_over_tls_when_the_settings_say(self):
+        settings = RabbitMQSettings(
+            host="broker.example", port=5671, tls=True, tls_cert_file="/tls/tls.crt", tls_key_file="/tls/tls.key"
+        )
+        conf = JobProducer(settings)._app.conf
+        assert conf.broker_url == settings.url
+        assert conf.broker_url.startswith("amqps://")
+        assert conf.broker_use_ssl == settings.ssl_options
+        assert conf.broker_use_ssl["certfile"] == "/tls/tls.crt"
+
+    def should_publish_without_tls_by_default(self):
+        assert not JobProducer(RabbitMQSettings(host="rabbitmq"))._app.conf.broker_use_ssl
+
     def should_declare_durable_queues(self):
         # Workers declare the same queues; RabbitMQ refuses a second declaration
         # with different arguments, so this is part of the contract with them.

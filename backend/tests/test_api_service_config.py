@@ -6,6 +6,7 @@ allowed only behind an explicit dev mode — these tests pin that boundary, and
 that it holds however the engine is started.
 """
 
+import ssl
 from unittest.mock import Mock
 
 import pytest
@@ -45,6 +46,13 @@ def clean_env(monkeypatch):
         "ACEX_RABBITMQ_VHOST",
         "ACEX_RABBITMQ_USER",
         "ACEX_RABBITMQ_PASSWORD",
+        "ACEX_RABBITMQ_TLS",
+        "ACEX_RABBITMQ_TLS_CA_FILE",
+        "ACEX_RABBITMQ_TLS_CERT_FILE",
+        "ACEX_RABBITMQ_TLS_KEY_FILE",
+        "ACEX_RABBITMQ_WORKER_HOST",
+        "ACEX_RABBITMQ_WORKER_PORT",
+        "ACEX_RABBITMQ_WORKER_TLS",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -237,6 +245,63 @@ class TestRabbitMQ:
         monkeypatch.setenv("ACEX_RABBITMQ_HOST", "rabbitmq")
         monkeypatch.setenv("ACEX_RABBITMQ_PASSWORD", "pw")
         assert "pw" not in repr(Settings().rabbitmq)
+
+    def should_use_amqps_with_tls(self, monkeypatch):
+        monkeypatch.setenv("ACEX_RABBITMQ_HOST", "broker.example")
+        monkeypatch.setenv("ACEX_RABBITMQ_PORT", "5671")
+        monkeypatch.setenv("ACEX_RABBITMQ_TLS", "true")
+        rabbitmq = Settings().rabbitmq
+        assert rabbitmq.url == "amqps://broker.example:5671/%2F"
+
+    def should_verify_the_broker_and_send_the_host_name_with_tls(self):
+        # server_hostname None is kombu's marker for "the host of the URL": SNI and a host name check.
+        assert RabbitMQSettings(host="broker.example", tls=True).ssl_options == {
+            "cert_reqs": ssl.CERT_REQUIRED,
+            "server_hostname": None,
+        }
+
+    def should_pass_the_ca_and_the_client_certificate(self, monkeypatch):
+        monkeypatch.setenv("ACEX_RABBITMQ_HOST", "broker.example")
+        monkeypatch.setenv("ACEX_RABBITMQ_TLS", "true")
+        monkeypatch.setenv("ACEX_RABBITMQ_TLS_CA_FILE", "/tls/ca.crt")
+        monkeypatch.setenv("ACEX_RABBITMQ_TLS_CERT_FILE", "/tls/tls.crt")
+        monkeypatch.setenv("ACEX_RABBITMQ_TLS_KEY_FILE", "/tls/tls.key")
+        assert Settings().rabbitmq.ssl_options == {
+            "cert_reqs": ssl.CERT_REQUIRED,
+            "server_hostname": None,
+            "ca_certs": "/tls/ca.crt",
+            "certfile": "/tls/tls.crt",
+            "keyfile": "/tls/tls.key",
+        }
+
+    def should_have_no_ssl_options_without_tls(self):
+        assert RabbitMQSettings(host="rabbitmq").ssl_options is None
+
+    def should_refuse_a_client_certificate_without_its_key(self):
+        with pytest.raises(ValueError, match="TLS_CERT_FILE and ACEX_RABBITMQ_TLS_KEY_FILE"):
+            RabbitMQSettings(host="rabbitmq", tls=True, tls_cert_file="/tls/tls.crt")
+
+    def should_hand_workers_the_backends_connection_by_default(self):
+        assert RabbitMQSettings(host="rabbitmq", port=5672).worker_connection == ("rabbitmq", 5672, False)
+        assert RabbitMQSettings(host="rabbitmq", port=5671, tls=True).worker_connection == ("rabbitmq", 5671, True)
+
+    def should_hand_workers_their_own_address(self, monkeypatch):
+        # The backend in the cluster on the plain port, a worker in a customer's network through a TLS endpoint.
+        monkeypatch.setenv("ACEX_RABBITMQ_HOST", "rabbitmq")
+        monkeypatch.setenv("ACEX_RABBITMQ_WORKER_HOST", "berget.amqp.example")
+        monkeypatch.setenv("ACEX_RABBITMQ_WORKER_PORT", "443")
+        monkeypatch.setenv("ACEX_RABBITMQ_WORKER_TLS", "true")
+        rabbitmq = Settings().rabbitmq
+        assert rabbitmq.url == "amqp://rabbitmq:5672/%2F"  # the backend itself is unchanged
+        assert rabbitmq.ssl_options is None
+        assert rabbitmq.worker_connection == ("berget.amqp.example", 443, True)
+
+    def should_let_workers_keep_tls_off_when_the_backend_uses_it(self):
+        assert RabbitMQSettings(host="rabbitmq", tls=True, worker_tls=False).worker_connection == (
+            "rabbitmq",
+            5672,
+            False,
+        )
 
 
 class TestProxyHeaders:

@@ -48,11 +48,13 @@ def create_router(automation_engine):
             queues = dict.fromkeys(queue_for(jobs.job_types.get(job_type).name) for job_type in request.job_types)
         except UnknownJobType as exc:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+        host, port, tls = rabbitmq.worker_connection
         return WorkerConnection(
             broker=BrokerConnection(
-                host=rabbitmq.host,
-                port=rabbitmq.port,
+                host=host,
+                port=port,
                 vhost=rabbitmq.vhost,
+                tls=tls,
                 user=rabbitmq.user,
                 password=rabbitmq.password,
             ),

@@ -56,11 +56,15 @@ def run() -> None:
         sys.exit(1)
 
     broker = connection.broker
-    log.info(f"Broker: {broker.user}@{broker.host}:{broker.port} vhost {broker.vhost}")
+    log.info(f"Broker: {broker.user}@{broker.host}:{broker.port} vhost {broker.vhost} (tls={broker.tls})")
     for queue in connection.queues:
         log.info(f"Queue: {queue.name} (durable={queue.durable})")
 
-    app = create_app(connection, client, HANDLERS)
+    try:
+        app = create_app(connection, client, HANDLERS)
+    except ValueError as exc:
+        log.error(f"Worker could not start: {exc}")
+        sys.exit(1)
     # Runs until stopped. -Q keeps Celery off its default "celery" queue.
     # Mingle and gossip are worker-to-worker chatter over the same transient
     # queues as remote control.

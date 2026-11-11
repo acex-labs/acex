@@ -448,8 +448,40 @@ class TestConnect:
 
         assert response.status_code == 200
         assert response.json() == {
-            "broker": {"host": "rabbitmq", "port": 5672, "vhost": "acex", "user": "acex", "password": "s3cr/et"},
+            "broker": {
+                "host": "rabbitmq",
+                "port": 5672,
+                "vhost": "acex",
+                "tls": False,
+                "user": "acex",
+                "password": "s3cr/et",
+            },
             "queues": [{"name": "acex.ztp", "durable": True}],
+        }
+
+    def should_hand_out_the_workers_own_address_and_tls(self):
+        broker = RabbitMQSettings(
+            host="rabbitmq",
+            vhost="acex",
+            user="acex",
+            password="s3cr/et",
+            worker_host="berget.amqp.example",
+            worker_port=443,
+            worker_tls=True,
+        )
+
+        response = _Api(rabbitmq=broker).client.post(
+            "/api/v1/workers/connect", json={"job_types": ["acex.ztp.discover"]}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["broker"] == {
+            "host": "berget.amqp.example",
+            "port": 443,
+            "vhost": "acex",
+            "tls": True,
+            "user": "acex",
+            "password": "s3cr/et",
         }
 
     def should_refuse_a_job_type_the_backend_does_not_create(self):

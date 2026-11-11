@@ -33,6 +33,8 @@ queues that carry the job types it has code for.
 | `ACEX_CLIENT_SECRET` | Required when the backend has auth enabled. |
 | `ACEX_ISSUER_URL` | Overrides the issuer from `/auth/config`. |
 | `ACEX_VERIFY_SSL` | `false` turns off TLS verification. |
+| `ACEX_BROKER_TLS_CA_FILE` | CA bundle that the broker's certificate is checked against, when the API says to use TLS. Default: the system's trusted roots. |
+| `ACEX_BROKER_TLS_CERT_FILE`, `ACEX_BROKER_TLS_KEY_FILE` | Client certificate and key to present to the broker, for a broker or gateway that requires one. Set both or neither. They are read at every reconnect, so a renewed certificate is used without a restart. |
 
 ## NVD API key
 

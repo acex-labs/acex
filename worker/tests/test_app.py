@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 
 import pytest
 import respx
@@ -78,6 +79,70 @@ def test_app_declares_the_queues_as_handed_out(client):
     app = create_app(CONNECTION, client, HANDLERS)
 
     assert [(queue.name, queue.durable) for queue in app.conf.task_queues] == [("acex.ztp", True)]
+
+
+TLS_CONNECTION = WorkerConnection.model_validate(
+    {
+        "broker": {
+            "host": "berget.amqp.example",
+            "port": 443,
+            "vhost": "/",
+            "tls": True,
+            "user": "acex",
+            "password": "pw",
+        },
+        "queues": [{"name": "acex.ztp", "durable": True}],
+    }
+)
+
+
+def test_app_connects_without_tls_unless_told_to(client):
+    app = create_app(CONNECTION, client, HANDLERS)
+
+    assert app.conf.broker_url.startswith("amqp://")
+    assert not app.conf.broker_use_ssl
+
+
+def test_app_connects_with_tls_to_the_host_it_was_handed(client, monkeypatch):
+    for name in ("ACEX_BROKER_TLS_CA_FILE", "ACEX_BROKER_TLS_CERT_FILE", "ACEX_BROKER_TLS_KEY_FILE"):
+        monkeypatch.delenv(name, raising=False)
+
+    app = create_app(TLS_CONNECTION, client, HANDLERS)
+
+    assert app.conf.broker_url == "amqps://acex:pw@berget.amqp.example:443/%2F"
+    # Verify the broker, check its name and send it as SNI (None: kombu fills in the host of the URL).
+    assert app.conf.broker_use_ssl == {"cert_reqs": ssl.CERT_REQUIRED, "server_hostname": None}
+
+
+def test_app_presents_the_client_certificate_of_its_host(client, monkeypatch):
+    monkeypatch.setenv("ACEX_BROKER_TLS_CA_FILE", "/tls/ca.crt")
+    monkeypatch.setenv("ACEX_BROKER_TLS_CERT_FILE", "/tls/tls.crt")
+    monkeypatch.setenv("ACEX_BROKER_TLS_KEY_FILE", "/tls/tls.key")
+
+    app = create_app(TLS_CONNECTION, client, HANDLERS)
+
+    assert app.conf.broker_use_ssl == {
+        "cert_reqs": ssl.CERT_REQUIRED,
+        "server_hostname": None,
+        "ca_certs": "/tls/ca.crt",
+        "certfile": "/tls/tls.crt",
+        "keyfile": "/tls/tls.key",
+    }
+
+
+def test_the_tls_files_are_not_used_when_the_broker_does_not_use_tls(client, monkeypatch):
+    monkeypatch.setenv("ACEX_BROKER_TLS_CERT_FILE", "/tls/tls.crt")
+    monkeypatch.setenv("ACEX_BROKER_TLS_KEY_FILE", "/tls/tls.key")
+
+    assert not create_app(CONNECTION, client, HANDLERS).conf.broker_use_ssl
+
+
+def test_a_client_certificate_needs_its_key(client, monkeypatch):
+    monkeypatch.delenv("ACEX_BROKER_TLS_KEY_FILE", raising=False)
+    monkeypatch.setenv("ACEX_BROKER_TLS_CERT_FILE", "/tls/tls.crt")
+
+    with pytest.raises(ValueError, match="both the certificate file and the key file"):
+        create_app(TLS_CONNECTION, client, HANDLERS)
 
 
 def test_app_has_a_task_per_job_type(client):

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
+import os
 from urllib.parse import quote
 
 from acex_client import Acex
 from acex_client.exceptions import AcexConflictError, AcexError
+from acex_devkit.messaging import amqp_ssl_options
 from acex_devkit.models.worker import BrokerConnection, WorkerConnection
 from celery import Celery
 from kombu import Queue
@@ -23,7 +25,24 @@ def broker_url(broker: BrokerConnection) -> str:
         if broker.password is not None:
             credentials += ":" + quote(broker.password.get_secret_value(), safe="")
         credentials += "@"
-    return f"amqp://{credentials}{broker.host}:{broker.port}/{quote(broker.vhost, safe='')}"
+    scheme = "amqps" if broker.tls else "amqp"
+    return f"{scheme}://{credentials}{broker.host}:{broker.port}/{quote(broker.vhost, safe='')}"
+
+
+def broker_ssl_options(broker: BrokerConnection) -> dict | None:
+    """Celery's ``broker_use_ssl`` when the broker is reached with TLS.
+
+    Which broker, and whether to use TLS, comes from the API. What only this worker's host has comes from the
+    environment: a CA bundle to verify the broker with (default: the system's trusted roots) and the client certificate
+    and key to present, for a broker or gateway that requires one. The files are read at each reconnect, so a
+    certificate renewed on disk is picked up without a restart.
+    """
+    return amqp_ssl_options(
+        tls=broker.tls,
+        ca_file=os.environ.get("ACEX_BROKER_TLS_CA_FILE") or None,
+        cert_file=os.environ.get("ACEX_BROKER_TLS_CERT_FILE") or None,
+        key_file=os.environ.get("ACEX_BROKER_TLS_KEY_FILE") or None,
+    )
 
 
 def create_app(connection: WorkerConnection, client: Acex, handlers: dict[str, type[Handler]]) -> Celery:
@@ -47,6 +66,7 @@ def create_app(connection: WorkerConnection, client: Acex, handlers: dict[str, t
         # Threads, not processes: the tasks are registered at runtime, so a
         # spawned child process would not have them. Jobs mostly wait on I/O.
         worker_pool="threads",
+        broker_use_ssl=broker_ssl_options(connection.broker),
     )
     for job_type, handler in handlers.items():
         _register(app, client, job_type, handler)
