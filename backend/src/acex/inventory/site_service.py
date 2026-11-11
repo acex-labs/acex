@@ -50,7 +50,7 @@ class SiteService:
         city: str = None,
         country: str = None,
         region: str = None,
-        limit: int = 100,
+        limit: int | None = 100,  # None: every item
         offset: int = 0,
     ) -> PaginatedResponse[SiteResponse]:
 

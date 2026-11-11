@@ -68,7 +68,7 @@ def test_an_empty_desired_tree_declares_nothing():
     observed = ComposedConfiguration(system=System(config=SystemConfig(hostname="SW1")))
     diff = ConfigDiffer().diff(desired_config=ComposedConfiguration(), observed_config=observed)
     assert diff.total_desired == 0
-    assert diff.compliance_percentage is None  # nothing to be compliant with
+    assert diff.compliance_percentage == 100.0  # nothing required is missing or wrong
     assert diff.changed == [] and [c.path for c in diff.removed] == [["system", "config"]]
 
 

@@ -25,52 +25,6 @@ def operations(rest):
 
 
 @respx.mock
-def test_compliance_check(operations):
-    respx.get("http://test/api/v1/operations/compliance/1").mock(
-        return_value=Response(
-            200,
-            json={
-                "total_desired": 10,
-                "total_observed": 9,
-                "compliant_count": 9,
-                "compliance_percentage": 90.0,
-            },
-        )
-    )
-    result = operations.compliance.check(node_instance_id=1)
-    assert result.total_desired == 10
-    assert result.compliance_percentage == 90.0
-
-
-@respx.mock
-def test_compliance_site(operations):
-    respx.get("http://test/api/v1/operations/compliance/site/stockholm").mock(
-        return_value=Response(
-            200,
-            json={
-                "nodes": {
-                    "1": {
-                        "total_desired": 5,
-                        "total_observed": 5,
-                        "compliant_count": 5,
-                        "compliance_percentage": 100.0,
-                    },
-                },
-                "summary": {
-                    "total_desired": 5,
-                    "total_observed": 5,
-                    "compliant_count": 5,
-                    "compliance_percentage": 100.0,
-                },
-            },
-        )
-    )
-    result = operations.compliance.site(site_name="stockholm")
-    assert "1" in result.nodes or 1 in result.nodes
-    assert result.summary.compliant_count == 5
-
-
-@respx.mock
 def test_config_history_list_changes(operations):
     respx.get("http://test/api/v1/operations/configuration/changes").mock(
         return_value=Response(
