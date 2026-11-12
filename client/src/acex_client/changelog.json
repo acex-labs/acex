@@ -4,6 +4,40 @@
   "name": "ACEX client",
   "releases": [
     {
+      "version": "4.13.0",
+      "date": "2026-11-12",
+      "entries": [
+        {
+          "id": "20261112-old-compliance-calls-removed",
+          "kind": "removed",
+          "title": "client.operations.compliance and the health calls are removed",
+          "description": "`client.operations.compliance` and `client.system.health_node` and `health_site` are gone, as the endpoints behind them. Use `client.compliance.node(id)` and `client.compliance.site(name)`; the configuration figures are under `configuration`.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#368",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261112-compliance-and-software-policy-resources",
+          "kind": "added",
+          "title": "client.compliance and client.policies.software",
+          "description": "`client.compliance` answers for the installation, a node, a site or a region, and `client.policies.software` lists, creates, changes and withdraws approved software versions and suggests the versions in use.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#368",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "4.12.0",
       "date": "2026-11-06",
       "entries": [

@@ -4,6 +4,30 @@
   "name": "Cisco IOS CLI driver",
   "releases": [
     {
+      "version": "5.2.0",
+      "date": "2026-11-12",
+      "entries": [
+        {
+          "id": "20261112-vtp-and-vlans-in-collected-config",
+          "kind": "added",
+          "title": "Collected Cisco configurations include VTP settings and VLANs",
+          "description": "When the driver collects a running configuration it also runs `show vtp status` and `show vlan brief` and adds the VTP domain, mode and version and each VLAN's number and name to the configuration it stores, so that compliance can see them. A command that fails is logged and the configuration is stored without those lines.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#365",
+              "url": null
+            },
+            {
+              "label": "#366",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "5.1.0",
       "date": "2026-11-06",
       "entries": [

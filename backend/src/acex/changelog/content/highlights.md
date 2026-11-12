@@ -13,6 +13,26 @@ writes the draft, a person or an assistant. `python scripts/changelog.py validat
 Nothing is compiled: an edit that is merged is live in the next image.
 -->
 
+## 2026-11-12 Compliance for the whole installation
+
+ACEX measures every node's configuration against what it should have, and every asset's software against the versions you approve. The new Compliance section ranks the best and the worst sites and lists every region, the dashboard shows both figures, and a site's Compliance tab breaks them down per node and per asset.
+
+## 2026-11-12 Approve software versions per vendor or hardware model
+
+Administrators approve the software versions a vendor or hardware model may run and mark one as golden for each operating system, the version to aim for. A model's own versions beat its vendor's, and a device running anything else is reported as not allowed. Settings > Hardware Models chooses which models can be named.
+
+## 2026-11-12 Search the whole inventory from the dashboard
+
+Type in the search field on the dashboard to find nodes, logical nodes, sites, regions, assets, asset clusters and contacts. A node is also found by its management IP address or by the serial number of its asset. Choosing a hit opens it.
+
+## 2026-11-12 ConfigMaps can be loaded from a git repository
+
+Add a git repository under Settings > Git Repositories and ACEX loads the ConfigMaps in it, checks the branch every 30 minutes and loads new commits. A commit with a file that fails to import is not loaded, and the repository shows which file failed.
+
+## 2026-11-12 VLANs and VTP settings are collected from Cisco switches
+
+When ACEX reads a Cisco switch's configuration it now also reads the VTP settings and the VLANs, so they are part of what is compared with the desired configuration.
+
 ## 2026-11-09 Run commands and pings on many nodes at once
 
 Choose a list of nodes, run a command or a ping on all of them and read each node's answer as it comes in. Steps can be chained into a workflow, where each step runs on its own nodes and later steps use what earlier ones found.
