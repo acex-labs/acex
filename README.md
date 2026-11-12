@@ -477,6 +477,15 @@ Migrations run on startup. The service refuses to start unauthenticated or with
 a wildcard CORS origin — set `ACEX_OIDC_ISSUER_URL`, and name any cross-origin caller
 in `ACEX_CORS_ALLOWED_ORIGINS` (comma-separated; empty means same-origin only).
 
+The web frontend is configured with this API's URL only. Other backends it calls
+directly are set here and handed to it by `GET /api/v1/services`; a service's
+module is shown only when its URL is set. The frontend sends the user's token
+to them, so these are deployment settings and never set through the API:
+
+| Variable | Service |
+|---|---|
+| `ACEX_SERVICES_SAMRUAI_URL` | SamruAI backend |
+
 For local work, `task api` runs it against the compose database in dev mode:
 
 ```bash
