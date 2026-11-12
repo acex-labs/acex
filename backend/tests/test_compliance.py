@@ -213,3 +213,39 @@ def test_the_overview_has_a_summary_per_region(service):
     software = result.summary.software
     assert (software.assets_total, software.no_policy_count, software.unknown_version_count) == (7, 1, 1)
     assert software.compliance_percentage == 60.0  # golden 1 and 5, accepted 2a; not allowed 6 and 2b
+
+
+class ParseFails(FakeDiffer):
+    async def observed(self, node_instance_id):
+        if node_instance_id == "2":
+            raise ValueError("'230.0.0.255' is not a valid netmask")
+        return await super().observed(node_instance_id)
+
+
+def test_a_configuration_that_cannot_be_parsed_leaves_the_rest_measured(service):
+    service.configuration.differ = ParseFails()
+
+    site = asyncio.run(service.site("sto"))
+
+    assert site.nodes[2].configuration.status == ConfigurationStatus.not_collected
+    assert site.nodes[1].configuration.status == ConfigurationStatus.measured
+    assert (site.summary.configuration.nodes_total, site.summary.configuration.nodes_not_collected) == (2, 1)
+    assert asyncio.run(service.node("2")).configuration.status == ConfigurationStatus.not_collected
+
+
+def test_a_node_that_cannot_be_measured_does_not_fail_the_overview(service):
+    original = service.inventory.node_instances.get
+
+    async def get(id):
+        if str(id) == "5":
+            raise ValueError("the asset of the node is gone")
+        return await original(id)
+
+    service.inventory.node_instances.get = get
+
+    overview = asyncio.run(service.overview())
+
+    assert overview.summary.configuration.nodes_total == 6
+    assert overview.summary.software.assets_total == 6  # the seventh asset belongs to the node left out
+    assert overview.sites["sto-lab"].configuration.nodes_not_collected == 1
+    assert asyncio.run(service.site("sto")).summary.configuration.nodes_total == 2
