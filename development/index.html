@@ -740,6 +740,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../guides/api-faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../guides/changelog/" class="md-nav__link">
         
   
@@ -1198,10 +1226,43 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#linting-and-formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linting and Formatting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-full-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the Full Stack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#branch-naming" class="md-nav__link">
     <span class="md-ellipsis">
       
         Branch Naming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release Notes
       
     </span>
   </a>
@@ -1425,10 +1486,43 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#linting-and-formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linting and Formatting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-full-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the Full Stack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#branch-naming" class="md-nav__link">
     <span class="md-ellipsis">
       
         Branch Naming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#release-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release Notes
       
     </span>
   </a>
@@ -1525,7 +1619,7 @@
 </code></pre></div><p></p>
 </li>
 </ol>
-<p>This installs all packages using Poetry and creates <code>.venv</code> in each package directory.</p>
+<p>This runs <code>poetry install</code> for devkit, backend, cli, worker and mcp and creates <code>.venv</code> in each of those package directories. The client and the drivers come in as path dependencies of them. To work on one of the others (an agent, a driver), run <code>poetry install</code> in its directory, for example <code>agents/collection-agent</code>.</p>
 <ol>
 <li>
 <p><strong>Activate a package environment:</strong>
@@ -1545,25 +1639,28 @@
 </ol>
 <h2 id="project-structure">Project Structure<a class="headerlink" href="#project-structure" title="Permanent link">¶</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>acex/
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>├── backend/          # Core backend package (acex)
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>│   ├── .venv/       # Backend virtual environment
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>│   ├── src/acex/
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>│   └── pyproject.toml
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>├── cli/             # CLI package (acex-cli)
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>│   ├── .venv/
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>│   ├── src/acex_cli/
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>│   └── pyproject.toml
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>├── worker/          # Worker package (acex-worker)
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>│   ├── .venv/
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>│   ├── src/acex_worker/
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>│   └── pyproject.toml
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>├── mcp/             # MCP server (acex-mcp-server)
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>│   ├── .venv/
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>│   └── pyproject.toml
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>└── devkit/          # Shared models (acex-devkit)
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>    ├── .venv/
-<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>    └── pyproject.toml
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>├── backend/             # acex: the API, the configuration model and its components
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>├── cli/                 # acex-cli
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>├── client/              # acex-client: API client used by the CLI, worker, MCP server and agents
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>├── devkit/              # acex-devkit: models shared by every package
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>├── worker/              # acex-worker: background jobs for the backend
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>├── mcp/                 # acex-mcp: MCP tool server
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>├── agents/
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>│   ├── collection-agent/
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>│   ├── telemetry-agent/
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>│   └── grafana-sync/
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>├── drivers/
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>│   ├── cisco_ios_cli/   # acex-driver-cisco-ioscli
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>│   └── juniper_junos_cli/   # acex-driver-juniper-junoscli
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>├── mock-device/         # SSH mock devices for the local stack
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>├── keycloak/            # realm for the local stack
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>├── scripts/             # dev-setup.sh, changelog.py, seed scripts
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>├── tests/integration/   # tests that span several packages
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>├── docs/                # this site
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>├── docker-compose.yml   # the local stack
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>└── Taskfile.yml         # tasks for the local stack
 </code></pre></div>
+<p>Each package has its own <code>pyproject.toml</code>, <code>src/</code> and, after setup, its own <code>.venv/</code>.</p>
 <h2 id="switching-between-package-environments">Switching Between Package Environments<a class="headerlink" href="#switching-between-package-environments" title="Permanent link">¶</a></h2>
 <p>Each package has its own isolated <code>.venv</code>. To switch:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>deactivate<span class="w">                               </span><span class="c1"># leave current env</span>
@@ -1604,11 +1701,14 @@
 </code></pre></div><p></p>
 <h2 id="package-dependencies">Package Dependencies<a class="headerlink" href="#package-dependencies" title="Permanent link">¶</a></h2>
 <ul>
-<li><code>acex</code> (backend) - No internal dependencies</li>
-<li><code>acex-cli</code> - Depends on <code>acex</code> (via <code>path = "../backend"</code>)</li>
-<li><code>acex-worker</code> - Depends on <code>acex</code> (via <code>path = "../backend"</code>)</li>
+<li><code>acex-devkit</code>: no internal dependencies. The models everything else shares.</li>
+<li><code>acex-client</code> and the two drivers: depend on <code>acex-devkit</code>.</li>
+<li><code>acex</code> (backend): depends on <code>acex-devkit</code>. The drivers are development dependencies, used by its tests.</li>
+<li><code>acex-cli</code>: depends on <code>acex-client</code>, <code>acex-devkit</code> and the Cisco driver.</li>
+<li><code>acex-worker</code>: depends on <code>acex-client</code> and <code>acex-devkit</code>.</li>
+<li><code>acex-mcp</code> and the three agents: depend on <code>acex-client</code>.</li>
 </ul>
-<p>The dependencies use local paths during development, so changes in backend are immediately available in CLI and Worker.</p>
+<p>In the repository these are local paths (<code>path = "../devkit"</code>, editable), so a change in devkit or client is live in every package that uses it. When a package is published, CI runs <code>switch_deps.sh prod</code> to replace the paths with version ranges (<code>^&lt;major&gt;</code>). You do not run it yourself, and the development images do not use it.</p>
 <h2 id="adding-dependencies">Adding Dependencies<a class="headerlink" href="#adding-dependencies" title="Permanent link">¶</a></h2>
 <p>To add a dependency to a package:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nb">cd</span><span class="w"> </span>backend
@@ -1618,11 +1718,20 @@
 <a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>poetry<span class="w"> </span>add<span class="w"> </span>&lt;package-name&gt;
 </code></pre></div>
 <h2 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">¶</a></h2>
+<p>Each package has its own tests:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nb">cd</span><span class="w"> </span>backend
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>poetry<span class="w"> </span>run<span class="w"> </span>pytest
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="nb">cd</span><span class="w"> </span>cli
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>poetry<span class="w"> </span>run<span class="w"> </span>pytest
+</code></pre></div>
+<p>Tests that span several packages are in <code>tests/integration</code>. On every pull request CI runs the lint and format checks, the unit tests of each package and the integration tests.</p>
+<h2 id="linting-and-formatting">Linting and Formatting<a class="headerlink" href="#linting-and-formatting" title="Permanent link">¶</a></h2>
+<p>The repository uses <a href="https://docs.astral.sh/ruff/">Ruff</a>, configured in <code>ruff.toml</code> (line length 120):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>ruff<span class="w"> </span>check<span class="w"> </span>.
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>ruff<span class="w"> </span>format<span class="w"> </span>.
+</code></pre></div>
+<p>The pre-commit hooks run the same checks. Install them with <code>pre-commit install</code>.</p>
+<h2 id="running-the-full-stack">Running the Full Stack<a class="headerlink" href="#running-the-full-stack" title="Permanent link">¶</a></h2>
+<p>Everything (backend, frontend, agents, mock devices, Keycloak, Grafana, InfluxDB) runs with Docker Compose and <code>task setup</code>, described in <a href="../getting-started/installation/">Installation</a>. To run the API from source against the database of that stack, with authentication off and any origin allowed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>task<span class="w"> </span>api
 </code></pre></div>
 <h2 id="branch-naming">Branch Naming<a class="headerlink" href="#branch-naming" title="Permanent link">¶</a></h2>
 <p>All branches must follow the format <code>&lt;prefix&gt;/&lt;description&gt;</code> (Conventional Commits style):</p>
@@ -1636,7 +1745,7 @@
 <p>The standard is enforced at three levels:</p>
 <ol>
 <li><strong>Locally</strong> — a pre-commit hook (<code>post-checkout</code>) warns immediately when you check out a branch with an invalid name. Enable with:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>pre-commit<span class="w"> </span>install<span class="w"> </span>--hook-type<span class="w"> </span>post-checkout
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>pre-commit<span class="w"> </span>install<span class="w"> </span>--hook-type<span class="w"> </span>post-checkout
 </code></pre></div></li>
 <li><strong>CI</strong> — the <code>Branch name policy</code> job in <code>.github/workflows/ci.yml</code> fails PRs from invalidly named branches.</li>
 <li><strong>GitHub ruleset</strong> (manual step, requires admin) — block creation of invalid branches on the server:</li>
@@ -1651,35 +1760,34 @@
 <li>Save the ruleset.</li>
 </ol>
 <p>The validation script used by both the hook and CI lives in <code>scripts/check_branch_name.sh</code> and can be run manually:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>scripts/check_branch_name.sh<span class="w">              </span><span class="c1"># validate the current branch</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>scripts/check_branch_name.sh<span class="w"> </span>fix/my-fix<span class="w">   </span><span class="c1"># validate a given name</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>scripts/check_branch_name.sh<span class="w">              </span><span class="c1"># validate the current branch</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>scripts/check_branch_name.sh<span class="w"> </span>fix/my-fix<span class="w">   </span><span class="c1"># validate a given name</span>
 </code></pre></div>
+<h2 id="release-notes">Release Notes<a class="headerlink" href="#release-notes" title="Permanent link">¶</a></h2>
+<p>A change can carry its release note, a small file in the package's <code>changelog.d/</code> directory:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>new<span class="w"> </span>backend<span class="w"> </span>--kind<span class="w"> </span>fixed<span class="w"> </span>--title<span class="w"> </span><span class="s2">"Static routes no longer fail on an empty next hop"</span>
+</code></pre></div>
+<p>A pull request into <code>dev</code> does not need one. A package needs its notes when it is sent to stage, and a pull request into <code>main</code> needs them for every package it changes (<code>Changelog entry</code>). Use <code>--kind internal</code> for a change that users cannot notice. The fragments become the release notes under Settings &gt; What's new when a release is cut. The format, the kinds and how a release is cut are in <a href="../guides/changelog/">Release notes</a>.</p>
 <h2 id="development-images">Development Images<a class="headerlink" href="#development-images" title="Permanent link">¶</a></h2>
-<p>Every push to <code>dev</code> runs <code>.github/workflows/docker-dev.yml</code>, which publishes the backend, agent and MCP images to the same GHCR repositories as a release, under development tags:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>ghcr.io/acex-labs/acex-backend:dev              # moving: newest successful dev build
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>ghcr.io/acex-labs/acex-backend:dev-&lt;short-sha&gt;  # fixed: one commit
+<p>Every push to <code>dev</code> runs <code>.github/workflows/docker-dev.yml</code>, which publishes the backend, worker, agent and MCP images to the same GHCR repositories as a release, under development tags:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>ghcr.io/acex-labs/acex-backend:dev              # moving: newest successful dev build
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>ghcr.io/acex-labs/acex-backend:dev-&lt;short-sha&gt;  # fixed: one commit
 </code></pre></div>
-<p>The same pattern applies to <code>acex-collection-agent</code>, <code>acex-telemetry-agent</code>, <code>acex-grafana-sync-agent</code> and <code>acex-mcp</code>. Development builds install devkit, client and the drivers from the checked-out source, so they always contain the code of the commit they were built from, even when no package version has been bumped. They never publish <code>latest</code>, upload to PyPI or create a release; that remains the <code>main</code> pipeline in <code>ci.yml</code>.</p>
-<p>The five images are built independently. If one build fails, the others still receive the new tags and the failed image keeps its previous <code>dev</code> tag, so <code>:dev</code> can temporarily mix commits. The run summary lists, per image, whether <code>dev-&lt;short-sha&gt;</code> was published and its digest.</p>
+<p>The same pattern applies to <code>acex-worker</code>, <code>acex-collection-agent</code>, <code>acex-telemetry-agent</code>, <code>acex-grafana-sync-agent</code> and <code>acex-mcp</code>. Development builds install devkit, client and the drivers from the checked-out source, so they always contain the code of the commit they were built from, even when no package version has been bumped. They never publish <code>latest</code>, upload to PyPI or create a release; that remains the <code>main</code> pipeline in <code>ci.yml</code>.</p>
+<p>The six images are built independently. If one build fails, the others still receive the new tags and the failed image keeps its previous <code>dev</code> tag, so <code>:dev</code> can temporarily mix commits. The run summary lists, per image, whether <code>dev-&lt;short-sha&gt;</code> was published and its digest.</p>
 <p>A <code>dev-&lt;short-sha&gt;</code> tag tells you which commit an image was built from, but tags are not immutable: a rebuild of the same commit (for example after a base image or dependency update) replaces it. When a deployment must be pinned to exactly one image, reference the digest from the run summary instead, e.g. <code>ghcr.io/acex-labs/acex-backend@sha256:…</code>.</p>
 <h2 id="env-files-and-secrets">Env Files and Secrets<a class="headerlink" href="#env-files-and-secrets" title="Permanent link">¶</a></h2>
 <p>Files such as <code>.env</code>, <code>.env.&lt;variant&gt;</code>, and <code>*.env</code> may contain secrets and are never versioned. They are matched by <code>.gitignore</code>, and a pre-commit hook (<code>scripts/check_no_env_files.sh</code>) blocks commits that include them. Templates with placeholder values are checked in as <code>*.env.example</code>.</p>
 <p>Note: <code>.gitignore</code> does not affect already-tracked files. To untrack a file that is already in git (while keeping it locally):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>git<span class="w"> </span>rm<span class="w"> </span>--cached<span class="w"> </span>backend/.env
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>git<span class="w"> </span>rm<span class="w"> </span>--cached<span class="w"> </span>backend/.env
 </code></pre></div>
 <p>If a secret has accidentally ended up in history it must be rotated/invalidated — git-scrub does not remove it from old clones.</p>
 <h2 id="building-for-distribution">Building for Distribution<a class="headerlink" href="#building-for-distribution" title="Permanent link">¶</a></h2>
-<p>To build individual packages:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">cd</span><span class="w"> </span>backend
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>poetry<span class="w"> </span>build
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="nb">cd</span><span class="w"> </span>cli
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>poetry<span class="w"> </span>build
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
-<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="nb">cd</span><span class="w"> </span>worker
-<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>poetry<span class="w"> </span>build
+<p>To build a package:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nb">cd</span><span class="w"> </span>backend
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>poetry<span class="w"> </span>build
 </code></pre></div>
-<p>Distribution files will be in <code>dist/</code> folder of each package.</p>
+<p>The distribution files are in <code>dist/</code> of the package. Releases are published by CI from <code>main</code>; see <a href="../guides/changelog/">Release notes</a>.</p>
 <h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">¶</a></h2>
 <ul>
 <li>Activate with <code>source .venv/bin/activate</code> (after <code>dev-setup.sh</code> has been run)</li>

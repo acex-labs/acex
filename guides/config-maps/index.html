@@ -788,6 +788,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#syncing-configmaps-from-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Syncing ConfigMaps from git
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Syncing ConfigMaps from git">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-configmaps-are-loaded-again" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When ConfigMaps are loaded again
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -840,6 +879,34 @@
     
   
     Integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API FAQ
   
 
     
@@ -1232,6 +1299,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#syncing-configmaps-from-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Syncing ConfigMaps from git
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Syncing ConfigMaps from git">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-configmaps-are-loaded-again" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When ConfigMaps are loaded again
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1412,6 +1518,127 @@
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">ae</span><span class="o">.</span><span class="n">add_configmap_dir</span><span class="p">(</span><span class="s2">"./config_maps"</span><span class="p">)</span>   <span class="c1"># scan all .py files in directory</span>
 </code></pre></div>
 <p>Any module-level <code>ConfigMap</code> instance found in the scanned files is registered automatically.</p>
+<h2 id="syncing-configmaps-from-git">Syncing ConfigMaps from git<a class="headerlink" href="#syncing-configmaps-from-git" title="Permanent link">¶</a></h2>
+<p>ConfigMaps can also be read from a git repository, so the backend needs nothing mounted. Add the
+repository under <strong>Settings &gt; Git Repositories</strong> in the web interface, or through the API as below; the backend checks it out, loads the ConfigMaps in it the same way as
+from a directory, and loads them again when the branch moves.</p>
+<ol>
+<li>
+<p>Create a personal access token on the git host with read access to the repository, and store it as a
+   <code>token</code> credential:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$ACEX</span>/api/v1/inventory/credentials<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"name": "config-maps-pat", "credential_type": "token", "fields": {"token": "&lt;PAT&gt;"}}'</span>
+</code></pre></div>
+</li>
+<li>
+<p>Add the repository, naming the credential's id:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$ACEX</span>/api/v1/git_repositories<span class="w"> </span>-d<span class="w"> </span><span class="s1">'{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="s1">  "name": "network-config",</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="s1">  "url": "https://github.com/example/network-config.git",</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="s1">  "branch": "main",</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="s1">  "path": "config_maps",</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="s1">  "auth_method": "https_token",</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="s1">  "credential_id": 12</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="s1">}'</span>
+</code></pre></div>
+<p>The answer says which commit was loaded (<code>commit</code>), which ConfigMaps it holds (<code>config_maps</code>) and,
+if it failed, why (<code>last_error</code>).</p>
+</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>url</code></td>
+<td>The HTTPS clone URL. Credentials in the URL are refused.</td>
+</tr>
+<tr>
+<td><code>branch</code></td>
+<td>The branch to follow. Default <code>main</code>.</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>The directory in the repository that holds the ConfigMaps. Empty for its root.</td>
+</tr>
+<tr>
+<td><code>auth_method</code></td>
+<td><code>https_token</code>: a personal access token from a <code>token</code> credential. <code>https_anonymous</code>: a public repository.</td>
+</tr>
+<tr>
+<td><code>credential_id</code></td>
+<td>The credential holding the token. A Vault-backed credential works too.</td>
+</tr>
+<tr>
+<td><code>username</code></td>
+<td>Sent with the token. Most hosts accept any; Bitbucket wants the account's username.</td>
+</tr>
+<tr>
+<td><code>ca_certificate</code></td>
+<td>PEM certificates to trust for the host, for one whose certificate an internal CA signed. Include intermediates the host doesn't send. Left out, the system's trusted CAs are used.</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>A disabled repository is not synced and its ConfigMaps are not used.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="when-configmaps-are-loaded-again">When ConfigMaps are loaded again<a class="headerlink" href="#when-configmaps-are-loaded-again" title="Permanent link">¶</a></h3>
+<p>Every API process checks each repository when it starts and then every 30 minutes. A check asks the host
+for the branch's latest commit (<code>git ls-remote</code>); only when it has moved, or the repository's settings
+changed, is the commit fetched and loaded. <code>POST /api/v1/git_repositories/{id}/sync</code> fetches and loads
+the latest commit at once.</p>
+<p>A commit is loaded only if every file in it imports. If one fails, the ConfigMaps already loaded stay in
+use and <code>last_error</code> names the file, so a broken push never leaves devices compiled from part of the
+ConfigMaps. The commit is not tried again until the branch moves or a sync is requested.</p>
+<p>If the host can't be reached, the loaded ConfigMaps stay in use. A process that starts while the host is
+unreachable loads the last checkout, if <code>ACEX_GIT_SYNC_CHECKOUT_DIR</code> points at a volume that kept it.</p>
+<p>With several API processes, the one that answers a change loads it at once; the others pick it up at
+their next check. <code>config_maps</code> in an answer is what the answering process has loaded.</p>
+<h3 id="settings">Settings<a class="headerlink" href="#settings" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ACEX_GIT_SYNC_POLL_INTERVAL_SECONDS</code></td>
+<td><code>1800</code></td>
+<td>How often each repository is checked. At least 60.</td>
+</tr>
+<tr>
+<td><code>ACEX_GIT_SYNC_CHECKOUT_DIR</code></td>
+<td>a directory under the system temp directory</td>
+<td>Where repositories are checked out.</td>
+</tr>
+<tr>
+<td><code>ACEX_GIT_SYNC_TIMEOUT_SECONDS</code></td>
+<td><code>120</code></td>
+<td>How long one git command may run.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>A ConfigMap is Python code that the backend runs. Anyone who can change the repository, or point the
+backend at another one, can run code on the backend. Keep write access to the repository as tight as
+access to the backend itself.</p>
+</div>
+<p>A host signed by an internal CA fails with <code>SSL certificate problem: unable to get local issuer certificate</code>.
+Give the repository the CA chain as <code>ca_certificate</code> (in the web interface: <em>Trust an internal CA…</em>), or
+trust the CA for every repository by building it into the backend image's trust store or pointing
+<code>GIT_SSL_CAINFO</code> at a bundle. Turning certificate checks off is not offered: the token would go to whoever
+can intercept the connection.</p>
+<p>The token never appears in a URL, in the checkout's <code>.git/config</code> or on a command line: git reads it from
+the environment of the one command that needs it.</p>
 
 
 

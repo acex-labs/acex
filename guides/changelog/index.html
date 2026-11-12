@@ -10,7 +10,7 @@
         <link rel="canonical" href="https://acex-labs.github.io/acex/guides/changelog/">
       
       
-        <link rel="prev" href="../integrations/">
+        <link rel="prev" href="../api-faq/">
       
       
         <link rel="next" href="../../components/cli/">
@@ -744,6 +744,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -839,6 +867,28 @@
   
     <nav class="md-nav" aria-label="Cutting a release">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#releasing-everything-that-is-due" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Releasing everything that is due
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-release-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Release workflow
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#a-summary-of-the-release" class="md-nav__link">
@@ -1290,6 +1340,28 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#releasing-everything-that-is-due" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Releasing everything that is due
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-release-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Release workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#a-summary-of-the-release" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1525,23 +1597,30 @@ Open it and add the description:</p>
 </table>
 <p>The tool refuses titles that look like commit subjects or branch names.</p>
 <h2 id="what-the-pull-request-check-does">What the pull request check does<a class="headerlink" href="#what-the-pull-request-check-does" title="Permanent link">¶</a></h2>
-<p>The <code>Changelog</code> workflow runs on every pull request:</p>
+<p><code>dev</code> is free. A pull request into <code>dev</code> is not asked for a fragment, so
+something can be tried out there quickly. The entry is needed later, when a
+package is sent to stage with the Release workflow. It is fine to write it with
+the change, since the author knows best what changed, and the fragment travels
+with the code.</p>
+<p>The <code>Changelog</code> workflow runs on pull requests into <code>dev</code> and <code>main</code>, but not
+for drafts, not for ones with the label <code>no-changelog</code>, and not for a release
+pull request (a branch named <code>chore/release-…</code>), which only stamps versions and
+compiles notes:</p>
 <ol>
 <li>Every fragment and compiled file parses, and so do the highlights and the
    roadmap.</li>
-<li>A component with code changes in the pull request has at least one <em>new</em>
-   fragment. Changes under <code>tests/</code>, to <code>README.md</code> and to <code>changelog.d/</code>
-   itself do not count. Label the pull request <code>no-changelog</code> to skip the
-   check, or add a <code>kind: internal</code> fragment: that leaves a trace in the
-   repository.</li>
 <li>The compiled <code>changelog.json</code> files are current (<code>build --check</code>): they
    change only when a release is cut.</li>
-<li>Into <code>main</code>: a component whose version differs from <code>main</code>'s has no
+<li>Into <code>main</code> only: a component with code changes in the pull request has at
+   least one <em>new</em> fragment. Changes under <code>tests/</code>, to <code>README.md</code> and to
+   <code>changelog.d/</code> itself do not count. Add a <code>kind: internal</code> fragment when
+   users cannot notice the change: that leaves a trace in the repository.</li>
+<li>Into <code>main</code> only: a component whose version differs from <code>main</code>'s has no
    unreleased fragments, so the version the pipeline is about to publish
    carries its notes.</li>
 </ol>
-<p>Locally:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>check<span class="w"> </span>--base<span class="w"> </span>origin/dev
+<p>Locally, to see what a pull request into <code>main</code> would be asked for:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>check<span class="w"> </span>--base<span class="w"> </span>origin/main
 </code></pre></div>
 <h2 id="cutting-a-release">Cutting a release<a class="headerlink" href="#cutting-a-release" title="Permanent link">¶</a></h2>
 <p>The pipeline publishes a package when its version changes on <code>main</code>. The
@@ -1556,11 +1635,54 @@ the result with the release. Without <code>--bump</code>, the version already in
 refused. Nobody types a version into an entry.</p>
 <p><code>--bump auto</code> reads the fragments: a breaking entry bumps the major version,
 new or changed behaviour the minor one, fixes only the patch one.</p>
+<h3 id="releasing-everything-that-is-due">Releasing everything that is due<a class="headerlink" href="#releasing-everything-that-is-due" title="Permanent link">¶</a></h3>
+<p>Nobody has to remember which packages a release contains or which images must
+follow them:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>plan<span class="w">          </span><span class="c1"># what a release would contain, nothing is changed</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>release-all<span class="w">   </span><span class="c1"># does it</span>
+</code></pre></div>
+<p>A component with fragments is released with the version they call for, as
+with <code>--bump auto</code>. Others follow only when they have to:</p>
+<ul>
+<li>An image whose <code>Dockerfile</code> copies a released component's directory is
+  rebuilt, so it gets a patch version and a note that says why. That is how the
+  agents follow <code>client</code> and <code>devkit</code>. Copying a single file does not count.</li>
+<li>A package that depends on a released component by path gets a patch version
+  when that component's major version changes, because the range it publishes
+  (<code>^MAJOR</code>) moves with it.</li>
+</ul>
+<p>Nothing else is bumped. A hotfix therefore releases only the package that has a
+fragment and the images that contain it: branch from <code>main</code>, add the fix with
+its fragment, run <code>release-all</code>, and the other packages keep their versions.
+The plan is worked out completely before anything is written, so a fragment
+that cannot be read stops the release before it starts.</p>
+<h3 id="the-release-workflow">The Release workflow<a class="headerlink" href="#the-release-workflow" title="Permanent link">¶</a></h3>
+<p>Nobody has to run the script by hand. <strong>Actions &gt; Release &gt; Run workflow</strong>, on
+<code>dev</code> for a release or on a <code>hotfix/*</code> branch for a hotfix:</p>
+<ol>
+<li><strong>Plan.</strong> The run summary lists every package, its old and new version and
+   why it is in the release. Nothing is changed.</li>
+<li><strong>Gate.</strong> The <code>release</code> environment waits for a reviewer. Read the plan; if
+   it looks right, approve. That is the play button.</li>
+<li><strong>Release.</strong> The workflow runs <code>release-all</code> and the bot commits the
+   result: as a pull request into <code>dev</code> (named <code>chore/release-&lt;date&gt;-&lt;run&gt;</code>) when
+   run on <code>dev</code>, as a commit on the branch when run on a hotfix branch.</li>
+</ol>
+<p>After that, publishing is what it always was: merging <code>dev</code> into <code>main</code>
+publishes every version that is new on PyPI and GHCR. A pull request into
+<code>main</code> fails if an image still has the version of <code>main</code> although a package it
+contains has a new one (<code>check --release-ready</code>), so the images cannot be left
+behind.</p>
+<p>For the checks to run on the release pull request, add a repository secret
+<code>RELEASE_TOKEN</code> (a token that may push and open pull requests). Without it the
+workflow uses the default token, whose pushes and pull requests do not start
+other workflows. The reviewers of the <code>release</code> environment are set in the
+repository settings.</p>
 <h3 id="a-summary-of-the-release">A summary of the release<a class="headerlink" href="#a-summary-of-the-release" title="Permanent link">¶</a></h3>
 <p>A release with many entries is hard to scan. Give it one sentence about what
 it is about, written by whoever cuts the release:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>release<span class="w"> </span>backend<span class="w"> </span>--bump<span class="w"> </span>minor<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--summary<span class="w"> </span><span class="s2">"ZTP for Cisco switches: discovery, approval and provisioning from the web interface."</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>release<span class="w"> </span>backend<span class="w"> </span>--bump<span class="w"> </span>minor<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>--summary<span class="w"> </span><span class="s2">"ZTP for Cisco switches: discovery, approval and provisioning from the web interface."</span>
 </code></pre></div>
 <p>The sentence is stored with the release and shown above its entries in
 Settings &gt; What's new, and in the overview of a component's releases. It is
@@ -1607,8 +1729,8 @@ and <code>coming</code> in its own compiled file; they are shown as before.</p>
 <p>Nobody writes highlights per package or per pull request. When a release is
 cut, the team writes them once, together, in the release pull request (<code>dev</code>
 into <code>main</code>). The tool collects the material:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>brief<span class="w">                    </span><span class="c1"># everything since the newest highlight</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>brief<span class="w"> </span>--since<span class="w"> </span><span class="m">2026</span>-10-01
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>brief<span class="w">                    </span><span class="c1"># everything since the newest highlight</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>python<span class="w"> </span>scripts/changelog.py<span class="w"> </span>brief<span class="w"> </span>--since<span class="w"> </span><span class="m">2026</span>-10-01
 </code></pre></div>
 <p>It prints a brief in Markdown: what a highlight is and how to write one, the
 format, what is already published, what is on the roadmap, and every change
@@ -1618,11 +1740,11 @@ assistant: they read the brief, add the entries to <code>highlights.md</code> an
 <code>python scripts/changelog.py validate</code>. The draft is
 then reviewed like any other change in the release pull request, which is
 where the team agrees on what the release will be known for.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="gu">## 2026-10-05 ZTP for Cisco switches</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>A new, unconfigured Cisco switch can download its bootstrap from ACEX and be
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>given its rendered configuration. The web interface has a ZTP section for
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>following it.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="gu">## 2026-10-05 ZTP for Cisco switches</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>A new, unconfigured Cisco switch can download its bootstrap from ACEX and be
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>given its rendered configuration. The web interface has a ZTP section for
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>following it.
 </code></pre></div>
 <ul>
 <li>A heading is the day the feature arrived (<code>YYYY-MM-DD</code>) and what people
@@ -1646,13 +1768,13 @@ where the team agrees on what the release will be known for.</p>
 <h3 id="the-roadmap">The roadmap<a class="headerlink" href="#the-roadmap" title="Permanent link">¶</a></h3>
 <p>One person keeps the roadmap, in this one file. An item is a heading,
 optionally a few lines directly below it, and the explanation:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="gu">## Background jobs on separate workers</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>Status: in progress
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>When: Q4 2026
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>Long-running work such as discovery and provisioning is handed to separate
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>workers, and Activity &gt; Jobs lists the jobs.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="gu">## Background jobs on separate workers</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>Status: in progress
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>When: Q4 2026
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>Long-running work such as discovery and provisioning is handed to separate
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>workers, and Activity &gt; Jobs lists the jobs.
 </code></pre></div>
 <ul>
 <li><code>Status</code> is <code>considering</code> (weighed, not decided), <code>planned</code>, <code>in progress</code>
@@ -1698,8 +1820,7 @@ component, shows a point of view:</p>
 </tr>
 </tbody>
 </table>
-<p>It starts on the person's role (Administrators for <code>naas-admin</code>, otherwise
-Users). A choice the person made before wins and is remembered in the
+<p>It starts on Users. A choice the person made before wins and is remembered in the
 browser. A component whose notes are all for another point of view is marked
 in the list and offers to show them.</p>
 <h2 id="development-images">Development images<a class="headerlink" href="#development-images" title="Permanent link">¶</a></h2>
@@ -1710,11 +1831,11 @@ image build; nothing is committed.</p>
 <h2 id="publishing-notes-from-your-own-package">Publishing notes from your own package<a class="headerlink" href="#publishing-notes-from-your-own-package" title="Permanent link">¶</a></h2>
 <p>A driver, or any other package installed in the backend, publishes its notes
 by declaring where its compiled changelog lives:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">[tool.poetry.plugins.</span><span class="s2">"acex.changelog"</span><span class="k">]</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">acex-driver-cisco-ioscli</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"acex_driver_cisco_ioscli"</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="k">[tool.acex.changelog]</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Cisco IOS CLI driver"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">[tool.poetry.plugins.</span><span class="s2">"acex.changelog"</span><span class="k">]</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">acex-driver-cisco-ioscli</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"acex_driver_cisco_ioscli"</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">[tool.acex.changelog]</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Cisco IOS CLI driver"</span>
 </code></pre></div>
 <p>The entry point's value is the package that contains <code>changelog.json</code>; the
 backend reads it through <code>importlib.resources</code> at startup. The component is
@@ -1743,17 +1864,17 @@ built from, which is the release the product ships.</p>
 JavaScript bundle. The tool treats a <code>package.json</code> with a <code>changelog.d/</code> beside
 it as a component, the same as a <code>pyproject.toml</code>. Options sit under
 <code>acex.changelog</code> in <code>package.json</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">{</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"acex-frontend"</span><span class="p">,</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0.0.35"</span><span class="p">,</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">"acex"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="nt">"changelog"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ACEX web interface"</span><span class="p">,</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">      </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"src/changelog.json"</span><span class="p">,</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">      </span><span class="nt">"paths"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"src"</span><span class="p">,</span><span class="w"> </span><span class="s2">"public"</span><span class="p">,</span><span class="w"> </span><span class="s2">"index.html"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Dockerfile"</span><span class="p">]</span>
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="p">{</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"acex-frontend"</span><span class="p">,</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0.0.35"</span><span class="p">,</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span><span class="nt">"acex"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="nt">"changelog"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ACEX web interface"</span><span class="p">,</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">      </span><span class="nt">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"src/changelog.json"</span><span class="p">,</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">      </span><span class="nt">"paths"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"src"</span><span class="p">,</span><span class="w"> </span><span class="s2">"public"</span><span class="p">,</span><span class="w"> </span><span class="s2">"index.html"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Dockerfile"</span><span class="p">]</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="p">}</span>
 </code></pre></div>
 <ul>
 <li><code>name</code> is what Settings &gt; What's new shows.</li>
@@ -1773,23 +1894,23 @@ them.</p>
 <p>Some notes must never be part of the product: a customer's configuration
 templates, an integrator's config maps, internal rollout information. They
 go in a directory the backend reads at runtime:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nv">ACEX_CHANGELOG_EXTRA_DIR</span><span class="o">=</span>/etc/acex/changelog.d
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nv">ACEX_CHANGELOG_EXTRA_DIR</span><span class="o">=</span>/etc/acex/changelog.d
 </code></pre></div>
 <p>Each <code>*.json</code> file in it has the same shape as a compiled <code>changelog.json</code>,
 plus a <code>section</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">"schema_version"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">"section"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"example"</span><span class="p">,</span><span class="w"> </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Notes from Example IT"</span><span class="p">},</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nt">"component"</span><span class="p">:</span><span class="w"> </span><span class="s2">"example-config"</span><span class="p">,</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Example network configuration"</span><span class="p">,</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="nt">"releases"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="p">{</span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026.10"</span><span class="p">,</span><span class="w"> </span><span class="nt">"date"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-10-18"</span><span class="p">,</span><span class="w"> </span><span class="nt">"entries"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">      </span><span class="p">{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"branch-template-v3"</span><span class="p">,</span><span class="w"> </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"changed"</span><span class="p">,</span><span class="w"> </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Branch office template v3"</span><span class="p">,</span>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">       </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"New branch offices get the v3 template with the updated VLAN plan."</span><span class="p">}</span>
-<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">    </span><span class="p">]}</span>
-<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">  </span><span class="p">],</span>
-<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">  </span><span class="nt">"coming"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span>
-<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p">{</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">"schema_version"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">"section"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"example"</span><span class="p">,</span><span class="w"> </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Notes from Example IT"</span><span class="p">},</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="nt">"component"</span><span class="p">:</span><span class="w"> </span><span class="s2">"example-config"</span><span class="p">,</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Example network configuration"</span><span class="p">,</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">  </span><span class="nt">"releases"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="p">{</span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026.10"</span><span class="p">,</span><span class="w"> </span><span class="nt">"date"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-10-18"</span><span class="p">,</span><span class="w"> </span><span class="nt">"entries"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">      </span><span class="p">{</span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"branch-template-v3"</span><span class="p">,</span><span class="w"> </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"changed"</span><span class="p">,</span><span class="w"> </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Branch office template v3"</span><span class="p">,</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">       </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"New branch offices get the v3 template with the updated VLAN plan."</span><span class="p">}</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">    </span><span class="p">]}</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="w">  </span><span class="nt">"coming"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="p">}</span>
 </code></pre></div>
 <p>They are shown as their own section after the product's notes, never mixed
 with them, and the <code>product</code> section id is refused. Who may write them is
