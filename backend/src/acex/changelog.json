@@ -4,6 +4,137 @@
   "name": "ACEX backend",
   "releases": [
     {
+      "version": "7.1.0",
+      "date": "2026-11-12",
+      "entries": [
+        {
+          "id": "20261112-old-compliance-endpoints-removed",
+          "kind": "removed",
+          "title": "The old compliance and health endpoints are removed",
+          "description": "`GET /api/v1/operations/compliance/{node_instance_id}`, `GET /api/v1/operations/compliance/site/{site_name}`, `GET /api/v1/health/node_instance/{node_instance_id}` and `GET /api/v1/health/site/{site_name}` no longer exist. Use `/api/v1/compliance/nodes/{id}` and `/api/v1/compliance/sites/{name}`. The figures are now under `configuration`, next to a `software` section, and a node that has not been collected is `not_collected` instead of missing.\n\nThe web interface is changed to match. Anything else that calls the old paths has to be changed before the upgrade.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#368",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261112-software-policy-approved-versions",
+          "kind": "added",
+          "title": "Approve the software versions a vendor or hardware model may run",
+          "description": "Under `/api/v1/policies/software` an administrator approves software versions per vendor, or per hardware model, whose versions beat its vendor's, and marks at most one of them golden for each operating system, the version to aim for. An asset is measured only against the versions approved for the operating system it runs, and a version that is not approved is not allowed. `GET /api/v1/policies/software/versions` suggests the versions the inventory already runs.\n\nAn asset whose model and vendor have no approved version has no policy and is left out of the software percentage. The new migration only adds a table.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#368",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261112-choose-enabled-hardware-models",
+          "kind": "added",
+          "title": "Choose which hardware models the installation runs",
+          "description": "`GET /api/v1/platforms` lists the vendors and hardware models ACEX knows, the operating systems each runs, which of them an installed driver supports, and which models are enabled. A model is enabled when an asset of it enters the inventory, or with `PUT /api/v1/platforms/enabled_models/{model}`; `DELETE` on the same path disables it. Only enabled models can be named in a software policy.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#368",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261112-compliance-covers-configuration-and",
+          "kind": "added",
+          "title": "Compliance covers configuration and software, for nodes, sites and regions",
+          "description": "`GET /api/v1/compliance` measures every node and sums it up in total, per site and per region. `/api/v1/compliance/nodes/{id}`, `/api/v1/compliance/sites/{name}` and `/api/v1/compliance/regions/{name}` do the same for one node, site or region. Each answer has a configuration section, the desired configuration against the latest collected one, and a software section, what each asset runs against the software policy. The two are separate figures: a node can be fully compliant in its configuration and not in its software.\n\nA node whose configuration has not been collected is listed as not collected and left out of the percentage. Nothing is stored: every call measures the nodes it covers, so the overview takes longer the more nodes there are.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#368",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261106-configmaps-can-be-synced-from-a-git",
+          "kind": "added",
+          "title": "ConfigMaps can be synced from a git repository",
+          "description": "Instead of mounting a directory, add a repository under `/api/v1/git_repositories`: its HTTPS URL, branch,\nthe directory that holds the ConfigMaps, and a `token` credential holding a personal access token. The\nbackend loads the ConfigMaps at once, checks every 30 minutes whether the branch has moved\n(`ACEX_GIT_SYNC_POLL_INTERVAL_SECONDS`) and loads them again when it has. `POST\n/api/v1/git_repositories/{id}/sync` loads the latest commit now.\n\nA host whose certificate an internal CA signed is trusted by giving the repository the CA chain as\n`ca_certificate`.\n\nA commit in which a file fails to import is not loaded: the ConfigMaps already in use stay, and the\nrepository's `last_error` names the file.\n\nEvery signed-in user can add and change repositories. ConfigMaps are code the backend runs, so keep write\naccess to the repositories as tight as access to ACEX itself. The backend image now includes git.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": []
+        },
+        {
+          "id": "20261112-search-the-whole-inventory-from-one",
+          "kind": "added",
+          "title": "Search the whole inventory from one endpoint",
+          "description": "`GET /api/v1/search?q=<text>` finds logical nodes, node instances, sites, regions, assets, asset clusters and contacts whose identifying fields contain the text, case-insensitively. A node instance is also found by its management IP or its asset's serial number. Results are grouped per kind with a total and the best hits first (`limit`, default 5). The text needs at least two characters.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261112-nothing-desired-is-fully-compliant",
+          "kind": "changed",
+          "title": "A node with nothing desired is fully compliant",
+          "description": "A node whose desired configuration is empty used to have no compliance percentage. It now reads 100 %, since nothing it should have is missing. A node whose configuration has not been collected still has no percentage.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#368",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261112-configmap-generation-filter-list",
+          "kind": "changed",
+          "title": "ConfigMap generation, reconcile and translate take a list of filters",
+          "description": "The request bodies of `/api/v1/config_components/generate`, `/reconcile/{node_instance_id}` and `/translate` now have `filter` as a list of filters instead of a single one, and all of them apply together. A client that sends a single filter object has to send a list with one entry.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#369",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261112-paging-through-the-node-list-returns",
+          "kind": "fixed",
+          "title": "Paging through the node list returns every node once",
+          "description": "Without a chosen sort the node list now follows the node id, so walking through its pages no longer repeats some nodes and skips others.",
+          "breaking": false,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#370",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261110-the-config-map-builder-lists-every",
+          "kind": "fixed",
+          "title": "The config map builder lists every attribute of a component",
+          "description": "Optional attributes, such as the VLAN ID and the VLAN name of a VLAN, were missing from the builder in the container images, so a component could only be given its required attributes there. The builder now lists all of them.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "7.0.0",
       "date": "2026-11-06",
       "entries": [
