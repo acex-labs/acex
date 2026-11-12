@@ -188,7 +188,7 @@ class NodeService:
                 )
             ]
 
-        sort_column = None
+        sort_column = "id"
         if sort is not None:
             if sort not in self.SORTABLE_COLUMNS:
                 raise HTTPException(
