@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from acex.config_diff import DiffLogicalNode
@@ -20,6 +21,7 @@ class ConfigurationCheck:
     async def node(self, node_instance_id: str) -> ConfigurationCompliance:
         try:
             observed = await self.differ.observed(node_instance_id)
+            await asyncio.sleep(0)  # parsing is the longest step; let the server answer before the comparison
         except HTTPException:
             raise
         except Exception:

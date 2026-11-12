@@ -10,7 +10,7 @@ from acex_devkit.models.asset import AssetResponse
 from acex_devkit.models.compliance import ConfigurationStatus, SoftwareStatus
 from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.policy import SoftwarePolicyResponse
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 
 # node id → (site, desired, compliant); None for a node with no observed configuration
 NODES = {
@@ -294,3 +294,93 @@ def test_a_models_versions_on_one_os_leave_the_vendors_on_another_in_force():
     result = measure(asset(1, "cisco", "C9300-24T", "cisco_nxos", "10.2.5"), approved)
 
     assert result.status == SoftwareStatus.golden
+
+
+def test_measuring_every_node_lets_the_server_answer_in_between(service):
+    async def go():
+        turns = 0
+
+        async def other_requests():
+            nonlocal turns
+            while True:
+                await asyncio.sleep(0)
+                turns += 1
+
+        other = asyncio.create_task(other_requests())
+        await service.overview()
+        other.cancel()
+        return turns
+
+    # One turn for each node measured; the loop counts a turn after its own first yield, so one fewer.
+    assert asyncio.run(go()) >= len(NODES) - 1
+
+
+def test_the_overview_is_measured_in_the_background_and_answered_from_that(service):
+    measured = []
+    real = service.overview
+
+    async def counting():
+        measured.append(1)
+        return await real()
+
+    service.overview = counting
+
+    async def go():
+        first_response = Response()
+        first = await service.latest_overview(first_response)
+        second = await service.latest_overview(Response())
+        service.stop()
+        return first, second, first_response
+
+    first, second, first_response = asyncio.run(go())
+
+    assert first is second
+    assert len(measured) == 1
+    assert first.summary.configuration.nodes_total == len(NODES)
+    assert "X-Measured-At" in first_response.headers
+
+
+def test_the_first_answer_gives_up_while_the_first_measurement_is_still_running(service):
+    async def slow():
+        await asyncio.sleep(5)
+
+    service.overview = slow
+    service.first_answer_seconds = 0.5
+
+    async def go():
+        try:
+            await service.latest_overview(Response())
+        finally:
+            service.stop()
+
+    with pytest.raises(HTTPException) as caught:
+        asyncio.run(go())
+
+    assert caught.value.status_code == 503
+    assert caught.value.headers["Retry-After"] == "30"
+
+
+def test_a_failed_measurement_keeps_the_last_one(service):
+    real = service.overview
+    calls = []
+
+    async def second_one_fails():
+        calls.append(1)
+        if len(calls) > 1:
+            raise RuntimeError("the database went away")
+        return await real()
+
+    service.overview = second_one_fails
+    service.refresh_seconds = 0.05
+
+    async def go():
+        first = await service.latest_overview(Response())
+        await asyncio.sleep(0.4)  # several refreshes, all failing
+        later = await service.latest_overview(Response())
+        service.stop()
+        return first, later
+
+    first, later = asyncio.run(go())
+
+    assert len(calls) > 1
+    assert later is first
