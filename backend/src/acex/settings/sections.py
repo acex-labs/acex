@@ -1,7 +1,7 @@
 """Core sections: database, serving, auth, CORS, credential storage and messaging."""
 
 from typing import Annotated, Any
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from acex.settings.section import Section
 from pydantic import Field, SecretStr, field_validator
@@ -143,6 +143,35 @@ class GitSyncSettings(Section, name="git_sync"):
     checkout_dir: str | None = None
     #: How long one git command may run, in seconds.
     timeout_seconds: int = Field(default=120, ge=1)
+
+
+class ServicesSettings(Section, name="services"):
+    """Other backends the web frontend calls directly, handed to it by GET /api/v1/services.
+
+    The frontend knows only this API. It learns from here which other services
+    the deployment has and where they are, shows their modules only when they
+    are set, and sends the user's access token to them. Because of the token,
+    a URL is only ever set here by whoever deploys ACEX, never through the API.
+
+    Each field is `<service>_url` and is listed as `<service>` in the response.
+    """
+
+    #: SamruAI backend, e.g. "https://samruai.example.net". Unset hides SamruAI in the frontend.
+    samruai_url: str | None = None
+
+    @field_validator("*")
+    @classmethod
+    def _http_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        parts = urlsplit(value)
+        if parts.scheme not in ("http", "https") or not parts.netloc or parts.query or parts.fragment:
+            raise ValueError(f"must be a plain http(s) URL, got {value!r}")
+        return value.rstrip("/")
+
+    def public(self) -> dict[str, dict[str, str]]:
+        """The configured services, as the frontend reads them."""
+        return {name.removesuffix("_url"): {"url": url} for name, url in self.model_dump().items() if url is not None}
 
 
 class ChangelogSettings(Section, name="changelog"):

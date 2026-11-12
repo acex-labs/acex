@@ -39,6 +39,7 @@ from acex.settings.sections import (
     OidcSettings,
     RabbitMQSettings,
     ServerSettings,
+    ServicesSettings,
     VaultSettings,
     ZtpSettings,
 )
@@ -63,6 +64,7 @@ __all__ = [
     "RabbitMQSettings",
     "Section",
     "ServerSettings",
+    "ServicesSettings",
     "Settings",
     "SlackBugReportSettings",
     "UnsafeConfiguration",

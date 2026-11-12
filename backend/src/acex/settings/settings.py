@@ -13,6 +13,7 @@ from acex.settings.sections import (
     OidcSettings,
     RabbitMQSettings,
     ServerSettings,
+    ServicesSettings,
     ZtpSettings,
 )
 from pydantic import Field, model_validator
@@ -40,6 +41,7 @@ class Settings(Section):
     ztp: ZtpSettings = Field(default_factory=ZtpSettings)
     changelog: ChangelogSettings = Field(default_factory=ChangelogSettings)
     git_sync: GitSyncSettings = Field(default_factory=GitSyncSettings)
+    services: ServicesSettings = Field(default_factory=ServicesSettings)
 
     @model_validator(mode="after")
     def _dev_conveniences(self) -> "Settings":
