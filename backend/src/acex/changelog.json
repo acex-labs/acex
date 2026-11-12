@@ -4,6 +4,21 @@
   "name": "ACEX backend",
   "releases": [
     {
+      "version": "7.2.0",
+      "date": "2026-11-12",
+      "entries": [
+        {
+          "id": "20261112-the-frontend-learns-other-services-from",
+          "kind": "added",
+          "title": "The web interface learns which other services exist from the backend",
+          "description": "`GET /api/v1/services` lists the other backends this deployment has and where\nthey are, for the web interface to call directly. Set\n`ACEX_SERVICES_SAMRUAI_URL` to the SamruAI backend to show SamruAI in the web\ninterface. Left unset, it stays hidden.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "7.1.1",
       "date": "2026-11-12",
       "entries": [
