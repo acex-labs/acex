@@ -57,3 +57,5 @@ class Ned(BaseModel):
     filename: str
     #: What the NED supports; None where it could not be loaded.
     capabilities: Capabilities | None = None
+    #: The NED interface the driver declares; None where the driver does not say, or the backend predates the field.
+    interface_version: int | None = None
