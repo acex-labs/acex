@@ -1,12 +1,23 @@
+import logging
 from collections import defaultdict
 
 from acex.compliance.configuration import ConfigurationCheck
 from acex.compliance.software import SoftwareCheck
 from acex.config_diff import DiffLogicalNode
-from acex_devkit.models.compliance import ComplianceOverview, ComplianceSummary, NodeCompliance, SiteCompliance
+from acex_devkit.models.compliance import (
+    ComplianceOverview,
+    ComplianceSummary,
+    ConfigurationCompliance,
+    ConfigurationStatus,
+    NodeCompliance,
+    SiteCompliance,
+    SoftwareCompliance,
+)
 from acex_devkit.models.node_response import NodeListItem
 from acex_devkit.models.policy import SoftwarePolicyResponse
 from fastapi import HTTPException
+
+log = logging.getLogger(__name__)
 
 
 class ComplianceService:
@@ -66,9 +77,20 @@ class ComplianceService:
         )
 
     async def measure_all(self, nodes: list[NodeListItem]) -> dict[int, NodeCompliance]:
-        """Every node measured against the software policy as it stands now, read once."""
+        """Every node measured against the software policy as it stands now, read once. A node that cannot be
+        measured, such as one whose asset is gone, is left unmeasured and does not fail the others."""
         approved = self.software.approved()
-        return {node.id: await self.measure(str(node.id), approved) for node in nodes}
+        results = {}
+        for node in nodes:
+            try:
+                results[node.id] = await self.measure(str(node.id), approved)
+            except Exception:
+                log.exception("Could not measure the compliance of node %s", node.id)
+                results[node.id] = NodeCompliance(
+                    configuration=ConfigurationCompliance(status=ConfigurationStatus.not_collected),
+                    software=SoftwareCompliance(),
+                )
+        return results
 
     async def measure(self, node_instance_id: str, approved: list[SoftwarePolicyResponse]) -> NodeCompliance:
         node = await self.inventory.node_instances.get(node_instance_id)  # 404 for an unknown node

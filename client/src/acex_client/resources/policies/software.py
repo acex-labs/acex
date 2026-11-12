@@ -14,8 +14,8 @@ from acex_client.resources.base import ActionMixin, Resource, action
 
 
 class SoftwarePolicies(Resource, ActionMixin):
-    """Software policy — `/policies/software`. One entry per approved version; at most one golden per vendor and
-    hardware model. A version not approved is not allowed."""
+    """Software policy — `/policies/software`. One entry per approved version; at most one golden per vendor,
+    hardware model and OS. A version not approved is not allowed."""
 
     path = "/policies/software"
 

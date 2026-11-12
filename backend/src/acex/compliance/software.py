@@ -14,7 +14,8 @@ MEASURED = (SoftwareStatus.golden, SoftwareStatus.accepted, SoftwareStatus.not_a
 
 class SoftwareCheck:
     """Software compliance: what each asset of a node runs against the versions the software policy approves for
-    its hardware model, or else its vendor. A version not approved is not allowed."""
+    its hardware model on the OS it runs, or else for its vendor on that OS. A version not approved is not allowed.
+    A policy for another OS does not concern the asset."""
 
     def __init__(self, policies: SoftwarePolicyManager):
         self.policies = policies
@@ -44,10 +45,8 @@ class SoftwareCheck:
             return result
         if asset.os_version is None:
             return result.model_copy(update={"status": SoftwareStatus.unknown_version})
-        running = (asset.os, SoftwarePolicyCreate.version_key(asset.os, asset.os_version))
-        match = next(
-            (v for v in versions if (v.os, SoftwarePolicyCreate.version_key(v.os, v.os_version)) == running), None
-        )
+        running = SoftwarePolicyCreate.version_key(asset.os, asset.os_version)
+        match = next((v for v in versions if SoftwarePolicyCreate.version_key(v.os, v.os_version) == running), None)
         if match is None:
             return result.model_copy(update={"status": SoftwareStatus.not_allowed})
         status = SoftwareStatus.golden if match.golden else SoftwareStatus.accepted
@@ -55,12 +54,13 @@ class SoftwareCheck:
 
     @staticmethod
     def covering(asset: AssetResponse, approved: list[SoftwarePolicyResponse]) -> list[SoftwarePolicyResponse]:
-        """The versions approved for the asset's model; where its model has none, those for its vendor."""
-        vendor = [v for v in approved if v.vendor == asset.vendor]
+        """The versions approved for the asset's model on its OS; where its model has none on that OS, those for
+        its vendor on that OS. The golden version among them is the one for that OS."""
+        on_os = [v for v in approved if v.vendor == asset.vendor and v.os == asset.os]
         for_model = [
-            v for v in vendor if v.hardware_model and v.hardware_model.casefold() == asset.hardware_model.casefold()
+            v for v in on_os if v.hardware_model and v.hardware_model.casefold() == asset.hardware_model.casefold()
         ]
-        return for_model or [v for v in vendor if v.hardware_model is None]
+        return for_model or [v for v in on_os if v.hardware_model is None]
 
     def summarize(self, results: list[SoftwareCompliance]) -> SoftwareComplianceSummary:
         return self.count([asset for result in results for asset in result.assets])

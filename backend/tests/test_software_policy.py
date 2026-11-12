@@ -91,6 +91,29 @@ def test_a_vendor_and_each_model_have_a_golden_version_of_their_own(api):
     assert api.post(SOFTWARE, json={**C9300, "hardware_model": None, "golden": True}).status_code == 201
 
 
+def test_each_os_of_a_vendor_has_a_golden_version_of_its_own(api):
+    nxos = {"vendor": "cisco", "os": "cisco_nxos", "os_version": "10.2.5", "golden": True}
+    api.post(SOFTWARE, json={**C9300, "hardware_model": None, "golden": True})
+
+    assert api.post(SOFTWARE, json=nxos).status_code == 201
+
+    second = api.post(SOFTWARE, json={**nxos, "os_version": "10.3.1"})
+    assert second.status_code == 409
+    assert "cisco_nxos" in second.json()["detail"] and "10.2.5" in second.json()["detail"]
+    assert api.post(SOFTWARE, json={**nxos, "os_version": "10.3.1", "golden": False}).status_code == 201
+
+
+def test_versions_are_listed_os_by_os(api):
+    vendor = {"vendor": "cisco", "hardware_model": None}
+    api.post(SOFTWARE, json={**vendor, "os": "cisco_nxos", "os_version": "10.2.5", "golden": True})
+    api.post(SOFTWARE, json={**vendor, "os": "cisco_iosxe", "os_version": "17.6.5"})
+    api.post(SOFTWARE, json={**vendor, "os": "cisco_iosxe", "os_version": "17.9.4a", "golden": True})
+
+    listed = [(p["os"], p["os_version"]) for p in api.get(SOFTWARE).json()]
+
+    assert listed == [("cisco_iosxe", "17.9.4a"), ("cisco_iosxe", "17.6.5"), ("cisco_nxos", "10.2.5")]
+
+
 @pytest.mark.parametrize(
     "changes",
     [

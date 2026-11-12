@@ -1,9 +1,14 @@
+import logging
+
 from acex.config_diff import DiffLogicalNode
 from acex_devkit.models.compliance import (
     ConfigurationCompliance,
     ConfigurationComplianceSummary,
     ConfigurationStatus,
 )
+from fastapi import HTTPException
+
+log = logging.getLogger(__name__)
 
 
 class ConfigurationCheck:
@@ -13,7 +18,14 @@ class ConfigurationCheck:
         self.differ = differ
 
     async def node(self, node_instance_id: str) -> ConfigurationCompliance:
-        observed = await self.differ.observed(node_instance_id)
+        try:
+            observed = await self.differ.observed(node_instance_id)
+        except HTTPException:
+            raise
+        except Exception:
+            # A configuration its NED cannot parse is as good as none: this node is not measured, the others are.
+            log.exception("Could not parse the observed configuration of node %s", node_instance_id)
+            observed = None
         if observed is None:
             return ConfigurationCompliance(status=ConfigurationStatus.not_collected)
         diff = await self.differ.diff_against(node_instance_id, observed)

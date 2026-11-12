@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 from acex.compliance import ComplianceService
+from acex.compliance.software import SoftwareCheck
 from acex_devkit.models.asset import AssetResponse
 from acex_devkit.models.compliance import ConfigurationStatus, SoftwareStatus
 from acex_devkit.models.node_response import NodeListItem
@@ -213,3 +214,83 @@ def test_the_overview_has_a_summary_per_region(service):
     software = result.summary.software
     assert (software.assets_total, software.no_policy_count, software.unknown_version_count) == (7, 1, 1)
     assert software.compliance_percentage == 60.0  # golden 1 and 5, accepted 2a; not allowed 6 and 2b
+
+
+class ParseFails(FakeDiffer):
+    async def observed(self, node_instance_id):
+        if node_instance_id == "2":
+            raise ValueError("'230.0.0.255' is not a valid netmask")
+        return await super().observed(node_instance_id)
+
+
+def test_a_configuration_that_cannot_be_parsed_leaves_the_rest_measured(service):
+    service.configuration.differ = ParseFails()
+
+    site = asyncio.run(service.site("sto"))
+
+    assert site.nodes[2].configuration.status == ConfigurationStatus.not_collected
+    assert site.nodes[1].configuration.status == ConfigurationStatus.measured
+    assert (site.summary.configuration.nodes_total, site.summary.configuration.nodes_not_collected) == (2, 1)
+    assert asyncio.run(service.node("2")).configuration.status == ConfigurationStatus.not_collected
+
+
+def test_a_node_that_cannot_be_measured_does_not_fail_the_overview(service):
+    original = service.inventory.node_instances.get
+
+    async def get(id):
+        if str(id) == "5":
+            raise ValueError("the asset of the node is gone")
+        return await original(id)
+
+    service.inventory.node_instances.get = get
+
+    overview = asyncio.run(service.overview())
+
+    assert overview.summary.configuration.nodes_total == 6
+    assert overview.summary.software.assets_total == 6  # the seventh asset belongs to the node left out
+    assert overview.sites["sto-lab"].configuration.nodes_not_collected == 1
+    assert asyncio.run(service.site("sto")).summary.configuration.nodes_total == 2
+
+
+def policy(id, os, os_version, golden=False, hardware_model=None):
+    return SoftwarePolicyResponse(
+        id=id, vendor="cisco", hardware_model=hardware_model, os=os, os_version=os_version, golden=golden
+    )
+
+
+def measure(asset, approved):
+    return SoftwareCheck(policies=None).asset(asset, approved)
+
+
+NEXUS = ("cisco", "N9K-C93180YC-FX", "cisco_nxos")
+VENDOR_BY_OS = [
+    policy(1, "cisco_iosxe", "17.9.4a", golden=True),
+    policy(2, "cisco_nxos", "10.2.5", golden=True),
+    policy(3, "cisco_nxos", "10.3.1"),
+]
+
+
+def test_an_asset_is_measured_against_the_versions_of_its_own_os():
+    accepted = measure(asset(1, *NEXUS, "10.3.1"), VENDOR_BY_OS)
+    golden = measure(asset(2, "cisco", "C9300-24T", "cisco_iosxe", "17.9.4a"), VENDOR_BY_OS)
+    outdated = measure(asset(3, *NEXUS, "9.3.8"), VENDOR_BY_OS)
+
+    # Each one's golden is the golden of its own OS.
+    assert (accepted.status, accepted.golden_version) == (SoftwareStatus.accepted, "10.2.5")
+    assert (golden.status, golden.golden_version) == (SoftwareStatus.golden, "17.9.4a")
+    assert (outdated.status, outdated.golden_version) == (SoftwareStatus.not_allowed, "10.2.5")
+
+
+def test_an_os_without_approved_versions_is_not_measured_against_another_os():
+    result = measure(asset(1, *NEXUS, "10.2.5"), [policy(1, "cisco_iosxe", "17.9.4a", golden=True)])
+
+    assert (result.status, result.golden_version) == (SoftwareStatus.no_policy, None)
+
+
+def test_a_models_versions_on_one_os_leave_the_vendors_on_another_in_force():
+    # No declared model runs two OSes yet, so this one is built by hand.
+    approved = [policy(1, "cisco_iosxe", "17.9.4a", golden=True, hardware_model="C9300-24T"), *VENDOR_BY_OS[1:]]
+
+    result = measure(asset(1, "cisco", "C9300-24T", "cisco_nxos", "10.2.5"), approved)
+
+    assert result.status == SoftwareStatus.golden
