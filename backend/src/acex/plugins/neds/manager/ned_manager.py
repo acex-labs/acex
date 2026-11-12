@@ -1,9 +1,13 @@
+import logging
 from importlib.metadata import entry_points
 from pathlib import Path
 
 from acex_devkit.drivers.base import NetworkElementDriver
+from acex_devkit.models.ned import Platform
 
 from .wheels import built_wheels
+
+log = logging.getLogger(__name__)
 
 
 class NEDManager:
@@ -74,6 +78,16 @@ class NEDManager:
         }
 
         return response
+
+    def platforms(self) -> list[Platform]:
+        """Every platform the installed NEDs declare support for. Read off the classes, so no NED is started."""
+        platforms = []
+        for entry_point in entry_points(group="acex.neds"):
+            try:
+                platforms.extend(entry_point.load().platforms)
+            except Exception:
+                log.exception(f"Reading the platforms of NED {entry_point.name} failed")
+        return platforms
 
     def list_drivers(self) -> list[dict]:
         """Returnera en lista över tillgängliga drivrutinsnamn via entry points."""

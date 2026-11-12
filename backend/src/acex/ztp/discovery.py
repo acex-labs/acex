@@ -60,8 +60,9 @@ def record_discovery(session, job, result: ZtpDiscoverResult) -> None:
 
 
 class ZtpDiscoveryManager:
-    def __init__(self, db_manager):
+    def __init__(self, db_manager, hardware_models):
         self.db = db_manager
+        self.hardware_models = hardware_models
 
     def list_discoveries(
         self,
@@ -173,6 +174,7 @@ class ZtpDiscoveryManager:
             raise ReviewConflict(f"{identity[0].message}; approve it on its own", proposal)
 
         asset = planner.apply(session, proposal)
+        self.hardware_models.enable_in(session, asset.hardware_model, enabled_by=reviewed_by)
         discovery.asset_id = asset.id
         now = datetime.now(UTC)
         self._review(session, discovery, ZtpReviewStatus.approved, reviewed_by, now)

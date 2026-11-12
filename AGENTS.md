@@ -83,7 +83,8 @@ scripts/    — Utility scripts
 ## Release notes
 
 What's new (Settings > What's new) has three sources. Entries per change are fragments in each package's
-`changelog.d/`, added with the pull request. The product's highlights are one file,
+`changelog.d/`. A pull request into `dev` does not need one; a package needs its entries when it is sent to stage,
+and a pull request into `main` needs them. Writing the fragment with the change is the easiest way. The product's highlights are one file,
 `backend/src/acex/changelog/content/highlights.md`, written once per release to `main` by the team together, not per
 package. The roadmap is `roadmap.md` next to it and is kept by one person: leave it alone unless asked.
 

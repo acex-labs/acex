@@ -12,6 +12,7 @@ from acex.models import Node
 from acex.models.job import Job
 from acex.models.management_connections import ManagementConnection
 from acex.models.ztp_discovery import ZtpDiscovery
+from acex.platforms import HardwareModelManager
 from acex.ztp import ZtpDiscoveryManager, ZtpPipelineManager
 from acex_devkit.models.job import JobState
 from acex_devkit.models.node_response import NodeProvisionStatus
@@ -29,7 +30,7 @@ def ztp():
 
 @pytest.fixture
 def client(ztp):
-    pipeline = ZtpPipelineManager(ztp.db, ZtpDiscoveryManager(ztp.db), ztp.jobs)
+    pipeline = ZtpPipelineManager(ztp.db, ZtpDiscoveryManager(ztp.db, HardwareModelManager(ztp.db)), ztp.jobs)
     ztp.client.app.include_router(nodes_router(SimpleNamespace(ztp_pipeline=pipeline)))
     return ztp.client
 

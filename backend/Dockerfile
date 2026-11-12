@@ -1,6 +1,7 @@
 FROM python:3.13-slim
 
-RUN apt-get update && apt-get install -y libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+# git: ConfigMaps can be synced from git repositories (acex.git_sync)
+RUN apt-get update && apt-get install -y libpq-dev gcc git && rm -rf /var/lib/apt/lists/*
 
 # Local dependencies
 COPY devkit/ /deps/devkit/
