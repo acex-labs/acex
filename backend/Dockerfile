@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y libpq-dev gcc git && rm -rf /var/lib/ap
 COPY devkit/ /deps/devkit/
 COPY client/ /deps/client/
 COPY drivers/cisco_ios_cli/ /deps/cisco_ios_cli/
+COPY drivers/cisco_ios_classic_cli/ /deps/cisco_ios_classic_cli/
 COPY drivers/juniper_junos_cli/ /deps/juniper_junos_cli/
 
 # Backend source (installed with pip like the other local packages)
@@ -25,9 +26,10 @@ COPY agents/grafana-sync/src/acex_grafana_sync/changelog.json /deps/backend/src/
 
 # Replace local path dependencies with version requirements
 RUN sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_cli/pyproject.toml && \
+    sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_classic_cli/pyproject.toml && \
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/juniper_junos_cli/pyproject.toml && \
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/backend/pyproject.toml && \
-    pip install --no-cache-dir /deps/devkit /deps/client /deps/cisco_ios_cli /deps/juniper_junos_cli /deps/backend[vault]
+    pip install --no-cache-dir /deps/devkit /deps/client /deps/cisco_ios_cli /deps/cisco_ios_classic_cli /deps/juniper_junos_cli /deps/backend[vault]
 
 
 ARG BUILD_ID=""
