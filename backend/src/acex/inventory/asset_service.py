@@ -8,7 +8,7 @@ from acex_devkit.models.node_response import AssetRefType
 from acex_devkit.models.os_version import OsVersionScheme
 from acex_devkit.models.pagination import PaginatedResponse
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import String, cast, or_, select
 
 
 class AssetService:
@@ -23,6 +23,10 @@ class AssetService:
         "ned_id": "ned_id",
         "os_version": "os_version",
     }
+
+    # What ``q`` is looked for in: the fields that identify an asset to a person,
+    # i.e. what a picker shows as its title (vendor, model) and sublabel (driver, serial).
+    SEARCHABLE_COLUMNS = (Asset.serial_number, Asset.hardware_model, Asset.vendor, Asset.ned_id)
 
     def __init__(self, adapter, hardware_models):
         self.adapter = adapter
@@ -57,7 +61,14 @@ class AssetService:
         offset: int = 0,
         sort: str | None = None,
         order: Literal["asc", "desc"] = "asc",
+        q: str | None = None,
     ) -> PaginatedResponse[AssetResponse]:
+        """List assets, filtered by the per-field params and/or ``q``.
+
+        ``q`` is one search text matched, case-insensitively as a contains, against
+        serial number, hardware model, vendor and NED id. It narrows the result
+        together with every other filter, and ``total`` counts only what matches.
+        """
 
         query_filters = {
             k: v
@@ -78,6 +89,13 @@ class AssetService:
                 extra_filters.append(Asset.id.in_(assigned_ids))
             else:
                 extra_filters.append(~Asset.id.in_(assigned_ids))
+        if q is not None and q.strip():
+            text = q.strip()
+            # autoescape: a typed % or _ is that character, not a wildcard.
+            # cast: vendor is an enum in the model, and contains needs text on every database.
+            extra_filters.append(
+                or_(*(cast(column, String).icontains(text, autoescape=True) for column in self.SEARCHABLE_COLUMNS))
+            )
         sort_column = None
         if sort is not None:
             sort_column = self.SORTABLE_COLUMNS.get(sort)
