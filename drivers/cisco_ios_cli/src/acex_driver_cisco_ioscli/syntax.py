@@ -634,18 +634,44 @@ class StandardAclEntrySyntax(AclEntrySyntax):
     body = (Line("[{sequence_id:int} ]{action} {source_address}", action=ACTIONS, source_address=AclAddress(False)),)
 
 
+EXTENDED_ENTRY_TOKENS = {
+    "action": ACTIONS,
+    "protocol": Choice(*AclProtoclOptions),
+    "source_address": AclAddress(True),
+    "destination_address": AclAddress(True),
+    "source_port": AclPort(),
+    "destination_port": AclPort(),
+    "log": Keyword("log"),
+}
+
+
 class ExtendedAclEntrySyntax(AclEntrySyntax):
     body = (
         Line(
             "[{sequence_id:int} ]{action} {protocol} {source_address}[ {source_port}]"
             " {destination_address}[ {destination_port}][ {log}]",
-            action=ACTIONS,
-            protocol=Choice(*AclProtoclOptions),
-            source_address=AclAddress(True),
-            destination_address=AclAddress(True),
-            source_port=AclPort(),
-            destination_port=AclPort(),
-            log=Keyword("log"),
+            **EXTENDED_ENTRY_TOKENS,
+        ),
+    )
+
+
+class NumberedAclEntrySyntax(AclEntrySyntax):
+    path = "acl.ipv4_acls.{acl:name}.acl_entries"
+
+    def includes(self, key: str | None, component: Ipv4AclEntryAttributes) -> bool:
+        return False
+
+
+class NumberedStandardAclEntrySyntax(NumberedAclEntrySyntax):
+    body = (Line("access-list {acl} {action} {source_address}", action=ACTIONS, source_address=AclAddress(False)),)
+
+
+class NumberedExtendedAclEntrySyntax(NumberedAclEntrySyntax):
+    body = (
+        Line(
+            "access-list {acl} {action} {protocol} {source_address}[ {source_port}]"
+            " {destination_address}[ {destination_port}][ {log}]",
+            **EXTENDED_ENTRY_TOKENS,
         ),
     )
 
@@ -740,6 +766,8 @@ BLOCKS = [
     StaticRouteSyntax(),
     StandardAclSyntax(),
     ExtendedAclSyntax(),
+    NumberedStandardAclEntrySyntax(),
+    NumberedExtendedAclEntrySyntax(),
     SshSyntax(),
     SshLoggingSyntax(),
     SshDhSyntax(),

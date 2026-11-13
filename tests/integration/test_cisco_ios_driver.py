@@ -194,3 +194,47 @@ def test_ip_device_tracking_is_written_back():
     assert "ip device tracking probe auto-source override" in rendered
     assert " ip device tracking maximum 0" in rendered
     assert codec.parse(rendered, None).metadata.unmatched == []
+
+
+IOS_NUMBERED_ACLS = """\
+access-list 5 permit 10.99.0.0 0.0.0.255
+access-list 5 permit host 10.1.1.1
+access-list 5 deny   any
+access-list 101 permit tcp 10.10.0.0 0.0.255.255 any eq 22
+access-list 101 deny   ip any any log
+!
+"""
+
+
+def test_numbered_access_lists_are_read_as_acls_named_by_their_number():
+    result = CiscoIOSCodec().parse(IOS_NUMBERED_ACLS, None)
+
+    acls = result.configuration.acl.ipv4_acls
+    assert list(acls) == ["5", "101"]
+    standard = acls["5"].acl_entries
+    assert list(standard) == ["10", "20", "30"]
+    assert [e.action.value for e in standard.values()] == ["permit", "permit", "deny"]
+    assert str(standard["10"].source_address.value) == "10.99.0.0/24"
+    extended = acls["101"].acl_entries
+    assert [e.protocol.value for e in extended.values()] == ["tcp", "ip"]
+    assert extended["10"].destination_port.value == "22"
+    assert extended["20"].log.value is True
+    assert result.metadata.unmatched == []
+
+
+def test_a_numbered_access_list_is_written_as_a_named_one_with_sequence_numbers():
+    codec = CiscoIOSCodec()
+    parsed = codec.parse(IOS_NUMBERED_ACLS, None)
+
+    rendered = codec.render(parsed.configuration, None).payload
+
+    assert "ip access-list standard 5\n 10 permit 10.99.0.0 0.0.0.255" in rendered
+    assert "ip access-list extended 101\n 10 permit tcp 10.10.0.0 0.0.255.255 any eq 22" in rendered
+    assert not any(line.startswith("access-list ") for line in rendered.splitlines())
+    assert codec.parse(rendered, None).configuration.acl == parsed.configuration.acl
+
+
+def test_remarks_in_numbered_access_lists_stay_unmatched():
+    result = CiscoIOSCodec().parse("access-list 5 remark management\naccess-list 5 permit any\n", None)
+
+    assert [u.line for u in result.metadata.unmatched] == ["access-list 5 remark management"]
