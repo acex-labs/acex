@@ -1,29 +1,33 @@
-"""Which Cisco assets the CLI driver takes on."""
+"""Which Cisco assets the two CLI drivers take on, and what the IOS driver reads and writes."""
 
-import pytest
 from acex_devkit.models.asset import Asset
 from acex_devkit.models.platform import OS, Vendor
+from acex_driver_cisco_ios_classic_cli.cisco_ios_classic_cli import CiscoIOSClassicCLIDriver
+from acex_driver_cisco_ios_classic_cli.codec import CiscoIOSCodec
 from acex_driver_cisco_ioscli.cisco_ios_cli import CiscoIOSCLIDriver
-from acex_driver_cisco_ioscli.codec import CiscoIOSCodec
 
 
 def cisco_asset(os: OS) -> Asset:
     return Asset(vendor=Vendor.cisco, serial_number="FOC0001", os=os, hardware_model="C9300-24P")
 
 
-@pytest.mark.parametrize("os", [OS.cisco_ios, OS.cisco_iosxe])
-def test_driver_takes_ios_and_iosxe_assets(os):
-    assert CiscoIOSCLIDriver().supports(cisco_asset(os))
+def test_the_ios_driver_takes_ios_assets_only():
+    driver = CiscoIOSClassicCLIDriver()
+
+    assert driver.supports(cisco_asset(OS.cisco_ios))
+    assert not any(driver.supports(cisco_asset(os)) for os in (OS.cisco_iosxe, OS.cisco_nxos, OS.cisco_iosxr))
 
 
-@pytest.mark.parametrize("os", [OS.cisco_nxos, OS.cisco_iosxr])
-def test_driver_leaves_other_cisco_operating_systems_alone(os):
-    assert not CiscoIOSCLIDriver().supports(cisco_asset(os))
+def test_the_iosxe_driver_takes_iosxe_assets_only():
+    driver = CiscoIOSCLIDriver()
+
+    assert driver.supports(cisco_asset(OS.cisco_iosxe))
+    assert not any(driver.supports(cisco_asset(os)) for os in (OS.cisco_ios, OS.cisco_nxos, OS.cisco_iosxr))
 
 
 def test_platforms_are_listed_in_the_driver_capabilities():
-    declared = {(p.vendor, p.os) for p in CiscoIOSCLIDriver().capabilities.platforms}
-    assert declared == {(Vendor.cisco, OS.cisco_ios), (Vendor.cisco, OS.cisco_iosxe)}
+    declared = {(p.vendor, p.os) for p in CiscoIOSClassicCLIDriver().capabilities.platforms}
+    assert declared == {(Vendor.cisco, OS.cisco_ios)}
 
 
 IOS_ACLS = """\

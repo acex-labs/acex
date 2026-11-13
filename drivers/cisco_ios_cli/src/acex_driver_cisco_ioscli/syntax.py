@@ -1,3 +1,5 @@
+"""Cisco IOS syntax for ComposedConfiguration components. Each block renders and parses the same lines."""
+
 import ipaddress
 from typing import Any
 
@@ -41,8 +43,6 @@ from acex_devkit.models.composed_configuration import (
     Vlan,
     VrrpGroup,
     VTPAttributes,
-    aaaAccountingEvents,
-    aaaAuthorizationEvents,
     aaaGlobalAttributes,
     aaaRadiusAttributes,
     aaaServerGroupAttributes,
@@ -55,6 +55,8 @@ from acex_driver_cisco_ioscli.context import CiscoContext
 
 
 class Pps(Token):
+    """A packet rate as IOS writes it, with a `k` or `m` suffix on round numbers: `2k` <-> 2000."""
+
     regex = r"\d+[km]?"
     units = {"k": 1_000, "m": 1_000_000}
 
@@ -69,6 +71,9 @@ class Pps(Token):
 
 
 class AclAddress(Token):
+    """An ACL address as IOS writes it, `any`, a host or a network with a wildcard mask, read as
+    "any" or an IPv4 network. Extended ACLs mark a host with `host`; standard ACLs write it bare."""
+
     def __init__(self, host_keyword: bool):
         self.host_keyword = host_keyword
         self.regex = r"any|host \S+|\d+\.\d+\.\d+\.\d+(?: \d+\.\d+\.\d+\.\d+)?"
@@ -92,6 +97,8 @@ class AclAddress(Token):
 
 
 class AclPort(Token):
+    """A port match, `eq 443` <-> "443" and `range 100 200` <-> "100-200"."""
+
     regex = r"eq \S+|range \S+ \S+"
 
     def parse(self, text: str) -> str:
@@ -103,6 +110,8 @@ class AclPort(Token):
 
 
 class LoadBalance(Token):
+    """`port-channel load-balance` with one hashing input: `src-dst-ip` <-> ["src-dst-ip"]."""
+
     regex = r"(?:src|dst|src-dst)-(?:mac|ip|port)"
 
     def parse(self, text: str) -> list[str]:
@@ -168,23 +177,6 @@ class DeviceTrackingSyntax(Augment):
     body = (Line("device-tracking attach-policy {policy_name}"),)
 
 
-class IpDeviceTrackingSyntax(Augment):
-    path = "system.config.augments"
-    augment = "cisco_ip_device_tracking"
-    body = (
-        Flag("enabled", on="ip device tracking"),
-        Line("ip device tracking probe delay {probe_delay:int}"),
-        Flag("probe_auto_source_override", on="ip device tracking probe auto-source override"),
-        Flag("probe_use_svi", on="ip device tracking probe use-svi"),
-    )
-
-
-class IpDeviceTrackingInterfaceSyntax(Augment):
-    path = "augments"
-    augment = "cisco_ip_device_tracking"
-    body = (Line("ip device tracking maximum {maximum:int}"),)
-
-
 class ServicePolicySyntax(Augment):
     path = "augments"
     augment = "cisco_service_policy"
@@ -195,6 +187,9 @@ class ServicePolicySyntax(Augment):
 
 
 class LineAaaSyntax(Augment):
+    """Login and authorization lists on a console or vty line. Commands are authorized per privilege
+    level; one list covers the levels IOS has, so it's written for each."""
+
     path = "augments"
     body = (
         Line("login authentication {login_authentication}"),
@@ -264,6 +259,8 @@ class AaaRadiusMemberSyntax(Block):
 
 
 class TacacsServerSyntax(Block):
+    """A TACACS+ server's settings, written once and shared by every group listing it by name."""
+
     path = "system.aaa.server_groups.{group}.tacacs"
     header = Line("tacacs server {name}")
     key = "name"
@@ -279,6 +276,8 @@ class TacacsServerSyntax(Block):
 
 
 class RadiusServerSyntax(Block):
+    """A RADIUS server's settings, written once and shared by every group listing it by name."""
+
     path = "system.aaa.server_groups.{group}.radius"
     header = Line("radius server {name}")
     key = "name"
@@ -305,24 +304,6 @@ class AaaServerGroupSyntax(Block):
 
     def includes(self, key: str | None, component: aaaServerGroupAttributes) -> bool:
         return bool(component.enable and component.enable.value)
-
-
-class AccountingEvent(Token):
-    regex = r"send stop-record authentication failure|update newinfo(?: periodic \d+)?"
-
-
-class AuthorizationEventSyntax(Block):
-    path = "system.aaa.authorization.config.events"
-    key = "event"
-    component = aaaAuthorizationEvents
-    body = (Line("aaa authorization {event}", event=Choice("config-commands", "console")),)
-
-
-class AccountingEventSyntax(Block):
-    path = "system.aaa.accounting.config.events"
-    key = "event"
-    component = aaaAccountingEvents
-    body = (Line("aaa accounting {event}", event=AccountingEvent()),)
 
 
 class UserSyntax(Block):
@@ -358,6 +339,8 @@ class HsrpSyntax(Block):
 
 
 class VrrpSyntax(Block):
+    """IOS VRRP (version 2). Preemption is on by default, so the device writes only turning it off."""
+
     path = "vrrp_groups"
     key = "group"
     component = VrrpGroup
@@ -412,7 +395,6 @@ class InterfaceSyntax(Block):
             "ip helper-address {server}", at="system.dhcp.relay.relay_servers.{server:address}.interfaces", creates=True
         ),
         DeviceTrackingSyntax(),
-        IpDeviceTrackingInterfaceSyntax(),
         ServicePolicySyntax(),
         Flag("redirects", off="no ip redirects"),
         Flag("proxy_arp", off="no ip proxy-arp"),
@@ -431,7 +413,7 @@ class InterfaceSyntax(Block):
         StormControlSyntax(),
         Line("spanning-tree port-priority {stp_port_priority:int}"),
         Line("spanning-tree cost {stp_cost:int}"),
-        Flag("stp_portfast", on=("spanning-tree portfast", "spanning-tree portfast edge")),
+        Flag("stp_portfast", on="spanning-tree portfast"),
         Flag("stp_bpdu_guard", on="spanning-tree bpduguard enable", off="spanning-tree bpduguard disable"),
         Flag("stp_bpdu_filter", on="spanning-tree bpdufilter enable", off="spanning-tree bpdufilter disable"),
         Flag("stp_loop_guard", on="spanning-tree guard loop"),
@@ -472,6 +454,9 @@ class InterfaceSyntax(Block):
 
 
 class InterfaceTemplateSyntax(Block):
+    """A named set of interface settings, written with the interface lines it shares. Memberships and the
+    interface's own defaults don't apply to a template, and a template doesn't name another."""
+
     path = "interface_templates"
     header = Line("template {name}")
     component = InterfaceTemplateAttributes
@@ -606,77 +591,40 @@ class ConsoleSyntax(Block):
     body = (Flag("logging_synchronous", on="logging synchronous"), ConsoleAaaSyntax())
 
 
-class AclAction(Choice):
-    """`permit` or `deny`. IOS pads `deny` to line it up with `permit`, `deny   any`, and reads both."""
-
-    def __init__(self):
-        super().__init__("permit", "deny")
-        self.regex = f"(?:{self.regex}) {{0,2}}"
-
-    def parse(self, text: str) -> Any:
-        return super().parse(text.rstrip())
-
-
-ACTIONS = AclAction()
+ACTIONS = Choice("permit", "deny")
 EXTENDED_FIELDS = ("protocol", "destination_address", "source_port", "destination_port", "log", "dscp")
 
 
-class AclEntrySyntax(Block):
+class StandardAclEntrySyntax(Block):
     path = "acl_entries"
     key = "sequence_id"
     component = Ipv4AclEntryAttributes
-
-    def default_key(self, collection: dict[str, Any], context: CiscoContext) -> int:
-        return max((int(key) for key in collection), default=0) + 10
+    body = (Line("{sequence_id:int} {action} {source_address}", action=ACTIONS, source_address=AclAddress(False)),)
 
 
-class StandardAclEntrySyntax(AclEntrySyntax):
-    body = (Line("[{sequence_id:int} ]{action} {source_address}", action=ACTIONS, source_address=AclAddress(False)),)
-
-
-EXTENDED_ENTRY_TOKENS = {
-    "action": ACTIONS,
-    "protocol": Choice(*AclProtoclOptions),
-    "source_address": AclAddress(True),
-    "destination_address": AclAddress(True),
-    "source_port": AclPort(),
-    "destination_port": AclPort(),
-    "log": Keyword("log"),
-}
-
-
-class ExtendedAclEntrySyntax(AclEntrySyntax):
+class ExtendedAclEntrySyntax(Block):
+    path = "acl_entries"
+    key = "sequence_id"
+    component = Ipv4AclEntryAttributes
     body = (
         Line(
-            "[{sequence_id:int} ]{action} {protocol} {source_address}[ {source_port}]"
+            "{sequence_id:int} {action} {protocol} {source_address}[ {source_port}]"
             " {destination_address}[ {destination_port}][ {log}]",
-            **EXTENDED_ENTRY_TOKENS,
-        ),
-    )
-
-
-class NumberedAclEntrySyntax(AclEntrySyntax):
-    path = "acl.ipv4_acls.{acl:name}.acl_entries"
-
-    def includes(self, key: str | None, component: Ipv4AclEntryAttributes) -> bool:
-        return False
-
-
-class NumberedStandardAclEntrySyntax(NumberedAclEntrySyntax):
-    body = (Line("access-list {acl} {action} {source_address}", action=ACTIONS, source_address=AclAddress(False)),)
-
-
-class NumberedExtendedAclEntrySyntax(NumberedAclEntrySyntax):
-    body = (
-        Line(
-            "access-list {acl} {action} {protocol} {source_address}[ {source_port}]"
-            " {destination_address}[ {destination_port}][ {log}]",
-            **EXTENDED_ENTRY_TOKENS,
+            action=ACTIONS,
+            protocol=Choice(*AclProtoclOptions),
+            source_address=AclAddress(True),
+            destination_address=AclAddress(True),
+            source_port=AclPort(),
+            destination_port=AclPort(),
+            log=Keyword("log"),
         ),
     )
 
 
 class StandardAclSyntax(Block):
+    """An IPv4 ACL whose entries match on source only. The model doesn't say standard or extended;
+    what its entries match on does."""
+
     path = "acl.ipv4_acls"
     header = Line("ip access-list standard {name}")
     component = Ipv4AclAttributes
@@ -696,6 +644,9 @@ class ExtendedAclSyntax(StandardAclSyntax):
 
 
 class NameServerSyntax(Block):
+    """DNS servers. IOS writes every server of one instance on one line; each renders on its own here,
+    which the device merges back into one."""
+
     path = "system.dns.dns_servers"
     key = "address"
     component = DnsServerAttributes
@@ -741,7 +692,6 @@ class NtpServerSyntax(Block):
 
 BLOCKS = [
     PasswordEncryptionSyntax(),
-    IpDeviceTrackingSyntax(),
     SystemConfigSyntax(),
     VrfSyntax(),
     AaaSyntax(),
@@ -749,8 +699,6 @@ BLOCKS = [
     TacacsServerSyntax(),
     RadiusServerSyntax(),
     UserSyntax(),
-    AuthorizationEventSyntax(),
-    AccountingEventSyntax(),
     LoggingSyntax(),
     TrapLoggingSyntax(),
     ConsoleLoggingSyntax(),
@@ -766,8 +714,6 @@ BLOCKS = [
     StaticRouteSyntax(),
     StandardAclSyntax(),
     ExtendedAclSyntax(),
-    NumberedStandardAclEntrySyntax(),
-    NumberedExtendedAclEntrySyntax(),
     SshSyntax(),
     SshLoggingSyntax(),
     SshDhSyntax(),
@@ -779,3 +725,4 @@ BLOCKS = [
     VtyLineSyntax(),
     NtpServerSyntax(),
 ]
+"""Top-level blocks in running-config order."""

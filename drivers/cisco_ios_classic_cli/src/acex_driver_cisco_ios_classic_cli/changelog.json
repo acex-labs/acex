@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "component": "acex-driver-cisco-ios-classic-cli",
+  "name": "Cisco IOS (classic) CLI driver",
+  "releases": [],
+  "coming": [],
+  "highlights": []
+}
