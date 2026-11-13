@@ -293,13 +293,14 @@ class Line(Item):
 
 class Flag(Item):
     """A boolean field written as the presence of a line: `on` when true, `off` when false (either may
-    be omitted). `default` is what the device means when neither line is present."""
+    be omitted). A tuple holds the line that is written first and other spellings of it that are only
+    read. `default` is what the device means when neither line is present."""
 
     def __init__(
         self,
         name: str,
-        on: str | None = None,
-        off: str | None = None,
+        on: str | tuple[str, ...] | None = None,
+        off: str | tuple[str, ...] | None = None,
         default: bool | None = None,
         only: type | tuple[type, ...] | None = None,
         since: str | None = None,
@@ -308,15 +309,18 @@ class Flag(Item):
         super().__init__(only, since, until)
         self.name = name
         self.fields = (name,)
-        self.lines = {value: line for value, line in ((True, on), (False, off)) if line is not None}
+        spellings = {True: on, False: off}
+        self.lines = {
+            value: (line,) if isinstance(line, str) else line for value, line in spellings.items() if line is not None
+        }
         self.default = default
 
     def render(self, values: dict[str, Any]) -> list[str]:
-        line = self.lines.get(values.get(self.name))
-        return [] if line is None else [line]
+        spellings = self.lines.get(values.get(self.name))
+        return [] if spellings is None else [spellings[0]]
 
     def match(self, text: str) -> dict[str, Any] | None:
-        return next(({self.name: value} for value, line in self.lines.items() if text == line), None)
+        return next(({self.name: value} for value, spellings in self.lines.items() if text in spellings), None)
 
     def defaults(self) -> dict[str, Any]:
         return {} if self.default is None else {self.name: self.default}

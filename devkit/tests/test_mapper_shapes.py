@@ -8,6 +8,7 @@ from acex_devkit.models.acl_model import Ipv4AclAttributes, Ipv4AclEntryAttribut
 from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
     DnsServerAttributes,
+    EthernetCsmacdInterface,
     HsrpGroup,
     L3IpvlanInterface,
     NetworkInstance,
@@ -314,3 +315,26 @@ def test_a_line_leaving_its_key_out_is_unmatched_without_a_default_key():
 
     assert list(acl.configuration.acl.ipv4_acls["MGMT"].acl_entries) == ["15"]
     assert [line.line.strip() for line in acl.metadata.unmatched] == ["permit", "permit"]
+
+
+class PortfastSyntax(Block):
+    path = "interfaces"
+    header = Line("interface {name}")
+    component = EthernetCsmacdInterface
+    body = (Flag("stp_portfast", on=("spanning-tree portfast", "spanning-tree portfast edge")),)
+
+    def complete(self, fields, position, context):
+        return {"index": position, **fields}
+
+
+def test_a_flag_reads_every_spelling_and_writes_the_first():
+    portfast = Mapper([PortfastSyntax()], indent=" ")
+    text = "interface Gi0/1\n spanning-tree portfast edge\ninterface Gi0/2\n spanning-tree portfast\ninterface Gi0/3\n"
+
+    result = portfast.parse(text)
+
+    interfaces = result.configuration.interfaces
+    assert [getattr(i.stp_portfast, "value", None) for i in interfaces.values()] == [True, True, None]
+    assert result.metadata.unmatched == []
+    assert portfast.render(result.configuration).payload.count(" spanning-tree portfast\n") == 2
+    assert "edge" not in portfast.render(result.configuration).payload

@@ -393,7 +393,7 @@ class InterfaceSyntax(Block):
         StormControlSyntax(),
         Line("spanning-tree port-priority {stp_port_priority:int}"),
         Line("spanning-tree cost {stp_cost:int}"),
-        Flag("stp_portfast", on="spanning-tree portfast"),
+        Flag("stp_portfast", on=("spanning-tree portfast", "spanning-tree portfast edge")),
         Flag("stp_bpdu_guard", on="spanning-tree bpduguard enable", off="spanning-tree bpduguard disable"),
         Flag("stp_bpdu_filter", on="spanning-tree bpdufilter enable", off="spanning-tree bpdufilter disable"),
         Flag("stp_loop_guard", on="spanning-tree guard loop"),

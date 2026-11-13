@@ -90,3 +90,30 @@ def test_acl_entries_render_with_their_sequence_numbers():
     assert " 30 deny any" in rendered
     assert " 20 deny ip any any log" in rendered
     assert codec.parse(rendered, None).configuration.acl == parsed.configuration.acl
+
+
+IOS_PORTS = """\
+interface GigabitEthernet1/0/1
+ switchport mode access
+ spanning-tree portfast edge
+!
+interface GigabitEthernet1/0/2
+ switchport mode access
+ spanning-tree portfast
+!
+interface GigabitEthernet1/0/3
+ switchport mode trunk
+ spanning-tree portfast edge trunk
+!
+"""
+
+
+def test_portfast_edge_reads_as_portfast_and_is_written_as_portfast():
+    codec = CiscoIOSCodec()
+
+    result = codec.parse(IOS_PORTS, None)
+
+    ports = result.configuration.interfaces
+    assert [getattr(p.stp_portfast, "value", None) for p in ports.values()] == [True, True, None]
+    assert [u.line.strip() for u in result.metadata.unmatched] == ["spanning-tree portfast edge trunk"]
+    assert "portfast edge" not in codec.render(result.configuration, None).payload
