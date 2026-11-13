@@ -4,6 +4,7 @@ import pytest
 from acex_devkit.models.asset import Asset
 from acex_devkit.models.platform import OS, Vendor
 from acex_driver_cisco_ioscli.cisco_ios_cli import CiscoIOSCLIDriver
+from acex_driver_cisco_ioscli.codec import CiscoIOSCodec
 
 
 def cisco_asset(os: OS) -> Asset:
@@ -23,3 +24,69 @@ def test_driver_leaves_other_cisco_operating_systems_alone(os):
 def test_platforms_are_listed_in_the_driver_capabilities():
     declared = {(p.vendor, p.os) for p in CiscoIOSCLIDriver().capabilities.platforms}
     assert declared == {(Vendor.cisco, OS.cisco_ios), (Vendor.cisco, OS.cisco_iosxe)}
+
+
+IOS_ACLS = """\
+ip access-list standard MGMT
+ permit 10.99.0.0 0.0.0.255
+ permit host 10.1.1.1
+ deny   any
+!
+ip access-list extended EDGE
+ permit tcp 10.10.0.0 0.0.255.255 any eq 22
+ deny   ip any any log
+!
+"""
+
+
+def entries(config, acl):
+    return {key: entry for key, entry in config.acl.ipv4_acls[acl].acl_entries.items()}
+
+
+def test_acl_entries_without_sequence_numbers_are_numbered_in_order():
+    result = CiscoIOSCodec().parse(IOS_ACLS, None)
+
+    standard = entries(result.configuration, "MGMT")
+    assert list(standard) == ["10", "20", "30"]
+    assert [e.sequence_id.value for e in standard.values()] == [10, 20, 30]
+    assert [e.action.value for e in standard.values()] == ["permit", "permit", "deny"]
+    assert str(standard["10"].source_address.value) == "10.99.0.0/24"
+    assert str(standard["20"].source_address.value) == "10.1.1.1/32"
+    assert standard["30"].source_address.value == "any"
+
+    extended = entries(result.configuration, "EDGE")
+    assert list(extended) == ["10", "20"]
+    assert extended["10"].protocol.value == "tcp"
+    assert extended["10"].destination_port.value == "22"
+    assert extended["20"].action.value == "deny"
+    assert extended["20"].log.value is True
+    assert result.metadata.unmatched == []
+
+
+def test_acl_entries_with_sequence_numbers_keep_them():
+    config = "ip access-list standard MGMT\n 5 permit 10.0.0.0 0.255.255.255\n 20 deny any\n!\n"
+
+    result = CiscoIOSCodec().parse(config, None)
+
+    assert list(entries(result.configuration, "MGMT")) == ["5", "20"]
+    assert result.metadata.unmatched == []
+
+
+def test_acl_entries_after_a_numbered_one_continue_from_it():
+    config = "ip access-list standard MGMT\n 15 permit 10.0.0.0 0.255.255.255\n deny any\n!\n"
+
+    result = CiscoIOSCodec().parse(config, None)
+
+    assert list(entries(result.configuration, "MGMT")) == ["15", "25"]
+
+
+def test_acl_entries_render_with_their_sequence_numbers():
+    codec = CiscoIOSCodec()
+    parsed = codec.parse(IOS_ACLS, None)
+
+    rendered = codec.render(parsed.configuration, None).payload
+
+    assert " 10 permit 10.99.0.0 0.0.0.255" in rendered
+    assert " 30 deny any" in rendered
+    assert " 20 deny ip any any log" in rendered
+    assert codec.parse(rendered, None).configuration.acl == parsed.configuration.acl

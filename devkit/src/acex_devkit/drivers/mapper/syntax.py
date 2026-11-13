@@ -491,8 +491,8 @@ class Block:
 
     A body holds `Item`s, nested `Block`s and `Section`s; declaration order is render order. `when`
     limits a nested block to enclosing components with those values. Subclasses may override
-    `complete` to fill fields the text doesn't carry, `derive` to fill values the model doesn't carry,
-    and `includes` to leave components unrendered.
+    `complete` to fill fields the text doesn't carry, `default_key` to number lines that leave their key
+    out, `derive` to fill values the model doesn't carry, and `includes` to leave components unrendered.
     """
 
     path: str
@@ -574,6 +574,13 @@ class Block:
         """Fill fields the text doesn't carry before the component is created. `position` is how many
         components the collection already holds; `context` is what was passed to `Mapper.parse`."""
         return fields
+
+    def default_key(self, collection: dict[str, Any], context: Any) -> Any | None:
+        """The key of a line that leaves it out, for a block whose lines carry their key in an optional
+        segment (`[{sequence_id:int} ]permit ...`): an ACL entry the device prints without its sequence
+        number. `collection` holds what the block has read so far. None, the default, means the key is
+        required, and a line without it is not this block's."""
+        return None
 
     def derive(self, values: dict[str, Any], context: Any) -> dict[str, Any] | None:
         """Fill values the model doesn't carry before the component is rendered, e.g. a name computed

@@ -591,24 +591,41 @@ class ConsoleSyntax(Block):
     body = (Flag("logging_synchronous", on="logging synchronous"), ConsoleAaaSyntax())
 
 
-ACTIONS = Choice("permit", "deny")
+class AclAction(Choice):
+    """`permit` or `deny`. IOS pads `deny` to line it up with `permit`, `deny   any`, and reads both."""
+
+    def __init__(self):
+        super().__init__("permit", "deny")
+        self.regex = f"(?:{self.regex}) {{0,2}}"
+
+    def parse(self, text: str) -> Any:
+        return super().parse(text.rstrip())
+
+
+ACTIONS = AclAction()
 EXTENDED_FIELDS = ("protocol", "destination_address", "source_port", "destination_port", "log", "dscp")
 
 
-class StandardAclEntrySyntax(Block):
+class AclEntrySyntax(Block):
+    """The entries of an ACL. IOS-XE writes each with its sequence number, IOS leaves it out: the entries
+    are then numbered in the order they are read, 10 apart, as the device numbers them."""
+
     path = "acl_entries"
     key = "sequence_id"
     component = Ipv4AclEntryAttributes
-    body = (Line("{sequence_id:int} {action} {source_address}", action=ACTIONS, source_address=AclAddress(False)),)
+
+    def default_key(self, collection: dict[str, Any], context: CiscoContext) -> int:
+        return max((int(key) for key in collection), default=0) + 10
 
 
-class ExtendedAclEntrySyntax(Block):
-    path = "acl_entries"
-    key = "sequence_id"
-    component = Ipv4AclEntryAttributes
+class StandardAclEntrySyntax(AclEntrySyntax):
+    body = (Line("[{sequence_id:int} ]{action} {source_address}", action=ACTIONS, source_address=AclAddress(False)),)
+
+
+class ExtendedAclEntrySyntax(AclEntrySyntax):
     body = (
         Line(
-            "{sequence_id:int} {action} {protocol} {source_address}[ {source_port}]"
+            "[{sequence_id:int} ]{action} {protocol} {source_address}[ {source_port}]"
             " {destination_address}[ {destination_port}][ {log}]",
             action=ACTIONS,
             protocol=Choice(*AclProtoclOptions),

@@ -4,6 +4,7 @@ from types import SimpleNamespace as NS
 
 import pytest
 from acex_devkit.drivers.mapper import Block, Choice, Context, Flag, Keyword, Line, Mapper, Mount
+from acex_devkit.models.acl_model import Ipv4AclAttributes, Ipv4AclEntryAttributes
 from acex_devkit.models.composed_configuration import (
     ComposedConfiguration,
     DnsServerAttributes,
@@ -274,3 +275,42 @@ def test_every_membership_line_counts_and_creates_what_it_names():
         " ip helper-address 10.0.0.50",
         " ip helper-address 10.0.0.51",
     ]
+
+
+class AclEntrySyntax(Block):
+    path = "acl_entries"
+    key = "sequence_id"
+    component = Ipv4AclEntryAttributes
+    body = (Line("[{sequence_id:int} ]{action}", action=Choice("permit", "deny")),)
+
+
+class NumberedAclEntrySyntax(AclEntrySyntax):
+    def default_key(self, collection, context):
+        return max((int(key) for key in collection), default=0) + 10
+
+
+class AclSyntax(Block):
+    path = "acl.ipv4_acls"
+    header = Line("ip access-list standard {name}")
+    component = Ipv4AclAttributes
+
+    def __init__(self, entries):
+        self.body = (entries,)
+        super().__init__()
+
+
+ACL_TEXT = "ip access-list standard MGMT\n permit\n 15 deny\n permit\n"
+
+
+def test_a_line_leaving_its_key_out_takes_the_blocks_default_key():
+    acl = Mapper([AclSyntax(NumberedAclEntrySyntax())], indent=" ").parse(ACL_TEXT)
+
+    assert list(acl.configuration.acl.ipv4_acls["MGMT"].acl_entries) == ["10", "15", "25"]
+    assert acl.metadata.unmatched == []
+
+
+def test_a_line_leaving_its_key_out_is_unmatched_without_a_default_key():
+    acl = Mapper([AclSyntax(AclEntrySyntax())], indent=" ").parse(ACL_TEXT)
+
+    assert list(acl.configuration.acl.ipv4_acls["MGMT"].acl_entries) == ["15"]
+    assert [line.line.strip() for line in acl.metadata.unmatched] == ["permit", "permit"]
