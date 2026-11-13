@@ -89,8 +89,8 @@ class AssetService:
                 extra_filters.append(Asset.id.in_(assigned_ids))
             else:
                 extra_filters.append(~Asset.id.in_(assigned_ids))
-        if q is not None and q.strip():
-            text = q.strip()
+        text = (q or "").strip()
+        if text:
             # autoescape: a typed % or _ is that character, not a wildcard.
             # cast: vendor is an enum in the model, and contains needs text on every database.
             extra_filters.append(
