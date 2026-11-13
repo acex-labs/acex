@@ -1,0 +1,3 @@
+gigabitethernet23     with 1 neighbour(s):
+  "SW-LAB-2" running "ibos-ms4k-6.3.0-ED-R" on model "MS4026-AC"
+   remote interface tengigabitethernet1, last activity 12s ago, bidirectional

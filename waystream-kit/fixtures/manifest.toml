@@ -1,0 +1,201 @@
+# Every fixture, what it stands for and the facts of evidence/register.toml it rests on.
+# All of them are synthetic: names, addresses and numbers are made up (documentation address ranges
+# 192.0.2.0/24, 198.51.100.0/24 and 203.0.113.0/24). The layout follows the sources, the content is ours.
+# synthetic-layout = "verified"  the layout is shown by a source we have read
+#                    "assumed"   the layout is our guess (the file name says .assumed)
+
+[[fixture]]
+path = "device/asr6000-6.3.5/running-config.txt"
+scenario = "a"
+layout = "verified"
+facts = ["RUNCFG-COMMAND", "RUNCFG-HEADER", "RUNCFG-INDENT", "RUNCFG-ORDER", "RUNCFG-END-MARKER", "STANZA-SYNTAX", "INTERFACE-NAMES"]
+note = "ASR6000 structure with different names and addresses; blank lines between stanzas as in the document (RUNCFG-BLOCK-SEPARATOR is unknown)"
+
+[[fixture]]
+path = "device/asr6000-6.3.5/running-config.with-client.txt"
+scenario = "a (variant)"
+layout = "verified"
+facts = ["VOLATILE-LINES", "RUNCFG-COMMAND", "STANZA-SYNTAX"]
+note = "The same device after a DHCP client connected to gigabitethernet21: policy, policy-map and arp entry lines on the port and a volatile address on downstream0"
+
+[[fixture]]
+path = "device/asr6000-6.3.5/show-version.assumed.txt"
+scenario = "a"
+layout = "assumed"
+facts = ["SHOW-VERSION-ASR6000"]
+note = "No source shows show version of an ASR6000; the MS4000 layout with ASR names"
+
+[[fixture]]
+path = "device/asr6000-6.3.5/show-ip-interface-brief.txt"
+scenario = "a"
+layout = "verified"
+facts = ["SHOW-IP-INTERFACE-BRIEF"]
+note = ""
+
+[[fixture]]
+path = "device/ms4000-6.3.5/running-config.txt"
+scenario = "b"
+layout = "verified"
+facts = ["RUNCFG-COMMAND", "RUNCFG-HEADER", "RUNCFG-INDENT", "STANZA-SYNTAX", "INTERFACE-NAMES", "RUNCFG-ORDER-MS4K"]
+note = "S-VLAN base configuration with one uplink (nni) and three customer ports (uni). The hostname line and its place are assumed. tengigabitethernet1 has no 'no shutdown', as in the source: absence is not 'disabled'"
+
+[[fixture]]
+path = "device/ms4000-6.3.5/running-config.with-client.txt"
+scenario = "c"
+layout = "verified"
+facts = ["VOLATILE-LINES", "RUNCFG-COMMAND"]
+note = "gigabitethernet21 carries one '!volatile policy-map' line as its first line, as on page 9 of the document"
+
+[[fixture]]
+path = "device/ms4000-6.3.5/show-running-configuration-context-interface-gigabitethernet21.txt"
+scenario = "b, c"
+layout = "verified"
+facts = ["RUNCFG-CONTEXT", "VOLATILE-LINES"]
+note = ""
+
+[[fixture]]
+path = "device/ms4000-6.3.5/show-version.assumed.txt"
+scenario = "b, c"
+layout = "assumed"
+facts = ["SHOW-VERSION-MS4K-635"]
+note = "The 6.3.0 layout with the 6.3.5 image name"
+
+[[fixture]]
+path = "device/ms4000-6.3.5/show-vlan.txt"
+scenario = "b, c"
+layout = "verified"
+facts = ["SHOW-VLAN"]
+note = ""
+
+[[fixture]]
+path = "device/ms4000-6.3.5/show-clients.txt"
+scenario = "c"
+layout = "verified"
+facts = ["SHOW-CLIENTS"]
+note = ""
+
+[[fixture]]
+path = "device/ms4000-6.3.0/show-version.txt"
+scenario = "d"
+layout = "verified"
+facts = ["SHOW-VERSION-MS4K-630"]
+note = "Layout of the installation guide, values made up"
+
+[[fixture]]
+path = "device/ms4000-6.3.0/show-vlan.txt"
+scenario = "d"
+layout = "verified"
+facts = ["SHOW-VLAN"]
+note = ""
+
+[[fixture]]
+path = "device/ms4000-6.3.0/show-pfdp-neighbours.txt"
+scenario = "d"
+layout = "verified"
+facts = ["SHOW-PFDP-NEIGHBOURS"]
+note = "One neighbour; the installation guide shows four"
+
+[[fixture]]
+path = "device/ms4000-6.3.0/running-config.assumed.txt"
+scenario = "d"
+layout = "assumed"
+facts = ["RUNCFG-MS4K-630"]
+note = "The 6.3.5 configuration with an older image name"
+
+[[fixture]]
+path = "device/ms7048-7.6.2/show-version.txt"
+scenario = "e"
+layout = "assumed"
+facts = ["SHOW-VERSION-7X"]
+note = "Rebuilt from a post-processed paste in a user report; the two blank lines are where the uptime line was removed by that tool"
+
+[[fixture]]
+path = "device/ms7048-7.6.2/running-config.assumed.txt"
+scenario = "e"
+layout = "assumed"
+facts = ["RUNCFG-7X-AFTER-ENABLE"]
+note = "Nobody has shown a 7.x running configuration; the MS4000 one with the 7.6.2 image name"
+
+[[fixture]]
+path = "variants/with-secrets.txt"
+scenario = "masking"
+layout = "assumed"
+facts = ["SECRET-SYNTAX-SNMP-RADIUS"]
+note = "The syntax comes from the comments of the third-party driver; where the stanzas sit in the output is a guess. Secret values are EXAMPLE- strings"
+
+[[fixture]]
+path = "variants/invented-secret-syntax.txt"
+scenario = "masking"
+layout = "assumed"
+facts = ["SECRET-SYNTAX-OTHER"]
+note = "Syntax invented on purpose to rehearse the conservative masking rules; not iBOS syntax"
+
+[[fixture]]
+path = "variants/bang-separators.txt"
+scenario = "parse robustness"
+layout = "assumed"
+facts = ["RUNCFG-BLOCK-SEPARATOR"]
+note = "The MS4000 configuration with '!' lines between stanzas instead of blank lines"
+
+[[fixture]]
+path = "variants/doc-indentation-artifacts.txt"
+scenario = "parse robustness"
+layout = "assumed"
+facts = ["RUNCFG-DOC-INDENT-ARTIFACT"]
+note = "The irregular indentation and the 'tengigabitethernet 1' spelling of the document's MS4000 example"
+
+[[fixture]]
+path = "golden/asr6000-6.3.5.normalized.txt"
+scenario = "golden"
+layout = "assumed"
+facts = ["VOLATILE-STRIPPING"]
+note = "Expected normalized form: no volatile lines, no version comment, no end marker. Written with grep, not with the code under test"
+
+[[fixture]]
+path = "golden/asr6000-6.3.5.with-client.normalized.txt"
+scenario = "golden"
+layout = "assumed"
+facts = ["VOLATILE-STRIPPING"]
+note = "Equal to the one without a client"
+
+[[fixture]]
+path = "golden/ms4000-6.3.5.normalized.txt"
+scenario = "golden"
+layout = "assumed"
+facts = ["VOLATILE-STRIPPING"]
+note = ""
+
+[[fixture]]
+path = "golden/ms4000-6.3.5.with-client.normalized.txt"
+scenario = "golden"
+layout = "assumed"
+facts = ["VOLATILE-STRIPPING"]
+note = "Equal to the one without a client"
+
+[[fixture]]
+path = "golden/with-secrets.masked.txt"
+scenario = "golden"
+layout = "assumed"
+facts = ["SECRET-SYNTAX-SNMP-RADIUS"]
+note = ""
+
+[[fixture]]
+path = "golden/invented-secret-syntax.masked.txt"
+scenario = "golden"
+layout = "assumed"
+facts = ["SECRET-SYNTAX-OTHER"]
+note = ""
+
+[[fixture]]
+path = "golden/asr6000-6.3.5.parsed.json"
+scenario = "golden"
+layout = "assumed"
+facts = ["INTERFACE-NAMES", "STANZA-SYNTAX"]
+note = "What a first parser should find: hostname, interface names, description, enabled and ipv4; everything else must stay visible as unmatched"
+
+[[fixture]]
+path = "golden/ms4000-6.3.5.parsed.json"
+scenario = "golden"
+layout = "assumed"
+facts = ["INTERFACE-NAMES", "STANZA-SYNTAX", "INTERFACE-NO-SHUTDOWN"]
+note = "tengigabitethernet1 has no 'no shutdown': enabled is null, not false"

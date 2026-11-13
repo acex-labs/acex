@@ -1,0 +1,64 @@
+! version ibos-asr6k-6.3.5-ED-R (ibos-asr6k-6.3.5-ED-R.bz2)
+interface loopback0
+ ip address 192.0.2.18 255.255.255.255
+ no shutdown
+
+interface gigabitethernet1
+ ip address 198.51.100.1 255.255.255.252
+ no shutdown
+
+interface gigabitethernet21
+ ip access-group cust-in in
+ ip strict-clients
+ arp proxy
+ ip dhcp relay script
+ parameter dhcp service seq 10 service-definition Internet_100M service-selection Internet_100M_IPv4
+ no shutdown
+
+interface gigabitethernet22
+ ip access-group cust-in in
+ ip strict-clients
+ arp proxy
+ ip dhcp relay script
+ parameter dhcp service seq 10 service-definition Internet_100M service-selection Internet_100M_IPv4
+ no shutdown
+
+interface tengigabitethernet1
+ no shutdown
+ port uplink
+
+interface tengigabitethernet2
+ no shutdown
+ port uplink
+
+interface downstream0
+ no shutdown
+
+router ospf
+ router-id 192.0.2.18
+ redistribute kernel metric 10 route-map ospf_redist_kernel
+ redistribute connected metric 10 route-map ospf_redist_connected
+ redistribute static metric 10 route-map ospf_redist_static
+ area 0.0.0.200 nssa
+ network 192.0.2.18/32 area 0.0.0.200
+ network 203.0.113.0/24 area 0.0.0.200
+
+hostname asr-lab-01
+
+access-list cust-in
+ seq 10 deny icmp any any redirect
+ seq 20 deny udp any host 239.255.255.250 1900
+ seq 30 deny udp any host 224.0.0.251 5353
+ seq 40 deny udp any host 224.0.0.252 5355
+ seq 50 deny ipv6 any any
+ seq 100 permit ip any any
+
+service-definition Internet_100M
+ parameter dhcp policy-conditioner-egress shape 100000 green mark 0
+ parameter dhcp policy-conditioner-ingress shape 100000 green mark 0
+
+service-selection Internet_100M_IPv4
+ parameter dhcp match snpa any relay
+ parameter dhcp relay-to dhcp-server 198.51.100.10 source-interface loopback0 subnet 203.0.113.0 option-82
+
+!end

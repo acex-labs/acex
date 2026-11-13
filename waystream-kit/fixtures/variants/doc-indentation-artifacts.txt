@@ -1,0 +1,59 @@
+! version ibos-ms4k-6.3.5-ED-R (ibos-ms4k-6.3.5-ED-R.bz2)
+interface vlan2
+ ip dhcp snoop information-tag
+ no shutdown
+
+interface tengigabitethernet 1
+ description Uplink Interface
+ vlan member 2
+ vlan untagged 2
+ port uplink
+ port type nni vlan 2
+
+interface gigabitethernet21
+ description Customer Interface
+ vlan member 2
+ vlan untagged 2
+port type uni vlan 2
+ ip dhcp snoop information-tag policy drop
+ip access-group cust-in in
+ip strict-clients
+arp proxy
+ ip dhcp auto-policy-map snoop vlan 2
+ no shutdown
+
+interface gigabitethernet22
+ description Customer Interface
+ vlan member 2
+ vlan untagged 2
+port type uni vlan 2
+ ip dhcp snoop information-tag policy drop
+ip access-group cust-in in
+ip strict-clients
+arp proxy
+ ip dhcp auto-policy-map snoop vlan 2
+ no shutdown
+
+interface gigabitethernet23
+ description Customer Interface
+ vlan member 2
+ vlan untagged 2
+port type uni vlan 2
+ ip dhcp snoop information-tag policy drop
+ip access-group cust-in in
+ip strict-clients
+arp proxy
+ ip dhcp auto-policy-map snoop vlan 2
+ no shutdown
+
+hostname ms-lab-01
+
+access-list cust-in
+ seq 10 deny icmp any any redirect
+ seq 20 deny udp any host 239.255.255.250 1900
+ seq 30 deny udp any host 224.0.0.251 5353
+ seq 40 deny udp any host 224.0.0.252 5355
+ seq 50 deny ipv6 any any
+ seq 100 permit ip any any
+
+!end

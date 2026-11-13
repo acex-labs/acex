@@ -1,0 +1,13 @@
+! version ibos-ms4k-6.3.5-ED-R (ibos-ms4k-6.3.5-ED-R.bz2)
+interface gigabitethernet21
+ !volatile policy-map vid 2 snpa 0200.5e00.5301 203.0.113.2/32 seq 10 policy
+ description Customer Interface
+ vlan member 2
+ vlan untagged 2
+ port type uni vlan 2
+ ip dhcp snoop information-tag policy drop
+ ip access-group cust-in in
+ ip strict-clients
+ arp proxy
+ ip dhcp auto-policy-map snoop vlan 2
+ no shutdown

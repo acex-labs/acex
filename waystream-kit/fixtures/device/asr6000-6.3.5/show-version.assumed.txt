@@ -1,0 +1,17 @@
+Intelligent Broadband Operating System (iBOS), Version 6.3.5-ED-R
+Copyright (c) 2001-2016 by Waystream AB
+Routing Engine Copyright (C) 2001-2009 IP Infusion, Inc.
+Compiled Tue Apr 30 16:31:05 HKT 2013 by builder
+Source ID: 0000000000000000000000000000000000000000
+
+asr-lab-01 uptime is 0 minutes
+Last boot: warm start
+
+System image file is "ibos-asr6k-6.3.5-ED-R.bz2", version ibos-asr6k-6.3.5-ED-R
+System: ASR6000, 4 1/10GE SFP+, 24 1GE SFP, AC
+Bootloader version: msboot-asr6k-3.6.1-R
+PCBA revision: 0.2
+Product ID: 000-0001
+Serial number/Base MAC address: 0008AE00A001
+Processor: CN6230 [pass 2.2] (mipseb)
+524288K bytes CPU RAM

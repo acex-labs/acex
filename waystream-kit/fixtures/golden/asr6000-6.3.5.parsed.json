@@ -1,0 +1,21 @@
+{
+  "from": "asr6000-6.3.5.normalized.txt",
+  "hostname": "asr-lab-01",
+  "interfaces": {
+    "loopback0": {"description": null, "enabled": true, "ipv4": "192.0.2.18/32"},
+    "gigabitethernet1": {"description": null, "enabled": true, "ipv4": "198.51.100.1/30"},
+    "gigabitethernet21": {"description": null, "enabled": true, "ipv4": null},
+    "gigabitethernet22": {"description": null, "enabled": true, "ipv4": null},
+    "tengigabitethernet1": {"description": null, "enabled": true, "ipv4": null},
+    "tengigabitethernet2": {"description": null, "enabled": true, "ipv4": null},
+    "downstream0": {"description": null, "enabled": true, "ipv4": null}
+  },
+  "must_be_unmatched": [
+    {"line": " ip access-group cust-in in", "parents": ["interface gigabitethernet21"]},
+    {"line": " port uplink", "parents": ["interface tengigabitethernet1"]},
+    {"line": "router ospf", "parents": []},
+    {"line": "access-list cust-in", "parents": []},
+    {"line": " seq 10 deny icmp any any redirect", "parents": ["access-list cust-in"]},
+    {"line": "service-definition Internet_100M", "parents": []}
+  ]
+}

@@ -1,0 +1,483 @@
+# What we know about the Waystream iBOS command line, and how we know it.
+#
+# level  VERIFIED  a source we have read says it, in this form
+#        INFERRED  derived from a source that does not say it directly (one user report, a sibling product,
+#                  or the shape of a third-party driver); useful for rehearsing, not for claiming
+#        UNKNOWN   no source; the mock either does not simulate it or simulates it as a labelled assumption
+# basis  manufacturer-doc | third-party-driver | third-party-report | real-device | none
+#        VERIFIED needs manufacturer-doc, third-party-driver or real-device. A third-party-report is never
+#        more than INFERRED. UNKNOWN has basis none and says how to find out (verify).
+# assumed  true when the mock answers anyway, so a test passing against it proves nothing about the device
+#
+# No real device has been available. Every VERIFIED entry therefore rests on documents or on Oxidized's model.
+
+[[source]]
+id = "S1"
+kind = "manufacturer-doc"
+title = "Waystream SKA/SEC Certifiering (published by SSNF)"
+url = "https://www.ssnf.org/globalassets/nat-i-varldsklass/sakerhet/ska/certifierade-produkter-dokument-pdf/ska-sec-waystream.pdf"
+read = "2026-11-13; pages 5-9 rendered to images and read as images (text extraction fragments the tables); not copied, fixtures are synthetic"
+covers = "ASR6000 and MS4000 on iBOS 6.3.5-ED-R: show running-config, show running-configuration context, show ip int br, show clients"
+
+[[source]]
+id = "S2"
+kind = "manufacturer-doc"
+title = "MS4000 Installation Guide, chapter Troubleshooting iBOS"
+url = "https://netcon.store/media/pdf/98/30/06/MS4000-Installation-Guide_compressed.pdf"
+read = "2026-11-13; printed pages 26-29 (PDF pages 30-33) rendered to images and read as images"
+covers = "MS4026-AC on iBOS 6.3.0-ED-R: login, show version, show pfdp neighbours, show interface sfp, show ip bootp, show vlan, show csar"
+
+[[source]]
+id = "S3"
+kind = "third-party-driver"
+title = "Oxidized model ibos.rb"
+url = "https://github.com/ytti/oxidized/blob/4d6dcd671284/lib/oxidized/model/ibos.rb"
+read = "2026-11-13; commit 4d6dcd671284 (2026-11-13) of the file, master at 52c7767f5381; previous change of the file 3f4c2ec01fcc (2024-10-16)"
+covers = "prompt pattern, enable handling, terminal commands, secret syntax, volatile lines"
+
+[[source]]
+id = "S4"
+kind = "third-party-report"
+title = "Oxidized issue 2774, Problem with Waystream switches (IBOS)"
+url = "https://github.com/ytti/oxidized/issues/2774"
+read = "2026-11-13; opened 2023-04-28, one comment, closed 2023-07-19 as not planned (label Stale); no confirmed fix"
+covers = "one MS7048-AC on iBOS 7.6.2-GD-R answering show running-config with an error"
+
+[[source]]
+id = "S5"
+kind = "real-device"
+title = "none"
+url = ""
+read = "no real iBOS device has been reachable during this work"
+covers = "nothing"
+
+# ---------------------------------------------------------------- login and prompt
+
+[[fact]]
+id = "PROMPT-MODES"
+topic = "prompt"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p5-9", "S2 p26-29"]
+statement = "The prompt is the hostname followed by > in user mode and # in privileged mode (ms>, ms#, MS4k#, ASR6K-SKA-Test#)."
+
+[[fact]]
+id = "PROMPT-PATTERN"
+topic = "prompt"
+level = "VERIFIED"
+basis = "third-party-driver"
+sources = ["S3"]
+statement = "Oxidized finds the prompt with ^([\\w.@()-]+[#>]\\s?)$, so the hostname part may hold letters, digits, underscore, dot, at, parentheses and hyphen."
+
+[[fact]]
+id = "PROMPT-TRAILING-SPACE"
+topic = "prompt"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "Whether the prompt is followed by a space. Oxidized allows one; a prompt that ends in a space once broke a prompt pattern on another vendor."
+assumed = true
+verify = "Capture the raw bytes after the prompt (ssh with a pty and hexdump) on a real switch."
+
+[[fact]]
+id = "LOGIN-LANDING-MODE"
+topic = "login"
+level = "INFERRED"
+basis = "third-party-driver"
+sources = ["S3", "S4"]
+statement = "Some devices land in user mode and need enable before show running-config, others land in privileged mode: Oxidized runs enable only when told to, and the 7.6.2 report is solved by telling it to."
+reasoning = "Nothing says which firmware or configuration lands where; the mock offers both."
+assumed = true
+verify = "Log in over SSH with the account the customer will give ACEX and read the prompt."
+
+[[fact]]
+id = "LOGIN-NO-DEFAULT-CREDENTIALS"
+topic = "login"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S2 p26"]
+statement = "On the console an unconfigured switch has no default user name or password: Enter at both prompts. Once authentication is configured the right credentials are needed. This says nothing about SSH."
+
+[[fact]]
+id = "SSH-AUTH-METHODS"
+topic = "ssh"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "Which SSH authentication methods the device offers (password, keyboard-interactive, public key), its host key types, key exchange and cipher lists, and whether it needs a pty."
+assumed = true
+verify = "ssh -vvv to the switch and keep the output of the negotiation; try the transport with default algorithms first."
+
+[[fact]]
+id = "ENABLE-COMMAND"
+topic = "login"
+level = "VERIFIED"
+basis = "third-party-driver"
+sources = ["S3"]
+statement = "enable exists. Oxidized sends it plain, or answers a Password: prompt after it (^[pP]assword:) when an enable password is configured."
+
+[[fact]]
+id = "ENABLE-WRONG-PASSWORD"
+topic = "login"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "What the device prints when the enable password is wrong, and whether it limits attempts."
+assumed = true
+verify = "Only with the customer's agreement: one wrong attempt, then read the answer. Do not repeat; accounts may lock."
+
+[[fact]]
+id = "TERMINAL-COMMANDS"
+topic = "session"
+level = "VERIFIED"
+basis = "third-party-driver"
+sources = ["S3"]
+statement = "terminal no pager and terminal width 65535 are sent after login on every iBOS device Oxidized handles, so a pager exists and both commands are accepted (at least on the firmware Oxidized users run)."
+
+[[fact]]
+id = "PAGER-BEHAVIOUR"
+topic = "session"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "What the pager prints and how it is dismissed when terminal no pager has not been sent or is rejected."
+verify = "Run show running-config before terminal no pager on a real switch and keep the raw bytes."
+
+[[fact]]
+id = "COMMAND-ABBREVIATION"
+topic = "cli"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S2 p29 (sh vlan)", "S1 p6 (sh ip int br)"]
+statement = "Commands can be abbreviated at least as sh, int and br. The rule behind it (unique prefix?) is not stated."
+
+[[fact]]
+id = "ERROR-FORMAT"
+topic = "cli"
+level = "INFERRED"
+basis = "third-party-report"
+sources = ["S4"]
+statement = "An unknown command is answered with a line '%-ERR: <the command line>' and a line with carets under the offending word followed by ' Invalid command'."
+reasoning = "One report, one command: 'show running-config' gives carets (14) under 'running-config' starting at column 12. Other errors (ambiguous, incomplete, wrong argument) are not shown anywhere."
+assumed = true
+verify = "Send a misspelled command, an incomplete one and one with a bad argument; keep all three answers."
+
+# ---------------------------------------------------------------- show running-config
+
+[[fact]]
+id = "RUNCFG-COMMAND"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p5 (ASR6000)", "S1 p9 (MS4000)", "S3"]
+statement = "show running-config prints the configuration on ASR6000 and MS4000 on iBOS 6.3.5-ED-R."
+
+[[fact]]
+id = "RUNCFG-7X-REJECTED"
+topic = "running-config"
+level = "INFERRED"
+basis = "third-party-report"
+sources = ["S4"]
+statement = "On an MS7048-AC with iBOS 7.6.2-GD-R show running-config was answered with an error. The reporter suspected missing enable; a maintainer suggested enabling it. Whether that fixed it is not recorded."
+reasoning = "A single stale report. The cause (privilege, firmware, syntax) is open."
+assumed = true
+verify = "On a 7.x switch: show running-config in user mode, after enable, and 'show running-configuration'; keep all three."
+
+[[fact]]
+id = "RUNCFG-HEADER"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p5", "S1 p9"]
+statement = "The output starts with one comment line '! version <image> (<image>.bz2)', for example ibos-asr6k-6.3.5-ED-R."
+
+[[fact]]
+id = "RUNCFG-INDENT"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p5-6", "S1 p9"]
+statement = "Lines inside an interface are indented by one space. Interface blocks are separated by a blank line in the document."
+
+[[fact]]
+id = "RUNCFG-DOC-INDENT-ARTIFACT"
+topic = "running-config"
+level = "INFERRED"
+basis = "manufacturer-doc"
+sources = ["S1 p8"]
+statement = "Several lines of the MS4000 example on page 8 have no indentation (port type, ip access-group, description) and one interface is written 'tengigabitethernet 1' with a space. The same lines are indented on page 9, so this is read as a typesetting artifact, not as device output."
+reasoning = "Same firmware and same lines indented on the next page; a parser that depends on indentation should still not break on it."
+verify = "Compare with the real show running-config of an MS4000."
+
+[[fact]]
+id = "RUNCFG-ORDER"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p5-6"]
+statement = "On the ASR6000 example the order is interfaces (loopback, gigabitethernet, tengigabitethernet, downstream), router ospf, hostname, access-list, service-definition, service-selection, then '!end'. Hostname is a top-level line written after the interfaces."
+
+[[fact]]
+id = "RUNCFG-ORDER-MS4K"
+topic = "running-config"
+level = "INFERRED"
+basis = "manufacturer-doc"
+sources = ["S1 p8-9"]
+statement = "On MS4000 and 7.x the order of ASR6000 is assumed: interfaces first, then hostname, access-list, and the '!end' marker. The MS4000 example starts at the base configuration and shows no hostname line."
+reasoning = "Same operating system family and the same printing code is likely, but no MS4000 example shows the whole output."
+assumed = true
+verify = "Read the whole show running-config of an MS4000."
+
+[[fact]]
+id = "RUNCFG-END-MARKER"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p6"]
+statement = "The ASR6000 example ends with the line '!end' before the prompt."
+
+[[fact]]
+id = "RUNCFG-BLOCK-SEPARATOR"
+topic = "running-config"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "Whether a real device separates top-level stanzas with a blank line (as the document shows), with '!' or with nothing. The document may have reformatted it."
+assumed = true
+verify = "Look at the raw bytes of a real show running-config between two interfaces."
+
+[[fact]]
+id = "VOLATILE-LINES"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p6 (ASR6000)", "S1 p9 (MS4000)"]
+statement = "Lines that a script or DHCP snooping adds at run time are printed with a leading '!volatile' after the indentation, for example '!volatile policy-map vid 2 snpa <mac> <ip>/32 seq 10 policy' and '!volatile interface arp entry <ip> <mac> client'. They vanish when the client does."
+
+[[fact]]
+id = "VOLATILE-STRIPPING"
+topic = "running-config"
+level = "VERIFIED"
+basis = "third-party-driver"
+sources = ["S3"]
+statement = "Oxidized deletes every line that contains '!volatile' before it stores the configuration."
+
+[[fact]]
+id = "RUNCFG-CONTEXT"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p9"]
+statement = "show running-configuration context interface <name> prints the version comment line and that interface's block."
+
+[[fact]]
+id = "INTERFACE-NAMES"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p5-8", "S2 p29"]
+statement = "Interfaces are named gigabitethernetN, tengigabitethernetN, loopbackN, vlanN and downstreamN, all lower case, number attached."
+
+[[fact]]
+id = "INTERFACE-NO-SHUTDOWN"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p5-8"]
+statement = "An enabled interface carries 'no shutdown'. How a disabled one is written is not shown."
+
+[[fact]]
+id = "INTERFACE-DISABLED-FORM"
+topic = "running-config"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "The line a disabled interface shows (shutdown?) and whether defaults are printed."
+assumed = true
+verify = "Shut one lab port on a real switch and read the block."
+
+[[fact]]
+id = "STANZA-SYNTAX"
+topic = "running-config"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p5-9"]
+statement = "Seen verbatim: hostname <name>; ip address <ip> <mask>; description <text>; vlan member <id>; vlan untagged <id>; port type uni|nni vlan <id>; port uplink; ip access-group <name> in; ip strict-clients; arp proxy; ip dhcp relay script; ip dhcp snoop information-tag policy drop; ip dhcp auto-policy-map snoop vlan <id>; access-list <name> with ' seq <n> permit|deny ...'; router ospf; service-definition; service-selection; parameter dhcp ..."
+
+# ---------------------------------------------------------------- show commands
+
+[[fact]]
+id = "SHOW-VERSION-MS4K-630"
+topic = "show"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S2 p26"]
+statement = "show version on an MS4026-AC with iBOS 6.3.0-ED-R: product line, copyright, routing engine, compiled, source id, '<hostname> uptime is <n>', last boot, system image file and version, System, bootloader version, PCBA revision, product id, serial number/base MAC address, processor, RAM."
+
+[[fact]]
+id = "SHOW-VERSION-MS4K-635"
+topic = "show"
+level = "INFERRED"
+basis = "manufacturer-doc"
+sources = ["S2 p26", "S1 p9"]
+statement = "show version on an MS4000 with iBOS 6.3.5-ED-R has the layout of the 6.3.0-ED-R output. Only the image name in the running-config header proves the 6.3.5 firmware exists."
+reasoning = "Same product line, five patch levels apart; no 6.3.5 show version is shown anywhere."
+assumed = true
+verify = "Capture show version on an MS4000 with 6.3.5."
+
+[[fact]]
+id = "RUNCFG-MS4K-630"
+topic = "running-config"
+level = "INFERRED"
+basis = "manufacturer-doc"
+sources = ["S2 p26", "S1 p9"]
+statement = "show running-config works on an MS4000 with iBOS 6.3.0-ED-R and looks like the 6.3.5 output with an older image name in the header."
+reasoning = "The installation guide for 6.3.0 never shows it; the certification document shows it for 6.3.5."
+assumed = true
+verify = "Run show running-config on an MS4000 with 6.3.0."
+
+[[fact]]
+id = "RUNCFG-7X-AFTER-ENABLE"
+topic = "running-config"
+level = "INFERRED"
+basis = "third-party-report"
+sources = ["S4"]
+statement = "On 7.x show running-config is accepted once enable has been given, and then looks like the 6.x output."
+reasoning = "The reporter suspected missing enable and a maintainer suggested it; the thread never says whether it helped, and no 7.x running-config is shown."
+assumed = true
+verify = "On a 7.x switch: enable, then show running-config; keep the output."
+
+[[fact]]
+id = "SHOW-VERSION-7X"
+topic = "show"
+level = "INFERRED"
+basis = "third-party-report"
+sources = ["S4"]
+statement = "show version on an MS7048-AC with iBOS 7.6.2-GD-R carries the same lines plus board type/version and two CPLD revisions. The report shows it after Oxidized prefixed every line with '! ', and with the first and last lines cut."
+reasoning = "Reconstructed from a pasted, post-processed output."
+assumed = true
+verify = "Capture show version on a 7.x switch."
+
+[[fact]]
+id = "SHOW-VERSION-ASR6000"
+topic = "show"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "show version output on an ASR6000. No source shows it; only the image name in the running-config header is known."
+assumed = true
+verify = "Capture show version on an ASR6000."
+
+[[fact]]
+id = "SHOW-VLAN"
+topic = "show"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S2 p29"]
+statement = "show vlan prints a table VLAN / Interfaces with the interface names wrapped three to a line."
+
+[[fact]]
+id = "SHOW-IP-INTERFACE-BRIEF"
+topic = "show"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p6"]
+statement = "show ip interface brief (sh ip int br) prints Interface, IP-Address, Netmask, SNPA, Protocol; an asterisk before the address marks it as added at run time."
+
+[[fact]]
+id = "SHOW-CLIENTS"
+topic = "show"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S1 p9"]
+statement = "show clients lists snooped DHCP clients: Address, SNPA, Lease, Type, Interface."
+
+[[fact]]
+id = "SHOW-PFDP-NEIGHBOURS"
+topic = "show"
+level = "VERIFIED"
+basis = "manufacturer-doc"
+sources = ["S2 p27"]
+statement = "show pfdp neighbours lists the neighbouring Waystream/PacketFront devices per interface with their image, model, remote interface and activity."
+
+[[fact]]
+id = "SHOW-LLDP"
+topic = "show"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "Whether iBOS has LLDP and how its neighbours are shown; PFDP is the only neighbour protocol seen."
+verify = "show lldp neighbors / show lldp neighbours on a real switch."
+
+# ---------------------------------------------------------------- secrets
+
+[[fact]]
+id = "SECRET-SYNTAX-SNMP-RADIUS"
+topic = "secrets"
+level = "VERIFIED"
+basis = "third-party-driver"
+sources = ["S3"]
+statement = "Secrets Oxidized masks: ' community <string> ...' and ' notify <ip> community <string> ...' inside 'snmp-group version 2c', and 'radius server <ip> secret <string> ...'."
+
+[[fact]]
+id = "SECRET-SYNTAX-OTHER"
+topic = "secrets"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "Every other place a secret can appear (local users, enable, TACACS+, SSH or SNMPv3 keys, routing keys, ZTP) is unknown. Oxidized does not mask them either."
+assumed = true
+verify = "Search a real show running-config for password, secret, key, community, md5 and encrypted-looking strings before anything is stored or shared."
+
+# ---------------------------------------------------------------- configuration mode
+
+[[fact]]
+id = "CONFIG-MODE-ENTRY"
+topic = "config"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "How configuration mode is entered, what its prompt looks like and how it is left. A sibling PacketFront OS (DRGOS) uses 'configure terminal'; that is a hint, not evidence for iBOS."
+assumed = true
+verify = "Read the iBOS Command Reference Guide, then confirm on a lab switch before any write."
+
+[[fact]]
+id = "CONFIG-SAVE-COMMIT"
+topic = "config"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "Whether a change is live at once, how it is saved (write memory? copy running-config startup-config? commit?), whether there is a rollback."
+assumed = true
+verify = "Same as CONFIG-MODE-ENTRY; also test what a reload does to an unsaved change."
+
+[[fact]]
+id = "CONFIG-ERROR-FEEDBACK"
+topic = "config"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "How a rejected configuration line is reported, and whether the rest of a pasted block is still applied."
+assumed = true
+verify = "Send one valid and one invalid line to a lab switch and keep the answer."
+
+# ---------------------------------------------------------------- transport details
+
+[[fact]]
+id = "LINE-ENDINGS-ANSI"
+topic = "session"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "Line endings (CRLF), escape sequences or backspace handling in the output."
+assumed = true
+verify = "Capture a session with script(1) or a debug transport and inspect the bytes."
+
+[[fact]]
+id = "SESSION-LIMITS"
+topic = "session"
+level = "UNKNOWN"
+basis = "none"
+sources = []
+statement = "Idle timeout, number of concurrent SSH sessions, rate limits."
+verify = "Ask the customer; test with two sessions."

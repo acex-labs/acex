@@ -1,0 +1,19 @@
+{
+  "from": "ms4000-6.3.5.normalized.txt",
+  "hostname": "ms-lab-01",
+  "interfaces": {
+    "vlan2": {"description": null, "enabled": true, "ipv4": null},
+    "tengigabitethernet1": {"description": "Uplink Interface", "enabled": null, "ipv4": null},
+    "gigabitethernet21": {"description": "Customer Interface", "enabled": true, "ipv4": null},
+    "gigabitethernet22": {"description": "Customer Interface", "enabled": true, "ipv4": null},
+    "gigabitethernet23": {"description": "Customer Interface", "enabled": true, "ipv4": null}
+  },
+  "must_be_unmatched": [
+    {"line": " ip dhcp snoop information-tag", "parents": ["interface vlan2"]},
+    {"line": " vlan member 2", "parents": ["interface tengigabitethernet1"]},
+    {"line": " port type nni vlan 2", "parents": ["interface tengigabitethernet1"]},
+    {"line": " port type uni vlan 2", "parents": ["interface gigabitethernet21"]},
+    {"line": " ip strict-clients", "parents": ["interface gigabitethernet22"]},
+    {"line": "access-list cust-in", "parents": []}
+  ]
+}

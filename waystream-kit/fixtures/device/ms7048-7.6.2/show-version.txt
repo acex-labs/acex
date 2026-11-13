@@ -1,0 +1,20 @@
+Intelligent Broadband Operating System (iBOS), Version 7.6.2-GD-R
+Copyright (c) 2001-2023 by Waystream AB
+Routing Engine Copyright (C) 2001-2011 IP Infusion Inc.
+Compiled Tue Feb  7 14:33:27 CET 2023 by builder
+Source ID: 0000000000000000000000000000000000000000
+
+
+Last boot: cold start
+
+
+System image file is "ibos-cma-7.6.2-GD-R.bz2", version ibos-cma-7.6.2-GD-R
+System: MS7048-AC, 4 1/10GE SFP+, 48 1/2.5G SFP, L2 Switch, AC
+Bootloader version: wsboot-cma-5.0.6-R
+Board type/version: 5/3
+Product ID: 0000000000000
+Serial number/Base MAC address: 0008AE00E001
+Processor: CN7130 [pass 1.2] (mipseb)
+1024M bytes CPU RAM
+CPLD1 revision: 0.6
+CPLD2 revision: 0.6

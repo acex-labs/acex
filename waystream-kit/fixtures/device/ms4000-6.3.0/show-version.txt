@@ -1,0 +1,17 @@
+Intelligent Broadband Operating System (iBOS), Version 6.3.0-ED-R
+Copyright (c) 2001-2016 by Waystream AB
+Routing Engine Copyright (C) 2001-2009 IP Infusion, Inc.
+Compiled Tue Apr 30 16:31:05 HKT 2013 by builder
+Source ID: 0000000000000000000000000000000000000000
+
+ms-lab-04 uptime is 0 minutes
+Last boot: warm start
+
+System image file is "ibos-ms4k-6.3.0-ED-R.bz2", version ibos-ms4k-6.3.0-ED-R
+System: MS4026-AC, 2 1/10GE SFP+, 20 100/1000 SFP Slots, 4 BaseTX/SFP combo, AC
+Bootloader version: msboot-ms4k-3.6.1-R
+PCBA revision: 0.2
+Product ID: 000-0000
+Serial number/Base MAC address: 0008AE00D004
+Processor: CN6230 [pass 2.2] (mipseb)
+262144K bytes CPU RAM
