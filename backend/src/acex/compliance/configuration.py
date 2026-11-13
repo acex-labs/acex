@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from acex.config_diff import DiffLogicalNode
+from acex_devkit.exceptions import DriverException
 from acex_devkit.models.compliance import (
     ConfigurationCompliance,
     ConfigurationComplianceSummary,
@@ -24,6 +25,10 @@ class ConfigurationCheck:
             await asyncio.sleep(0)  # parsing is the longest step; let the server answer before the comparison
         except HTTPException:
             raise
+        except DriverException as exc:
+            # A driver that cannot parse (Junos has no parser yet) leaves the node unmeasured, and that is not an error.
+            log.debug("Node %s is not measured: %s", node_instance_id, exc)
+            observed = None
         except Exception:
             # A configuration its NED cannot parse is as good as none: this node is not measured, the others are.
             log.exception("Could not parse the observed configuration of node %s", node_instance_id)
