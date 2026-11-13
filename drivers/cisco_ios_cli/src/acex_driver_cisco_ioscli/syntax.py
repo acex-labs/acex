@@ -1,5 +1,3 @@
-"""Cisco IOS syntax for ComposedConfiguration components. Each block renders and parses the same lines."""
-
 import ipaddress
 from typing import Any
 
@@ -55,8 +53,6 @@ from acex_driver_cisco_ioscli.context import CiscoContext
 
 
 class Pps(Token):
-    """A packet rate as IOS writes it, with a `k` or `m` suffix on round numbers: `2k` <-> 2000."""
-
     regex = r"\d+[km]?"
     units = {"k": 1_000, "m": 1_000_000}
 
@@ -71,9 +67,6 @@ class Pps(Token):
 
 
 class AclAddress(Token):
-    """An ACL address as IOS writes it, `any`, a host or a network with a wildcard mask, read as
-    "any" or an IPv4 network. Extended ACLs mark a host with `host`; standard ACLs write it bare."""
-
     def __init__(self, host_keyword: bool):
         self.host_keyword = host_keyword
         self.regex = r"any|host \S+|\d+\.\d+\.\d+\.\d+(?: \d+\.\d+\.\d+\.\d+)?"
@@ -97,8 +90,6 @@ class AclAddress(Token):
 
 
 class AclPort(Token):
-    """A port match, `eq 443` <-> "443" and `range 100 200` <-> "100-200"."""
-
     regex = r"eq \S+|range \S+ \S+"
 
     def parse(self, text: str) -> str:
@@ -110,8 +101,6 @@ class AclPort(Token):
 
 
 class LoadBalance(Token):
-    """`port-channel load-balance` with one hashing input: `src-dst-ip` <-> ["src-dst-ip"]."""
-
     regex = r"(?:src|dst|src-dst)-(?:mac|ip|port)"
 
     def parse(self, text: str) -> list[str]:
@@ -187,9 +176,6 @@ class ServicePolicySyntax(Augment):
 
 
 class LineAaaSyntax(Augment):
-    """Login and authorization lists on a console or vty line. Commands are authorized per privilege
-    level; one list covers the levels IOS has, so it's written for each."""
-
     path = "augments"
     body = (
         Line("login authentication {login_authentication}"),
@@ -259,8 +245,6 @@ class AaaRadiusMemberSyntax(Block):
 
 
 class TacacsServerSyntax(Block):
-    """A TACACS+ server's settings, written once and shared by every group listing it by name."""
-
     path = "system.aaa.server_groups.{group}.tacacs"
     header = Line("tacacs server {name}")
     key = "name"
@@ -276,8 +260,6 @@ class TacacsServerSyntax(Block):
 
 
 class RadiusServerSyntax(Block):
-    """A RADIUS server's settings, written once and shared by every group listing it by name."""
-
     path = "system.aaa.server_groups.{group}.radius"
     header = Line("radius server {name}")
     key = "name"
@@ -339,8 +321,6 @@ class HsrpSyntax(Block):
 
 
 class VrrpSyntax(Block):
-    """IOS VRRP (version 2). Preemption is on by default, so the device writes only turning it off."""
-
     path = "vrrp_groups"
     key = "group"
     component = VrrpGroup
@@ -454,9 +434,6 @@ class InterfaceSyntax(Block):
 
 
 class InterfaceTemplateSyntax(Block):
-    """A named set of interface settings, written with the interface lines it shares. Memberships and the
-    interface's own defaults don't apply to a template, and a template doesn't name another."""
-
     path = "interface_templates"
     header = Line("template {name}")
     component = InterfaceTemplateAttributes
@@ -607,9 +584,6 @@ EXTENDED_FIELDS = ("protocol", "destination_address", "source_port", "destinatio
 
 
 class AclEntrySyntax(Block):
-    """The entries of an ACL. IOS-XE writes each with its sequence number, IOS leaves it out: the entries
-    are then numbered in the order they are read, 10 apart, as the device numbers them."""
-
     path = "acl_entries"
     key = "sequence_id"
     component = Ipv4AclEntryAttributes
@@ -639,9 +613,6 @@ class ExtendedAclEntrySyntax(AclEntrySyntax):
 
 
 class StandardAclSyntax(Block):
-    """An IPv4 ACL whose entries match on source only. The model doesn't say standard or extended;
-    what its entries match on does."""
-
     path = "acl.ipv4_acls"
     header = Line("ip access-list standard {name}")
     component = Ipv4AclAttributes
@@ -661,9 +632,6 @@ class ExtendedAclSyntax(StandardAclSyntax):
 
 
 class NameServerSyntax(Block):
-    """DNS servers. IOS writes every server of one instance on one line; each renders on its own here,
-    which the device merges back into one."""
-
     path = "system.dns.dns_servers"
     key = "address"
     component = DnsServerAttributes
@@ -742,4 +710,3 @@ BLOCKS = [
     VtyLineSyntax(),
     NtpServerSyntax(),
 ]
-"""Top-level blocks in running-config order."""
