@@ -59,5 +59,6 @@ def test_backend_devkit_static_route_with_references():
 
 
 def test_drivers_importable_alongside_backend_and_devkit():
+    import acex_driver_cisco_ios_classic_cli  # noqa: F401
     import acex_driver_cisco_ioscli  # noqa: F401
     import acex_driver_juniper_junos_cli  # noqa: F401

@@ -68,8 +68,11 @@ pip install acex-mcp-server
 NED drivers (Network Element Drivers) are separate packages that must be installed alongside the backend:
 
 ```bash
-# Cisco IOS CLI driver
+# Cisco IOS XE CLI driver
 pip install acex-driver-cisco-ioscli
+
+# Cisco IOS (classic) CLI driver
+pip install acex-driver-cisco-ios-classic-cli
 
 # Juniper JunOS CLI driver
 pip install acex-driver-juniper-junoscli

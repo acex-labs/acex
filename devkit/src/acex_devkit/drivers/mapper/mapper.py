@@ -453,6 +453,11 @@ class ParseRun:
             if placed is None:
                 return False
             collection, walked = placed
+            if block.key not in result:
+                implied = block.default_key(collection, self.context)
+                if implied is None:
+                    continue
+                result[block.key] = implied
             # A key token reading a list (`ip name-server 1.1.1.1 8.8.8.8`) stands for one entry per value.
             values = result[block.key] if isinstance(result[block.key], list) else [result[block.key]]
             for value in values:
