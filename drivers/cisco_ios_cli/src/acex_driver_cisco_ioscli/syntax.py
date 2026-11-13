@@ -168,6 +168,23 @@ class DeviceTrackingSyntax(Augment):
     body = (Line("device-tracking attach-policy {policy_name}"),)
 
 
+class IpDeviceTrackingSyntax(Augment):
+    path = "system.config.augments"
+    augment = "cisco_ip_device_tracking"
+    body = (
+        Flag("enabled", on="ip device tracking"),
+        Line("ip device tracking probe delay {probe_delay:int}"),
+        Flag("probe_auto_source_override", on="ip device tracking probe auto-source override"),
+        Flag("probe_use_svi", on="ip device tracking probe use-svi"),
+    )
+
+
+class IpDeviceTrackingInterfaceSyntax(Augment):
+    path = "augments"
+    augment = "cisco_ip_device_tracking"
+    body = (Line("ip device tracking maximum {maximum:int}"),)
+
+
 class ServicePolicySyntax(Augment):
     path = "augments"
     augment = "cisco_service_policy"
@@ -395,6 +412,7 @@ class InterfaceSyntax(Block):
             "ip helper-address {server}", at="system.dhcp.relay.relay_servers.{server:address}.interfaces", creates=True
         ),
         DeviceTrackingSyntax(),
+        IpDeviceTrackingInterfaceSyntax(),
         ServicePolicySyntax(),
         Flag("redirects", off="no ip redirects"),
         Flag("proxy_arp", off="no ip proxy-arp"),
@@ -697,6 +715,7 @@ class NtpServerSyntax(Block):
 
 BLOCKS = [
     PasswordEncryptionSyntax(),
+    IpDeviceTrackingSyntax(),
     SystemConfigSyntax(),
     VrfSyntax(),
     AaaSyntax(),

@@ -153,3 +153,44 @@ def test_aaa_events_are_read_and_written_and_method_lists_are_left_alone():
     rendered = codec.render(result.configuration, None).payload
     assert "aaa authorization console" in rendered
     assert "aaa accounting update newinfo periodic 2880" in rendered
+
+
+IOS_TRACKING = """\
+ip device tracking probe auto-source override
+ip device tracking probe delay 60
+!
+interface GigabitEthernet1/0/1
+ switchport mode access
+ ip device tracking maximum 10
+!
+interface GigabitEthernet1/0/2
+ switchport mode trunk
+ ip device tracking maximum 0
+!
+"""
+
+
+def tracking(owner):
+    return owner.augments["cisco_ip_device_tracking"]
+
+
+def test_ip_device_tracking_is_read_globally_and_per_interface():
+    result = CiscoIOSCodec().parse(IOS_TRACKING, None)
+
+    configuration = result.configuration
+    assert tracking(configuration.system.config).probe_delay.value == 60
+    assert tracking(configuration.system.config).probe_auto_source_override.value is True
+    assert [tracking(i).maximum.value for i in configuration.interfaces.values()] == [10, 0]
+    assert result.metadata.unmatched == []
+
+
+def test_ip_device_tracking_is_written_back():
+    codec = CiscoIOSCodec()
+    parsed = codec.parse(IOS_TRACKING, None)
+
+    rendered = codec.render(parsed.configuration, None).payload
+
+    assert "ip device tracking probe delay 60" in rendered
+    assert "ip device tracking probe auto-source override" in rendered
+    assert " ip device tracking maximum 0" in rendered
+    assert codec.parse(rendered, None).metadata.unmatched == []
