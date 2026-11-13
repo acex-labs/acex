@@ -9,11 +9,14 @@ from acex_driver_cisco_ioscli.transport.transport import CiscoIOSTransport
 
 
 class CiscoIOSCLIDriver(NetworkElementDriver):
-    """Cisco IOS-XE CLI driver."""
+    """Cisco IOS and IOS-XE CLI driver."""
 
     codec_class = CiscoIOSCodec
     transport_class = CiscoIOSTransport
     state_class = CiscoIOSState
     actions_class = CiscoIOSActions
 
-    platforms = [Platform(vendor=Vendor.cisco, os=OS.cisco_iosxe)]
+    platforms = [
+        Platform(vendor=Vendor.cisco, os=OS.cisco_iosxe),
+        Platform(vendor=Vendor.cisco, os=OS.cisco_ios),
+    ]
