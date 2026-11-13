@@ -4,6 +4,26 @@
   "name": "ACEX devkit",
   "releases": [
     {
+      "version": "3.2.0",
+      "date": "2026-11-13",
+      "entries": [
+        {
+          "id": "20261113-driver-syntax-numbers-keyless-lines-and",
+          "kind": "added",
+          "title": "Driver syntax numbers keyless lines and reads several spellings of a flag",
+          "description": "A block whose lines carry their key can leave the key optional in the line pattern, `[{sequence_id:int} ]permit ...`, and name the key of a line that leaves it out by overriding `Block.default_key`. Without the override such a line is still unmatched. A `Flag` can take a tuple for `on` or `off`: the first spelling is written and all of them are read.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": [
+            {
+              "label": "#380",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "3.1.0",
       "date": "2026-11-12",
       "entries": [
