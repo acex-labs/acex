@@ -41,6 +41,8 @@ from acex_devkit.models.composed_configuration import (
     Vlan,
     VrrpGroup,
     VTPAttributes,
+    aaaAccountingEvents,
+    aaaAuthorizationEvents,
     aaaGlobalAttributes,
     aaaRadiusAttributes,
     aaaServerGroupAttributes,
@@ -286,6 +288,24 @@ class AaaServerGroupSyntax(Block):
 
     def includes(self, key: str | None, component: aaaServerGroupAttributes) -> bool:
         return bool(component.enable and component.enable.value)
+
+
+class AccountingEvent(Token):
+    regex = r"send stop-record authentication failure|update newinfo(?: periodic \d+)?"
+
+
+class AuthorizationEventSyntax(Block):
+    path = "system.aaa.authorization.config.events"
+    key = "event"
+    component = aaaAuthorizationEvents
+    body = (Line("aaa authorization {event}", event=Choice("config-commands", "console")),)
+
+
+class AccountingEventSyntax(Block):
+    path = "system.aaa.accounting.config.events"
+    key = "event"
+    component = aaaAccountingEvents
+    body = (Line("aaa accounting {event}", event=AccountingEvent()),)
 
 
 class UserSyntax(Block):
@@ -684,6 +704,8 @@ BLOCKS = [
     TacacsServerSyntax(),
     RadiusServerSyntax(),
     UserSyntax(),
+    AuthorizationEventSyntax(),
+    AccountingEventSyntax(),
     LoggingSyntax(),
     TrapLoggingSyntax(),
     ConsoleLoggingSyntax(),

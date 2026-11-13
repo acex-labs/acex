@@ -117,3 +117,39 @@ def test_portfast_edge_reads_as_portfast_and_is_written_as_portfast():
     assert [getattr(p.stp_portfast, "value", None) for p in ports.values()] == [True, True, None]
     assert [u.line.strip() for u in result.metadata.unmatched] == ["spanning-tree portfast edge trunk"]
     assert "portfast edge" not in codec.render(result.configuration, None).payload
+
+
+IOS_AAA = """\
+aaa new-model
+aaa authentication login default group ISE local
+aaa authorization config-commands
+aaa authorization console
+aaa authorization exec default group ISE local
+aaa accounting send stop-record authentication failure
+aaa accounting update newinfo periodic 2880
+aaa accounting exec default start-stop group ISE
+aaa session-id common
+!
+"""
+
+
+def test_aaa_events_are_read_and_written_and_method_lists_are_left_alone():
+    codec = CiscoIOSCodec()
+
+    result = codec.parse(IOS_AAA, None)
+
+    aaa = result.configuration.system.aaa
+    assert list(aaa.authorization.config.events) == ["config-commands", "console"]
+    assert list(aaa.accounting.config.events) == [
+        "send stop-record authentication failure",
+        "update newinfo periodic 2880",
+    ]
+    assert [u.line for u in result.metadata.unmatched] == [
+        "aaa authentication login default group ISE local",
+        "aaa authorization exec default group ISE local",
+        "aaa accounting exec default start-stop group ISE",
+        "aaa session-id common",
+    ]
+    rendered = codec.render(result.configuration, None).payload
+    assert "aaa authorization console" in rendered
+    assert "aaa accounting update newinfo periodic 2880" in rendered
