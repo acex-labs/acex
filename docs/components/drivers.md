@@ -70,7 +70,7 @@ A configuration exists in three forms:
 - Normalized: raw without the lines that change by themselves, for example the timestamp of the last change, so that two reads of the same device compare equal. `Codec.normalize` does this, and the Cisco driver parses this form.
 - Parsed: the model plus the unmatched lines.
 
-Secrets are replaced in a copy, never in the raw text: `Codec.mask` does that, and masking twice gives the same result.
+Secrets are replaced by `Codec.mask`, which returns a new text and gives the same result when it is applied twice. The rules are `RewriteRule`s in the driver's normalizer, and each one swaps a secret for `<REDACTED>`. When an agent uploads a configuration, the backend runs `normalize` and then `mask` on it and stores only the result (`DeviceConfigManager.upload_config`). The worker masks patches and command output the same way before it shows them.
 
 ## Declaring the syntax
 
