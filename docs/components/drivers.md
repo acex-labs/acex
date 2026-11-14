@@ -1,6 +1,6 @@
 # Drivers (NEDs)
 
-A NED (Network Element Driver) is a Python package that translates between ACE-X's vendor-agnostic configuration model and a specific device OS. Each driver implements four roles: render, render_patch, transport, and parse.
+A NED (Network Element Driver) is a Python package that knows one kind of device: how to reach it, how its configuration reads, and how to turn that text into ACE-X's vendor-neutral model and back. Most of ACE-X works on the model and never sees a device's syntax.
 
 ## Built-in drivers
 
@@ -10,9 +10,77 @@ A NED (Network Element Driver) is a Python package that translates between ACE-X
 | Cisco IOS (classic) CLI | `acex-driver-cisco-ios-classic-cli` | Cisco IOS |
 | Juniper JunOS CLI | `acex-driver-juniper-junoscli` | Juniper JunOS |
 
-## How drivers are loaded
+## The pieces
 
-Drivers are discovered at startup via the `acex.neds` setuptools entry point group:
+A driver is a few small classes tied together by one more. Their base classes are in `devkit/src/acex_devkit/drivers/base.py`.
+
+| Class | What it does | Talks to the device? |
+|---|---|---|
+| `NetworkElementDriver` | Names the pieces below and the platforms the driver supports. No logic of its own. | No |
+| `Transport` | Opens the session, sends commands and returns text: `open`, `close`, `get_config`, `apply`, `execute`. One instance per session, and the only part that holds device state. | Yes |
+| `Codec` | Turns configuration text into the model (`parse`) and the model into text (`render`, `render_patch`). Also `normalize` and `mask`. Pure: no device, no network. | No |
+| `State` | Reads operational facts into devkit models, for example `get_facts` (model, serial number, version) and `get_arp_table`. | Through the transport it is given |
+| `Actions` | Runs actions on the device, for example `ping`. | Through the transport it is given |
+
+A driver implements only the optional methods it can. Which ones it has is read off the class, so a driver never declares its capabilities by hand. Callers do not use the pieces directly; they open a `Session` (`driver.session(node, credentials)`), which runs one call at a time.
+
+```mermaid
+flowchart LR
+    device[Device] -->|Transport.get_config| raw[Raw text]
+    raw -->|Codec.normalize| normalized[Normalized text]
+    normalized -->|Codec.parse| parsed["ParseResult: model and unmatched lines"]
+    desired[Desired model] -->|Codec.render| payload[Payload]
+    payload -->|Transport.apply| device
+```
+
+## Parse: what goes in and what comes out
+
+`Codec.parse(raw, node)` takes the configuration text of a device and returns a `ParseResult` with two parts:
+
+- `configuration` is the model, a `ComposedConfiguration`: hostname under `system`, interfaces under `interfaces`, and so on, the same for every vendor.
+- `metadata` is information about the parsing. It holds `spans`, which lines made which component, and `unmatched`, a list of the lines the driver could not translate.
+
+In the Cisco IOS driver `parse` is one line: it normalizes the text and hands it to the mapper (see below). Take this configuration:
+
+```
+interface GigabitEthernet1/0/1
+ description Uplink
+ no shutdown
+ mls qos trust dscp
+```
+
+If the driver has a declaration for `description` and `no shutdown` but none for `mls qos trust`, the first two end up in the model and the third is kept as an unmatched line:
+
+```
+UnmatchedLine(
+    line=" mls qos trust dscp",
+    parents=["interface GigabitEthernet1/0/1"],
+)
+```
+
+`line` is the line as the device wrote it, and `parents` are the header lines it sat under, outermost first.
+
+An unmatched line is kept, not dropped, for two reasons. The comparison of desired and observed state would otherwise look clean while the device has settings ACE-X does not know about, so the lines travel with the node's diff and their number is part of the compliance result. And the list is a to-do list for the driver author: the most common unmatched lines are the ones to teach the driver next.
+
+## Three forms of a configuration
+
+A configuration exists in three forms:
+
+- Raw: exactly what the device printed, with nothing removed. `Transport.get_config` returns it.
+- Normalized: raw without the lines that change by themselves, for example the timestamp of the last change, so that two reads of the same device compare equal. `Codec.normalize` does this, and the Cisco driver parses this form.
+- Parsed: the model plus the unmatched lines.
+
+Secrets are replaced in a copy, never in the raw text: `Codec.mask` does that, and masking twice gives the same result.
+
+## Declaring the syntax
+
+A driver does not need a hand-written parser. It declares the syntax once, with `Block`, `Line`, `Flag` and `Dispatch` from `acex_devkit.drivers.mapper`, and a `Mapper` reads text into the model and writes the model back to text from the same declarations, so the two directions cannot drift apart. The declarations usually live in a `syntax.py`; read the docstring of `Block` in `devkit/src/acex_devkit/drivers/mapper/syntax.py` first.
+
+Which lines to drop and which to mask are separate rules, written as `LineRule`, `BlockRule` and `RewriteRule` on a `BaseNormalizer` subclass (`acex_devkit.normalizer`).
+
+## How a driver is found and delivered
+
+A driver registers itself with the `acex.neds` entry point in its `pyproject.toml`:
 
 ```toml
 # In a driver's pyproject.toml
@@ -20,38 +88,18 @@ Drivers are discovered at startup via the `acex.neds` setuptools entry point gro
 cisco-ios-cli = "acex_driver_cisco_ioscli:CiscoIOSCLIDriver"
 ```
 
-The `NEDManager` scans all installed packages for this entry point and registers the drivers. Collection agents download any missing drivers from the backend's `/api/v1/neds/download/{filename}` endpoint and install them via pip at startup.
+- The driver's name is its class name. It is stored as `ned_id` on an asset, and the backend's `NEDManager` finds the driver by that name.
+- A driver declares the platforms it supports with `platforms = [Platform(vendor=..., os=...)]`, and `driver.supports(asset)` checks an asset against them. `Vendor` and `OS` come from the devkit (`acex_devkit.models.platform`), so a new vendor or OS has to be added there first, together with a version scheme (`acex_devkit.os_versions`).
+- The backend lists the installed drivers at `GET /api/v1/neds`, packages each one as a wheel and serves it at `/api/v1/neds/download/{filename}`. Agents and workers fetch the drivers they are missing, or have at another version, and install them with pip.
 
-## Driver roles
+## Errors
 
-### Renderer — `render(config, asset) -> str`
+A transport should raise the devkit's exceptions, not the library's, so that callers handle one set whatever library the driver uses: `AuthenticationFailed`, `ConnectionTimeout` and `ConnectionError` for the connection, `ConfigurationError` for a rejected change, and `DriverException` as the base of them all (`acex_devkit.exceptions`).
 
-Converts a `ComposedConfiguration` (vendor-agnostic Pydantic model) into a vendor-specific config string.
+## Writing a new driver
 
-For Cisco IOS, this involves:
-
-1. Resolving abstract interface indices to real hardware port names (e.g., `GigabitEthernet1/0/1`) by looking up the device's hardware model YAML
-2. Handling stacked switches (asset clusters) — distributing interfaces across stack members
-3. Resolving cross-references (e.g., VRF membership onto interfaces, SSH source interface)
-4. Grouping VTY lines into ranges
-5. Rendering a Jinja2 template that walks the configuration tree
-
-### Patch renderer — `render_patch(diff, node_instance) -> str`
-
-Converts a computed diff into a minimal set of patch commands. Uses a `GeneratorRegistry` that maps change paths (e.g., `("system", "config")`, `("interfaces", "*")`) to command generator functions.
-
-### Transport — `get_config` / `send_config`
-
-Opens SSH connections to network devices using Scrapli/asyncssh.
-
-- `get_config(node, connection)` — runs `show running-config` and returns the raw text
-- `send_config(node, connection, commands)` — sends a list of CLI commands
-- `get_lldp_neighbors(node, connection)` — runs `show lldp neighbors detail` and `show cdp neighbors detail`, parses the output, returns a neighbor list for topology mapping
-
-### Parser — `parse(raw_config: str) -> ComposedConfiguration`
-
-Parses raw CLI output (from `show running-config`) back into the vendor-agnostic model using TextFSM templates. This is what enables the intent-diff workflow — both desired and observed configs are represented as the same structured model, so diffing is deterministic.
-
-## Writing a custom driver
-
-Subclass `RendererBase`, `TransportBase`, and `ParserBase` from `acex.plugins.neds.core.base_driver`, implement the abstract methods, and register your class via the `acex.neds` entry point.
+1. Read `devkit/src/acex_devkit/drivers/example_ned.py`, a small NED that runs against a fake device, and then the Cisco IOS driver in `drivers/cisco_ios_cli/`: `transport/transport.py`, `normalizer.py`, `syntax.py`, `state.py` and `codec.py`.
+2. Make a package with the same layout and register it with the `acex.neds` entry point.
+3. Write the transport, then the normalizer rules, then the syntax declarations. Test the codec with text files and the transport against something that speaks the protocol (the repository's `mock-device/` is one), so that no test needs a real device.
+4. Declare the platform, and add the vendor, OS and version scheme to the devkit if they are new.
+5. Add the package to the CI matrices, the README and the cross-package integration test, the way the existing drivers are.
