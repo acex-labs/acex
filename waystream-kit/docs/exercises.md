@@ -139,6 +139,26 @@ the header lines it sat under. The point is not to model all of iBOS; it is to s
 files use the names of the MS4000 and ASR6000 on 6.3.x; an MS 7000 names its ports `ethernet1/1`, which the real driver
 has to cope with and a device type will have to describe.
 
+To see what your parser leaves unmatched, run the helper on a fixture:
+
+```bash
+.venv/bin/python scripts/show_unmatched.py fixtures/device/ms4000-6.3.5/running-config.txt
+```
+
+It prints how much of the file was translated, the unmatched lines under the header they sat under, and the most common kinds of line, which is the to-do list for the next declaration. With the scope of this exercise it starts like this (your numbers depend on what you model):
+
+```
+36 of 50 lines not translated (28% translated)
+
+interface vlan2
+   ip dhcp snoop information-tag
+...
+Most common:
+     7  interface > ip dhcp
+```
+
+The same list in Python is `IbosCodec().parse(raw, None).metadata.unmatched`. Try the helper on the files in `fixtures/variants/` too.
+
 What the tests expect: the golden parsed files, an interface with no `no shutdown` line being disabled (shutdown is the
 default state of every interface; look at what `Flag` can say about a line that is absent), raw input with `!volatile`
 parsing like clean input, irregular layouts neither crashing the parser nor losing a line, unknown top-level stanzas kept

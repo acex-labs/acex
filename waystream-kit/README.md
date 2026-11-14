@@ -62,5 +62,6 @@ no key on disk and has no real credentials. The kit changes nothing outside `way
 | [docs/real-device-checklist.md](docs/real-device-checklist.md) | What to check on the first real switch |
 | [docs/limitations.md](docs/limitations.md) | What the kit cannot tell you |
 | `evidence/register.toml` | The source of the evidence matrix |
+| `scripts/show_unmatched.py` | Prints the lines your parser did not translate, for any file (Exercise 6) |
 | `fixtures/` | Synthetic outputs, golden files and `manifest.toml` |
 | `exercise/` | The driver skeleton and the exercise tests |
