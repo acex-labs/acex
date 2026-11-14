@@ -26,7 +26,7 @@ flowchart LR
 |---|---|---|
 | Evidence register | `evidence/register.toml`, `docs/evidence.md` | One entry per thing we believe about iBOS: the statement, how we know it, and how to find out when we do not. The matrix in `docs/evidence.md` is generated from it. |
 | Fixtures | `fixtures/` | Made-up outputs in the layout the sources show, and the expected results (golden files) of normalizing, masking and parsing them. `manifest.toml` says what each file stands for. |
-| Mock engine | `src/ibos_kit/mock/engine.py` | The command line of one device: prompts, user and privileged mode, `enable`, `show` commands, the error layout. No network. |
+| Mock engine | `src/ibos_kit/mock/engine.py` | The command line of one device: prompts, user and admin mode, `enable`, privilege levels, `show` commands, the error layout. No network. |
 | Scenarios | `src/ibos_kit/mock/scenarios.py` | Profiles A to F: which device, which firmware, which commands exist, where it lands after login, which faults are on. |
 | Mock server | `src/ibos_kit/mock/server.py` | Puts the engine behind SSH. Loopback only, synthetic credentials, a throwaway host key, no shell on the host. |
 | Masking | `src/ibos_kit/masking.py` | The secret rules as a component of their own, with a report that names rules and never values. |
@@ -64,20 +64,23 @@ that the driver agrees with our assumption and nothing about the switch.
 
 Three kinds of behaviour are therefore kept apart:
 
-1. Verified: the layout of `show version` on 6.3.0, the prompt characters, `!volatile` lines, the interface names.
-2. Inferred: one user report of an error on 7.6.2, the layout of `show version` on 6.3.5, where the hostname line sits
-   on an MS4000.
-3. Assumed, no source at all: how `enable` fails, whether the prompt ends in a space, how the session ends, what the SSH
-   server offers.
+1. Verified in a document: the prompts and the user and admin modes, which commands need admin level, the layout of
+   `show version` on 6.3.0, `!volatile` lines, interface names, that a port without `no shutdown` is disabled.
+2. Inferred: the layout of `show version` on 6.3.5 and 7.x, where the hostname line sits on an MS4000, SSH on a 6.3.0
+   switch (the manual dates `sshd` to 6.3.4).
+3. Assumed, no source at all: how `enable` fails, whether the prompt ends in a space, the error answers beyond one user
+   report, what the SSH server offers.
 
-Configuration mode is not in any of the three. It exists only behind `--experimental-config-mode`, announces itself in
-the greeting and in the log, and its tests are marked `experimental`.
+Configuration mode is documented in the MS 7000 command reference (prompts, `end`, `exit`, `do`, `write memory`) but has
+never been tried on a device and its error answers are not documented. It therefore exists only behind
+`--experimental-config-mode`, announces itself in the greeting and in the log, and its tests are marked `experimental`.
 
 ## Boundaries
 
 - The mock listens on `127.0.0.1` or `::1` only; any other address is refused in code, not by convention.
 - It never runs a host command, never reads `~/.ssh`, never writes a key to disk, and uses made-up credentials that are
   printed in the README.
-- The kit does not change the devkit. The vendor and OS enums for Waystream, the version scheme and the device types are a
-  separate piece of work; the exercise driver declares no platform until they exist.
+- The kit does not change the devkit. The Waystream vendor, OS and version scheme were added to it separately (acex pull
+  request 386) and reach the published devkit with its next release; device types wait for the customer's models. The
+  exercise driver declares no platform yet.
 - The kit is not in the CI of the repository. Its tests run with `pytest` from `waystream-kit/`.

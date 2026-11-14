@@ -23,5 +23,5 @@ async def read_facts(transport: IbosTransport) -> IbosFacts:
 
 
 class IbosState(State):
-    # get_facts has to return DeviceFacts, which needs a Vendor and an OS the devkit does not have yet.
+    # Exercise 7: get_facts returns DeviceFacts, which needs the Waystream vendor and OS of the devkit (acex PR 386).
     pass

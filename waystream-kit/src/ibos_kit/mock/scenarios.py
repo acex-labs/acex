@@ -3,6 +3,7 @@ from dataclasses import dataclass, field, replace
 CREDENTIALS = {"username": "lab", "password": "lab-password-not-secret", "enable": "lab-enable-not-secret"}
 
 RUNCFG_ASR = (
+    "ADMIN-LEVEL-COMMANDS",
     "RUNCFG-COMMAND",
     "RUNCFG-HEADER",
     "RUNCFG-INDENT",
@@ -32,8 +33,10 @@ class Profile:
     model: str
     firmware: str
     hostname: str
-    start_mode: str = "privileged"
+    start_mode: str = "user"
     enable_password: str | None = None
+    pager_command: bool = False
+    assumptions: tuple[str, ...] = ()
     commands: tuple[Command, ...] = ()
     contexts: dict[str, str] = field(default_factory=dict)
 
@@ -64,15 +67,16 @@ def _show(words: str, fixture: str, facts: tuple[str, ...], privileged: bool = F
     return Command(tuple(words.split()), fixture=fixture, privileged=privileged, facts=facts)
 
 
-def _running_config(fixture: str, facts: tuple[str, ...], privileged: bool = False) -> Command:
-    return Command(("show", "running-config"), fixture=fixture, privileged=privileged, facts=facts, live_config=True)
+def _running_config(fixture: str, facts: tuple[str, ...]) -> Command:
+    return Command(("show", "running-config"), fixture=fixture, privileged=True, facts=facts, live_config=True)
 
 
 def _context(fixture: str, facts: tuple[str, ...]) -> Command:
     return Command(
         ("show", "running-configuration", "context", "interface", "<interface>"),
         fixture=fixture,
-        facts=facts + ("RUNCFG-CONTEXT",),
+        privileged=True,
+        facts=facts + ("RUNCFG-CONTEXT", "ADMIN-LEVEL-COMMANDS"),
     )
 
 
@@ -126,34 +130,31 @@ PROFILES = {
     ),
     "d-ms4000-630": Profile(
         key="d-ms4000-630",
-        title="MS4000 on iBOS 6.3.0-ED-R, lands in user mode; the commands of the installation guide",
+        title="MS4000 on iBOS 6.3.0-ED-R with an enable password; the commands of the installation guide",
         model="MS4026-AC",
         firmware="ibos-ms4k-6.3.0-ED-R",
         hostname="ms-lab-04",
-        start_mode="user",
         enable_password=CREDENTIALS["enable"],
+        assumptions=("SSH-SERVER-FIRMWARE",),
         commands=(
             _show("show version", "ms4000-6.3.0/show-version.txt", ("SHOW-VERSION-MS4K-630",)),
             _show("show vlan", "ms4000-6.3.0/show-vlan.txt", ("SHOW-VLAN", "COMMAND-ABBREVIATION")),
             _show("show pfdp neighbours", "ms4000-6.3.0/show-pfdp-neighbours.txt", ("SHOW-PFDP-NEIGHBOURS",)),
-            _running_config(
-                "ms4000-6.3.0/running-config.assumed.txt", RUNCFG_MS4K + ("RUNCFG-MS4K-630",), privileged=True
-            ),
+            _running_config("ms4000-6.3.0/running-config.assumed.txt", RUNCFG_MS4K + ("RUNCFG-MS4K-630",)),
         ),
     ),
     "e-ms7048-762": Profile(
         key="e-ms7048-762",
-        title="MS7048-AC on iBOS 7.6.2-GD-R: show running-config is rejected until enable",
+        title="MS7048-AC on iBOS 7.6.2-GD-R, ethernetS/P ports: show running-config is refused until enable",
         model="MS7048-AC",
         firmware="ibos-cma-7.6.2-GD-R",
         hostname="ms-lab-05",
-        start_mode="user",
+        pager_command=True,
         commands=(
             _show("show version", "ms7048-7.6.2/show-version.txt", ("SHOW-VERSION-7X",)),
             _running_config(
                 "ms7048-7.6.2/running-config.assumed.txt",
                 RUNCFG_MS4K + ("RUNCFG-7X-REJECTED", "RUNCFG-7X-AFTER-ENABLE"),
-                privileged=True,
             ),
         ),
     ),
@@ -161,7 +162,7 @@ PROFILES = {
 PROFILES["e-ms7048-762-never"] = replace(
     PROFILES["e-ms7048-762"],
     key="e-ms7048-762-never",
-    title="MS7048-AC on iBOS 7.6.2-GD-R: show running-config is rejected even after enable",
+    title="Hypothetical fault: the MS7048-AC refuses show running-config even after enable",
     commands=tuple(c for c in PROFILES["e-ms7048-762"].commands if c.words != ("show", "running-config")),
 )
 PROFILES["f-failures"] = replace(

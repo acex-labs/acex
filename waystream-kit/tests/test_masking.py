@@ -21,10 +21,45 @@ def test_the_variant_with_secrets_matches_its_golden_file():
     assert mask((VARIANTS / "with-secrets.txt").read_text()).text == (GOLDEN / "with-secrets.masked.txt").read_text()
 
 
-def test_guessed_secret_syntax_is_masked_by_the_conservative_rules_and_reported_as_guesses():
+def test_every_documented_syntax_is_masked_by_its_own_rule_and_the_guesses_are_only_a_safety_net():
+    result = mask((VARIANTS / "with-secrets.txt").read_text())
+    assert not [name for name in result.hits if name.startswith("guess:")]
+    assert set(result.hits) == {
+        "snmp_community",
+        "snmp_notify_community",
+        "radius_server_secret",
+        "tacacs_plus_secret",
+        "enable_secret",
+        "console_password",
+        "username_password",
+        "snmp_user_password",
+        "snmp_notify_user_password",
+        "license_key",
+    }
+    assert result.hits["username_password"] == 2
+
+
+def test_syntax_nobody_has_shown_is_masked_by_the_guesses_and_reported_as_guesses():
     result = mask((VARIANTS / "invented-secret-syntax.txt").read_text())
     assert result.text == (GOLDEN / "invented-secret-syntax.masked.txt").read_text()
-    assert set(result.hits) == {"guess:password", "guess:secret", "guess:key"}
+    assert set(result.hits) == {"username_password", "enable_secret", "guess:key"}
+
+
+def test_a_hash_marker_after_the_secret_stays_and_only_the_secret_goes():
+    assert mask("username lab-admin password EXAMPLE-HASH encrypted\n").text == (
+        f"username lab-admin password {MASK} encrypted\n"
+    )
+    assert mask(" notify 198.51.100.21 user nocinfo password EXAMPLE-PW sha\n").text == (
+        f" notify 198.51.100.21 user nocinfo password {MASK} sha\n"
+    )
+    assert mask("tacacs-plus seq 10 server tacacs.example.net secret EXAMPLE-S timeout 2\n").text == (
+        f"tacacs-plus seq 10 server tacacs.example.net secret {MASK} timeout 2\n"
+    )
+
+
+def test_a_snmp_user_access_line_is_not_a_secret():
+    line = " snmp-user nocinfo readview all\n"
+    assert mask(line).text == line
 
 
 def test_masking_twice_changes_nothing():

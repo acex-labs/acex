@@ -1,6 +1,10 @@
 import pytest
 from acex_devkit.exceptions import DriverException
-from acex_driver_waystream_ibos.state import IbosFacts, parse_show_version, read_facts
+from acex_devkit.models.asset import Asset
+from acex_devkit.models.platform import OS, Vendor
+from acex_devkit.models.state import DeviceFacts
+from acex_driver_waystream_ibos import WaystreamIbosDriver
+from acex_driver_waystream_ibos.state import IbosFacts, IbosState, parse_show_version, read_facts
 from ibos_helpers import ENABLE, USERPASS, opened
 
 from ibos_kit.paths import DEVICE_FIXTURES
@@ -42,3 +46,32 @@ async def test_read_facts_asks_the_device(mock):
     async with mock("d"), opened([USERPASS, ENABLE]) as transport:
         facts = await read_facts(transport)
     assert facts.hardware_model == "MS4026-AC" and facts.os_version == "6.3.0-ED-R"
+
+
+needs_devkit = pytest.mark.skipif(
+    not hasattr(Vendor, "waystream"), reason="the devkit has no Waystream yet: merge dev, which has acex PR 386"
+)
+
+
+@needs_devkit
+def test_the_driver_declares_the_waystream_platform_and_only_that():
+    driver = WaystreamIbosDriver()
+    assert [(p.vendor, p.os) for p in driver.capabilities.platforms] == [(Vendor.waystream, OS.waystream_ibos)]
+    waystream = Asset(vendor=Vendor.waystream, serial_number="SN1", os=OS.waystream_ibos, hardware_model="MS4026-AC")
+    cisco = Asset(vendor=Vendor.cisco, serial_number="SN2", os=OS.cisco_iosxe, hardware_model="C9300-24T")
+    assert driver.supports(waystream)
+    assert not driver.supports(cisco)
+
+
+@needs_devkit
+async def test_get_facts_returns_the_facts_in_the_form_the_devkit_wants(mock):
+    async with mock("d"), opened([USERPASS, ENABLE]) as transport:
+        facts = await IbosState().get_facts(transport)
+    assert facts == DeviceFacts(
+        vendor=Vendor.waystream,
+        os=OS.waystream_ibos,
+        os_version="6.3.0-ED-R",
+        hardware_model="MS4026-AC",
+        serial_number="0008AE00D004",
+    )
+    assert "get_facts" in IbosState.implemented()

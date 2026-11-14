@@ -9,7 +9,7 @@ class IbosTransport(Transport[str]):
     timeout_socket = 10
     timeout_ops = 30
 
-    # Exercise 8 reads this. Configuration mode is not verified for iBOS, so writing stays off by default.
+    # Exercise 8 reads this. Configuration mode is documented but untried on a device, so writing stays off.
     allow_unverified_config_mode = False
 
     async def open(self) -> None:

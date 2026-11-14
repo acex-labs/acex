@@ -114,9 +114,9 @@ def test_the_parsed_goldens_describe_lines_that_exist_in_the_normalized_text(nam
     assert {(e["line"], tuple(e["parents"])) for e in golden["must_be_unmatched"]} <= set(expected_unmatched(text))
 
 
-def test_enabled_is_null_where_the_device_prints_no_shutdown_line_and_true_where_it_does():
+def test_a_port_without_a_no_shutdown_line_is_disabled_because_shutdown_is_the_default_state():
     golden = json.loads((GOLDEN / "ms4000-6.3.5.parsed.json").read_text())
-    assert golden["interfaces"]["tengigabitethernet1"]["enabled"] is None
+    assert golden["interfaces"]["tengigabitethernet1"]["enabled"] is False
     assert golden["interfaces"]["gigabitethernet21"]["enabled"] is True
 
 
@@ -129,9 +129,7 @@ def test_the_parsed_goldens_agree_with_the_text_they_describe_line_by_line(name)
         lines = blocks[interface]
         descriptions = [line.removeprefix("description ") for line in lines if line.startswith("description ")]
         assert expected["description"] == (descriptions[0] if descriptions else None), interface
-        shutdown = "shutdown" in lines
-        enabled = True if "no shutdown" in lines else (False if shutdown else None)
-        assert expected["enabled"] == enabled, interface
+        assert expected["enabled"] == ("no shutdown" in lines), interface
         addresses = [line.split() for line in lines if line.startswith("ip address ")]
         if addresses:
             ip, mask = addresses[0][2:4]

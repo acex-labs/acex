@@ -48,7 +48,7 @@ Start a mock in one terminal:
 
 ```bash
 .venv/bin/python -m ibos_kit.mock --list          # the scenarios
-.venv/bin/python -m ibos_kit.mock b               # MS4000, lands in privileged mode
+.venv/bin/python -m ibos_kit.mock b               # MS4000, lands in user mode like a default account
 ```
 
 Connect from a second terminal. These options keep your own SSH setup untouched: no config file, no known hosts, no
@@ -60,7 +60,7 @@ ssh -F /dev/null -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
 ```
 
 The password is printed when the mock starts, and is also `lab-password-not-secret`. Try `show version`,
-`show running-config`, `sh vlan`, a misspelled command. Then start scenario `d` and `e` and see what is different. The
+`sh vlan`, then `show running-config` (it is refused until `enable`) and a misspelled command. Then start scenario `d` and `e` and see what is different. The
 mock prints a log line for every command saying how well that answer is known.
 
 ```bash
@@ -76,6 +76,10 @@ Everything the mock does rests on an entry in [evidence.md](evidence.md):
 - INFERRED: derived from something that does not say it directly, for example one user report.
 - UNKNOWN: nobody has shown us. Where the mock answers anyway, the entry is marked as assumed.
 
+Most of the VERIFIED entries come from the MS 7000 command reference (source S6). The kit cannot include it, because its
+copyright text forbids distribution; ask for a copy and read the page of each command you build. It describes MS 7000 on
+7.5.2, and every command page says in which release the command was introduced.
+
 Before you write code for a behaviour, look up its entry. If it is UNKNOWN, write the code so that it fails loudly or
 keeps working when the real device turns out different, and add the fact to the list for the day a real switch is
 available ([real-device-checklist.md](real-device-checklist.md)). When you learn something new, add or change an entry in
@@ -86,16 +90,18 @@ available ([real-device-checklist.md](real-device-checklist.md)). When you learn
 - One exercise at a time. Its test file names the tests that must pass. Read them: they are the specification.
 - Make a test pass with the smallest change, then clean up. Commit after each exercise in your fork.
 - When something is not in the tests, look in the Cisco driver for how the same thing is done there.
-- Do not copy Cisco behaviour for configuration mode, saving or committing. Nobody has shown how iBOS does it. Exercise 8
-  is built around that gap on purpose.
+- Do not copy Cisco behaviour for configuration mode, saving or committing. iBOS has its own prompts, no commit and
+  `write memory`; the command reference describes them (`CONFIG-MODE-ENTRY`, `CONFIG-SAVE-COMMIT`), but nothing has been
+  tried on a device, and Exercise 8 is built around that.
 - Keep comments and docstrings out of the code unless the reason for a line is not obvious. Put explanations in your notes
   or in the guide.
 
 ## Where the driver goes afterwards
 
-The exercise package is laid out like a real driver (`acex_driver_waystream_ibos`). When the devkit has the vendor and OS
-for Waystream, the files move to `drivers/waystream_ibos_cli/src/acex_driver_waystream_ibos/` next to a `pyproject.toml`
-modelled on the Cisco one, with an `acex.neds` entry point. The tests stay as they are and the transport tests keep using
+The exercise package is laid out like a real driver (`acex_driver_waystream_ibos`). The devkit has the Waystream vendor
+and OS (acex pull request 386, in `dev`; the published devkit gets them with its next release). The files move to
+`drivers/waystream_ibos_cli/src/acex_driver_waystream_ibos/` next to a `pyproject.toml` modelled on the Cisco one, with an
+`acex.neds` entry point. The tests stay as they are and the transport tests keep using
 the mock. That move, and the pull request, are separate steps and not part of the exercises.
 
 ## Common traps
@@ -104,5 +110,8 @@ the mock. That move, and the pull request, are separate steps and not part of th
 - If `open()` fails after the SSH connection is up, close the connection before raising. The tests check that nothing is
   left behind.
 - A truncated answer must never be returned as if it were complete. Raise instead.
+- What a command is allowed to do depends on the privilege level: `show running-config` needs admin mode, `show version`
+  does not.
+- Do not rely on `terminal no pager`: it exists only from 6.3.10, and the pager is off by default.
 - Unknown syntax is data. A driver that silently drops lines it does not understand makes a diff look clean.
 - Keep the raw configuration raw. Normalizing and masking are separate steps on a copy.

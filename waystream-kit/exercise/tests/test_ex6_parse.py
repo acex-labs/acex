@@ -39,9 +39,10 @@ def test_a_raw_configuration_with_volatile_lines_parses_like_the_one_without():
     assert not any("!volatile" in line for line, _ in view(parse(raw))["unmatched"])
 
 
-def test_enabled_is_none_when_no_line_says_so():
+def test_a_port_without_a_no_shutdown_line_is_disabled_because_shutdown_is_the_default_state():
     interfaces = view(parse((GOLDEN / "ms4000-6.3.5.normalized.txt").read_text()))["interfaces"]
-    assert interfaces["tengigabitethernet1"]["enabled"] is None
+    assert interfaces["tengigabitethernet1"]["enabled"] is False
+    assert interfaces["gigabitethernet21"]["enabled"] is True
 
 
 @pytest.mark.parametrize("name", ["bang-separators.txt", "doc-indentation-artifacts.txt"])

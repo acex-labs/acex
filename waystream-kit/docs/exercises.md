@@ -17,9 +17,10 @@ A few tests are green before you write anything (the environment checks of Exerc
 Goal: know what the thing you are about to talk to looks like.
 
 - Start scenarios `b`, `d` and `e`, one at a time, and log in with `ssh` as the guide shows.
-- Answer in your notes: What does the prompt look like in each? Which scenario lands in user mode? What does `enable` ask
-  for? What does a wrong command look like, and where do the carets point? Which lines of `show running-config` start
-  with `!volatile` in scenario `c`?
+- Answer in your notes: What does the prompt look like in each? Which of `show version`, `show vlan` and
+  `show running-config` work before `enable`, and which do not? What does `enable` ask for in `d` and in `b`? What does a
+  wrong command look like, and where do the carets point? Which lines of `show running-config` start with `!volatile` in
+  scenario `c`? What are the ports called in `e`, and in `b`?
 - Read [evidence.md](evidence.md), the VERIFIED table, and mark which of your answers are verified and which the mock
   only assumes.
 
@@ -36,13 +37,16 @@ see how [`CiscoIOSTransport`](../../drivers/cisco_ios_cli/src/acex_driver_cisco_
 session.
 
 Evidence to read first: `PROMPT-MODES`, `PROMPT-PATTERN`, `PROMPT-TRAILING-SPACE`, `ENABLE-COMMAND`,
-`ENABLE-WRONG-PASSWORD`, `TERMINAL-COMMANDS`, `LOGIN-LANDING-MODE`, `SSH-AUTH-METHODS`.
+`ENABLE-WRONG-PASSWORD`, `LOGIN-LANDING-MODE`, `ADMIN-LEVEL-COMMANDS`, `TERMINAL-COMMANDS`, `PAGER-BEHAVIOUR`,
+`SSH-AUTH-METHODS`, `SSH-SERVER-FIRMWARE`.
 
 What the tests expect:
 
 - Commands return one output per command, without the echoed command and without the final prompt.
-- After login the session is in privileged mode, whichever mode the device landed in, and the two `terminal` commands
-  have been sent before anything else.
+- After login the session is in admin mode, whichever mode the device landed in (every scenario lands in user mode, as a
+  default account does), and `terminal width 65535` has been sent once before the first command.
+- `terminal no pager` is not needed: the pager is off by default and the command exists only from 6.3.10. If your
+  transport sends it, the error answer of an older switch must not stop `open`.
 - A missing or wrong enable password, a wrong login password and a device that refuses every login are
   `AuthenticationFailed`. A refused connection is `ConnectionError`. A command that never answers is `ConnectionTimeout`.
   These are the devkit's exceptions, not the library's.
@@ -55,6 +59,8 @@ Hints:
   no built-in idea of privilege levels.
 - Entering privileged mode may or may not ask for a password. Decide what to do in each case before you write it.
 - The class attributes `PORT`, `timeout_socket` and `timeout_ops` exist so tests can change them.
+- Firmware older than 6.3.4 probably has no SSH server at all (`SSH-SERVER-FIRMWARE`). A telnet transport is outside the
+  exercises, but the customer's firmware decides whether it is needed.
 
 Done when: `pytest exercise/tests/test_ex2_transport.py` is green.
 
@@ -65,14 +71,15 @@ Goal: return the running configuration exactly as the switch printed it.
 Classes and methods: `IbosTransport.get_config`; `Session.get_config` in `base.py` explains who calls it and what they
 expect ("Raw and unmasked").
 
-Evidence to read first: `RUNCFG-COMMAND`, `RUNCFG-7X-REJECTED`, `RUNCFG-7X-AFTER-ENABLE`, `VOLATILE-LINES`, `PAGER-BEHAVIOUR`.
+Evidence to read first: `RUNCFG-COMMAND`, `ADMIN-LEVEL-COMMANDS`, `RUNCFG-7X-REJECTED`, `RUNCFG-7X-AFTER-ENABLE`,
+`VOLATILE-LINES`, `PAGER-BEHAVIOUR`.
 
 What the tests expect:
 
 - The output is the configuration and nothing else: no prompt, no echo, no carriage returns.
 - `!volatile` lines are still in it. Raw means raw.
-- An error answer such as the one from scenario `e` without enable is raised as a driver error that carries the device's
-  text. It is never returned as if it were a configuration.
+- An error answer such as the one from scenario `e` without enable (`show running-config` is an admin-level command) is
+  raised as a driver error that carries the device's text. It is never returned as if it were a configuration.
 - A connection that drops half-way is an error, not a short configuration.
 
 Done when: `pytest exercise/tests/test_ex3_get_config.py` is green.
@@ -101,12 +108,15 @@ Goal: produce a copy of a configuration that is safe to store and show.
 Classes and methods: `RewriteRule`, `MASK` and `BaseNormalizer.mask`; `IbosCodec.mask`. The Cisco normalizer has a
 list of rewrite rules to compare with.
 
-Evidence to read first: `SECRET-SYNTAX-SNMP-RADIUS` and `SECRET-SYNTAX-OTHER`. Only three syntaxes are known. Everything
-else is a guess, and a guess that leaves a secret in clear is worse than one that masks too much.
+Evidence to read first: `SECRET-SYNTAX-SNMP-RADIUS` and `SECRET-SYNTAX-OTHER`. The command reference lists every place a
+secret is typed on 7.5.2: the three that Oxidized masks and seven more (`enable secret`, `console password`, local users,
+TACACS+, SNMPv3 users and notifications, licenses). Older firmware may print others, so a guess that leaves a secret in
+clear is worse than one that masks too much.
 
-What the tests expect: the three known syntaxes masked with the devkit's `MASK`; the same number of lines; masking twice
-giving the same text; no change to configurations without secrets; a hit report that names rules and never values; and
-the conservative rules for the made-up syntax in `fixtures/variants/invented-secret-syntax.txt`.
+What the tests expect: every syntax in `fixtures/variants/with-secrets.txt` masked with the devkit's `MASK`, keeping words
+such as `encrypted` and `sha`; the same number of lines; masking twice giving the same text; no change to
+configurations without secrets; a hit report that names rules and never values; and the conservative rules for the
+made-up syntax in `fixtures/variants/invented-secret-syntax.txt`.
 
 Done when: `pytest exercise/tests/test_ex5_mask.py` is green.
 
@@ -125,11 +135,14 @@ Evidence to read first: `RUNCFG-INDENT`, `RUNCFG-ORDER`, `INTERFACE-NAMES`, `INT
 `INTERFACE-DISABLED-FORM`, `RUNCFG-DOC-INDENT-ARTIFACT`.
 
 Scope: hostname, interfaces with name, description, address and enabled. Everything else must come out as unmatched, with
-the header lines it sat under. The point is not to model all of iBOS; it is to show that nothing disappears.
+the header lines it sat under. The point is not to model all of iBOS; it is to show that nothing disappears. The golden
+files use the names of the MS4000 and ASR6000 on 6.3.x; an MS 7000 names its ports `ethernet1/1`, which the real driver
+has to cope with and a device type will have to describe.
 
-What the tests expect: the golden parsed files, an interface with no `no shutdown` line being neither enabled nor
-disabled, raw input with `!volatile` parsing like clean input, irregular layouts neither crashing the parser nor losing a
-line, unknown top-level stanzas kept with their children, and an empty configuration giving an empty result.
+What the tests expect: the golden parsed files, an interface with no `no shutdown` line being disabled (shutdown is the
+default state of every interface; look at what `Flag` can say about a line that is absent), raw input with `!volatile`
+parsing like clean input, irregular layouts neither crashing the parser nor losing a line, unknown top-level stanzas kept
+with their children, and an empty configuration giving an empty result.
 
 Done when: `pytest exercise/tests/test_ex6_parse.py` is green.
 
@@ -138,14 +151,17 @@ Done when: `pytest exercise/tests/test_ex6_parse.py` is green.
 Goal: read what the device says it is out of `show version`.
 
 Classes and methods: `parse_show_version` and `read_facts` in `state.py`; `State.get_facts` in `base.py` and the
-`DeviceFacts` model in [`models/state.py`](../../devkit/src/acex_devkit/models/state.py). `get_facts` itself waits for the
-devkit to know Waystream; until then the exercise stops at your own `IbosFacts`.
+`DeviceFacts` model in [`models/state.py`](../../devkit/src/acex_devkit/models/state.py); `NetworkElementDriver.platforms`
+and `Platform` for the platform the driver supports. `get_facts` returns `DeviceFacts`, which needs the Waystream vendor
+and OS that the devkit has had since acex pull request 386. Two of the tests are skipped until your checkout has it: merge
+`dev` into your branch.
 
 Evidence to read first: `SHOW-VERSION-MS4K-630`, `SHOW-VERSION-MS4K-635`, `SHOW-VERSION-7X`, `SHOW-VERSION-ASR6000`.
 Three of the four are inferred or unknown. Make the parser depend on labels, not on positions.
 
 What the tests expect: hostname, version, image, model and serial number from three layouts; a missing line giving `None`
-and never an exception; an error answer not being taken for facts.
+and never an exception; an error answer not being taken for facts; the driver declaring the Waystream iBOS platform and
+no other; and `get_facts` returning `DeviceFacts` with that vendor and OS.
 
 Done when: `pytest exercise/tests/test_ex7_facts.py` is green.
 
@@ -156,12 +172,18 @@ Goal: write configuration back, with the part that nobody has shown us kept visi
 Classes and methods: `IbosCodec.render`, the same `BLOCKS` as Exercise 6, `IbosTransport.apply` and
 `allow_unverified_config_mode`, `ConfigurationError`.
 
-Evidence to read first: `CONFIG-MODE-ENTRY`, `CONFIG-SAVE-COMMIT`, `CONFIG-ERROR-FEEDBACK`, `RUNCFG-ORDER`.
+Evidence to read first: `CONFIG-MODE-ENTRY`, `CONFIG-SAVE-COMMIT`, `CONFIG-ERROR-FEEDBACK`, `BECS-NET-BOOT`,
+`HOSTNAME-RULES`, `RUNCFG-ORDER`.
 
 There are two halves. Rendering is verified syntax: the same declarations as in Exercise 6 write the lines the device
-prints, in the order it prints them. Applying is not: how configuration mode is entered, left and saved is unknown, so
-the mock offers a profile for it that is switched on only with `--experimental-config-mode` and announces itself as
-unverified. What you build against it is a rehearsal of the shape of the code, not knowledge of the switch.
+prints, in the order it prints them. Applying is documented but untried: the MS 7000 command reference describes
+`configure terminal`, the context prompts, `end`, `exit`, `do` and `write memory` (`CONFIG-MODE-ENTRY`,
+`CONFIG-SAVE-COMMIT`), but nobody has run them on a device and the manual shows no error text (`CONFIG-ERROR-FEEDBACK`). The
+mock offers them only with `--experimental-config-mode` and announces that in its greeting. What you build against it is a
+rehearsal of the shape of the code, not knowledge of the switch.
+
+A line takes effect in the running configuration at once; `write memory` is what makes it survive a restart, and it is a
+separate decision: a switch managed by BECS reads its configuration from there (`BECS-NET-BOOT`).
 
 What the tests expect:
 

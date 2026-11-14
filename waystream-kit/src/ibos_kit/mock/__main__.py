@@ -10,7 +10,7 @@ from ibos_kit.mock.server import RunningMock
 def explain(key: str) -> str:
     device = device_for(key)
     register = evidence.load()
-    facts = {fact for c in device.profile.commands for fact in c.facts}
+    facts = {fact for c in device.profile.commands for fact in c.facts} | set(device.profile.assumptions)
     facts |= {"PROMPT-MODES", "ENABLE-COMMAND", "TERMINAL-COMMANDS", "COMMAND-ABBREVIATION", "ERROR-FORMAT"}
     facts |= {"LOGIN-LANDING-MODE", "PROMPT-TRAILING-SPACE", "SSH-AUTH-METHODS", "LINE-ENDINGS-ANSI"}
     if device.profile.enable_password:

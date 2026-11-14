@@ -1,59 +1,29 @@
 ! version ibos-cma-7.6.2-GD-R (ibos-cma-7.6.2-GD-R.bz2)
-interface vlan2
- ip dhcp snoop information-tag
+interface vlan1
+ ip address 192.0.2.5 255.255.255.255
  no shutdown
 
-interface tengigabitethernet1
+interface vlan2
+ no shutdown
+
+interface ethernet1/1
  description Uplink Interface
  vlan member 2
  vlan untagged 2
- port uplink
- port type nni vlan 2
-
-interface gigabitethernet21
- description Customer Interface
- vlan member 2
- vlan untagged 2
- port type uni vlan 2
- ip dhcp snoop information-tag policy drop
- ip access-group cust-in in
- ip strict-clients
- arp proxy
- ip dhcp auto-policy-map snoop vlan 2
  no shutdown
 
-interface gigabitethernet22
+interface ethernet1/2
  description Customer Interface
  vlan member 2
  vlan untagged 2
- port type uni vlan 2
- ip dhcp snoop information-tag policy drop
- ip access-group cust-in in
- ip strict-clients
- arp proxy
- ip dhcp auto-policy-map snoop vlan 2
  no shutdown
 
-interface gigabitethernet23
+interface ethernet1/3
  description Customer Interface
  vlan member 2
  vlan untagged 2
- port type uni vlan 2
- ip dhcp snoop information-tag policy drop
- ip access-group cust-in in
- ip strict-clients
- arp proxy
- ip dhcp auto-policy-map snoop vlan 2
  no shutdown
 
 hostname ms-lab-05
-
-access-list cust-in
- seq 10 deny icmp any any redirect
- seq 20 deny udp any host 239.255.255.250 1900
- seq 30 deny udp any host 224.0.0.251 5353
- seq 40 deny udp any host 224.0.0.252 5355
- seq 50 deny ipv6 any any
- seq 100 permit ip any any
 
 !end

@@ -35,13 +35,15 @@ ssh -F /dev/null -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
 | `a-asr6000-635` | ASR6000, iBOS 6.3.5-ED-R, no clients connected |
 | `b-ms4000-635` | MS4000, 6.3.5-ED-R, S-VLAN with UNI and NNI ports, no clients |
 | `c-ms4000-635-client` | The same with a DHCP client: `!volatile` lines in the running configuration |
-| `d-ms4000-630` | MS4000, 6.3.0-ED-R. Lands in user mode, asks for an enable password, the commands of the installation guide |
-| `e-ms7048-762` | MS7048-AC, 7.6.2-GD-R. `show running-config` is rejected until `enable`, as one user report describes |
-| `e-ms7048-762-never` | The same, rejected even after `enable` |
+| `d-ms4000-630` | MS4000, 6.3.0-ED-R. Asks for an enable password; the commands of the installation guide. SSH on 6.3.0 is an assumption |
+| `e-ms7048-762` | MS7048-AC, 7.6.2-GD-R, ports named `ethernet1/1`. `show running-config` is refused until `enable`, as one user report describes and the manual explains |
+| `e-ms7048-762-never` | A hypothetical fault: the same, refused even after `enable` |
 | `f-failures` | An MS4000 with faults you switch on: `--hang-on`, `--drop-after-lines`, `--latency-ms`, `--reject-logins`, `--legacy-kex-only` |
 
-`--prompt-trailing-space` and `--start-mode user|privileged` change a scenario's assumptions.
-`--experimental-config-mode` adds a configuration mode that nobody has verified; it says so in the greeting and the log.
+Every scenario lands in user mode, as a default account does; `show running-config` needs `enable`. `--start-mode privileged`
+starts in admin mode like an account with privilege admin, and `--prompt-trailing-space` adds a space after the prompt.
+`--experimental-config-mode` adds the configuration mode the command reference describes, which nobody has tried on a
+device; it says so in the greeting and the log.
 `--explain` lists what is verified, inferred and assumed in a scenario.
 
 ## Boundaries

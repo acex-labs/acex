@@ -37,7 +37,7 @@ path = "device/ms4000-6.3.5/running-config.txt"
 scenario = "b"
 layout = "verified"
 facts = ["RUNCFG-COMMAND", "RUNCFG-HEADER", "RUNCFG-INDENT", "STANZA-SYNTAX", "INTERFACE-NAMES", "RUNCFG-ORDER-MS4K"]
-note = "S-VLAN base configuration with one uplink (nni) and three customer ports (uni). The hostname line and its place are assumed. tengigabitethernet1 has no 'no shutdown', as in the source: absence is not 'disabled'"
+note = "S-VLAN base configuration with one uplink (nni) and three customer ports (uni). The hostname line and its place are assumed. tengigabitethernet1 has no 'no shutdown' line, as in the source example; the MS 7000 manual makes shutdown the default state, so that is a disabled port, although an uplink without the line is odd and the source may have left it out"
 
 [[fixture]]
 path = "device/ms4000-6.3.5/running-config.with-client.txt"
@@ -113,22 +113,22 @@ note = "Rebuilt from a post-processed paste in a user report; the two blank line
 path = "device/ms7048-7.6.2/running-config.assumed.txt"
 scenario = "e"
 layout = "assumed"
-facts = ["RUNCFG-7X-AFTER-ENABLE"]
-note = "Nobody has shown a 7.x running configuration; the MS4000 one with the 7.6.2 image name"
+facts = ["RUNCFG-7X-AFTER-ENABLE", "INTERFACE-NAMES"]
+note = "Nobody has shown a 7.x running configuration of this model. Layout and ethernetS/P port names follow the excerpt in the MS 7000 manual (interface vlan1, interface ethernet1/1, ...); the contents are made up"
 
 [[fixture]]
 path = "variants/with-secrets.txt"
 scenario = "masking"
 layout = "assumed"
-facts = ["SECRET-SYNTAX-SNMP-RADIUS"]
-note = "The syntax comes from the comments of the third-party driver; where the stanzas sit in the output is a guess. Secret values are EXAMPLE- strings"
+facts = ["SECRET-SYNTAX-SNMP-RADIUS", "SECRET-SYNTAX-OTHER"]
+note = "Every secret-bearing syntax of the MS 7000 7.5.2 command reference, written as the manual shows it; where the stanzas sit in the output is a guess. Secret values are EXAMPLE- strings"
 
 [[fixture]]
 path = "variants/invented-secret-syntax.txt"
 scenario = "masking"
 layout = "assumed"
 facts = ["SECRET-SYNTAX-OTHER"]
-note = "Syntax invented on purpose to rehearse the conservative masking rules; not iBOS syntax"
+note = "Rehearses the conservative masking rules. The first two lines are real iBOS syntax, the tacacs-server line is invented"
 
 [[fixture]]
 path = "variants/bang-separators.txt"
@@ -176,7 +176,7 @@ note = "Equal to the one without a client"
 path = "golden/with-secrets.masked.txt"
 scenario = "golden"
 layout = "assumed"
-facts = ["SECRET-SYNTAX-SNMP-RADIUS"]
+facts = ["SECRET-SYNTAX-SNMP-RADIUS", "SECRET-SYNTAX-OTHER"]
 note = ""
 
 [[fixture]]
@@ -198,4 +198,4 @@ path = "golden/ms4000-6.3.5.parsed.json"
 scenario = "golden"
 layout = "assumed"
 facts = ["INTERFACE-NAMES", "STANZA-SYNTAX", "INTERFACE-NO-SHUTDOWN"]
-note = "tengigabitethernet1 has no 'no shutdown': enabled is null, not false"
+note = "tengigabitethernet1 has no 'no shutdown' line: enabled is false, because shutdown is the default state"

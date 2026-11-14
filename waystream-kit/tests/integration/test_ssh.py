@@ -62,7 +62,7 @@ def test_the_mock_refuses_to_listen_anywhere_but_on_loopback():
 async def test_login_gives_the_prompt_of_the_profile():
     async with build("b") as mock, await connect(mock) as conn:
         process = await conn.create_process(term_type="vt100")
-        assert (await read_screen(process)).endswith("ms-lab-01#")
+        assert (await read_screen(process)).endswith("ms-lab-01>")
 
 
 async def test_wrong_password_is_refused():
@@ -80,6 +80,7 @@ async def test_rejecting_all_logins_is_a_fault_a_driver_must_report():
 async def test_show_running_config_over_ssh_returns_the_fixture_between_echo_and_prompt():
     async with build("c") as mock, await connect(mock) as conn:
         process = await shell(conn)
+        assert (await command(process, "enable")).endswith("ms-lab-01#")
         screen = await command(process, "show running-config")
         expected = (DEVICE_FIXTURES / "ms4000-6.3.5/running-config.with-client.txt").read_text().rstrip("\n")
         assert body(screen, "show running-config") == expected
@@ -126,6 +127,7 @@ async def test_a_command_that_never_answers_times_out_on_the_client_side():
 async def test_a_connection_that_drops_in_the_middle_of_the_output_ends_without_a_prompt():
     async with build("b", drop_after_lines=4) as mock, await connect(mock) as conn:
         process = await shell(conn)
+        await command(process, "enable")
         process.stdin.write("show running-config\n")
         with pytest.raises(asyncio.IncompleteReadError):
             await asyncio.wait_for(process.stdout.readuntil(PROMPT), 5)
@@ -137,7 +139,7 @@ async def test_a_device_that_speaks_only_an_old_key_exchange_needs_a_client_that
             await connect(mock, kex_algs=["curve25519-sha256"])
         async with await connect(mock, kex_algs=["diffie-hellman-group14-sha1"]) as conn:
             process = await conn.create_process(term_type="vt100")
-            assert (await read_screen(process)).endswith("ms-lab-01#")
+            assert (await read_screen(process)).endswith("ms-lab-01>")
 
 
 async def test_latency_delays_every_answer():
@@ -174,7 +176,7 @@ async def test_a_generic_scrapli_client_can_read_the_configuration_of_scenario_b
             comms_prompt_pattern=r"^[\w.@()-]+[#>]\s?$",
         )
         async with client:
-            await client.send_command("terminal no pager")
+            await client.send_command("enable")
             result = await client.send_command("show running-config")
         assert result.result == (DEVICE_FIXTURES / "ms4000-6.3.5/running-config.txt").read_text().rstrip("\n")
 

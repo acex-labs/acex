@@ -19,11 +19,24 @@ async def test_execute_returns_one_output_per_command_without_the_echo_and_the_p
     assert outputs == [fixture("ms4000-6.3.5/show-version.assumed.txt"), fixture("ms4000-6.3.5/show-vlan.txt")]
 
 
-async def test_the_terminal_commands_are_sent_once_and_before_anything_else(mock):
+async def test_terminal_width_is_set_once_before_the_first_command(mock):
     async with mock("b") as running, opened() as transport:
         await transport.execute(["show vlan"])
     commands = [entry.command for entry in running.sessions[0].trace]
-    assert commands == ["terminal no pager", "terminal width 65535", "show vlan"]
+    assert commands.count("terminal width 65535") == 1
+    assert commands.index("terminal width 65535") < commands.index("show vlan")
+
+
+@pytest.mark.parametrize(
+    ("scenario", "credentials"),
+    [("a", [USERPASS]), ("b", [USERPASS]), ("c", [USERPASS]), ("d", [USERPASS, ENABLE]), ("e", [USERPASS])],
+)
+async def test_open_works_on_every_scenario_including_firmware_that_has_no_terminal_no_pager(
+    mock, scenario, credentials
+):
+    async with mock(scenario) as running, opened(credentials) as transport:
+        assert not (await transport.execute(["show version"]))[0].startswith("%-ERR")
+    assert running.sessions[0].mode == "privileged"
 
 
 async def test_a_prompt_with_a_trailing_space_works_too(mock):

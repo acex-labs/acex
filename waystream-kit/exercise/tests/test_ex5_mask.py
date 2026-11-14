@@ -26,8 +26,10 @@ def test_masking_keeps_every_line_in_its_place():
 
 
 def test_the_hit_report_names_rules_and_never_values():
-    stats = IbosNormalizer().mask((VARIANTS / "with-secrets.txt").read_text()).stats
-    assert stats.lines_redacted == 3
+    raw = (VARIANTS / "with-secrets.txt").read_text()
+    stats = IbosNormalizer().mask(raw).stats
+    golden = (GOLDEN / "with-secrets.masked.txt").read_text()
+    assert stats.lines_redacted == sum(a != b for a, b in zip(raw.splitlines(), golden.splitlines(), strict=True))
     assert all("EXAMPLE" not in name for name in stats.by_rule)
 
 

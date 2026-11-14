@@ -10,5 +10,5 @@ class WaystreamIbosDriver(NetworkElementDriver):
     transport_class = IbosTransport
     state_class = IbosState
 
-    # The devkit has no Vendor or OS for Waystream yet; platforms are declared when it does.
+    # Exercise 7: declare the platform. The devkit has had Waystream since acex pull request 386.
     platforms = []
