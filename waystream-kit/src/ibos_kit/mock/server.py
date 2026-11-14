@@ -96,7 +96,8 @@ class RunningMock:
                     await asyncio.sleep(3600)
                 out = ("\n" if hidden else "") + reply.text
                 if reply.prompt_follows:
-                    out += ("\n" if reply.text else "") + session.prompt
+                    # Two Enters in a row must not leave two prompts on one line, which a prompt pattern cannot read.
+                    out += ("\n" if reply.text or not hidden else "") + session.prompt
                 process.stdout.write(out)
                 await process.stdout.drain()
                 if reply.drop:

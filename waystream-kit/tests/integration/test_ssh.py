@@ -199,3 +199,13 @@ async def test_a_client_without_a_terminal_still_gets_answers_and_the_hidden_pas
         process.stdin.write("show vlan\n")
         screen = await asyncio.wait_for(process.stdout.readuntil("ms-lab-04#"), 5)
         assert "tengigabitethernet1" in screen
+
+
+async def test_two_enters_in_a_row_never_leave_two_prompts_on_one_line():
+    async with build("b") as mock, await connect(mock) as conn:
+        process = await conn.create_process(term_type="vt100")
+        process.stdin.write("\n\n")
+        await asyncio.sleep(0.3)
+        data = await asyncio.wait_for(process.stdout.read(4096), 2)
+        assert not re.search(r"[#>][\w.@()-]+[#>]", data), repr(data)
+        assert data.count("ms-lab-01>") == 3
