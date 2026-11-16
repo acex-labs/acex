@@ -51,6 +51,11 @@ class AcexNedInstallError(AcexError):
     """A NED wheel could not be installed into the running environment."""
 
 
+class AcexNedIncompatibleError(AcexNedInstallError):
+    """The running process cannot use a NED: it declares an interface the process cannot run, so it is
+    not installed, or the installed code cannot be loaded."""
+
+
 __all__ = [
     "AcexError",
     "AcexHTTPError",
@@ -63,4 +68,5 @@ __all__ = [
     "AcexTimeoutError",
     "AcexConnectionError",
     "AcexNedInstallError",
+    "AcexNedIncompatibleError",
 ]
