@@ -13,6 +13,10 @@ writes the draft, a person or an assistant. `python scripts/changelog.py validat
 Nothing is compiled: an edit that is merged is live in the next image.
 -->
 
+## 2026-11-13 A driver for Cisco IOS devices
+
+Devices that run classic IOS now have a driver of their own, next to the one for IOS-XE. It reads what IOS prints in its own way, such as ACL entries without sequence numbers, numbered access lists, port-fast on access ports and device tracking. An asset uses it when its driver is set to the new one.
+
 ## 2026-11-12 Compliance for the whole installation
 
 ACEX measures every node's configuration against what it should have, and every asset's software against the versions you approve. The new Compliance section ranks the best and the worst sites and lists every region, the dashboard shows both figures, and a site's Compliance tab breaks them down per node and per asset.

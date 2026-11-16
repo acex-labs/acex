@@ -1,11 +1,13 @@
 """Compliance summed up per site, region and over the installation, with the inventory and diff faked."""
 
 import asyncio
+import logging
 from types import SimpleNamespace
 
 import pytest
 from acex.compliance import ComplianceService
 from acex.compliance.software import SoftwareCheck
+from acex_devkit.exceptions import DriverException
 from acex_devkit.models.asset import AssetResponse
 from acex_devkit.models.compliance import ConfigurationStatus, SoftwareStatus
 from acex_devkit.models.node_response import NodeListItem
@@ -232,6 +234,35 @@ def test_a_configuration_that_cannot_be_parsed_leaves_the_rest_measured(service)
     assert site.nodes[1].configuration.status == ConfigurationStatus.measured
     assert (site.summary.configuration.nodes_total, site.summary.configuration.nodes_not_collected) == (2, 1)
     assert asyncio.run(service.node("2")).configuration.status == ConfigurationStatus.not_collected
+
+
+class ParseNotSupported(FakeDiffer):
+    async def observed(self, node_instance_id):
+        if node_instance_id == "2":
+            raise DriverException("Parsing Junos configuration is not implemented yet")
+        return await super().observed(node_instance_id)
+
+
+def test_a_driver_that_cannot_parse_leaves_the_node_not_collected_without_an_error_in_the_log(service, caplog):
+    service.configuration.differ = ParseNotSupported()
+
+    with caplog.at_level(logging.DEBUG):
+        site = asyncio.run(service.site("sto"))
+
+    assert site.nodes[2].configuration.status == ConfigurationStatus.not_collected
+    assert site.nodes[1].configuration.status == ConfigurationStatus.measured
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+
+
+def test_an_unexpected_parse_failure_is_logged_with_its_traceback(service, caplog):
+    service.configuration.differ = ParseFails()
+
+    with caplog.at_level(logging.DEBUG):
+        asyncio.run(service.site("sto"))
+
+    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert len(errors) == 1
+    assert errors[0].exc_info is not None
 
 
 def test_a_node_that_cannot_be_measured_does_not_fail_the_overview(service):

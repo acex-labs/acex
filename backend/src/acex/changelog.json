@@ -4,6 +4,21 @@
   "name": "ACEX backend",
   "releases": [
     {
+      "version": "7.3.0",
+      "date": "2026-11-13",
+      "entries": [
+        {
+          "id": "20261113-search-assets-from-one-box",
+          "kind": "added",
+          "title": "Search assets from one box",
+          "description": "`GET /api/v1/inventory/assets?q=<text>` finds assets whose serial number, hardware model, vendor or driver (NED id) contains the text, ignoring case. It combines with the existing filters, such as `assigned=false`, and `total` counts only the assets that match.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "7.2.0",
       "date": "2026-11-12",
       "entries": [
