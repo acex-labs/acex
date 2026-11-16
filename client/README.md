@@ -41,11 +41,13 @@ with Acex(base_url="...", auth=auth) as client:
 |---|---|
 | `client.inventory` | `sites`, `regions`, `region_assignments`, `contacts`, `contact_assignments`, `assets`, `asset_clusters`, `collection_agents`, `credentials`, `logical_nodes`, `management_connections`, `node_instances`, `node_credentials(node_id)`, `site_credentials(site_name)` |
 | `client.observability` | `agents` (with bound `outputs`, `rules`, `nodes`), `grafana` |
-| `client.operations` | `compliance` (`.check()`, `.site()`), `config_history.list_changes()`, `lldp` (`.upload()`, `.topology()`, `.by_site()`, `.get()`, `.reverse()`) |
+| `client.operations` | `config_history.list_changes()`, `lldp` (`.upload()`, `.topology()`, `.by_site()`, `.get()`, `.reverse()`) |
 | `client.config_components` | `catalog()`, `generate()`, `reconcile()`, `drivers()`, `translate()` |
 | `client.neds` | `list()`, `get()`, `download()` |
 | `client.ai` | `ask()`, `analyze()` (SSE-streamed) — `None` if backend has no `ai_ops` mounted |
-| `client.system` | `auth_config()`, `health_node()`, `health_site()` |
+| `client.compliance` | `overview()`, `node()`, `site()`, `region()` |
+| `client.policies` | `software` (`.query()`, `.get()`, `.create()`, `.update()`, `.delete()`) |
+| `client.system` | `auth_config()` |
 
 ## CRUD pattern
 

@@ -175,20 +175,3 @@ def test_system_auth_config(rest):
     result = SystemNamespace(rest).auth_config()
     assert result.enabled is True
     assert result.authority == "https://idp"
-
-
-@respx.mock
-def test_system_health_node(rest):
-    respx.get("http://test/api/v1/health/node_instance/1").mock(
-        return_value=Response(
-            200,
-            json={
-                "total_desired": 5,
-                "total_observed": 5,
-                "compliant_count": 5,
-                "compliance_percentage": 100.0,
-            },
-        )
-    )
-    result = SystemNamespace(rest).health_node(node_instance_id=1)
-    assert result.compliance_percentage == 100.0

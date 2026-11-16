@@ -4,6 +4,35 @@
   "name": "ACEX telemetry agent",
   "releases": [
     {
+      "version": "0.9.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261027-the-agent-reports-its-version-and-build",
+          "kind": "added",
+          "title": "The agent reports its version and build to ACEX",
+          "description": "Every acknowledgement carries the version of the package, the commit the image was built from and the branch that build ran on, so Settings > About can show what each agent runs. The image takes them from the build arguments `BUILD_ID` and `BUILD_REF` and exposes them as `ACEX_BUILD_ID` and `ACEX_BUILD_REF`; an image built without them reports no build.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": []
+        },
+        {
+          "id": "20261013-container-image-always-ships-the-matchin",
+          "kind": "fixed",
+          "title": "Container image always ships the matching ACEX devkit",
+          "description": "The image build could end up with an older `acex-devkit` pulled from the package index instead of the bundled one, which made the agent stop at startup with an import error. The bundled devkit is now installed last, so it always wins. Rebuild or pull the image to pick this up.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#290",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.8.0",
       "date": "2026-09-25",
       "entries": [

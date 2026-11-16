@@ -59,6 +59,41 @@ def hostnames(service, **kwargs):
     return [node.hostname for node in asyncio.run(service.query(**kwargs)).items]
 
 
+def test_an_unspecified_sort_defaults_to_node_id():
+    class RecordingAdapter:
+        def __init__(self):
+            self.query_kwargs = None
+
+        def query(self, **kwargs):
+            self.query_kwargs = kwargs
+            return {"items": [], "total": 0}
+
+    adapter = RecordingAdapter()
+    service = NodeService(adapter, SimpleNamespace())
+
+    asyncio.run(service.query())
+
+    assert adapter.query_kwargs["sort"] == "id"
+    assert adapter.query_kwargs["order"] == "asc"
+
+
+def test_a_default_page_walk_returns_every_node_once(db, service):
+    for hostname in ["a", "b", "c", "d", "e"]:
+        add_node(db, hostname)
+
+    seen = []
+    totals = set()
+
+    for offset in range(0, 5, 2):
+        page = asyncio.run(service.query(limit=2, offset=offset))
+        totals.add(page.total)
+        seen.extend(node.id for node in page.items)
+
+    assert totals == {5}
+    assert seen == [1, 2, 3, 4, 5]
+    assert len(seen) == len(set(seen))
+
+
 def test_ip_addresses_sort_numerically(db, service):
     ips = ["10.0.0.10", "10.0.0.9", "192.168.1.20", "0.0.0.0", "255.255.255.255", "9.255.255.255", "10.0.0.2"]
     for ip in ips:

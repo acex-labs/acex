@@ -4,6 +4,40 @@
   "name": "ACEX MCP server",
   "releases": [
     {
+      "version": "2.0.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261013-provision-status-has-a-new-value-enrolle",
+          "kind": "changed",
+          "title": "`provision_status` has a new value, `enrolled`, for devices in zero-touch setup",
+          "description": "The `provision_status` values accepted by `find_nodes` and returned by `find_nodes` and `get_node` are now unprovisioned, adopted, enrolled, provisioning, provisioned and failed. `enrolled` replaces `pending` and `bootstrapping`, so filters using those two must change.",
+          "breaking": true,
+          "audience": "user",
+          "refs": [
+            {
+              "label": "#314",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-backend-setting-acex-ai-mcp-server-url-i",
+          "kind": "changed",
+          "title": "Backend setting `ACEX_AI_MCP_SERVER_URL` is now `ACEX_AI_OPS_MCP_SERVER_URL`",
+          "description": "Backend settings were renamed to one `ACEX_<SECTION>_<FIELD>` scheme with no aliases for the old names. Where the backend reaches this server, `ACEX_AI_MCP_SERVER_URL` is now `ACEX_AI_OPS_MCP_SERVER_URL`; deployments using the old name must rename it.",
+          "breaking": true,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#306",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "1.1.0",
       "date": "2026-09-30",
       "entries": [

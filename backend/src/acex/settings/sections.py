@@ -1,7 +1,7 @@
 """Core sections: database, serving, auth, CORS, credential storage and messaging."""
 
 from typing import Annotated, Any
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from acex.settings.section import Section
 from pydantic import Field, SecretStr, field_validator
@@ -131,6 +131,47 @@ class ZtpSettings(Section, name="ztp"):
     provision_queue_timeout_minutes: int = 10
     #: A provisioning job running longer than this is taken as lost: its worker stopped reporting.
     provision_run_timeout_minutes: int = 30
+
+
+class GitSyncSettings(Section, name="git_sync"):
+    """Git repositories that ConfigMaps are read from (set up under /api/v1/git_repositories)."""
+
+    #: How often each repository is asked whether its branch has moved, in seconds.
+    poll_interval_seconds: int = Field(default=1800, ge=60)
+    #: Where repositories are checked out. Left unset, a directory under the system's temp
+    #: directory; set it to a volume to keep the last checkout when a restart can't reach the host.
+    checkout_dir: str | None = None
+    #: How long one git command may run, in seconds.
+    timeout_seconds: int = Field(default=120, ge=1)
+
+
+class ServicesSettings(Section, name="services"):
+    """Other backends the web frontend calls directly, handed to it by GET /api/v1/services.
+
+    The frontend knows only this API. It learns from here which other services
+    the deployment has and where they are, shows their modules only when they
+    are set, and sends the user's access token to them. Because of the token,
+    a URL is only ever set here by whoever deploys ACEX, never through the API.
+
+    Each field is `<service>_url` and is listed as `<service>` in the response.
+    """
+
+    #: SamruAI backend, e.g. "https://samruai.example.net". Unset hides SamruAI in the frontend.
+    samruai_url: str | None = None
+
+    @field_validator("*")
+    @classmethod
+    def _http_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        parts = urlsplit(value)
+        if parts.scheme not in ("http", "https") or not parts.netloc or parts.query or parts.fragment:
+            raise ValueError(f"must be a plain http(s) URL, got {value!r}")
+        return value.rstrip("/")
+
+    def public(self) -> dict[str, dict[str, str]]:
+        """The configured services, as the frontend reads them."""
+        return {name.removesuffix("_url"): {"url": url} for name, url in self.model_dump().items() if url is not None}
 
 
 class ChangelogSettings(Section, name="changelog"):

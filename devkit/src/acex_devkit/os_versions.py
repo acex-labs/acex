@@ -27,6 +27,12 @@ JUNOS = (
     r"(?:-(?P<qualifier>S\d+))?"
     r"(?:\.(?P<build>\d+))?"
 )
+# 6.3.5-ED-R, 7.6.2-GD-R, 6.1.0-ED-RC2 - Waystream iBOS. The letters after the first dash are the release class
+# (ED, GD); what follows them (R, RC2) is accepted but not compared.
+IBOS = (
+    r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
+    r"(?:-(?P<qualifier>[A-Za-z]+)(?:-[A-Za-z0-9]+)*)?"
+)
 
 
 class CiscoIosVersions(OsVersionScheme):
@@ -69,3 +75,9 @@ class AristaEosVersions(OsVersionScheme):
     os: OS = OS.arista_eos
     patterns: list[str] = [DOTTED_BUILD]
     examples: list[str] = ["4.30.3M", "4.28.6.1M"]
+
+
+class WaystreamIbosVersions(OsVersionScheme):
+    os: OS = OS.waystream_ibos
+    patterns: list[str] = [IBOS]
+    examples: list[str] = ["6.3.5-ED-R", "7.6.2-GD-R", "6.1.0-ED-RC2"]

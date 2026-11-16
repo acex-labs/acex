@@ -4,6 +4,44 @@
   "name": "ACEX Grafana sync",
   "releases": [
     {
+      "version": "0.4.0",
+      "date": "2026-11-06",
+      "entries": [
+        {
+          "id": "20261013-sign-in-to-acex-uses-the-acex-client-s-e",
+          "kind": "changed",
+          "title": "Sign-in to ACEX uses the ACEX client's environment settings",
+          "description": "If your ACEX requires sign-in, give the agent client credentials with `ACEX_CLIENT_SECRET`, and if needed `ACEX_CLIENT_ID` and `ACEX_ISSUER_URL`. These are read by the shared ACEX client, not by the agent itself, so check them against your deployment.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "70c130b",
+              "url": null
+            }
+          ]
+        },
+        {
+          "id": "20261013-agent-can-read-definitions-from-an-acex-",
+          "kind": "fixed",
+          "title": "Agent can read definitions from an ACEX that requires sign-in",
+          "description": "Requests to the ACEX API are now sent with the agent's access token. Before, they went out without a token and were refused (HTTP 401), so nothing was synced to Grafana when ACEX required sign-in.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": [
+            {
+              "label": "#260",
+              "url": null
+            },
+            {
+              "label": "70c130b",
+              "url": null
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.2.0",
       "date": "2026-08-27",
       "entries": [

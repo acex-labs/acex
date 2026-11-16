@@ -52,7 +52,7 @@ class RegionService:
         self,
         name: str = None,
         display_name: str = None,
-        limit: int = 100,
+        limit: int | None = 100,  # None: every item
         offset: int = 0,
         include_sites: bool = False,
     ) -> PaginatedResponse[RegionResponse]:

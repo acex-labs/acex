@@ -51,3 +51,28 @@ def test_ordering_is_semantic():
 def test_undiscovered_asset_needs_no_version():
     asset = Asset(vendor=Vendor.juniper, serial_number="JN1", os=OS.juniper_junos, hardware_model="EX4400-24X")
     assert asset.os_version is None
+
+
+def test_ibos_versions_as_the_device_prints_them_are_accepted():
+    scheme = OsVersionScheme.for_os(OS.waystream_ibos)
+    for version in ["6.3.0-ED-R", "6.3.5-ED-R", "7.6.2-GD-R", "6.1.0-ED-RC2", "3.21.4-ED-R", "6.3.5"]:
+        assert scheme.accepts(version), version
+    for junk in ["nonsense", "6.3", "6.3.5-", "-ED-R", "ibos-ms4k-6.3.5-ED-R"]:
+        assert not scheme.accepts(junk), junk
+
+
+def test_ibos_versions_are_ordered_by_their_numbers_and_not_as_strings():
+    scheme = OsVersionScheme.for_os(OS.waystream_ibos)
+    versions = [scheme.normalize(v) for v in ["7.6.2-GD-R", "6.3.5-ED-R", "6.10.0-ED-R", "6.3.0-ED-R"]]
+    assert [str(v) for v in sorted(versions)] == ["6.3.0-ED-R", "6.3.5-ED-R", "6.10.0-ED-R", "7.6.2-GD-R"]
+
+
+def test_an_ibos_asset_takes_the_version_of_its_show_version():
+    asset = Asset(
+        vendor=Vendor.waystream,
+        serial_number="0008AE00D004",
+        os=OS.waystream_ibos,
+        hardware_model="MS4026-AC",
+        os_version="6.3.0-ED-R",
+    )
+    assert asset.os_version == "6.3.0-ED-R"

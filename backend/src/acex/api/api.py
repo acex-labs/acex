@@ -51,8 +51,18 @@ class Api:
                     print(f"RabbitMQ: could not declare queues — {exc}")
             # Scheduled jobs, e.g. a workflow's waits, start from here when their time comes.
             dispatcher = asyncio.create_task(JobDispatcher(automation_engine.jobs).run())
+            # ConfigMaps from git repositories: loaded now, then checked for changes on an interval.
+            git_sync = asyncio.create_task(automation_engine.git_sync.run()) if automation_engine.git_sync else None
+            # Compliance of the whole installation takes minutes to measure, so it is measured from the start.
+            compliance = getattr(automation_engine, "compliance", None)
+            if compliance is not None:
+                compliance.start()
             yield
             dispatcher.cancel()
+            if compliance is not None:
+                compliance.stop()
+            if git_sync is not None:
+                git_sync.cancel()
 
         Api = FastAPI(
             title="ACE-X - Extendable Automation & Control Ecosystem",

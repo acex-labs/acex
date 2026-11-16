@@ -7,7 +7,7 @@ and Python code generation for ConfigMap files.
 
 import re
 from enum import Enum
-from types import NoneType
+from types import NoneType, UnionType
 from typing import (
     Any,
     Literal,
@@ -63,7 +63,7 @@ class FilterSpec(BaseModel):
 
 class GenerateRequest(BaseModel):
     class_name: str = "MyConfigMap"
-    filter: FilterSpec | None = None
+    filter: list[FilterSpec] | None = None
     components: list[ComponentInstance]
 
 
@@ -73,7 +73,7 @@ class GenerateResponse(BaseModel):
 
 class ReconcileOptions(BaseModel):
     class_name: str = "ReconcileConfigMap"
-    filter: FilterSpec | None = None
+    filter: list[FilterSpec] | None = None
     mode: Literal["diff", "full"] = "diff"
     # Only used in diff mode:
     include_removed: bool = True
@@ -83,7 +83,7 @@ class ReconcileOptions(BaseModel):
 class TranslateRequest(BaseModel):
     ned_id: str
     config_text: str
-    filter: FilterSpec | None = None
+    filter: list[FilterSpec] | None = None
 
 
 # ── Component metadata ────────────────────────────────────────────
@@ -201,30 +201,54 @@ IMPORT_MAP_OVERRIDES = {
 # Synthetic fields (not in model_cls) are added to the catalog automatically.
 REFERENCE_FIELDS = {
     "FrontpanelPort": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
     },
     "ManagementPort": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
     },
     "Loopback": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
     },
     "Svi": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
         "vlan": {"target": "Vlan", "description": "VLAN to create SVI for"},
     },
     "Subinterface": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF to assign interface to"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF to assign interface to",
+        },
         "vlan": {"target": "Vlan", "description": "VLAN for sub-interface"},
     },
     "SshServer": {
-        "source_interface": {"target": "Interface", "description": "Source interface for SSH"},
+        "source_interface": {
+            "target": "Interface",
+            "description": "Source interface for SSH",
+        },
     },
     "Vlan": {
-        "network_instance": {"target": "L3Vrf", "description": "Network instance for VLAN"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "Network instance for VLAN",
+        },
     },
     "StaticRoute": {
-        "network_instance": {"target": "L3Vrf", "description": "VRF for the static route"},
+        "network_instance": {
+            "target": "L3Vrf",
+            "description": "VRF for the static route",
+        },
     },
     "StaticRouteNextHop": {
         "network_instance": {"target": "L3Vrf", "description": "VRF for the next-hop"},
@@ -238,11 +262,17 @@ REFERENCE_FIELDS = {
     },
     "aaaTacacs": {
         "source_interface": {"target": "Interface", "description": "Source interface"},
-        "server_group": {"target": "aaaServerGroup", "description": "Server group membership"},
+        "server_group": {
+            "target": "aaaServerGroup",
+            "description": "Server group membership",
+        },
     },
     "aaaRadius": {
         "source_interface": {"target": "Interface", "description": "Source interface"},
-        "server_group": {"target": "aaaServerGroup", "description": "Server group membership"},
+        "server_group": {
+            "target": "aaaServerGroup",
+            "description": "Server group membership",
+        },
     },
     "SnmpCommunity": {
         "source_interface": {"target": "Interface", "description": "Source interface"},
@@ -285,6 +315,11 @@ SKIP_FIELDS = {
 # ── Introspection helpers ─────────────────────────────────────────
 
 
+# `X | None` has the origin `types.UnionType`, while `Optional[X]` and `Union[X, Y]` have `typing.Union`.
+# From Python 3.14 they are the same object, so both have to be checked to behave the same on 3.13.
+_UNION_ORIGINS = (Union, UnionType)
+
+
 def _unwrap_attribute_value(annotation):
     """
     Unwrap Optional[AttributeValue[T]] and return (inner_type, is_optional).
@@ -294,7 +329,7 @@ def _unwrap_attribute_value(annotation):
     inner = annotation
 
     origin = get_origin(inner)
-    if origin is Union:
+    if origin in _UNION_ORIGINS:
         args = get_args(inner)
         non_none = [a for a in args if a is not NoneType]
         if NoneType in args and len(non_none) == 1:
@@ -316,7 +351,7 @@ def _unwrap_attribute_value(annotation):
             value_ann = inner.model_fields["value"].annotation
             # Unwrap Union[T, ExternalValue] → T
             v_origin = get_origin(value_ann)
-            if v_origin is Union:
+            if v_origin in _UNION_ORIGINS:
                 v_args = [a for a in get_args(value_ann) if not (isinstance(a, type) and a.__name__ == "ExternalValue")]
                 return (v_args[0] if v_args else str), is_optional
             return value_ann, is_optional
@@ -342,7 +377,7 @@ def _type_label(t) -> str:
         return f"list[{_type_label(args[0])}]" if args else "list"
     if origin is Literal:
         return "enum"
-    if origin is Union:
+    if origin in _UNION_ORIGINS:
         return "string"
     if isinstance(t, type) and issubclass(t, Enum):
         return "enum"
@@ -356,7 +391,7 @@ def _enum_values(t) -> list[str] | None:
         return [str(v) for v in get_args(t)]
     if isinstance(t, type) and issubclass(t, Enum):
         return [e.value for e in t]
-    if origin is Union:
+    if origin in _UNION_ORIGINS:
         for arg in get_args(t):
             vals = _enum_values(arg)
             if vals:
@@ -562,11 +597,24 @@ def generate_configmap(request: GenerateRequest) -> GenerateResponse:
     # Instantiation and filter
     inst_var = _to_snake_case(request.class_name)
     filter_block = f"\n{inst_var} = {request.class_name}()\n"
+    # Build filter block based on request.filter list
     if request.filter:
-        filter_block += (
-            f'{inst_var}.filters = FilterAttribute("{request.filter.attribute}")'
-            f'.{request.filter.operator}("{request.filter.value}")\n'
-        )
+        # If several filters
+        if len(request.filter) > 1:
+            filter_block += f"{inst_var}.filters = (\n"
+            for i, f in enumerate(request.filter):
+                filter_block += f'\tFilterAttribute("{f.attribute}").{f.operator}("{f.value}")'
+                if i < len(request.filter) - 1:
+                    filter_block += "| \n"
+                else:
+                    filter_block += "\n"
+            filter_block += ")"
+        # Single filter
+        else:
+            filter_block += (
+                f'{inst_var}.filters = FilterAttribute("{request.filter[0].attribute}")'
+                f'.{request.filter[0].operator}("{request.filter[0].value}")\n'
+            )
 
     code = (
         "\n".join(import_lines)
@@ -902,7 +950,16 @@ def _extract_from_dict(obj, comp_name, single_attr, container, type_map, counter
             )
 
 
-def _walk_template_dict(config_dict, template_str, comp_name, single_attr, container, type_map, counter, results):
+def _walk_template_dict(
+    config_dict,
+    template_str,
+    comp_name,
+    single_attr,
+    container,
+    type_map,
+    counter,
+    results,
+):
     """Walk a template path on a plain dict, expanding ${var} as wildcards."""
     segments = []
     for part in template_str.split("."):

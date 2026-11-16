@@ -13,6 +13,7 @@ from acex.api.routers.ztp_discoveries import create_router as discoveries_router
 from acex.jobs import JobManager, JobType, JobTypeRegistry
 from acex.models import Asset, LogicalNode, Node
 from acex.models.ztp_method import ZtpMethodRow
+from acex.platforms import HardwareModelManager
 from acex.settings import RabbitMQSettings
 from acex.ztp import ZtpDiscoveryManager
 from acex_devkit.models.job import JobUpdate
@@ -56,7 +57,7 @@ class _Ztp:
         engine = SimpleNamespace(
             jobs=self.jobs,
             settings=SimpleNamespace(rabbitmq=RabbitMQSettings()),
-            ztp_discoveries=ZtpDiscoveryManager(self.db),
+            ztp_discoveries=ZtpDiscoveryManager(self.db, HardwareModelManager(self.db)),
         )
         app = FastAPI()
         app.include_router(workers_router(engine))
@@ -257,6 +258,13 @@ class TestApprove:
             asset.id,
         )
         assert (asset.hardware_model, asset.os_version, asset.ned_id) == ("C9300-48P", "17.12.3a", NED)
+
+    def should_enable_the_hardware_model(self, ztp):
+        discovery = ztp.discover("10.0.0.5", hardware_model="c9300-48p")
+
+        ztp.review(discovery["id"], "approve")
+
+        assert HardwareModelManager(ztp.db).enabled() == {"C9300-48P"}  # as the devkit declares it
 
     def should_update_the_asset_and_leave_its_node_alone(self, ztp):
         asset_id = ztp.asset(os_version="17.9.4a")

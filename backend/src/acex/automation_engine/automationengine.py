@@ -1,10 +1,44 @@
+import logging.config
 import warnings
 from typing import TYPE_CHECKING
 
+from acex.ai_ops import AIOpsManager
+from acex.api.api import Api
+from acex.automation_engine.integrations import Integrations
+from acex.compilers import ConfigCompiler
+from acex.credentials.credential_manager import CredentialManager
+from acex.credentials.vault_client import VaultClient
+from acex.cve.cve_manager import CveManager
+from acex.database import Connection, DatabaseManager
+from acex.device_configs import DeviceConfigManager
+from acex.git_sync import GitSyncManager
+from acex.inventory import Inventory
+from acex.jobs import JobManager
+from acex.lldp.lldp_neighbor_manager import LldpNeighborManager
+from acex.logging_config import build_logging_config
+from acex.management_connections import ManagementConnectionManager
+from acex.messaging import JobProducer
+from acex.operations.runs import OperationRuns
+from acex.platforms import HardwareModelManager
+from acex.plugins import PluginManager
+from acex.plugins.neds.manager import NEDManager
+from acex.policies import SoftwarePolicyManager
+from acex.settings import AIOpsSettings, InfluxDBOutput, OidcSettings, Settings, VaultSettings
+from acex.workflows.library import WorkflowLibrary
+from acex.workflows.runs import WorkflowRuns
+from acex.ztp import (
+    KeaConfigRenderer,
+    ZtpCallManager,
+    ZtpDhcpScopeManager,
+    ZtpDiscoveryManager,
+    ZtpMethodManager,
+    ZtpPipelineManager,
+    ZtpVendorClassManager,
+)
+from pydantic import SecretStr
+
 if TYPE_CHECKING:
-    from acex.database import Connection
     from acex.plugins.integrations import IntegrationPluginBase, IntegrationPluginFactoryBase
-    from acex.settings import Settings
     from fastapi import FastAPI
 
 
@@ -37,29 +71,6 @@ class AutomationEngine:
         `configure_logging` enables timestamped console logging and replaces
         the process-wide logging configuration. Disabled by default.
         """
-        # Lazy imports - only load when AutomationEngine is instantiated
-        from acex.api.api import Api
-        from acex.automation_engine.integrations import Integrations
-        from acex.compilers import ConfigCompiler
-        from acex.cve.cve_manager import CveManager
-        from acex.database import Connection, DatabaseManager
-        from acex.device_configs import DeviceConfigManager
-        from acex.inventory import Inventory
-        from acex.jobs import JobManager
-        from acex.management_connections import ManagementConnectionManager
-        from acex.messaging import JobProducer
-        from acex.plugins import PluginManager
-        from acex.settings import Settings
-        from acex.ztp import (
-            KeaConfigRenderer,
-            ZtpCallManager,
-            ZtpDhcpScopeManager,
-            ZtpDiscoveryManager,
-            ZtpMethodManager,
-            ZtpPipelineManager,
-            ZtpVendorClassManager,
-        )
-
         if dev_mode is not None:
             _deprecated("AutomationEngine(dev_mode=...)", "pass settings=Settings(dev=...) instead")
             if settings is not None:
@@ -68,10 +79,6 @@ class AutomationEngine:
         self.settings = settings if settings is not None else Settings()
 
         if configure_logging:
-            import logging.config
-
-            from acex.logging_config import build_logging_config
-
             logging.config.dictConfig(build_logging_config(dev=self.settings.dev))
 
         if db_connection is None:
@@ -92,10 +99,12 @@ class AutomationEngine:
         self.cves = CveManager(self.db)
         self.config_compiler = ConfigCompiler(self.db)
         self.mgmt_con_manager = ManagementConnectionManager(self.db)
+        self.software_policies = SoftwarePolicyManager(self.db)
+        self.hardware_models = HardwareModelManager(self.db)
         self.influxdb_settings = self.settings.influxdb
         # Nothing connects to RabbitMQ until the first job is published.
         self.jobs = JobManager(self.db, JobProducer(self.settings.rabbitmq))
-        self.ztp_discoveries = ZtpDiscoveryManager(self.db)
+        self.ztp_discoveries = ZtpDiscoveryManager(self.db, self.hardware_models)
         self.ztp_calls = ZtpCallManager(self.db, self.jobs)
         self.ztp_methods = ZtpMethodManager(self.db)
         self.ztp_vendor_classes = ZtpVendorClassManager(self.db)
@@ -119,6 +128,7 @@ class AutomationEngine:
         # Create Inventory
         self.inventory = Inventory(
             db_connection=self.db,
+            hardware_models=self.hardware_models,
             assets_plugin=self.plugin_manager.get_plugin_for_object_type("assets"),
             logical_nodes_plugin=self.plugin_manager.get_plugin_for_object_type("logical_nodes"),
             sites_plugin=self.plugin_manager.get_plugin_for_object_type("sites"),
@@ -132,22 +142,17 @@ class AutomationEngine:
         self.device_config_manager = DeviceConfigManager(self.db, self.inventory)
 
         # Create LldpNeighborManager
-        from acex.lldp.lldp_neighbor_manager import LldpNeighborManager
-
         self.lldp_neighbor_manager = LldpNeighborManager(self.db)
 
         # Workflows: saved steps and workflows, and the runs the backend moves on as their jobs finish.
-        from acex.operations.runs import OperationRuns
-        from acex.plugins.neds.manager import NEDManager
-        from acex.workflows.library import WorkflowLibrary
-        from acex.workflows.runs import WorkflowRuns
-
         self.workflows = WorkflowLibrary(self.db)
         operations = OperationRuns(self.jobs, self.inventory.node_instances, NEDManager())
         self.workflow_runs = WorkflowRuns(self.jobs, self.workflows, operations)
 
         # Built in create_app() from settings.credentials
         self.credential_manager = None
+        # Built in create_app(), with the credential manager it reads tokens through.
+        self.git_sync = None
 
         self._run_migrations()
 
@@ -162,13 +167,9 @@ class AutomationEngine:
         self.db.upgrade()
 
     def _build_credential_manager(self):
-        from acex.credentials.credential_manager import CredentialManager
-
         creds = self.settings.credentials
         vault_client = None
         if creds.vault.configured:
-            from acex.credentials.vault_client import VaultClient
-
             vault = creds.vault
             vault_client = VaultClient(
                 url=vault.addr,
@@ -191,9 +192,9 @@ class AutomationEngine:
         self._build_credential_manager()
         self.inventory.telemetry_registry.credential_manager = self.credential_manager
         self.inventory.credential_manager = self.credential_manager
+        # Reads its tokens through the credential manager, so it is built with it.
+        self.git_sync = GitSyncManager(self.db, self.config_compiler, self.credential_manager, self.settings.git_sync)
         if not hasattr(self, "ai_ops_manager") and self.settings.ai_ops.enabled:
-            from acex.ai_ops import AIOpsManager
-
             self.ai_ops_manager = AIOpsManager(settings=self.settings.ai_ops)
         return self.api.create_app(self)
 
@@ -221,8 +222,6 @@ class AutomationEngine:
 
     def set_encryption_key(self, key: str):
         """Deprecated: use Settings(credentials={"encryption_key": ...}) or ACEX_CREDENTIALS_ENCRYPTION_KEY."""
-        from pydantic import SecretStr
-
         _deprecated(
             "set_encryption_key()",
             'use Settings(credentials={"encryption_key": ...}) or ACEX_CREDENTIALS_ENCRYPTION_KEY',
@@ -231,8 +230,6 @@ class AutomationEngine:
 
     def set_vault(self, url: str, token: str = None, role_id: str = None, secret_id: str = None, verify: bool = True):
         """Deprecated: use Settings(credentials={"vault": {...}}) or VAULT_*."""
-        from acex.settings import VaultSettings
-
         _deprecated("set_vault()", 'use Settings(credentials={"vault": {...}}) or VAULT_* env vars')
         self.settings.credentials.vault = VaultSettings(
             addr=url, token=token, role_id=role_id, secret_id=secret_id, verify=verify
@@ -240,8 +237,6 @@ class AutomationEngine:
 
     def set_oidc(self, issuer_url: str, audience: str = "acex", jwks_ttl: int = 3600, verify_ssl: bool = True):
         """Deprecated: use Settings(oidc={...}) or OIDC_*."""
-        from acex.settings import OidcSettings
-
         _deprecated("set_oidc()", "use Settings(oidc={...}) or OIDC_* env vars")
         self.settings.oidc = OidcSettings(
             issuer_url=issuer_url, audience=audience, jwks_ttl=jwks_ttl, verify_ssl=verify_ssl
@@ -266,9 +261,6 @@ class AutomationEngine:
         mcp_server_url: str = None,
     ):
         """Deprecated: use Settings(ai_ops=AIOpsSettings(...)) or ACEX_AI_OPS_* env vars."""
-        from acex.ai_ops import AIOpsManager
-        from acex.settings import AIOpsSettings
-
         _deprecated("ai_ops()", "use Settings(ai_ops=AIOpsSettings(...)) or ACEX_AI_OPS_* env vars")
         if not enabled:
             return None
@@ -302,8 +294,6 @@ class AutomationEngine:
 
         Append one more backend-default InfluxDB output.
         """
-        from acex.settings import InfluxDBOutput
-
         _deprecated("add_influxdb()", "use Settings(influxdb=InfluxDBSettings(extra_outputs=[...]))")
         if self.influxdb_settings.primary_output is None:
             self._set_primary_influxdb(url=url, version=version, **output)
@@ -311,8 +301,6 @@ class AutomationEngine:
             self.influxdb_settings.extra_outputs.append(InfluxDBOutput(url=url, version=version, **output))
 
     def _set_primary_influxdb(self, **output):
-        from acex.settings import InfluxDBOutput
-
         # Validated as a whole output first, so a bad value is rejected
         # before anything is changed.
         primary = InfluxDBOutput(**output)

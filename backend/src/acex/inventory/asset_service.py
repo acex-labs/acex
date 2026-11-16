@@ -8,7 +8,7 @@ from acex_devkit.models.node_response import AssetRefType
 from acex_devkit.models.os_version import OsVersionScheme
 from acex_devkit.models.pagination import PaginatedResponse
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import String, cast, or_, select
 
 
 class AssetService:
@@ -24,8 +24,14 @@ class AssetService:
         "os_version": "os_version",
     }
 
-    def __init__(self, adapter):
+    # What ``q`` is looked for in: the fields that identify an asset to a person,
+    # i.e. what a picker shows as its title (vendor, model) and sublabel (driver, serial).
+    SEARCHABLE_COLUMNS = (Asset.serial_number, Asset.hardware_model, Asset.vendor, Asset.ned_id)
+
+    def __init__(self, adapter, hardware_models):
         self.adapter = adapter
+        # An asset entering the inventory enables its hardware model.
+        self.hardware_models = hardware_models
 
     async def _call_method(self, method, *args, **kwargs):
         """Helper för att hantera både sync och async metoder."""
@@ -36,6 +42,7 @@ class AssetService:
 
     async def create(self, asset: Asset):
         result = await self._call_method(self.adapter.create, asset)
+        self.hardware_models.enable_for_asset(asset.hardware_model, enabled_by="inventory")
         return result
 
     async def get(self, id: str) -> AssetResponse:
@@ -54,7 +61,14 @@ class AssetService:
         offset: int = 0,
         sort: str | None = None,
         order: Literal["asc", "desc"] = "asc",
+        q: str | None = None,
     ) -> PaginatedResponse[AssetResponse]:
+        """List assets, filtered by the per-field params and/or ``q``.
+
+        ``q`` is one search text matched, case-insensitively as a contains, against
+        serial number, hardware model, vendor and NED id. It narrows the result
+        together with every other filter, and ``total`` counts only what matches.
+        """
 
         query_filters = {
             k: v
@@ -75,6 +89,13 @@ class AssetService:
                 extra_filters.append(Asset.id.in_(assigned_ids))
             else:
                 extra_filters.append(~Asset.id.in_(assigned_ids))
+        text = (q or "").strip()
+        if text:
+            # autoescape: a typed % or _ is that character, not a wildcard.
+            # cast: vendor is an enum in the model, and contains needs text on every database.
+            extra_filters.append(
+                or_(*(cast(column, String).icontains(text, autoescape=True) for column in self.SEARCHABLE_COLUMNS))
+            )
         sort_column = None
         if sort is not None:
             sort_column = self.SORTABLE_COLUMNS.get(sort)
@@ -121,6 +142,8 @@ class AssetService:
                 asset = asset.model_copy(update={"os_version": patch["os_version"]})
 
         result = await self._call_method(self.adapter.update, id, asset)
+        if "hardware_model" in patch:
+            self.hardware_models.enable_for_asset(patch["hardware_model"], enabled_by="inventory")
         return result
 
     async def delete(self, id: str):

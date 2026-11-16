@@ -1,11 +1,13 @@
 FROM python:3.13-slim@sha256:d0a9e379c0c588befb0e427db17ca9731751d281f32c6cb1a90a1277b680bdad
 
-RUN apt-get update && apt-get install -y libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+# git: ConfigMaps can be synced from git repositories (acex.git_sync)
+RUN apt-get update && apt-get install -y libpq-dev gcc git && rm -rf /var/lib/apt/lists/*
 
 # Local dependencies
 COPY devkit/ /deps/devkit/
 COPY client/ /deps/client/
 COPY drivers/cisco_ios_cli/ /deps/cisco_ios_cli/
+COPY drivers/cisco_ios_classic_cli/ /deps/cisco_ios_classic_cli/
 COPY drivers/juniper_junos_cli/ /deps/juniper_junos_cli/
 
 # Backend source (installed with pip like the other local packages)
@@ -27,9 +29,10 @@ COPY backend/constraints.txt /deps/constraints.txt
 
 # Replace local path dependencies with version requirements
 RUN sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_cli/pyproject.toml && \
+    sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_classic_cli/pyproject.toml && \
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/juniper_junos_cli/pyproject.toml && \
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/backend/pyproject.toml && \
-    pip install --no-cache-dir -c /deps/constraints.txt /deps/devkit /deps/client /deps/cisco_ios_cli /deps/juniper_junos_cli /deps/backend[vault]
+    pip install --no-cache-dir -c /deps/constraints.txt /deps/devkit /deps/client /deps/cisco_ios_cli /deps/cisco_ios_classic_cli /deps/juniper_junos_cli /deps/backend[vault]
 
 
 ARG BUILD_ID=""

@@ -55,6 +55,15 @@ def test_acex_normalizes_base_url():
 
 
 @respx.mock
+def test_acex_hands_the_ned_interfaces_it_can_run_to_the_neds_resource():
+    respx.head("http://test/api/v1/ai_ops/ai/ask/").mock(return_value=Response(404))
+    with Acex(base_url="http://test/", auth=NullAuthProvider(), ned_interfaces=[2]) as client:
+        assert client.neds.ned_interfaces == frozenset({2})
+    with Acex(base_url="http://test/", auth=NullAuthProvider()) as client:
+        assert client.neds.ned_interfaces is None
+
+
+@respx.mock
 def test_acex_full_flow_sites_query(rest_or_acex=None):
     """End-to-end: construct Acex, query sites, verify LiveInstance."""
     respx.head("http://test/api/v1/ai_ops/ai/ask/").mock(return_value=Response(404))

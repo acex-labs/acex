@@ -13,6 +13,14 @@ from acex_devkit.models.attribute_value import AttributeValue
 from .compiled_logical_node import CompiledLogicalNode
 
 
+class ConfigMapLoadError(Exception):
+    """One or more files in a ConfigMap directory failed to import."""
+
+    def __init__(self, failures: list[str]):
+        self.failures = failures
+        super().__init__("ConfigMaps failed to load:\n" + "\n".join(failures))
+
+
 class ConfigCompiler:
     """
     This class enriches logical nodes with
@@ -28,48 +36,91 @@ class ConfigCompiler:
     def __init__(self, db_manager):
         self.ln = None
         self.config_map_paths = []
-        self.config_maps = []
+        # Added in code or from a directory: kept for the life of the process.
+        self._static_maps: list[ConfigMap] = []
+        # Replaced as a whole while running (a git repository synced): key -> (root, [(name, map)]).
+        # Never changed in place, only swapped, so a compile that is reading it is never disturbed.
+        self._sources: dict[str, tuple[str, list[tuple[str, ConfigMap]]]] = {}
         self.db = db_manager
+
+    @property
+    def config_maps(self) -> list[ConfigMap]:
+        sources = self._sources
+        return [*self._static_maps, *(m for _, maps in sources.values() for _, m in maps)]
+
+    @property
+    def source_roots(self) -> list[str]:
+        sources = self._sources
+        return [*self.config_map_paths, *(root for root, _ in sources.values())]
 
     def add_config_map_path(self, dir_path: str):
         self.config_map_paths.append(dir_path)
-        self._find_and_register_config_maps(dir_path)
+        for _, config_map in self.load_config_maps(dir_path):
+            self.add_config_map(config_map)
 
     def add_config_map(self, config_map: ConfigMap):
         """
         Adds a ConfigMap to the compiler.
         """
-        self.config_maps.append(config_map)
+        self._static_maps.append(config_map)
 
-    def _find_and_register_config_maps(self, dir_path: str):
+    def set_source(self, key: str, root: str, config_maps: list[tuple[str, ConfigMap]]) -> None:
+        """Use `config_maps` for source `key` from now on, in place of what it had."""
+        self._sources = {**self._sources, key: (root, config_maps)}
+
+    def remove_source(self, key: str) -> None:
+        self._sources = {k: v for k, v in self._sources.items() if k != key}
+
+    def source_names(self, key: str) -> list[str]:
+        """The names of the ConfigMaps source `key` has loaded."""
+        _, maps = self._sources.get(key, ("", []))
+        return [name for name, _ in maps]
+
+    def has_source(self, key: str) -> bool:
+        return key in self._sources
+
+    def source_keys(self) -> list[str]:
+        return list(self._sources)
+
+    def load_config_maps(self, dir_path: str, strict: bool = False) -> list[tuple[str, ConfigMap]]:
         """
-        Finds all ConfigMaps in the given directory and subdirectories and registers them.
+        Finds all ConfigMaps in the given directory and subdirectories, named `<file>:<variable>`.
+
+        A file that fails to import is skipped, unless `strict`: then nothing is returned and
+        ConfigMapLoadError names every file that failed.
         """
-        py_files = self._find_python_files_in_dir(dir_path)
-        for file_path in py_files:
+        found = []
+        failures = []
+        for file_path in self._find_python_files_in_dir(dir_path):
             module_name = Path(file_path).stem
             spec = importlib.util.spec_from_file_location(module_name, file_path)
             if not spec or not spec.loader:
                 continue
             module = importlib.util.module_from_spec(spec)
+            relative = os.path.relpath(file_path, dir_path)
             try:
                 sys.modules[module_name] = module
                 spec.loader.exec_module(module)
             except Exception as e:
                 print(f"Failed to import {file_path}: {e}")
+                failures.append(f"{relative}: {type(e).__name__}: {e}")
                 continue
             # Hitta alla variabler som är instanser av ConfigMap (men inte klasser)
             for name, obj in module.__dict__.items():
                 if isinstance(obj, ConfigMap) and not isinstance(obj, type):
-                    self.add_config_map(obj)
+                    found.append((f"{relative}:{name}", obj))
                     print(f"Registered ConfigMap instance: '{name}' from {file_path}")
+        if strict and failures:
+            raise ConfigMapLoadError(failures)
+        return found
 
     def _find_python_files_in_dir(self, dir_path: str) -> list:
         """
         Recursively finds all .py files in the given directory and subdirectories.
         """
         py_files = []
-        for root, _, files in os.walk(dir_path):
+        for root, dirs, files in os.walk(dir_path):
+            dirs[:] = [d for d in dirs if d != ".git"]
             for file in files:
                 if file.endswith(".py"):
                     py_files.append(os.path.join(root, file))
@@ -162,7 +213,7 @@ class ConfigCompiler:
             session.close()
 
     async def compile(self, logical_node, integrations, resolve: bool = False) -> dict:
-        configuration = Configuration(logical_node.id, source_roots=self.config_map_paths)
+        configuration = Configuration(logical_node.id, source_roots=self.source_roots)
         self.ln = CompiledLogicalNode(configuration, logical_node, integrations)
         self._find_processors_for_ln()
         await self.ln.compile()

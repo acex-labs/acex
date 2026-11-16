@@ -8,5 +8,5 @@ T = TypeVar("T")
 class PaginatedResponse[T](BaseModel):
     items: list[T]
     total: int
-    limit: int
+    limit: int | None  # None: every item
     offset: int

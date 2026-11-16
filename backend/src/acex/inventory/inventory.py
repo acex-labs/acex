@@ -27,6 +27,7 @@ class Inventory:
     def __init__(
         self,
         db_connection=None,
+        hardware_models=None,
         assets_plugin=None,
         logical_nodes_plugin=None,
         sites_plugin=None,
@@ -50,7 +51,7 @@ class Inventory:
             default_assets_plugin = DatabasePlugin(db_connection, Asset)
             assets_adapter = AssetAdapter(default_assets_plugin)
 
-        self.assets = AssetService(assets_adapter)
+        self.assets = AssetService(assets_adapter, hardware_models)
 
         # Observability — intent-driven telemetry pipeline (telegraf + grafana)
         # derived from registered TelemetryComponents. Built lazily per request,

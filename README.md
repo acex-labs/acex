@@ -320,8 +320,8 @@ Everything talks to the same REST API. The web UI, the CLI and the AI tooling ar
 /api/v1/inventory/node_instances/{id}/configuration/desired      # rendered via NED
 /api/v1/inventory/node_instances/{id}/configuration/observed     # snapshot history
 /api/v1/inventory/node_instances/{id}/configuration/intent_diff  # desired vs observed
-/api/v1/operations/compliance/{node_instance_id}
-/api/v1/operations/compliance/site/{site_name}
+/api/v1/compliance                                               # summary per site and in total
+/api/v1/compliance/{nodes/{id},sites/{name},regions/{name}}
 /api/v1/config_components/{generate,reconcile,translate}
 /api/v1/observability/agents                                     # manifest, config, ack
 /api/v1/observability/grafana/{dashboards,datasources}           # generated definitions
@@ -387,7 +387,7 @@ class MyDriver(NetworkElementDriver):
     state_class = MyState  # optional: facts, LLDP neighbors
 ```
 
-Shipped: `acex-driver-cisco-ioscli`, `acex-driver-juniper-junoscli`. Hardware models (165 of them, describing real port layouts) are declared once in the devkit and shared by every driver.
+Shipped: `acex-driver-cisco-ioscli`, `acex-driver-cisco-ios-classic-cli`, `acex-driver-juniper-junoscli`. Hardware models (165 of them, describing real port layouts) are declared once in the devkit and shared by every driver.
 
 **Config normalizers** — declarative rules that strip non-intent lines (counters, timestamps) and redact secrets from collected configurations, in two isolated passes, so diffs mean something and secrets are never stored.
 
@@ -408,7 +408,7 @@ client/     acex-client    — typed REST client
 cli/        acex-cli       — command line interface
 mcp/        acex-mcp       — MCP server
 worker/     acex-worker    — distributed task execution (scaffold)
-drivers/    NEDs           — cisco_ios_cli, juniper_junos_cli
+drivers/    NEDs           — cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli
 agents/     collection-agent, telemetry-agent, grafana-sync
 mock-device/               — SSH + SNMP device simulator for development
 docs/                      — integration examples
@@ -476,6 +476,15 @@ acex-api          # or: python -m acex_api
 Migrations run on startup. The service refuses to start unauthenticated or with
 a wildcard CORS origin — set `ACEX_OIDC_ISSUER_URL`, and name any cross-origin caller
 in `ACEX_CORS_ALLOWED_ORIGINS` (comma-separated; empty means same-origin only).
+
+The web frontend is configured with this API's URL only. Other backends it calls
+directly are set here and handed to it by `GET /api/v1/services`; a service's
+module is shown only when its URL is set. The frontend sends the user's token
+to them, so these are deployment settings and never set through the API:
+
+| Variable | Service |
+|---|---|
+| `ACEX_SERVICES_SAMRUAI_URL` | SamruAI backend |
 
 For local work, `task api` runs it against the compose database in dev mode:
 

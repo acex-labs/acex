@@ -56,11 +56,12 @@ jobs:
       devkit-result: ${{ steps.result-devkit.outputs.result }}
       worker-result: ${{ steps.result-worker.outputs.result }}
       cisco-ios-cli-result: ${{ steps.result-cisco-ios-cli.outputs.result }}
+      cisco-ios-classic-cli-result: ${{ steps.result-cisco-ios-classic-cli.outputs.result }}
       juniper-junos-cli-result: ${{ steps.result-juniper-junos-cli.outputs.result }}
     strategy:
       fail-fast: false
       matrix:
-        component: [backend, cli, client, mcp, devkit, worker, cisco_ios_cli, juniper_junos_cli]
+        component: [backend, cli, client, mcp, devkit, worker, cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli]
         include:
           - component: backend
             working-dir: ./backend
@@ -76,6 +77,8 @@ jobs:
             working-dir: ./worker
           - component: cisco_ios_cli
             working-dir: ./drivers/cisco_ios_cli
+          - component: cisco_ios_classic_cli
+            working-dir: ./drivers/cisco_ios_classic_cli
           - component: juniper_junos_cli
             working-dir: ./drivers/juniper_junos_cli
     steps:
@@ -143,6 +146,11 @@ jobs:
       - name: Set matrix output
         id: result-cisco-ios-cli
         if: always() && matrix.component == 'cisco_ios_cli'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix output
+        id: result-cisco-ios-classic-cli
+        if: always() && matrix.component == 'cisco_ios_classic_cli'
         run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
 
       - name: Set matrix output
@@ -312,6 +320,7 @@ jobs:
           LINT_DEVKIT: ${{ needs.lint-per-package.outputs.devkit-result }}
           LINT_WORKER: ${{ needs.lint-per-package.outputs.worker-result }}
           LINT_CISCO: ${{ needs.lint-per-package.outputs.cisco-ios-cli-result }}
+          LINT_CISCO_CLASSIC: ${{ needs.lint-per-package.outputs.cisco-ios-classic-cli-result }}
           LINT_JUNIPER: ${{ needs.lint-per-package.outputs.juniper-junos-cli-result }}
           UT_BACKEND: ${{ needs.unit-tests.outputs.backend-result }}
           UT_CLI: ${{ needs.unit-tests.outputs.cli-result }}
@@ -348,6 +357,7 @@ jobs:
           row "Lint: devkit" "$LINT_DEVKIT"
           row "Lint: worker" "$LINT_WORKER"
           row "Lint: cisco_ios_cli" "$LINT_CISCO"
+          row "Lint: cisco_ios_classic_cli" "$LINT_CISCO_CLASSIC"
           row "Lint: juniper_junos_cli" "$LINT_JUNIPER"
           row "Unit tests: backend" "$UT_BACKEND"
           row "Unit tests: cli" "$UT_CLI"
@@ -381,6 +391,7 @@ jobs:
           LINT_DEVKIT: ${{ needs.lint-per-package.outputs.devkit-result }}
           LINT_WORKER: ${{ needs.lint-per-package.outputs.worker-result }}
           LINT_CISCO: ${{ needs.lint-per-package.outputs.cisco-ios-cli-result }}
+          LINT_CISCO_CLASSIC: ${{ needs.lint-per-package.outputs.cisco-ios-classic-cli-result }}
           LINT_JUNIPER: ${{ needs.lint-per-package.outputs.juniper-junos-cli-result }}
           UT_BACKEND: ${{ needs.unit-tests.outputs.backend-result }}
           UT_CLI: ${{ needs.unit-tests.outputs.cli-result }}
@@ -406,7 +417,7 @@ jobs:
           }
 
           overall="✅ Alla checks gröna"
-          for r in "$LINT_RESULT" "$LINT_BACKEND" "$LINT_CLI" "$LINT_CLIENT" "$LINT_MCP" "$LINT_DEVKIT" "$LINT_WORKER" "$LINT_CISCO" "$LINT_JUNIPER" "$UT_BACKEND" "$UT_CLI" "$UT_CLIENT" "$UT_MCP" "$UT_DEVKIT" "$UT_WORKER" "$IT_RESULT"; do
+          for r in "$LINT_RESULT" "$LINT_BACKEND" "$LINT_CLI" "$LINT_CLIENT" "$LINT_MCP" "$LINT_DEVKIT" "$LINT_WORKER" "$LINT_CISCO" "$LINT_CISCO_CLASSIC" "$LINT_JUNIPER" "$UT_BACKEND" "$UT_CLI" "$UT_CLIENT" "$UT_MCP" "$UT_DEVKIT" "$UT_WORKER" "$IT_RESULT"; do
             case "$r" in
               success|ok|passed|no-tests|unformatted|"") ;;
               *) overall="❌ Minst en check failar"; break ;;
@@ -422,6 +433,7 @@ jobs:
           $(badge "$LINT_DEVKIT") devkit
           $(badge "$LINT_WORKER") worker
           $(badge "$LINT_CISCO") cisco_ios_cli
+          $(badge "$LINT_CISCO_CLASSIC") cisco_ios_classic_cli
           $(badge "$LINT_JUNIPER") juniper_junos_cli
           EOF
           )
@@ -760,14 +772,18 @@ jobs:
     outputs:
       cisco-ios-cli-should-publish: ${{ steps.check-cisco-ios-cli.outputs.should-publish }}
       cisco-ios-cli-version: ${{ steps.check-cisco-ios-cli.outputs.version }}
+      cisco-ios-classic-cli-should-publish: ${{ steps.check-cisco-ios-classic-cli.outputs.should-publish }}
+      cisco-ios-classic-cli-version: ${{ steps.check-cisco-ios-classic-cli.outputs.version }}
       juniper-junos-cli-should-publish: ${{ steps.check-juniper-junos-cli.outputs.should-publish }}
       juniper-junos-cli-version: ${{ steps.check-juniper-junos-cli.outputs.version }}
     strategy:
       matrix:
-        driver: [cisco_ios_cli, juniper_junos_cli]
+        driver: [cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli]
         include:
           - driver: cisco_ios_cli
             pypi-name: acex-driver-cisco-ioscli
+          - driver: cisco_ios_classic_cli
+            pypi-name: acex-driver-cisco-ios-classic-cli
           - driver: juniper_junos_cli
             pypi-name: acex-driver-juniper-junoscli
     steps:
@@ -814,6 +830,12 @@ jobs:
           echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
           echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
       - name: Set matrix output
+        id: check-cisco-ios-classic-cli
+        if: matrix.driver == 'cisco_ios_classic_cli'
+        run: |
+          echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
+          echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
+      - name: Set matrix output
         id: check-juniper-junos-cli
         if: matrix.driver == 'juniper_junos_cli'
         run: |
@@ -840,6 +862,8 @@ jobs:
           DEVKIT_SHOULD_PUBLISH: ${{ needs.check-versions.outputs.devkit-should-publish }}
           CISCO_VERSION: ${{ needs.check-driver-versions.outputs.cisco-ios-cli-version }}
           CISCO_SHOULD_PUBLISH: ${{ needs.check-driver-versions.outputs.cisco-ios-cli-should-publish }}
+          CISCO_CLASSIC_VERSION: ${{ needs.check-driver-versions.outputs.cisco-ios-classic-cli-version }}
+          CISCO_CLASSIC_SHOULD_PUBLISH: ${{ needs.check-driver-versions.outputs.cisco-ios-classic-cli-should-publish }}
           JUNIPER_VERSION: ${{ needs.check-driver-versions.outputs.juniper-junos-cli-version }}
           JUNIPER_SHOULD_PUBLISH: ${{ needs.check-driver-versions.outputs.juniper-junos-cli-should-publish }}
         run: |
@@ -861,6 +885,7 @@ jobs:
           row "acex-mcp" "$MCP_VERSION" "$MCP_SHOULD_PUBLISH"
           row "acex-devkit" "$DEVKIT_VERSION" "$DEVKIT_SHOULD_PUBLISH"
           row "acex-driver-cisco-ioscli" "$CISCO_VERSION" "$CISCO_SHOULD_PUBLISH"
+          row "acex-driver-cisco-ios-classic-cli" "$CISCO_CLASSIC_VERSION" "$CISCO_CLASSIC_SHOULD_PUBLISH"
           row "acex-driver-juniper-junoscli" "$JUNIPER_VERSION" "$JUNIPER_SHOULD_PUBLISH"
 
   build-drivers:
@@ -871,11 +896,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        driver: [cisco_ios_cli, juniper_junos_cli]
+        driver: [cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli]
         include:
           - driver: cisco_ios_cli
             pypi-name: acex-driver-cisco-ioscli
             should-publish-output: cisco-ios-cli-should-publish
+          - driver: cisco_ios_classic_cli
+            pypi-name: acex-driver-cisco-ios-classic-cli
+            should-publish-output: cisco-ios-classic-cli-should-publish
           - driver: juniper_junos_cli
             pypi-name: acex-driver-juniper-junoscli
             should-publish-output: juniper-junos-cli-should-publish
@@ -957,11 +985,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        driver: [cisco_ios_cli, juniper_junos_cli]
+        driver: [cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli]
         include:
           - driver: cisco_ios_cli
             pypi-name: acex-driver-cisco-ioscli
             should-publish-output: cisco-ios-cli-should-publish
+          - driver: cisco_ios_classic_cli
+            pypi-name: acex-driver-cisco-ios-classic-cli
+            should-publish-output: cisco-ios-classic-cli-should-publish
           - driver: juniper_junos_cli
             pypi-name: acex-driver-juniper-junoscli
             should-publish-output: juniper-junos-cli-should-publish

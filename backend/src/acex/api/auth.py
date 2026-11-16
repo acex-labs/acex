@@ -8,7 +8,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 
-_PUBLIC_PATHS = {"/api/v1/auth/config"}
+# Both are read by the frontend while it starts, before it may have a token.
+# Neither holds anything the frontend's own static config would not.
+_PUBLIC_PATHS = {"/api/v1/auth/config", "/api/v1/services"}
 _PUBLIC_PATH_PREFIXES = ("/api/v1/ztp",)
 
 logger = logging.getLogger("acex.auth")

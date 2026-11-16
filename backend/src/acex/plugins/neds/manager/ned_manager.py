@@ -1,9 +1,19 @@
+import logging
 from importlib.metadata import entry_points
 from pathlib import Path
 
 from acex_devkit.drivers.base import NetworkElementDriver
+from acex_devkit.models.ned import Platform
 
 from .wheels import built_wheels
+
+log = logging.getLogger(__name__)
+
+
+def _declared_interface(driver_class) -> int | None:
+    """The NED interface a driver class declares, or None when it does not say it as a plain number."""
+    value = getattr(driver_class, "interface_version", None)
+    return value if type(value) is int else None
 
 
 class NEDManager:
@@ -71,9 +81,20 @@ class NEDManager:
             "description": type(ned_instance).__doc__,
             "filename": filename,
             "capabilities": ned_instance.capabilities,
+            "interface_version": _declared_interface(type(ned_instance)),
         }
 
         return response
+
+    def platforms(self) -> list[Platform]:
+        """Every platform the installed NEDs declare support for. Read off the classes, so no NED is started."""
+        platforms = []
+        for entry_point in entry_points(group="acex.neds"):
+            try:
+                platforms.extend(entry_point.load().platforms)
+            except Exception:
+                log.exception(f"Reading the platforms of NED {entry_point.name} failed")
+        return platforms
 
     def list_drivers(self) -> list[dict]:
         """Returnera en lista över tillgängliga drivrutinsnamn via entry points."""
@@ -90,17 +111,20 @@ class NEDManager:
                     description = type(cached["instance"]).__doc__ or "n/a"
                     filename = self._driver_filename(class_name)
                     capabilities = cached["instance"].capabilities
+                    interface_version = _declared_interface(type(cached["instance"]))
                 else:
                     klass = ep.load()
                     description = klass.__doc__ or "n/a"
                     filename = None
                     capabilities = None
+                    interface_version = _declared_interface(klass)
             except Exception:
                 version = "n/a"
                 package_name = "n/a"
                 description = "n/a"
                 filename = None
                 capabilities = None
+                interface_version = None
             result.append(
                 {
                     "name": class_name,
@@ -109,6 +133,7 @@ class NEDManager:
                     "description": description,
                     "filename": filename,
                     "capabilities": capabilities,
+                    "interface_version": interface_version,
                 }
             )
         return result
