@@ -5,6 +5,7 @@ from typing import Literal
 
 from acex.models import Asset, AssetCluster, ManagementConnection, Node
 from acex.plugins.neds.manager.ned_manager import NEDManager
+from acex.utils import collection_state
 from acex_devkit.models.config_origin import AnnotatedConfigResponse, ComponentOrigin, OriginSpan
 from acex_devkit.models.management_connection import ManagementConnectionResponse
 from acex_devkit.models.node_response import AssetRefType, NodeAdminStatus, NodeInstance, NodeProvisionStatus
@@ -42,6 +43,17 @@ class NodeService:
         else:
             return method(*args, **kwargs)
 
+    def _collection_states(self, node_ids: list[int]) -> dict:
+        """What the collection agents last found for these nodes. Nothing when there is no database to ask."""
+        db = getattr(getattr(self.adapter, "plugin", None), "db", None)
+        if db is None or not node_ids:
+            return {}
+        session = next(db.get_session())
+        try:
+            return collection_state.states_for(session, node_ids)
+        finally:
+            session.close()
+
     async def _enrich_data(self, node):
         """När en specific node hämtas vill vi,
         berika responsen med datat från refererade objekt."""
@@ -52,6 +64,7 @@ class NodeService:
         connections = sorted(getattr(node, "management_connections", None) or [], key=lambda c: (not c.primary, c.id))
         node = node.model_dump()
         node["management_connections"] = [c.model_dump() for c in connections]
+        node["collection"] = self._collection_states([node["id"]]).get(node["id"])
         if node.get("asset_ref_type") == "asset_cluster":
             node["asset"] = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"]).model_dump()
         else:
@@ -137,6 +150,7 @@ class NodeService:
         role: str = None,
         admin_status: NodeAdminStatus | None = None,
         provision_status: NodeProvisionStatus | None = None,
+        collection_status: Literal["ok", "failing", "unknown"] | None = None,
         limit: int | None = 100,  # None: every item
         offset: int = 0,
         sort: str | None = None,
@@ -178,15 +192,18 @@ class NodeService:
         elif site is not None:
             query_filters["logical_node.site"] = site
 
-        extra_filters = None
+        extra_filters = []
         if management_connection_ip:
-            extra_filters = [
+            extra_filters.append(
                 Node.id.in_(
                     select(ManagementConnection.node_id).where(
                         ManagementConnection.target_ip.ilike(f"{management_connection_ip}%")
                     )
                 )
-            ]
+            )
+        if collection_status:
+            extra_filters.append(collection_state.status_filter(collection_status))
+        extra_filters = extra_filters or None
 
         sort_column = "id"
         if sort is not None:
@@ -271,6 +288,8 @@ class NodeService:
             if cluster:
                 clusters_by_id[cid] = cluster
 
+        states = self._collection_states([n.id for n in result["items"]])
+
         items = []
         for node in result["items"]:
             if getattr(node, "asset_ref_type", "asset") == "asset_cluster":
@@ -294,6 +313,7 @@ class NodeService:
                     os=os_val,
                     ned_id=ned_id,
                     management_connections=[ManagementConnectionResponse(**c.model_dump()) for c in conns],
+                    collection=states.get(node.id),
                 )
             )
 

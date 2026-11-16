@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from acex.models.asset import Asset, AssetCluster
 from acex.models.collection_agent import (
@@ -13,6 +13,7 @@ from acex.models.management_connections import ManagementConnection
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
 from acex.utils.agent_node_links import set_agent_nodes
+from acex.utils.collection_state import record
 from acex_devkit.models.agent_manifest import AckResult, AgentNodeSet, AgentNodeSetResult
 from acex_devkit.models.collection_agent import (
     CollectionAgentAck,
@@ -21,6 +22,7 @@ from acex_devkit.models.collection_agent import (
     CollectionAgentResponse,
     CollectionAgentUpdate,
 )
+from acex_devkit.models.collection_state import CollectionResultsAccepted, CollectionResultsUpload
 from acex_devkit.models.node_response import AssetRefType
 from fastapi import HTTPException
 from sqlalchemy import delete
@@ -338,6 +340,23 @@ class CollectionAgentManager:
                 acked_revision=agent.acked_revision,
                 acked_at=agent.acked_at,
             )
+        finally:
+            session.close()
+
+    def report_results(self, id: int, payload: CollectionResultsUpload) -> CollectionResultsAccepted:
+        """What the agent found when it last tried each node. Nodes that are not in the inventory are named in the
+        answer and left out; a node named twice counts once, with the last result."""
+        session = next(self.db.get_session())
+        try:
+            if session.get(CollectionAgent, id) is None:
+                raise HTTPException(status_code=404, detail="CollectionAgent not found")
+            results = {result.node_id: result for result in payload.results}
+            known = set(session.exec(select(Node.id).where(Node.id.in_(list(results)))).all()) if results else set()
+            now = datetime.now(UTC)
+            for node_id in sorted(known):
+                record(session, results[node_id], now)
+            session.commit()
+            return CollectionResultsAccepted(accepted=len(known), unknown_nodes=sorted(set(results) - known))
         finally:
             session.close()
 

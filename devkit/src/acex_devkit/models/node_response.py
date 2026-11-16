@@ -9,6 +9,7 @@ from acex_devkit.models.asset import (
     AssetResponse,
 )
 from acex_devkit.models.base import PersistedResponse
+from acex_devkit.models.collection_state import NodeCollectionStateResponse
 from acex_devkit.models.credential import CredentialRef
 from acex_devkit.models.logical_node import LogicalNodeResponse
 from acex_devkit.models.management_connection import ManagementConnectionResponse
@@ -60,6 +61,7 @@ class NodeListItem(PersistedResponse, NodeBase):
     os: str | None = None
     ned_id: str | None = None
     management_connections: list[ManagementConnectionResponse] = []
+    collection: NodeCollectionStateResponse | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -82,6 +84,7 @@ class NodeInstance(PersistedResponse, NodeBase):
     management_connections: list[ManagementConnectionResponse] = []
     credentials: list[CredentialRef] = []
     regions: list[str] = []
+    collection: NodeCollectionStateResponse | None = None
     created_at: datetime
     updated_at: datetime | None = None
 
