@@ -1358,11 +1358,14 @@
 </code></pre></div>
 <h2 id="ned-drivers">NED drivers<a class="headerlink" href="#ned-drivers" title="Permanent link">¶</a></h2>
 <p>NED drivers (Network Element Drivers) are separate packages that must be installed alongside the backend:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Cisco IOS CLI driver</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Cisco IOS XE CLI driver</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pip<span class="w"> </span>install<span class="w"> </span>acex-driver-cisco-ioscli
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Juniper JunOS CLI driver</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>pip<span class="w"> </span>install<span class="w"> </span>acex-driver-juniper-junoscli
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Cisco IOS (classic) CLI driver</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>pip<span class="w"> </span>install<span class="w"> </span>acex-driver-cisco-ios-classic-cli
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Juniper JunOS CLI driver</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>pip<span class="w"> </span>install<span class="w"> </span>acex-driver-juniper-junoscli
 </code></pre></div>
 <p>Drivers are discovered automatically at startup via the <code>acex.neds</code> setuptools entry point group. Collection agents download and install missing NEDs automatically on startup.</p>
 

@@ -1651,14 +1651,15 @@
 <a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>│   └── grafana-sync/
 <a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>├── drivers/
 <a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>│   ├── cisco_ios_cli/   # acex-driver-cisco-ioscli
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>│   └── juniper_junos_cli/   # acex-driver-juniper-junoscli
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>├── mock-device/         # SSH mock devices for the local stack
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>├── keycloak/            # realm for the local stack
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>├── scripts/             # dev-setup.sh, changelog.py, seed scripts
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>├── tests/integration/   # tests that span several packages
-<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>├── docs/                # this site
-<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>├── docker-compose.yml   # the local stack
-<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>└── Taskfile.yml         # tasks for the local stack
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>│   ├── cisco_ios_classic_cli/   # acex-driver-cisco-ios-classic-cli
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>│   └── juniper_junos_cli/   # acex-driver-juniper-junoscli
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>├── mock-device/         # SSH mock devices for the local stack
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>├── keycloak/            # realm for the local stack
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>├── scripts/             # dev-setup.sh, changelog.py, seed scripts
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>├── tests/integration/   # tests that span several packages
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>├── docs/                # this site
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>├── docker-compose.yml   # the local stack
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>└── Taskfile.yml         # tasks for the local stack
 </code></pre></div>
 <p>Each package has its own <code>pyproject.toml</code>, <code>src/</code> and, after setup, its own <code>.venv/</code>.</p>
 <h2 id="switching-between-package-environments">Switching Between Package Environments<a class="headerlink" href="#switching-between-package-environments" title="Permanent link">¶</a></h2>
