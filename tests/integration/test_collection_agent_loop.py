@@ -10,10 +10,12 @@ import logging
 from types import SimpleNamespace
 
 import pytest
+from acex_client.exceptions import AcexHTTPError
 from acex_collection_agent import agent as agent_module
-from acex_collection_agent.agent import DRIVER_RETRY_SECONDS, POLL_INTERVAL, CollectionAgent
+from acex_collection_agent.agent import DRIVER_RETRY_SECONDS, POLL_INTERVAL, CollectionAgent, _as_collection_result
 from acex_collection_agent.collector import SUPPORTED_NED_INTERFACES
 from acex_devkit.models.agent_manifest import CollectionAgentManifest, ManifestTarget
+from acex_devkit.models.collection_state import MESSAGE_LENGTH, CollectionFailure, CollectionResultsAccepted
 from acex_devkit.models.ned import Ned
 
 FIRST_NODE, SECOND_NODE = 1, 2
@@ -38,7 +40,7 @@ class FakeCollector:
         self.calls.append([t.node_id for t in targets])
         return [
             {"node_id": t.node_id, "hostname": f"node-{t.node_id}", "status": "error", "message": "no driver"}
-            | {"driver_unavailable": True}
+            | {"driver_unavailable": True, "category": CollectionFailure.driver_unavailable}
             if t.node_id in self.without_driver
             else {"node_id": t.node_id, "hostname": f"node-{t.node_id}", "status": "ok", "message": "Config uploaded"}
             for t in targets
@@ -166,6 +168,109 @@ def test_a_node_that_left_the_manifest_is_not_waited_for(an_agent, clock, monkey
 
     assert an_agent.collector.calls == [[FIRST_NODE, SECOND_NODE]]
     assert an_agent._waiting_for_driver == set()
+
+
+class Reports:
+    """Stands in for `client.inventory.collection_agents.report_results` and keeps what the agent sent."""
+
+    def __init__(self):
+        self.sent = []
+        self.error = None
+        self.unknown_nodes = []
+
+    def __call__(self, id, payload):
+        if self.error:
+            raise self.error
+        self.sent.append((id, [(r.node_id, r.ok, r.category, r.message) for r in payload.results]))
+        return CollectionResultsAccepted(accepted=len(payload.results), unknown_nodes=self.unknown_nodes)
+
+
+@pytest.fixture
+def reports(an_agent):
+    reports = Reports()
+    an_agent.client.inventory = SimpleNamespace(collection_agents=SimpleNamespace(report_results=reports))
+    return reports
+
+
+def test_a_round_reports_every_node_once_with_what_was_found(an_agent, clock, monkeypatch, reports):
+    an_agent.collector.without_driver = {SECOND_NODE}
+
+    run(an_agent, clock, monkeypatch, polls=1, manifest_at=lambda m: manifest(FIRST_NODE, SECOND_NODE))
+
+    assert reports.sent == [
+        (7, [(FIRST_NODE, True, None, None), (SECOND_NODE, False, CollectionFailure.driver_unavailable, "no driver")])
+    ]
+
+
+def test_a_retry_reports_only_the_nodes_it_tried(an_agent, clock, monkeypatch, reports):
+    an_agent.collector.without_driver = {SECOND_NODE}
+
+    def api_answers(minutes):
+        if minutes >= 6:
+            an_agent.collector.without_driver = set()
+        return manifest(FIRST_NODE, SECOND_NODE)
+
+    run(an_agent, clock, monkeypatch, polls=20, manifest_at=api_answers)
+
+    assert [[node for node, *_ in nodes] for _, nodes in reports.sent] == [
+        [FIRST_NODE, SECOND_NODE],
+        [SECOND_NODE],
+        [SECOND_NODE],
+    ]
+    assert reports.sent[-1][1] == [(SECOND_NODE, True, None, None)]
+
+
+def test_a_round_with_nothing_to_collect_reports_nothing(an_agent, clock, monkeypatch, reports):
+    run(an_agent, clock, monkeypatch, polls=1, manifest_at=lambda m: manifest())
+
+    assert reports.sent == []
+
+
+def test_a_backend_that_cannot_take_the_report_does_not_stop_the_collection(
+    an_agent, clock, monkeypatch, reports, caplog
+):
+    reports.error = AcexHTTPError(404, "Not Found")
+    an_agent.collector.without_driver = {SECOND_NODE}
+
+    def api_answers(minutes):
+        if minutes >= 6:
+            an_agent.collector.without_driver = set()
+        return manifest(FIRST_NODE, SECOND_NODE)
+
+    with caplog.at_level(logging.WARNING, logger="acex_collection_agent"):
+        run(an_agent, clock, monkeypatch, polls=20, manifest_at=api_answers)
+
+    assert an_agent.collector.calls == [[FIRST_NODE, SECOND_NODE], [SECOND_NODE], [SECOND_NODE]]
+    assert any("Failed to report the collection results" in r.getMessage() for r in caplog.records)
+
+
+def test_nodes_acex_does_not_know_are_said_in_the_log(an_agent, clock, monkeypatch, reports, caplog):
+    reports.unknown_nodes = [SECOND_NODE]
+
+    with caplog.at_level(logging.INFO, logger="acex_collection_agent"):
+        run(an_agent, clock, monkeypatch, polls=1, manifest_at=lambda m: manifest(FIRST_NODE, SECOND_NODE))
+
+    assert any("does not know these nodes" in r.getMessage() and "[2]" in r.getMessage() for r in caplog.records)
+
+
+def test_a_message_longer_than_acex_takes_is_cut():
+    result = _as_collection_result(
+        {"node_id": 1, "status": "error", "message": "x" * 2000, "category": CollectionFailure.other}
+    )
+
+    assert len(result.message) == MESSAGE_LENGTH
+
+
+def test_a_node_that_was_collected_unchanged_is_reported_as_collected():
+    result = _as_collection_result({"node_id": 1, "status": "unchanged", "message": "Config not changed"})
+
+    assert (result.ok, result.category, result.message) == (True, None, None)
+
+
+def test_an_error_without_a_category_is_reported_without_one():
+    result = _as_collection_result({"node_id": 1, "status": "error", "message": "boom"})
+
+    assert (result.ok, result.category, result.message) == (False, None, "boom")
 
 
 def ned(name="CiscoIOS", version="5.0.0") -> Ned:

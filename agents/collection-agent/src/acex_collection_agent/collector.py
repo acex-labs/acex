@@ -6,8 +6,15 @@ import logging
 from acex_client import Acex
 from acex_client.exceptions import AcexHTTPError
 from acex_devkit.drivers import Session
-from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
+from acex_devkit.exceptions import (
+    AuthenticationFailed,
+    ConnectionTimeout,
+    PrivilegeFailed,
+    SshAlgorithmMismatch,
+)
+from acex_devkit.exceptions import ConnectionError as DeviceConnectionError
 from acex_devkit.models.agent_manifest import ManifestTarget
+from acex_devkit.models.collection_state import CollectionFailure
 from acex_devkit.models.config_snapshot import DeviceConfigUpload
 from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry, LldpNeighborUpload
@@ -21,6 +28,19 @@ CREDENTIAL_TYPES = ("userpass", "privilege_escalation")
 # The NED interfaces this collector can run, as opposed to the one devkit currently defines: a driver that
 # declares another one is not installed (see the client's Neds) until a collector that runs it is released.
 SUPPORTED_NED_INTERFACES = frozenset({2})
+
+# What a driver's error says about the node, most specific first. Every connection error that is none of the
+# others (a timeout, a refused connection) means the device was not reached.
+FAILURE_CATEGORIES = (
+    (AuthenticationFailed, CollectionFailure.authentication_failed),
+    (PrivilegeFailed, CollectionFailure.privilege_failed),
+    (SshAlgorithmMismatch, CollectionFailure.ssh_algorithm),
+    (DeviceConnectionError, CollectionFailure.unreachable),
+)
+
+
+def failure_category(error: Exception) -> CollectionFailure:
+    return next((category for kind, category in FAILURE_CATEGORIES if isinstance(error, kind)), CollectionFailure.other)
 
 
 class Collector:
@@ -52,25 +72,26 @@ class Collector:
         target_ip = target.target_ip
         ned_id = target.ned_id
 
-        def err(message: str, **extra) -> dict:
+        def err(message: str, category: CollectionFailure, **extra) -> dict:
             return {
                 "node_id": node_id,
                 "hostname": hostname,
                 "status": "error",
                 "message": message,
+                "category": category,
                 **extra,
             }
 
         if not target_ip:
-            return err("No management IP")
+            return err("No management IP", CollectionFailure.no_management_ip)
         if not ned_id:
-            return err("No NED configured")
+            return err("No NED configured", CollectionFailure.driver_unavailable)
 
         driver = self.client.neds.get_driver_instance(ned_id)
         if driver is None:
             reason = self.client.neds.incompatible.get(ned_id)
             message = f"NED '{ned_id}' not loaded: {reason}" if reason else f"NED '{ned_id}' not loaded"
-            return err(message, driver_unavailable=True)
+            return err(message, CollectionFailure.driver_unavailable, driver_unavailable=True)
 
         credentials = []
         for credential_type in CREDENTIAL_TYPES:
@@ -81,7 +102,7 @@ class Collector:
             if secret is not None:
                 credentials.append(secret)
             elif credential_type == "userpass":
-                return err("Failed to fetch credentials")
+                return err("Failed to fetch credentials", CollectionFailure.no_credentials)
             else:
                 logger.warning(f"Failed to fetch {credential_type} credential for node {node_id}")
 
@@ -90,20 +111,20 @@ class Collector:
             async with driver.connect(target_ip, credentials) as session:
                 running_config = await session.get_config()
                 if not running_config:
-                    return err("Empty config returned")
+                    return err("Empty config returned", CollectionFailure.empty_configuration)
 
                 config_result = await asyncio.to_thread(self._upload_config, node_id, hostname, running_config)
                 await self._collect_neighbors(session, node_id, hostname)
             return config_result
-        except AuthenticationFailed:
+        except AuthenticationFailed as e:
             logger.warning(f"  {hostname} ({target_ip}): Authentication failed")
-            return err("Authentication failed")
-        except ConnectionTimeout:
+            return err("Authentication failed", failure_category(e))
+        except ConnectionTimeout as e:
             logger.warning(f"  {hostname} ({target_ip}): Connection timed out")
-            return err("Connection timed out")
+            return err("Connection timed out", failure_category(e))
         except Exception as e:
             logger.warning(f"  {hostname} ({target_ip}): {e}")
-            return err(str(e))
+            return err(str(e) or type(e).__name__, failure_category(e))
 
     async def _collect_neighbors(self, session: Session, node_id: int, hostname: str) -> None:
         """Upload LLDP/CDP neighbors when the driver reads them. Never fails the collection."""
@@ -137,6 +158,7 @@ class Collector:
                 "hostname": hostname,
                 "status": "error",
                 "message": f"Upload failed ({e.status_code})",
+                "category": CollectionFailure.other,
             }
         except Exception as e:
             return {
@@ -144,6 +166,7 @@ class Collector:
                 "hostname": hostname,
                 "status": "error",
                 "message": f"Upload failed: {e}",
+                "category": CollectionFailure.other,
             }
         return {
             "node_id": node_id,

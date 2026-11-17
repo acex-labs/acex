@@ -9,6 +9,7 @@ import time
 from acex_client import Acex
 from acex_devkit.models.agent_manifest import CollectionAgentManifest, ManifestTarget
 from acex_devkit.models.collection_agent import CollectionAgentAck
+from acex_devkit.models.collection_state import MESSAGE_LENGTH, CollectionResult, CollectionResultsUpload
 
 from acex_collection_agent.collector import SUPPORTED_NED_INTERFACES, Collector
 
@@ -28,6 +29,18 @@ def _build_info() -> tuple[str | None, str | None, str | None]:
     except importlib.metadata.PackageNotFoundError:
         version = None
     return version, os.environ.get("ACEX_BUILD_ID") or None, os.environ.get("ACEX_BUILD_REF") or None
+
+
+def _as_collection_result(result: dict) -> CollectionResult:
+    """What one node's collection says to ACEX: a success, or the category and the start of the message."""
+    if result["status"] != "error":
+        return CollectionResult(node_id=result["node_id"], ok=True)
+    return CollectionResult(
+        node_id=result["node_id"],
+        ok=False,
+        category=result.get("category"),
+        message=result["message"][:MESSAGE_LENGTH],
+    )
 
 
 class CollectionAgent:
@@ -76,6 +89,7 @@ class CollectionAgent:
                     if not should_collect:
                         targets = [t for t in targets if t.node_id in self._waiting_for_driver]
                     results = await self._collect(targets) if targets or should_collect else []
+                    await asyncio.to_thread(self._report_results, results)
                     if should_collect:
                         self._last_collection = now
                     self._waiting_for_driver = {r["node_id"] for r in results if r.get("driver_unavailable")}
@@ -118,6 +132,19 @@ class CollectionAgent:
             )
         except Exception as e:
             logger.warning(f"Failed to ack manifest: {e}")
+
+    def _report_results(self, results: list[dict]):
+        """Tell ACEX what the round found for each node. A backend that cannot take it must not stop the loop."""
+        if not results:
+            return
+        try:
+            payload = CollectionResultsUpload(results=[_as_collection_result(r) for r in results])
+            accepted = self.client.inventory.collection_agents.report_results(id=self.agent_id, payload=payload)
+        except Exception as e:
+            logger.warning(f"Failed to report the collection results: {e}")
+            return
+        if accepted.unknown_nodes:
+            logger.info(f"ACEX does not know these nodes, left out of the report: {accepted.unknown_nodes}")
 
     def _ensure_neds(self):
         """Sync local NEDs against the API.
