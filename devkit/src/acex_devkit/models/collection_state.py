@@ -49,3 +49,5 @@ class NodeCollectionStateResponse(BaseModel):
     consecutive_failures: int = 0
     category: CollectionFailure | None = None
     message: str | None = None
+    agent_id: int | None = None
+    agent_name: str | None = None

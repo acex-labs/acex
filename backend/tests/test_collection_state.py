@@ -56,9 +56,9 @@ def add_node(db, hostname) -> int:
         return node.id
 
 
-def add_agent(db) -> int:
+def add_agent(db, name="agent-1") -> int:
     with Session(db.connection.engine) as session:
-        agent = CollectionAgent(name="agent-1")
+        agent = CollectionAgent(name=name)
         session.add(agent)
         session.commit()
         return agent.id
@@ -176,6 +176,48 @@ def test_a_node_named_twice_counts_once_with_its_last_result(db):
 
     row = state(db, node)
     assert (row.consecutive_failures, row.category) == (1, "ssh_algorithm")
+
+
+def test_the_node_says_which_agent_made_the_last_attempt(db, service):
+    first, second = add_agent(db, "site-a"), add_agent(db, "site-b")
+    node = add_node(db, "a")
+    manager = CollectionAgentManager(db)
+    failure = CollectionResultsUpload(results=[CollectionResult(node_id=node, ok=False)])
+    success = CollectionResultsUpload(results=[CollectionResult(node_id=node, ok=True)])
+
+    manager.report_results(first, failure)
+    collection = listed(service)["a"].collection
+    assert (collection.agent_id, collection.agent_name, collection.status) == (
+        first,
+        "site-a",
+        CollectionStatus.failing,
+    )
+
+    manager.report_results(second, success)
+    collection = listed(service)["a"].collection
+    assert (collection.agent_id, collection.agent_name, collection.status) == (second, "site-b", CollectionStatus.ok)
+
+
+def test_an_upload_does_not_take_the_agent_away(db):
+    agent = add_agent(db)
+    node = add_node(db, "a")
+    CollectionAgentManager(db).report_results(
+        agent, CollectionResultsUpload(results=[CollectionResult(node_id=node, ok=False)])
+    )
+
+    succeed(db, node, T0)
+
+    assert state(db, node).agent_id == agent
+    assert state(db, node).consecutive_failures == 0
+
+
+def test_a_node_nobody_reported_on_has_no_agent(db, service):
+    node = add_node(db, "a")
+    succeed(db, node, T0)
+
+    collection = listed(service)["a"].collection
+
+    assert (collection.agent_id, collection.agent_name) == (None, None)
 
 
 def test_results_from_an_agent_that_does_not_exist_are_refused(db):

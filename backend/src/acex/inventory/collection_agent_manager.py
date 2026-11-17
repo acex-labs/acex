@@ -354,7 +354,7 @@ class CollectionAgentManager:
             known = set(session.exec(select(Node.id).where(Node.id.in_(list(results)))).all()) if results else set()
             now = datetime.now(UTC)
             for node_id in sorted(known):
-                record(session, results[node_id], now)
+                record(session, results[node_id], now, id)
             session.commit()
             return CollectionResultsAccepted(accepted=len(known), unknown_nodes=sorted(set(results) - known))
         finally:

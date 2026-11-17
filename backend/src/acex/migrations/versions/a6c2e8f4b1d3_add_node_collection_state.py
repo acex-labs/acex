@@ -1,7 +1,7 @@
 """add node collection state
 
 What the collection agents found when they last tried each node: when, whether it worked, since when it has
-failed and why. Nodes no agent has reported on yet have no row.
+failed and why, and which collection agent reported it. Nodes no agent has reported on yet have no row.
 
 Revision ID: a6c2e8f4b1d3
 Revises: f4b8d2a6c9e1
@@ -31,7 +31,9 @@ def upgrade() -> None:
         sa.Column("consecutive_failures", sa.Integer(), server_default="0", nullable=False),
         sa.Column("category", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column("message", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+        sa.Column("agent_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(["node_id"], ["node.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["agent_id"], ["collectionagent.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("node_id"),
     )
 

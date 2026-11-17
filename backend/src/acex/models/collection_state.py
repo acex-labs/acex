@@ -16,3 +16,7 @@ class NodeCollectionState(SQLModel, table=True):
     consecutive_failures: int = Field(default=0)
     category: str | None = None
     message: str | None = None
+    agent_id: int | None = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("collectionagent.id", ondelete="SET NULL"), nullable=True),
+    )
