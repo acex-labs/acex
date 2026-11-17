@@ -7,12 +7,13 @@ from acex.models.collection_state import NodeCollectionState
 from acex.models.node import Node
 from acex_devkit.models.collection_state import (
     MESSAGE_LENGTH,
+    AgentCollectionSummary,
     CollectionFailure,
     CollectionResult,
     CollectionStatus,
     NodeCollectionStateResponse,
 )
-from sqlmodel import select
+from sqlmodel import func, select
 
 
 def _state(session, node_id: int) -> NodeCollectionState:
@@ -98,3 +99,27 @@ def status_filter(status: Literal["ok", "failing", "unknown"]):
     if status == "ok":
         return Node.id.in_(reported.where(NodeCollectionState.consecutive_failures == 0))
     return Node.id.not_in(reported)
+
+
+def agent_filter(agent_id: int):
+    """A condition on the node list: the nodes whose last attempt this collection agent made."""
+    return Node.id.in_(select(NodeCollectionState.node_id).where(NodeCollectionState.agent_id == agent_id))
+
+
+def summary_for(session, agent_id: int) -> AgentCollectionSummary:
+    failing = NodeCollectionState.consecutive_failures > 0
+    rows = session.exec(
+        select(failing, NodeCollectionState.category, func.count())
+        .where(NodeCollectionState.agent_id == agent_id)
+        .group_by(failing, NodeCollectionState.category)
+    ).all()
+    by_category: dict[CollectionFailure, int] = {}
+    for is_failing, category, count in rows:
+        if is_failing:
+            key = CollectionFailure(category or CollectionFailure.other)
+            by_category[key] = by_category.get(key, 0) + count
+    return AgentCollectionSummary(
+        collected=sum(count for is_failing, _, count in rows if not is_failing),
+        not_collected=sum(by_category.values()),
+        by_category=by_category,
+    )

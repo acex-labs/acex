@@ -50,6 +50,7 @@ from .collection_agent import (
     CollectionAgentUpdate,
 )
 from .collection_state import (
+    AgentCollectionSummary,
     CollectionFailure,
     CollectionResult,
     CollectionResultsAccepted,
@@ -225,6 +226,7 @@ __all__ = [
     "CollectionAgentMatchRuleResponse",
     "CollectionAgentCreate",
     "CollectionAgentUpdate",
+    "AgentCollectionSummary",
     "CollectionFailure",
     "CollectionResult",
     "CollectionResultsAccepted",

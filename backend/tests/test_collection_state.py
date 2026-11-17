@@ -198,6 +198,93 @@ def test_the_node_says_which_agent_made_the_last_attempt(db, service):
     assert (collection.agent_id, collection.agent_name, collection.status) == (second, "site-b", CollectionStatus.ok)
 
 
+def report_for_two_agents(db):
+    first, second = add_agent(db, "site-a"), add_agent(db, "site-b")
+    a, b, c, d, e = (add_node(db, name) for name in "abcde")
+    manager = CollectionAgentManager(db)
+    manager.report_results(
+        first,
+        CollectionResultsUpload(
+            results=[
+                CollectionResult(node_id=a, ok=True),
+                CollectionResult(node_id=b, ok=False, category=CollectionFailure.unreachable),
+                CollectionResult(node_id=c, ok=False, category=CollectionFailure.unreachable),
+                CollectionResult(node_id=d, ok=False, category=CollectionFailure.ssh_algorithm),
+                CollectionResult(node_id=e, ok=False),
+            ]
+        ),
+    )
+    manager.report_results(
+        second,
+        CollectionResultsUpload(
+            results=[CollectionResult(node_id=a, ok=False, category=CollectionFailure.privilege_failed)]
+        ),
+    )
+    return manager, first, second
+
+
+def test_the_summary_of_an_agent_counts_its_nodes_by_why_they_were_not_collected(db):
+    manager, first, second = report_for_two_agents(db)
+
+    summary = manager.collection_summary(first)
+    assert (summary.collected, summary.not_collected) == (0, 4)
+    assert summary.by_category == {
+        CollectionFailure.unreachable: 2,
+        CollectionFailure.ssh_algorithm: 1,
+        CollectionFailure.other: 1,
+    }
+
+    summary = manager.collection_summary(second)
+    assert (summary.collected, summary.not_collected) == (0, 1)
+    assert summary.by_category == {CollectionFailure.privilege_failed: 1}
+
+
+def test_the_summary_of_an_agent_counts_collected_nodes_and_an_agent_with_none_is_empty(db):
+    agent, idle = add_agent(db, "busy"), add_agent(db, "idle")
+    first, second = add_node(db, "a"), add_node(db, "b")
+    manager = CollectionAgentManager(db)
+    manager.report_results(
+        agent,
+        CollectionResultsUpload(
+            results=[CollectionResult(node_id=first, ok=True), CollectionResult(node_id=second, ok=True)]
+        ),
+    )
+
+    assert (manager.collection_summary(agent).collected, manager.collection_summary(agent).not_collected) == (2, 0)
+    assert manager.collection_summary(idle).model_dump() == {"collected": 0, "not_collected": 0, "by_category": {}}
+
+
+def test_the_summary_of_an_agent_that_does_not_exist_is_refused(db):
+    with pytest.raises(HTTPException) as refused:
+        CollectionAgentManager(db).collection_summary(404)
+
+    assert refused.value.status_code == 404
+
+
+def test_the_summary_route_answers_with_the_counts(db):
+    manager, first, _ = report_for_two_agents(db)
+    app = FastAPI()
+    app.include_router(create_router(SimpleNamespace(inventory=SimpleNamespace(collection_agent_manager=manager))))
+
+    response = TestClient(app).get(f"/api/v1/inventory/collection_agents/{first}/collection")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "collected": 0,
+        "not_collected": 4,
+        "by_category": {"unreachable": 2, "ssh_algorithm": 1, "other": 1},
+    }
+
+
+def test_the_node_list_can_be_filtered_on_the_agent_that_made_the_last_attempt(db, service):
+    _, first, second = report_for_two_agents(db)
+
+    assert set(listed(service, collection_agent_id=first)) == {"b", "c", "d", "e"}
+    assert set(listed(service, collection_agent_id=second)) == {"a"}
+    assert set(listed(service, collection_agent_id=first, collection_status="failing")) == {"b", "c", "d", "e"}
+    assert set(listed(service, collection_agent_id=first, collection_status="ok")) == set()
+
+
 def test_an_upload_does_not_take_the_agent_away(db):
     agent = add_agent(db)
     node = add_node(db, "a")

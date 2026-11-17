@@ -151,6 +151,7 @@ class NodeService:
         admin_status: NodeAdminStatus | None = None,
         provision_status: NodeProvisionStatus | None = None,
         collection_status: Literal["ok", "failing", "unknown"] | None = None,
+        collection_agent_id: int | None = None,
         limit: int | None = 100,  # None: every item
         offset: int = 0,
         sort: str | None = None,
@@ -203,6 +204,8 @@ class NodeService:
             )
         if collection_status:
             extra_filters.append(collection_state.status_filter(collection_status))
+        if collection_agent_id is not None:
+            extra_filters.append(collection_state.agent_filter(collection_agent_id))
         extra_filters = extra_filters or None
 
         sort_column = "id"

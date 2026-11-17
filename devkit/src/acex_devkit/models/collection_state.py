@@ -51,3 +51,9 @@ class NodeCollectionStateResponse(BaseModel):
     message: str | None = None
     agent_id: int | None = None
     agent_name: str | None = None
+
+
+class AgentCollectionSummary(BaseModel):
+    collected: int = 0
+    not_collected: int = 0
+    by_category: dict[CollectionFailure, int] = {}

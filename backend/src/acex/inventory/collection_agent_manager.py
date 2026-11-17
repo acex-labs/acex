@@ -13,7 +13,7 @@ from acex.models.management_connections import ManagementConnection
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
 from acex.utils.agent_node_links import set_agent_nodes
-from acex.utils.collection_state import record
+from acex.utils.collection_state import record, summary_for
 from acex_devkit.models.agent_manifest import AckResult, AgentNodeSet, AgentNodeSetResult
 from acex_devkit.models.collection_agent import (
     CollectionAgentAck,
@@ -22,7 +22,11 @@ from acex_devkit.models.collection_agent import (
     CollectionAgentResponse,
     CollectionAgentUpdate,
 )
-from acex_devkit.models.collection_state import CollectionResultsAccepted, CollectionResultsUpload
+from acex_devkit.models.collection_state import (
+    AgentCollectionSummary,
+    CollectionResultsAccepted,
+    CollectionResultsUpload,
+)
 from acex_devkit.models.node_response import AssetRefType
 from fastapi import HTTPException
 from sqlalchemy import delete
@@ -357,6 +361,16 @@ class CollectionAgentManager:
                 record(session, results[node_id], now, id)
             session.commit()
             return CollectionResultsAccepted(accepted=len(known), unknown_nodes=sorted(set(results) - known))
+        finally:
+            session.close()
+
+    def collection_summary(self, id: int) -> AgentCollectionSummary:
+        """How many of the nodes this agent made the last attempt on were collected, and why the others were not."""
+        session = next(self.db.get_session())
+        try:
+            if session.get(CollectionAgent, id) is None:
+                raise HTTPException(status_code=404, detail="CollectionAgent not found")
+            return summary_for(session, id)
         finally:
             session.close()
 
