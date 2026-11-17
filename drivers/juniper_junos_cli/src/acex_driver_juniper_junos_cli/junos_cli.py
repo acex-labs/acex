@@ -3,7 +3,13 @@ import re
 
 from acex_devkit.configdiffer import Diff
 from acex_devkit.drivers import Codec, NetworkElementDriver, State, Transport
-from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout, DriverException
+from acex_devkit.exceptions import (
+    AuthenticationFailed,
+    ConnectionTimeout,
+    DriverException,
+    HostUnreachable,
+    SshAlgorithmMismatch,
+)
 from acex_devkit.models.codec_result import ParseResult, RenderResult
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry
@@ -44,6 +50,13 @@ class JunosCLITransport(Transport[str]):
         except NetmikoAuthenticationException as e:
             raise AuthenticationFailed(f"Authentication to {self.address} failed") from e
         except NetmikoTimeoutException as e:
+            # Netmiko raises this for a refused connection and for a failed SSH negotiation too; the error it caught is
+            # the context of the one it raised.
+            reason = e.__context__
+            if "Incompatible ssh" in str(reason):
+                raise SshAlgorithmMismatch(f"No SSH algorithm in common with the device: {reason}") from e
+            if isinstance(reason, OSError) and not isinstance(reason, TimeoutError):
+                raise HostUnreachable(f"Could not connect to the device: {reason}") from e
             raise ConnectionTimeout(f"Connection to {self.address} timed out") from e
 
     async def close(self) -> None:
