@@ -16,7 +16,6 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy import text
 
-BEFORE = "f4b8d2a6c9e1"
 REVISION = "c8d4f2a7e1b3"
 INDEXES = {
     "uq_asset_serial_number_norm",
@@ -26,6 +25,18 @@ INDEXES = {
 }
 MIGRATIONS = Path(__file__).parent.parent / "src/acex/migrations"
 MIGRATION = MIGRATIONS / "versions/c8d4f2a7e1b3_unique_inventory_identities.py"
+
+
+def load_migration():
+    """The migration module on its own, to run its steps without Alembic's loader."""
+    spec = importlib.util.spec_from_file_location("unique_inventory_identities", MIGRATION)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# The revision it follows, so pointing it at another parent does not touch this file.
+BEFORE = load_migration().down_revision
 
 
 @pytest.fixture
@@ -86,14 +97,6 @@ def warnings(caplog) -> str:
     return "\n".join(r.getMessage() for r in caplog.records if r.name == "acex.migrations")
 
 
-def load_migration():
-    """The migration module on its own, to run its steps without Alembic's loader."""
-    spec = importlib.util.spec_from_file_location("unique_inventory_identities", MIGRATION)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 class TestUpgrade:
     def should_add_the_indexes_when_there_are_no_duplicates(self, db):
         add_asset(db, "A1")
@@ -103,10 +106,16 @@ class TestUpgrade:
         add_node(db, 1, 1)
         add_node(db, 2, 2)
 
-        db.upgrade("head")
+        db.upgrade(REVISION)
 
         assert indexes(db) == INDEXES
         assert version(db) == REVISION
+
+    def should_keep_the_indexes_through_the_migrations_after_it(self, db):
+        # A later batch_alter_table on asset or logicalnode drops the expression indexes on SQLite.
+        db.upgrade("head")
+
+        assert indexes(db) == INDEXES
 
     def should_treat_an_asset_and_a_cluster_with_the_same_id_as_different(self, db):
         add_logical_node(db, "sw-01")
@@ -114,7 +123,7 @@ class TestUpgrade:
         add_node(db, 1, 1)
         add_node(db, 1, 2, ref_type="asset_cluster")
 
-        db.upgrade("head")
+        db.upgrade(REVISION)
 
         assert "uq_node_asset_ref" in indexes(db)
 
@@ -126,7 +135,7 @@ class TestUpgrade:
         add_node(db, 1, 1)
 
         with caplog.at_level(logging.WARNING, logger="acex.migrations"):
-            db.upgrade("head")
+            db.upgrade(REVISION)
 
         assert indexes(db) == INDEXES - {"uq_asset_serial_number_norm"}  # the others are clean
         assert version(db) == REVISION  # the backend starts
@@ -143,7 +152,7 @@ class TestUpgrade:
         add_node(db, 1, 1)
 
         with caplog.at_level(logging.WARNING, logger="acex.migrations"):
-            db.upgrade("head")
+            db.upgrade(REVISION)
 
         assert indexes(db) == {"uq_asset_serial_number_norm"}
         message = warnings(caplog)
@@ -160,7 +169,7 @@ class TestUpgrade:
         add_node(db, 1, 2)
 
         with caplog.at_level(logging.WARNING, logger="acex.migrations"):
-            db.upgrade("head")
+            db.upgrade(REVISION)
 
         assert indexes(db) == INDEXES - {"uq_node_asset_ref"}
         message = warnings(caplog)
@@ -173,7 +182,7 @@ class TestUpgrade:
             add_asset(db, f"s{i}")
 
         with caplog.at_level(logging.WARNING, logger="acex.migrations"):
-            db.upgrade("head")
+            db.upgrade(REVISION)
 
         message = warnings(caplog)
         assert "55 duplicate group(s)" in message
@@ -197,7 +206,7 @@ class TestUpgrade:
 
 class TestDowngrade:
     def should_drop_the_indexes(self, db):
-        db.upgrade("head")
+        db.upgrade(REVISION)
         assert indexes(db) == INDEXES
 
         downgrade(db, BEFORE)
@@ -208,7 +217,7 @@ class TestDowngrade:
     def should_not_mind_an_index_that_was_never_created(self, db):
         add_asset(db, "x1")
         add_asset(db, "X1")
-        db.upgrade("head")
+        db.upgrade(REVISION)
         assert "uq_asset_serial_number_norm" not in indexes(db)
 
         downgrade(db, BEFORE)
