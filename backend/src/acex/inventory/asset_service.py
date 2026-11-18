@@ -1,8 +1,10 @@
 import inspect
 from typing import Literal
 
+from acex.inventory.uniqueness import ASSET_SERIAL, as_id, require_text, unique
 from acex.models import Asset
 from acex.models.node import Node
+from acex.utils.identity import key_of
 from acex_devkit.models.asset import AssetResponse, AssetUpdate
 from acex_devkit.models.node_response import AssetRefType
 from acex_devkit.models.os_version import OsVersionScheme
@@ -41,7 +43,10 @@ class AssetService:
             return method(*args, **kwargs)
 
     async def create(self, asset: Asset):
-        result = await self._call_method(self.adapter.create, asset)
+        """Add an asset; 409 if its serial number is taken."""
+        asset.serial_number = require_text(asset.serial_number, "serial_number")
+        async with unique(self.adapter, ASSET_SERIAL, asset.serial_number):
+            result = await self._call_method(self.adapter.create, asset)
         self.hardware_models.enable_for_asset(asset.hardware_model, enabled_by="inventory")
         return result
 
@@ -121,14 +126,26 @@ class AssetService:
         ``os_version`` is only meaningful against an ``os``, and a patch may
         carry either one alone - so the stored asset supplies whichever half is
         missing before the pair is checked.
+
+        A changed ``serial_number`` must be free. One left as it is is not checked (the frontend sends every
+        field), so an asset that already has a duplicate stays editable.
         """
         patch = asset.model_dump(exclude_unset=True)
 
-        if "os" in patch or "os_version" in patch:
+        current = None
+        if "serial_number" in patch or "os" in patch or "os_version" in patch:
             current = await self._call_method(self.adapter.get, id)
             if current is None:
                 raise HTTPException(status_code=404, detail="Asset not found")
 
+        serial = None
+        serial_changed = False
+        if "serial_number" in patch:
+            serial = require_text(patch["serial_number"], "serial_number")
+            serial_changed = key_of(serial) != key_of(current.serial_number)
+            asset = asset.model_copy(update={"serial_number": serial})
+
+        if "os" in patch or "os_version" in patch:
             os_value = patch.get("os", current.os)
             version = patch.get("os_version", current.os_version)
             if version is not None:
@@ -141,7 +158,8 @@ class AssetService:
                     raise HTTPException(status_code=422, detail=str(exc)) from exc
                 asset = asset.model_copy(update={"os_version": patch["os_version"]})
 
-        result = await self._call_method(self.adapter.update, id, asset)
+        async with unique(self.adapter, ASSET_SERIAL, serial, exclude_id=as_id(id), skip=not serial_changed):
+            result = await self._call_method(self.adapter.update, id, asset)
         if "hardware_model" in patch:
             self.hardware_models.enable_for_asset(patch["hardware_model"], enabled_by="inventory")
         return result

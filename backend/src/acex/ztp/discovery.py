@@ -10,9 +10,11 @@ are never touched here; provisioning is a step of its own.
 import logging
 from datetime import UTC, datetime
 
+from acex.models.asset import Asset
 from acex.models.management_connections import ManagementConnection
 from acex.models.node import Node
 from acex.models.ztp_discovery import ZtpDiscovery
+from acex.utils.identity import key_expr
 from acex.ztp.approval import ApprovalPlanner
 from acex.ztp.review_context import ReviewContext
 from acex_devkit.models.pagination import PaginatedResponse
@@ -29,6 +31,7 @@ from acex_devkit.models.ztp import (
     ZtpDiscoveryResponse,
     ZtpReviewStatus,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 
 logger = logging.getLogger("acex.ztp")
@@ -48,6 +51,13 @@ class ReviewConflict(RuntimeError):
 
 class ProposalChanged(ReviewConflict):
     """What approval would do is no longer what the administrator saw."""
+
+
+class ApprovalRaced(ReviewConflict):
+    """The asset appeared between planning and writing, and the unique index refused the write.
+
+    The failed write rolls back the whole session, so a bulk approval stops instead of skipping the item.
+    """
 
 
 def record_discovery(session, job, result: ZtpDiscoverResult) -> None:
@@ -130,6 +140,8 @@ class ZtpDiscoveryManager:
                     results.append(
                         ZtpBulkItemResult(discovery_id=item.discovery_id, outcome=outcome, proposal=proposal)
                     )
+                except ApprovalRaced:
+                    raise
                 except (ReviewConflict, ZtpDiscoveryNotFound) as exc:
                     results.append(self._skipped(item.discovery_id, exc))
             if dry_run:
@@ -173,7 +185,21 @@ class ZtpDiscoveryManager:
         if bulk and identity:
             raise ReviewConflict(f"{identity[0].message}; approve it on its own", proposal)
 
-        asset = planner.apply(session, proposal)
+        try:
+            asset = planner.apply(session, proposal)
+        except IntegrityError as exc:
+            # Read the proposal, not the discovery: the failed flush expired the session's objects.
+            serial = proposal.asset.serial_number
+            session.rollback()
+            # Not a lost race unless the serial is now taken; any other integrity error propagates.
+            taken = select(Asset.id).where(key_expr(Asset.serial_number) == func.lower(serial))
+            if session.exec(taken).first() is None:
+                raise
+            raise ApprovalRaced(
+                f"An asset with serial {serial} was added while this was being approved; "
+                "nothing was approved, review it again",
+                proposal,
+            ) from exc
         self.hardware_models.enable_in(session, asset.hardware_model, enabled_by=reviewed_by)
         discovery.asset_id = asset.id
         now = datetime.now(UTC)

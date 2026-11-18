@@ -46,9 +46,13 @@ def create_router(automation_engine):
     def approve_many(body: ZtpBulkApprove, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Approve many discoveries; each one that cannot be approved is skipped with a reason.
 
-        With `dry_run`, nothing is written and the answer says what would happen.
+        With `dry_run`, nothing is written and the answer says what would happen. If an asset with a serial is
+        added by someone else while this is being written, nothing is approved and the answer is 409.
         """
-        return discoveries.approve_many(body.items, reviewed_by=_reviewer(user), dry_run=body.dry_run)
+        try:
+            return discoveries.approve_many(body.items, reviewed_by=_reviewer(user), dry_run=body.dry_run)
+        except ReviewConflict as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     @router.post("/reject", response_model=ZtpBulkResult)
     def reject_many(body: ZtpBulkReject, user: dict = Depends(_auth.get_current_user)):  # noqa: B008

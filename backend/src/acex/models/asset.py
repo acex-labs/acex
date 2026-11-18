@@ -1,3 +1,4 @@
+from acex.utils.identity import key_expr
 from acex_devkit.models.asset import (
     Asset as AssetSchema,
 )
@@ -12,6 +13,7 @@ from acex_devkit.models.asset import (
 from acex_devkit.models.asset import (
     AssetClusterBase as AssetClusterSchema,
 )
+from sqlalchemy import Index, column
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -31,6 +33,9 @@ class AssetClusterLink(SQLModel, table=True):
 
 
 class Asset(AssetBase, table=True):
+    # Unique serial number, ignoring case and padding. Created by a migration only when the data is clean.
+    __table_args__ = (Index("uq_asset_serial_number_norm", key_expr(column("serial_number")), unique=True),)
+
     clusters: list["AssetCluster"] = Relationship(back_populates="assets", link_model=AssetClusterLink)
 
 
