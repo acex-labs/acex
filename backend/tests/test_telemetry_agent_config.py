@@ -64,7 +64,8 @@ def _add_node(db, *, hostname: str, ip: str | None = "10.0.0.1", with_ln: bool =
             s.add(ln)
             s.flush()
             ln_id = ln.id
-        node = Node(asset_ref_id=1, logical_node_id=ln_id)
+        # No asset row is needed, but an asset backs one node instance only, so each node gets its own.
+        node = Node(asset_ref_id=ln_id, logical_node_id=ln_id)
         s.add(node)
         s.flush()
         if ip is not None:

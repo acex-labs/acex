@@ -166,17 +166,3 @@ graph LR
     CMD[Patch commands] --> T2[Transport<br/>send_config]
     T2 --> DEV
 ```
-
-## GitHub → GitLab build trigger
-
-On every push to `main` and on release events, a GitHub Actions workflow triggers a downstream GitLab pipeline via the GitLab pipeline trigger API. This is a one-way call — GitHub fires the trigger, GitLab builds independently.
-
-```mermaid
-sequenceDiagram
-    participant GH as GitHub Actions
-    participant GL as GitLab CI
-
-    GH->>GL: POST /trigger/pipeline<br/>(token + BUILD_TARGET=acex)
-    GL-->>GH: 201 Created
-    Note over GL: GitLab builds downstream NaaS artifact
-```

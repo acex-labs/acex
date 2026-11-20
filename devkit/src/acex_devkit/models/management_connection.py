@@ -17,7 +17,7 @@ class ManagementConnectionBase(BaseModel):
 
 
 class ManagementConnectionCreate(ManagementConnectionBase):
-    pass
+    node_id: int
 
 
 class ManagementConnectionUpdate(BaseModel):

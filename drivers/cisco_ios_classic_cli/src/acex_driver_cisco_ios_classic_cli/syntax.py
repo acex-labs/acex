@@ -1,4 +1,5 @@
 import ipaddress
+import re
 from typing import Any
 
 from acex_devkit.drivers.mapper import (
@@ -17,6 +18,7 @@ from acex_devkit.drivers.mapper import (
 from acex_devkit.drivers.mapper.tokens import Token
 from acex_devkit.models.acl_model import AclProtoclOptions, Ipv4AclAttributes, Ipv4AclEntryAttributes
 from acex_devkit.models.composed_configuration import (
+    ClockConfig,
     DHCPSnoopingAttributes,
     DnsServerAttributes,
     EthernetCsmacdInterface,
@@ -110,6 +112,19 @@ class LoadBalance(Token):
 
     def render(self, value: list[str]) -> str | None:
         return value[0] if len(value) == 1 else None
+
+
+class Timezone(Token):
+    regex = r"\S+ [+-]?\d+(?: \d+)?"
+    # IOS reports the minutes as well (`CET 1 0`); the model leaves out a zero, so both sides compare equal
+    zero_minutes = re.compile(r"(\S+ [+-]?\d+) 0")
+
+    def parse(self, text: str) -> str:
+        zero = self.zero_minutes.fullmatch(text)
+        return zero.group(1) if zero else text
+
+    def render(self, value: Any) -> str | None:
+        return str(value).upper()
 
 
 SEVERITIES = Choice(
@@ -227,6 +242,12 @@ class SystemConfigSyntax(Block):
         Multiline("login_banner", "banner login {delim}"),
         Multiline("motd_banner", "banner motd {delim}"),
     )
+
+
+class ClockSyntax(Block):
+    path = "system.clock.config"
+    component = ClockConfig
+    body = (Line("clock timezone {timezone}", timezone=Timezone()),)
 
 
 class VrfSyntax(Block):
@@ -743,6 +764,7 @@ BLOCKS = [
     PasswordEncryptionSyntax(),
     IpDeviceTrackingSyntax(),
     SystemConfigSyntax(),
+    ClockSyntax(),
     VrfSyntax(),
     AaaSyntax(),
     AaaServerGroupSyntax(),

@@ -86,6 +86,7 @@ class DatabasePlugin(IntegrationPluginBase):
                 for f in extra_filters:
                     query = query.where(f)
             total = session.exec(select(func.count()).select_from(query.subquery())).one()
+            pk_col = getattr(self.table, "id", None)
             if sort is not None:
                 if not isinstance(sort, str):
                     sort_col = sort
@@ -101,9 +102,12 @@ class DatabasePlugin(IntegrationPluginBase):
                     sort_col = getattr(self.table, sort)
                 query = query.order_by(sort_col.desc() if order == "desc" else sort_col.asc())
                 # tiebreaker for stable pagination
-                pk_col = getattr(self.table, "id", None)
                 if pk_col is not None and not (isinstance(sort, str) and sort == "id"):
                     query = query.order_by(pk_col)
+            elif pk_col is not None:
+                # No order asked for: still order by primary key. OFFSET/LIMIT over an unordered
+                # query has no stable pages, so a walk can repeat some rows and skip others.
+                query = query.order_by(pk_col)
             # Loader options only shape how items load, so they are left out of the count above.
             for opt in options or ():
                 query = query.options(opt)

@@ -16,11 +16,15 @@ from acex.models.ztp_method import ZtpMethodRow
 from acex.platforms import HardwareModelManager
 from acex.settings import RabbitMQSettings
 from acex.ztp import ZtpDiscoveryManager
+from acex.ztp.approval import ApprovalPlanner
+from acex.ztp.review_context import ReviewContext
 from acex_devkit.models.job import JobUpdate
 from acex_devkit.models.node_response import NodeAdminStatus, NodeProvisionStatus
 from acex_devkit.models.ztp import ZtpDiscoverData, ZtpDiscoverResult
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -67,6 +71,11 @@ class _Ztp:
         with Session(self.db.engine) as session:
             session.add(ZtpMethodRow(method="cisco_iosxe_python", ned=NED))
             session.commit()
+
+    def without_unique_serials(self) -> None:
+        """The database as the migration leaves it when it found duplicate serials: without the unique index."""
+        with self.db.engine.begin() as connection:
+            connection.execute(text("DROP INDEX uq_asset_serial_number_norm"))
 
     def asset(self, serial: str = SERIAL, **facts) -> int:
         with Session(self.db.engine) as session:
@@ -205,10 +214,23 @@ class TestProposal:
         proposal = ztp.discover("10.0.0.5")["proposal"]
         assert proposal["action"] == "blocked"
 
-    def should_block_a_serial_on_several_assets(self, ztp):
+    def should_block_a_serial_on_several_assets_from_before_the_unique_index(self, ztp):
+        ztp.without_unique_serials()
         ztp.asset()
         ztp.asset()
         assert ztp.discover("10.0.0.5")["proposal"]["action"] == "blocked"
+
+    def should_find_the_asset_ignoring_case_and_padding(self, ztp):
+        asset_id = ztp.asset(serial=" fcw2233l0ab ")
+
+        proposal = ztp.discover("10.0.0.5")["proposal"]
+
+        assert (proposal["action"], proposal["asset_id"]) == ("unchanged", asset_id)
+
+    def should_create_the_asset_with_a_trimmed_serial(self, ztp):
+        proposal = ztp.discover("10.0.0.5", serial="  SN9 ")["proposal"]
+
+        assert (proposal["action"], proposal["asset"]["serial_number"]) == ("create", "SN9")
 
     def should_show_no_proposal_once_reviewed(self, ztp):
         discovery = ztp.discover("10.0.0.5")
@@ -355,6 +377,47 @@ class TestBulk:
 
         assert result["outcome"] == "skipped"
         assert result["proposal"]["action"] == "update"
+
+    def should_refuse_an_asset_that_appeared_while_approving(self, ztp, monkeypatch):
+        # The review looked for the asset and found none; by the time it writes, another request has added it.
+        ztp.asset()
+        monkeypatch.setattr(ReviewContext, "assets_with_serial", lambda self, discovery: [])
+        discovery = ztp.discover("10.0.0.5")
+
+        response = ztp.review(discovery["id"], "approve")
+
+        assert response.status_code == 409
+        assert "added while this was being approved" in response.json()["detail"]
+        assert len(ztp.assets()) == 1
+        assert ztp.get(discovery["id"])["review_status"] == "unreviewed"
+
+    def should_not_blame_a_race_for_some_other_integrity_error(self, ztp, monkeypatch):
+        # No asset has the serial, so the write failed for another reason, which is not ours to explain.
+        def refused(self, session, proposal):
+            raise IntegrityError("INSERT INTO asset", {}, Exception("NOT NULL constraint failed: asset.os_version"))
+
+        monkeypatch.setattr(ApprovalPlanner, "apply", refused)
+        discovery = ztp.discover("10.0.0.5")
+
+        with pytest.raises(IntegrityError):
+            ztp.review(discovery["id"], "approve")
+
+    def should_approve_nothing_when_an_asset_appeared_during_a_bulk_approval(self, ztp, monkeypatch):
+        ztp.asset(serial="SN2")
+        found = ReviewContext.assets_with_serial
+        monkeypatch.setattr(
+            ReviewContext,
+            "assets_with_serial",
+            lambda self, discovery: [] if discovery.serial_number == "SN2" else found(self, discovery),
+        )
+        discoveries = [ztp.discover(f"10.0.0.{i}", serial=f"SN{i}") for i in (1, 2)]
+        items = [{"discovery_id": d["id"], "proposal_hash": d["proposal"]["hash"]} for d in discoveries]
+
+        response = ztp.client.post(f"{DISCOVERIES}/approve", json={"items": items})
+
+        assert response.status_code == 409
+        assert ztp.assets("SN1") == []
+        assert all(ztp.get(d["id"])["review_status"] == "unreviewed" for d in discoveries)
 
     def should_reject_many(self, ztp):
         discoveries = [ztp.discover(f"10.0.0.{i}", serial=f"SN{i}") for i in range(2)]

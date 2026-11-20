@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 import respx
 from acex_client.auth import NullAuthProvider
@@ -9,6 +11,7 @@ from acex_client.exceptions import AcexNotFoundError
 from acex_client.http import RestClient
 from acex_client.resources.inventory import InventoryNamespace
 from httpx import Response
+from pydantic import ValidationError
 
 
 @pytest.fixture
@@ -338,3 +341,32 @@ def test_collection_agent_get_id_by_name(inventory):
         )
     )
     assert inventory.collection_agents.get_id_by_name("site-a") == 5
+
+
+@respx.mock
+def test_a_management_connection_is_created_with_its_node(inventory):
+    route = respx.post("http://test/api/v1/inventory/management_connections").mock(
+        return_value=Response(
+            200, json={"id": 7, "node_id": 5, "primary": True, "connection_type": "ssh", "target_ip": "192.0.2.10"}
+        )
+    )
+
+    connection = inventory.management_connections.create(node_id=5, target_ip="192.0.2.10")
+
+    assert json.loads(route.calls.last.request.content) == {
+        "node_id": 5,
+        "primary": True,
+        "connection_type": "ssh",
+        "target_ip": "192.0.2.10",
+    }
+    assert (connection.id, connection.node_id) == (7, 5)
+
+
+@respx.mock
+def test_a_management_connection_without_a_node_is_refused_before_the_request(inventory):
+    route = respx.post("http://test/api/v1/inventory/management_connections")
+
+    with pytest.raises(ValidationError, match="node_id"):
+        inventory.management_connections.create(target_ip="192.0.2.10")
+
+    assert not route.called
