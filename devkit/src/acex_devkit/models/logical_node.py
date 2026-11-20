@@ -7,8 +7,8 @@ from acex_devkit.models.composed_configuration import ComposedConfiguration
 
 
 class LogicalNodeBase(BaseModel):
-    hostname: str = Field(default="R1")
-    role: str = Field(default="core")
+    hostname: str
+    role: str = Field(default=None)
     site: str | None = Field(default=None)
     sequence: int | None = Field(default=None)
 
