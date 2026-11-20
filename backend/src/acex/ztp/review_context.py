@@ -8,6 +8,7 @@ from acex.models.logical_node import LogicalNode
 from acex.models.node import Node
 from acex.models.ztp_discovery import ZtpDiscovery
 from acex.models.ztp_method import ZtpMethodRow
+from acex.utils.identity import key_expr, key_of
 from acex_devkit.models.node_response import AssetRefType, NodeProvisionStatus
 from acex_devkit.models.ztp import ZtpConflict, ZtpConflictKind, ZtpReviewStatus
 from sqlmodel import or_, select
@@ -17,6 +18,7 @@ from sqlmodel import or_, select
 class ReviewContext:
     #: Discoveries that are not rejected and share a serial or an IP with one being reviewed.
     related: list[ZtpDiscovery] = field(default_factory=list)
+    #: Keyed by `key_of(serial)`: an asset is its serial however that is cased or padded.
     assets_by_serial: dict[str, list[Asset]] = field(default_factory=dict)
     assets_by_id: dict[int, Asset] = field(default_factory=dict)
     nodes_by_asset: dict[int, Node] = field(default_factory=dict)
@@ -45,11 +47,13 @@ class ReviewContext:
             ).all()
         )
 
-        asset_filter = or_(Asset.serial_number.in_(serials), Asset.id.in_(asset_ids))
+        serial_keys = {key_of(serial) for serial in serials}
+        asset_filter = or_(key_expr(Asset.serial_number).in_(serial_keys), Asset.id.in_(asset_ids))
         for asset in session.exec(select(Asset).where(asset_filter).order_by(Asset.id)).all():
             ctx.assets_by_id[asset.id] = asset
-            if asset.serial_number in serials:
-                ctx.assets_by_serial.setdefault(asset.serial_number, []).append(asset)
+            serial_key = key_of(asset.serial_number)
+            if serial_key in serial_keys:
+                ctx.assets_by_serial.setdefault(serial_key, []).append(asset)
 
         nodes = session.exec(
             select(Node).where(Node.asset_ref_type == AssetRefType.asset, Node.asset_ref_id.in_(ctx.assets_by_id))
@@ -66,7 +70,7 @@ class ReviewContext:
         return ctx
 
     def assets_with_serial(self, discovery: ZtpDiscovery) -> list[Asset]:
-        return self.assets_by_serial.get(discovery.serial_number, [])
+        return self.assets_by_serial.get(key_of(discovery.serial_number), [])
 
     def asset_of(self, discovery: ZtpDiscovery) -> Asset | None:
         """The asset the discovery was approved as, or else the only asset with its serial."""

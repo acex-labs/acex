@@ -3,6 +3,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Literal
 
+from acex.inventory.uniqueness import NODE_ASSET, NODE_CLUSTER, NODE_LOGICAL_NODE, unique
 from acex.models import Asset, AssetCluster, ManagementConnection, Node
 from acex.plugins.neds.manager.ned_manager import NEDManager
 from acex_devkit.models.config_origin import AnnotatedConfigResponse, ComponentOrigin, OriginSpan
@@ -104,14 +105,32 @@ class NodeService:
         matches = [o for o in origins if path[: len(o.path)] == o.path]
         return max(matches, key=lambda o: len(o.path), default=None)
 
+    async def _require_logical_node(self, logical_node_id):
+        """The logical node a node instance is for; 404 if there is none."""
+        ln = await self._call_method(self.inventory.logical_nodes.adapter.get, logical_node_id)
+        if ln is None:
+            raise HTTPException(status_code=404, detail=f"Logical node {logical_node_id} not found")
+        return ln
+
+    async def _asset_ref(self, asset_ref_type, asset_ref_id):
+        """The uniqueness rule and the name for what a node instance runs on; 404 if it does not exist."""
+        if asset_ref_type == "asset_cluster":
+            cluster = self.inventory.asset_cluster_manager.get_cluster(asset_ref_id)  # raises 404 itself
+            return NODE_CLUSTER, cluster.name
+        asset = await self.inventory.assets.get(asset_ref_id)
+        if asset is None:
+            raise HTTPException(status_code=404, detail=f"Asset {asset_ref_id} not found")
+        return NODE_ASSET, asset.serial_number
+
     async def create(self, logical_node: Node) -> NodeInstance:
-        if logical_node.asset_ref_type == "asset_cluster":
-            self.inventory.asset_cluster_manager.get_cluster(logical_node.asset_ref_id)  # raises 404 itself
-        else:
-            asset = await self.inventory.assets.get(logical_node.asset_ref_id)
-            if asset is None:
-                raise HTTPException(status_code=404, detail=f"Asset {logical_node.asset_ref_id} not found")
-        result = await self._call_method(self.adapter.create, logical_node)
+        """Add a node instance; 409 if its logical node or asset already has one."""
+        asset_spec, asset_name = await self._asset_ref(logical_node.asset_ref_type, logical_node.asset_ref_id)
+        ln = await self._require_logical_node(logical_node.logical_node_id)
+        async with (
+            unique(self.adapter, NODE_LOGICAL_NODE, logical_node.logical_node_id, subject=ln.hostname),
+            unique(self.adapter, asset_spec, logical_node.asset_ref_id, subject=asset_name),
+        ):
+            result = await self._call_method(self.adapter.create, logical_node)
         node_id = getattr(result, "id", None)
         if node_id is not None:
             self.inventory.telemetry_agent_manager.bump_revisions_for_node(node_id)
@@ -313,9 +332,33 @@ class NodeService:
     async def update(self, id: str, logical_node: Node) -> NodeInstance:
         """Update the node instance and answer it as `get` does, so a client can read both the same way."""
         logical_node.updated_at = datetime.now(UTC)
-        # admin_status, provision_status and logical_node_id affect telemetry rule matching.
-        with self.inventory.telemetry_agent_manager.bumping_revisions_for_nodes([int(id)]):
-            await self._call_method(self.adapter.update, id, logical_node)
+
+        # Moving to another logical node, asset or cluster: the target must exist and be free. A patch that
+        # leaves them as they are is not checked, so a node that already shares an asset stays editable.
+        moved_to = subject = None
+        ref_spec = ref_id = ref_name = None
+        fields = logical_node.model_fields_set
+        if fields & {"logical_node_id", "asset_ref_id", "asset_ref_type"}:
+            current = await self._call_method(self.adapter.get, id)
+            if current is None:
+                raise HTTPException(status_code=404, detail=f"Node instance {id} not found")
+            if "logical_node_id" in fields and logical_node.logical_node_id != current.logical_node_id:
+                moved_to = logical_node.logical_node_id
+                subject = (await self._require_logical_node(moved_to)).hostname
+            ref_type = logical_node.asset_ref_type if "asset_ref_type" in fields else current.asset_ref_type
+            ref_id = logical_node.asset_ref_id if "asset_ref_id" in fields else current.asset_ref_id
+            if (ref_type, ref_id) != (current.asset_ref_type, current.asset_ref_id):
+                ref_spec, ref_name = await self._asset_ref(ref_type, ref_id)
+
+        async with (
+            unique(
+                self.adapter, NODE_LOGICAL_NODE, moved_to, exclude_id=int(id), skip=moved_to is None, subject=subject
+            ),
+            unique(self.adapter, ref_spec, ref_id, exclude_id=int(id), skip=ref_spec is None, subject=ref_name),
+        ):
+            # admin_status, provision_status and logical_node_id affect telemetry rule matching.
+            with self.inventory.telemetry_agent_manager.bumping_revisions_for_nodes([int(id)]):
+                await self._call_method(self.adapter.update, id, logical_node)
         return await self.get(id)
 
     async def delete(self, id: str):
