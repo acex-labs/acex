@@ -151,6 +151,7 @@ class NodeService:
         management_connection_ip: str = None,
         logical_node_id: int = None,
         asset_ref_id: int = None,
+        asset_ref_type: AssetRefType | None = None,
         vendor: str = None,
         os: str = None,
         role: str = None,
@@ -169,6 +170,7 @@ class NodeService:
                 "logical_node.role": role,
                 "logical_node_id": logical_node_id,
                 "asset_ref_id": asset_ref_id,
+                "asset_ref_type": asset_ref_type,
                 "admin_status": admin_status,
                 "provision_status": provision_status,
             }.items()
