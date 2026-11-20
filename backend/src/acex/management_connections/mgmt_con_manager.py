@@ -1,5 +1,6 @@
 from acex.models import ManagementConnection, ManagementConnectionBase
-from acex_devkit.models.management_connection import ManagementConnectionResponse
+from acex_devkit.models.management_connection import ManagementConnectionResponse, ManagementConnectionUpdate
+from fastapi import HTTPException
 from sqlmodel import select
 
 
@@ -61,6 +62,42 @@ class ManagementConnectionManager:
 
             # Returnera som response objekt
             return ManagementConnectionResponse(**mgmt_connection.model_dump())
+
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def update_connection(self, id: int, payload: ManagementConnectionUpdate) -> ManagementConnectionResponse:
+        """Change the fields that are sent. A field left out or sent as null stays as it is.
+
+        A node has one primary connection, so making a connection primary makes the node's other
+        connections give way in the same transaction.
+        """
+        session = next(self.db.get_session())
+        try:
+            connection = session.get(ManagementConnection, id)
+            if not connection:
+                raise HTTPException(status_code=404, detail="ManagementConnection not found")
+
+            for field, value in payload.model_dump(exclude_none=True).items():
+                setattr(connection, field, value)
+
+            if payload.primary:
+                others = session.exec(
+                    select(ManagementConnection).where(
+                        ManagementConnection.node_id == connection.node_id,
+                        ManagementConnection.id != connection.id,
+                        ManagementConnection.primary.is_(True),
+                    )
+                ).all()
+                for other in others:
+                    other.primary = False
+
+            session.commit()
+            session.refresh(connection)
+            return ManagementConnectionResponse(**connection.model_dump())
 
         except Exception as e:
             session.rollback()
