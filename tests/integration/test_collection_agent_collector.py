@@ -22,6 +22,7 @@ from acex_devkit.models.agent_manifest import ManifestTarget
 from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry
 from acex_devkit.models.ned import Ned
+from acex_driver_cisco_ios_classic_cli.cisco_ios_classic_cli import CiscoIOSClassicCLIDriver
 from acex_driver_cisco_ioscli.cisco_ios_cli import CiscoIOSCLIDriver
 from acex_driver_cisco_ioscli.transport.transport import CiscoIOSTransport
 from acex_driver_juniper_junos_cli.junos_cli import JunosCLI
@@ -289,7 +290,9 @@ def test_the_collector_runs_the_interface_devkit_defines():
     )
 
 
-@pytest.mark.parametrize("driver", [CiscoIOSCLIDriver, JunosCLI], ids=["cisco", "junos"])
+@pytest.mark.parametrize(
+    "driver", [CiscoIOSCLIDriver, CiscoIOSClassicCLIDriver, JunosCLI], ids=["cisco", "cisco-classic", "junos"]
+)
 def test_the_real_drivers_declare_the_interface_devkit_defines(driver):
     assert vars(driver).get("interface_version") == NED_INTERFACE, (
         f"{driver.__name__} declares NED interface {vars(driver).get('interface_version')} and devkit defines "
