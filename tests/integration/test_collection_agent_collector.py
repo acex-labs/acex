@@ -17,8 +17,17 @@ from acex_client.http import RestClient
 from acex_client.resources.neds import Neds
 from acex_collection_agent.collector import SUPPORTED_NED_INTERFACES, Collector
 from acex_devkit.drivers import NED_INTERFACE, NetworkElementDriver, State, Transport
-from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
+from acex_devkit.exceptions import (
+    AuthenticationFailed,
+    ConnectionTimeout,
+    DriverException,
+    HostUnreachable,
+    PrivilegeFailed,
+    SshAlgorithmMismatch,
+)
+from acex_devkit.exceptions import ConnectionError as DeviceConnectionError
 from acex_devkit.models.agent_manifest import ManifestTarget
+from acex_devkit.models.collection_state import CollectionFailure
 from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.lldp_neighbor import LldpNeighborEntry
 from acex_devkit.models.ned import Ned
@@ -177,6 +186,83 @@ def test_connection_errors_are_reported_per_node(error, message):
 
     assert (result["status"], result["message"]) == ("error", message)
     assert client.config_uploads == []
+
+
+@pytest.mark.parametrize(
+    ("error", "category"),
+    [
+        (AuthenticationFailed("denied"), CollectionFailure.authentication_failed),
+        (PrivilegeFailed("no enable"), CollectionFailure.privilege_failed),
+        (SshAlgorithmMismatch("no common cipher"), CollectionFailure.ssh_algorithm),
+        (ConnectionTimeout("slow"), CollectionFailure.unreachable),
+        (HostUnreachable("refused"), CollectionFailure.unreachable),
+        (DeviceConnectionError("dropped"), CollectionFailure.unreachable),
+        (DriverException("not a connection problem"), CollectionFailure.other),
+        (RuntimeError("boom"), CollectionFailure.other),
+    ],
+    ids=lambda value: type(value).__name__ if isinstance(value, Exception) else value.value,
+)
+def test_a_failed_node_gets_the_category_its_error_says(error, category):
+    driver, _ = make_driver(open_error=error)
+
+    (result,) = collect(FakeClient(driver), target())
+
+    assert result["category"] == category
+
+
+def test_a_driver_error_without_text_is_reported_by_its_name():
+    driver, _ = make_driver(open_error=PrivilegeFailed())
+
+    (result,) = collect(FakeClient(driver), target())
+
+    assert result["message"] == "PrivilegeFailed"
+
+
+def test_a_cipher_failure_keeps_what_the_driver_said_as_its_message():
+    driver, _ = make_driver(open_error=SshAlgorithmMismatch("No SSH algorithm in common with the device: no cipher"))
+
+    (result,) = collect(FakeClient(driver), target())
+
+    assert result["message"] == "No SSH algorithm in common with the device: no cipher"
+
+
+def test_failures_before_a_connection_have_their_own_categories():
+    driver, _ = make_driver(config="")
+    client = FakeClient(driver, ned_id="FakeDriver")
+
+    results = collect(
+        client,
+        target(node_id=1, target_ip=None),
+        target(node_id=2, ned_id=None),
+        target(node_id=3, ned_id="Missing"),
+        target(node_id=4),
+    )
+    (credentials,) = collect(FakeClient(driver, secrets={}), target(node_id=5))
+
+    assert {r["node_id"]: r["category"] for r in [*results, credentials]} == {
+        1: CollectionFailure.no_management_ip,
+        2: CollectionFailure.driver_unavailable,
+        3: CollectionFailure.driver_unavailable,
+        4: CollectionFailure.empty_configuration,
+        5: CollectionFailure.no_credentials,
+    }
+
+
+def test_a_config_that_could_not_be_uploaded_is_reported_as_other():
+    driver, _ = make_driver()
+    client = FakeClient(driver, upload_error=AcexHTTPError(500, "database is down"))
+
+    (result,) = collect(client, target())
+
+    assert (result["status"], result["category"]) == ("error", CollectionFailure.other)
+
+
+def test_a_collected_node_has_no_category():
+    driver, _ = make_driver()
+
+    (result,) = collect(FakeClient(driver), target())
+
+    assert result.get("category") is None
 
 
 def test_the_session_is_closed_when_the_config_cannot_be_read():

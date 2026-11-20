@@ -49,6 +49,15 @@ from .collection_agent import (
     CollectionAgentResponse,
     CollectionAgentUpdate,
 )
+from .collection_state import (
+    AgentCollectionSummary,
+    CollectionFailure,
+    CollectionResult,
+    CollectionResultsAccepted,
+    CollectionResultsUpload,
+    CollectionStatus,
+    NodeCollectionStateResponse,
+)
 from .compliance import (
     AssetSoftwareCompliance,
     ComplianceOverview,
@@ -217,6 +226,13 @@ __all__ = [
     "CollectionAgentMatchRuleResponse",
     "CollectionAgentCreate",
     "CollectionAgentUpdate",
+    "AgentCollectionSummary",
+    "CollectionFailure",
+    "CollectionResult",
+    "CollectionResultsAccepted",
+    "CollectionResultsUpload",
+    "CollectionStatus",
+    "NodeCollectionStateResponse",
     "CollectionAgentResponse",
     "CollectionAgentAck",
     "CollectionAgentManifest",

@@ -7,6 +7,7 @@ from acex_devkit.models.collection_agent import (
     CollectionAgentResponse,
     CollectionAgentUpdate,
 )
+from acex_devkit.models.collection_state import CollectionResultsAccepted, CollectionResultsUpload
 
 from acex_client.resources.base import (
     ActionMixin,
@@ -103,6 +104,9 @@ class CollectionAgents(
 
     @action("POST", "{id}/ack")
     def ack(self, id: int, payload: CollectionAgentAck) -> AckResult: ...
+
+    @action("POST", "{id}/results")
+    def report_results(self, id: int, payload: CollectionResultsUpload) -> CollectionResultsAccepted: ...
 
     @action("GET", "{id}/manifest")
     def manifest(self, id: int) -> CollectionAgentManifest: ...

@@ -8,6 +8,7 @@ from acex.models import DeviceConfig, DeviceConfigResponse, StoredDeviceConfig
 from acex.models.logical_node import LogicalNode
 from acex.models.node import Node
 from acex.plugins.neds.manager import NEDManager
+from acex.utils.collection_state import record_success
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlmodel import select
@@ -364,6 +365,7 @@ class DeviceConfigManager:
                 last_change = str(latest.created_at)
                 latest.last_collected_at = now
                 session.add(latest)
+                record_success(session, int(payload.node_instance_id), now)
                 session.commit()
                 raise HTTPException(
                     status_code=409,
@@ -384,6 +386,7 @@ class DeviceConfigManager:
             )
 
             session.add(save_this)
+            record_success(session, int(payload.node_instance_id), now)
             session.commit()
             session.refresh(save_this)
             return save_this
