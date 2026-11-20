@@ -14,7 +14,11 @@ class LogicalNodeBase(BaseModel):
 
 
 class LogicalNodeCreate(LogicalNodeBase):
-    pass
+    # What a caller of the client has to give. LogicalNodeBase also backs the table and the body of
+    # the API's create and update routes, where a PATCH may leave the hostname out and the role
+    # column is NOT NULL, so the stricter rules stay on this model.
+    hostname: str
+    role: str | None = None
 
 
 class LogicalNodeUpdate(BaseModel):
