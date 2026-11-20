@@ -4,7 +4,7 @@ What the collection agents found when they last tried each node: when, whether i
 failed and why, and which collection agent reported it. Nodes no agent has reported on yet have no row.
 
 Revision ID: a6c2e8f4b1d3
-Revises: f4b8d2a6c9e1
+Revises: c8d4f2a7e1b3
 Create Date: 2026-11-16 15:00:00.000000
 
 """
@@ -16,7 +16,7 @@ import sqlmodel
 from alembic import op
 
 revision: str = "a6c2e8f4b1d3"
-down_revision: str | Sequence[str] | None = "f4b8d2a6c9e1"
+down_revision: str | Sequence[str] | None = "c8d4f2a7e1b3"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
