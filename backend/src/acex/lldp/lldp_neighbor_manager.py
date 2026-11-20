@@ -7,25 +7,36 @@ from acex.models.logical_node import LogicalNode
 from acex.models.node import Node
 from acex_devkit.models.lldp_neighbor import LldpNeighborResponse, LldpNeighborUpload
 from fastapi import HTTPException
-from sqlmodel import delete, select
+from sqlmodel import delete, func, select
 
 
 class LldpNeighborManager:
     def __init__(self, db_manager):
         self.db = db_manager
 
+    @staticmethod
+    def _find_logical_node(session, name: str) -> LogicalNode | None:
+        """The logical node called ``name``: an exact match wins, else one that differs only in case or padding."""
+        exact = session.exec(select(LogicalNode).where(LogicalNode.hostname == name).order_by(LogicalNode.id)).first()
+        if exact:
+            return exact
+        return session.exec(
+            select(LogicalNode)
+            .where(func.lower(func.trim(LogicalNode.hostname)) == func.lower(name.strip()))
+            .order_by(LogicalNode.id)
+        ).first()
+
     def _resolve_remote_node(self, session, remote_device: str) -> int | None:
         """Try to match remote_device hostname to a node in inventory.
 
-        Tries exact match first, then strips domain suffix
-        (e.g. 'switch2.example.com' -> 'switch2').
+        Tries the full name first, then strips domain suffix
+        (e.g. 'switch2.example.com' -> 'switch2'). A device may report its name
+        in another case than the inventory holds ('CORE-SW1' for 'core-sw1').
         """
-        # Try exact match first
-        ln = session.exec(select(LogicalNode).where(LogicalNode.hostname == remote_device)).first()
+        ln = self._find_logical_node(session, remote_device)
         # Fallback: strip domain part
         if not ln and "." in remote_device:
-            short_name = remote_device.split(".")[0]
-            ln = session.exec(select(LogicalNode).where(LogicalNode.hostname == short_name)).first()
+            ln = self._find_logical_node(session, remote_device.split(".")[0])
         if not ln:
             return None
         node = session.exec(select(Node).where(Node.logical_node_id == ln.id)).first()

@@ -1,10 +1,13 @@
 import inspect
 
+from acex.inventory.uniqueness import LOGICAL_NODE_HOSTNAME, as_id, require_text, unique
 from acex.models import LogicalNode
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
+from acex.utils.identity import key_of
 from acex_devkit.models.logical_node import LogicalNodeConfigResponse, LogicalNodeListResponse, LogicalNodeResponse
 from acex_devkit.models.pagination import PaginatedResponse
+from fastapi import HTTPException
 from sqlmodel import select
 
 
@@ -35,7 +38,10 @@ class LogicalNodeService:
         return logical_node
 
     async def create(self, logical_node: LogicalNode):
-        result = await self._call_method(self.adapter.create, logical_node)
+        """Add a logical node; 409 if its hostname is taken."""
+        logical_node.hostname = require_text(logical_node.hostname, "hostname")
+        async with unique(self.adapter, LOGICAL_NODE_HOSTNAME, logical_node.hostname):
+            result = await self._call_method(self.adapter.create, logical_node)
         return result
 
     async def _get_regions(self, site: str) -> list[str]:
@@ -150,12 +156,26 @@ class LogicalNodeService:
             session.close()
 
     async def update(self, id: str, logical_node: LogicalNode):
-        # site/role are telemetry rule fields — agents covering this logical
-        # node's instances before or after the change get a new revision.
-        if self.telemetry_agent_manager is None:
-            return await self._call_method(self.adapter.update, id, logical_node)
-        with self.telemetry_agent_manager.bumping_revisions_for_nodes(self._node_ids(id)):
-            return await self._call_method(self.adapter.update, id, logical_node)
+        # A changed hostname must be free. One left as it is is not checked (the frontend sends every field).
+        hostname = None
+        hostname_changed = False
+        if "hostname" in logical_node.model_fields_set:
+            current = await self._call_method(self.adapter.get, id)
+            if current is None:
+                raise HTTPException(status_code=404, detail="Logical node not found")
+            hostname = require_text(logical_node.hostname, "hostname")
+            hostname_changed = key_of(hostname) != key_of(current.hostname)
+            logical_node.hostname = hostname
+
+        async with unique(
+            self.adapter, LOGICAL_NODE_HOSTNAME, hostname, exclude_id=as_id(id), skip=not hostname_changed
+        ):
+            # site/role are telemetry rule fields — agents covering this logical
+            # node's instances before or after the change get a new revision.
+            if self.telemetry_agent_manager is None:
+                return await self._call_method(self.adapter.update, id, logical_node)
+            with self.telemetry_agent_manager.bumping_revisions_for_nodes(self._node_ids(id)):
+                return await self._call_method(self.adapter.update, id, logical_node)
 
     async def delete(self, id: str):
         result = await self._call_method(self.adapter.delete, id)

@@ -94,8 +94,8 @@ class _Adapter:
 def test_an_asset_entering_the_inventory_enables_its_declared_model(hardware_models):
     assets = AssetService(_Adapter(), hardware_models)
 
-    asyncio.run(assets.create(SimpleNamespace(hardware_model="c9300-48p")))
-    asyncio.run(assets.create(SimpleNamespace(hardware_model="HOMEMADE-1")))
+    asyncio.run(assets.create(SimpleNamespace(serial_number="SN1", hardware_model="c9300-48p")))
+    asyncio.run(assets.create(SimpleNamespace(serial_number="SN2", hardware_model="HOMEMADE-1")))
     asyncio.run(assets.update("1", AssetUpdate(hardware_model="C9300-24T")))
 
     assert hardware_models.enabled() == {"C9300-48P", "C9300-24T"}

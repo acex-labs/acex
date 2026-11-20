@@ -18,7 +18,8 @@ class CiscoIOSTransport(Transport[str]):
 
     PORT = 22
 
-    # Legacy KEX/ciphers for older IOS devices that don't support modern algorithms
+    # Legacy KEX/ciphers for older IOS devices that don't support modern algorithms. The CBC ciphers are appended
+    # after asyncssh's defaults, so a device that speaks a modern cipher still gets one and CBC is only a fallback.
     LEGACY_ASYNCSSH_OPTIONS = {
         "kex_algs": [
             "diffie-hellman-group-exchange-sha256",
@@ -27,6 +28,7 @@ class CiscoIOSTransport(Transport[str]):
             "diffie-hellman-group14-sha1",
             "diffie-hellman-group1-sha1",
         ],
+        "encryption_algs": "+aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc",
     }
 
     async def open(self) -> None:

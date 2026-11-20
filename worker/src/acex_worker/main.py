@@ -12,7 +12,7 @@ from acex_client.auth import AuthorizationCodeAuth, AuthProvider, create_auth_pr
 from acex_devkit.models.worker import WorkerConnection, WorkerConnectRequest
 
 from acex_worker.app import create_app
-from acex_worker.neds import sync_neds
+from acex_worker.neds import SUPPORTED_NED_INTERFACES, sync_neds
 from acex_worker.registry import HANDLERS
 
 log = logging.getLogger("acex_worker")
@@ -36,7 +36,9 @@ def _auth(api_url: str) -> AuthProvider:
 def connect_client() -> Acex:
     """An acex client logged in as the worker, configured from ACEX_* env vars."""
     base_url = os.environ.get("ACEX_BASE_URL", "http://127.0.0.1:8080/")
-    return Acex.from_env(base_url, auth=_auth(f"{base_url.rstrip('/')}/api/v1"))
+    return Acex.from_env(
+        base_url, auth=_auth(f"{base_url.rstrip('/')}/api/v1"), ned_interfaces=SUPPORTED_NED_INTERFACES
+    )
 
 
 def start(client: Acex) -> WorkerConnection:

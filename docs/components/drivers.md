@@ -92,6 +92,29 @@ cisco-ios-cli = "acex_driver_cisco_ioscli:CiscoIOSCLIDriver"
 - A driver declares the platforms it supports with `platforms = [Platform(vendor=..., os=...)]`, and `driver.supports(asset)` checks an asset against them. `Vendor` and `OS` come from the devkit (`acex_devkit.models.platform`), so a new vendor or OS has to be added there first, together with a version scheme (`acex_devkit.os_versions`).
 - The backend lists the installed drivers at `GET /api/v1/neds`, packages each one as a wheel and serves it at `/api/v1/neds/download/{filename}`. Agents and workers fetch the drivers they are missing, or have at another version, and install them with pip.
 
+### Keeping a driver and the process that runs it in step
+
+Agents and workers install their drivers from the backend, so they can meet a driver that was written for another version of the contract between a driver and the process that runs it. That contract is the **NED interface**: a number that devkit defines (`acex_devkit.drivers.NED_INTERFACE`) and raises only when the contract changes in a way that breaks either side.
+
+A driver declares the interface it was written for as a number in its class body:
+
+```python
+class CiscoIOSCLIDriver(NetworkElementDriver):
+    interface_version = 2
+```
+
+Write the number, not `NED_INTERFACE`. The declaration says what the driver was written for, and a reference would follow whichever devkit the driver happens to be loaded under. When devkit raises `NED_INTERFACE`, a test fails for each driver in this repository until it has been ported and declares the new number. The backend lists the declared number for each driver as `interface_version` in `GET /api/v1/neds`. A driver that declares none is listed with `null` and is not checked.
+
+An agent or worker names the interfaces it can run. A driver that declares another one is not installed and not used. The process says why in its log, and what needs the driver fails with the reason, for example:
+
+```text
+NED 'CiscoIOSCLIDriver' not loaded: CiscoIOSCLIDriver v5.0.0 implements NED interface 3, this process runs 2: update this agent or worker
+```
+
+If an agent already has a driver for that NED it keeps using it and only logs the reason. If it has none, every node that needs the NED reports the reason, and the agent tries those nodes again every five minutes, so a driver that is fixed from the outside is picked up without waiting for the next full collection. A worker, which must render what the backend publishes, fails the job with the reason. When the backend serves a driver that is older than the process runs, the message says to update the API instead. A driver whose code cannot be loaded in the process, for example because a dependency is missing, is not used either, and the reason is reported the same way.
+
+Nothing is held against a driver that declares no interface, which is what every driver served by a backend from before the number looks like, or against a process that names no interfaces. When devkit raises `NED_INTERFACE`, the collection agent and the worker have to be changed to run the new interface (`SUPPORTED_NED_INTERFACES`). Their tests fail until they are.
+
 ## Errors
 
 A transport should raise the devkit's exceptions, not the library's, so that callers handle one set whatever library the driver uses: `AuthenticationFailed`, `ConnectionTimeout` and `ConnectionError` for the connection, `ConfigurationError` for a rejected change, and `DriverException` as the base of them all (`acex_devkit.exceptions`).
