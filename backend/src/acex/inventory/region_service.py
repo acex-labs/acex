@@ -22,11 +22,11 @@ class RegionService:
         data = region.model_dump() if hasattr(region, "model_dump") else dict(region)
         sites = []
         if self.inventory and hasattr(self.inventory, "region_assignment_manager"):
-            assignments = self.inventory.region_assignment_manager.list_assignments(region_name=region.name)
-            for a in assignments:
-                result = await self.inventory.sites.query(name=a.site_name)
-                if result.items:
-                    s = result.items[0]
+            for a in self.inventory.region_assignment_manager.list_assignments_of(region.name):
+                # A pattern again: the site `hq` is not `hq-2`, which may come first.
+                result = await self.inventory.sites.query(name=a.site_name, limit=None)
+                s = next((s for s in result.items if s.name == a.site_name), None)
+                if s:
                     sites.append(
                         RegionSiteInfo(
                             name=s.name,
