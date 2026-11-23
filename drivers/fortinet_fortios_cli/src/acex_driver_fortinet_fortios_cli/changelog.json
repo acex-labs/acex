@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "component": "acex-driver-fortinet-fortios-cli",
+  "name": "Fortinet FortiOS CLI driver",
+  "releases": [],
+  "coming": [],
+  "highlights": []
+}
