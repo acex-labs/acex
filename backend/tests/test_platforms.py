@@ -99,3 +99,8 @@ def test_an_asset_entering_the_inventory_enables_its_declared_model(hardware_mod
     asyncio.run(assets.update("1", AssetUpdate(hardware_model="C9300-24T")))
 
     assert hardware_models.enabled() == {"C9300-48P", "C9300-24T"}
+
+
+def test_a_mikrotik_routerboard_is_offered_on_routeros_with_no_ned_yet(api):
+    assert model(api, "RB5009UG+S+IN")["operating_systems"] == ["mikrotik_routeros"]
+    assert model(api, "RB5009UG+S+IN")["supported_os"] == []
