@@ -104,3 +104,8 @@ def test_an_asset_entering_the_inventory_enables_its_declared_model(hardware_mod
 def test_a_mikrotik_routerboard_is_offered_on_routeros_with_no_ned_yet(api):
     assert model(api, "RB5009UG+S+IN")["operating_systems"] == ["mikrotik_routeros"]
     assert model(api, "RB5009UG+S+IN")["supported_os"] == []
+
+
+def test_a_waystream_switch_is_offered_on_ibos_with_no_ned_yet(api):
+    assert model(api, "MS7048-AC")["operating_systems"] == ["waystream_ibos"]
+    assert model(api, "MS7048-AC")["supported_os"] == []
