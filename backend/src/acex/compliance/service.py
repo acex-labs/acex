@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 
 from acex.compliance.configuration import ConfigurationCheck
-from acex.compliance.software import SoftwareCheck
+from acex.compliance.software import ApprovedVersions, SoftwareCheck
 from acex.config_diff import DiffLogicalNode
 from acex_devkit.models.compliance import (
     ComplianceOverview,
@@ -16,7 +16,6 @@ from acex_devkit.models.compliance import (
     SoftwareCompliance,
 )
 from acex_devkit.models.node_response import NodeListItem
-from acex_devkit.models.policy import SoftwarePolicyResponse
 from fastapi import HTTPException, Response
 
 log = logging.getLogger(__name__)
@@ -140,7 +139,7 @@ class ComplianceService:
                 )
         return results
 
-    async def measure(self, node_instance_id: str, approved: list[SoftwarePolicyResponse]) -> NodeCompliance:
+    async def measure(self, node_instance_id: str, approved: ApprovedVersions) -> NodeCompliance:
         node = await self.inventory.node_instances.get(node_instance_id)  # 404 for an unknown node
         return NodeCompliance(
             configuration=await self.configuration.node(node_instance_id),

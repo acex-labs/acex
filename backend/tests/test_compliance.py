@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from acex.compliance import ComplianceService
-from acex.compliance.software import SoftwareCheck
+from acex.compliance.software import ApprovedVersions, SoftwareCheck
 from acex_devkit.exceptions import DriverException
 from acex_devkit.models.asset import AssetResponse
 from acex_devkit.models.compliance import ConfigurationStatus, SoftwareStatus
@@ -290,7 +290,7 @@ def policy(id, os, os_version, golden=False, hardware_model=None):
 
 
 def measure(asset, approved):
-    return SoftwareCheck(policies=None).asset(asset, approved)
+    return SoftwareCheck(policies=None).asset(asset, ApprovedVersions(approved))
 
 
 NEXUS = ("cisco", "N9K-C93180YC-FX", "cisco_nxos")
