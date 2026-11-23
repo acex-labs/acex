@@ -17,6 +17,7 @@ class OS(StrEnum):
     cisco_nxos = "cisco_nxos"
     fortinet_fortios = "fortinet_fortios"
     juniper_junos = "juniper_junos"
+    mikrotik_routeros = "mikrotik_routeros"
     waystream_ibos = "waystream_ibos"
 
 
@@ -25,4 +26,5 @@ class Vendor(StrEnum):
     cisco = "cisco"
     fortinet = "fortinet"
     juniper = "juniper"
+    mikrotik = "mikrotik"
     waystream = "waystream"

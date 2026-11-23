@@ -76,3 +76,22 @@ def test_an_ibos_asset_takes_the_version_of_its_show_version():
         os_version="6.3.0-ED-R",
     )
     assert asset.os_version == "6.3.0-ED-R"
+
+
+def test_routeros_versions_as_the_device_reports_them_are_accepted():
+    scheme = OsVersionScheme.for_os(OS.mikrotik_routeros)
+    for version in ["6.49.17", "7.16.1", "7.17", "7.17rc3", "7.17beta2", "7.9"]:
+        assert scheme.accepts(version), version
+    for junk in ["nonsense", "7", "7.17 (stable)", "v7.17", "7.17.", "7.17rc"]:
+        assert not scheme.accepts(junk), junk
+
+
+def test_routeros_versions_are_ordered_by_their_numbers_and_not_as_strings():
+    scheme = OsVersionScheme.for_os(OS.mikrotik_routeros)
+    versions = [scheme.normalize(v) for v in ["7.17", "6.49.17", "7.9", "7.16.1", "7.17.1"]]
+    assert [str(v) for v in sorted(versions)] == ["6.49.17", "7.9", "7.16.1", "7.17", "7.17.1"]
+
+
+def test_a_routeros_release_of_two_numbers_is_the_one_with_a_fix_number_of_zero():
+    scheme = OsVersionScheme.for_os(OS.mikrotik_routeros)
+    assert scheme.normalize("7.17") == scheme.normalize("7.17.0")

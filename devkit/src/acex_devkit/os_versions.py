@@ -33,6 +33,14 @@ IBOS = (
     r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
     r"(?:-(?P<qualifier>[A-Za-z]+)(?:-[A-Za-z0-9]+)*)?"
 )
+# 6.49.17, 7.16.1, 7.17 - MikroTik RouterOS. A release can be two numbers (7.17) and the testing channel adds beta and
+# rc (7.17beta2, 7.17rc3). The channel that `/system resource print` writes after the number, such as (stable), is not
+# part of the version. A pre-release sorts after its release here, since the qualifier compares as text; nothing
+# decides on order, it only orders a list.
+ROUTEROS = (
+    r"(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?"
+    r"(?P<qualifier>(?:beta|rc)\d+)?"
+)
 
 
 class CiscoIosVersions(OsVersionScheme):
@@ -75,6 +83,12 @@ class AristaEosVersions(OsVersionScheme):
     os: OS = OS.arista_eos
     patterns: list[str] = [DOTTED_BUILD]
     examples: list[str] = ["4.30.3M", "4.28.6.1M"]
+
+
+class MikrotikRouterosVersions(OsVersionScheme):
+    os: OS = OS.mikrotik_routeros
+    patterns: list[str] = [ROUTEROS]
+    examples: list[str] = ["7.17", "7.16.1", "6.49.17", "7.17rc3"]
 
 
 class WaystreamIbosVersions(OsVersionScheme):
