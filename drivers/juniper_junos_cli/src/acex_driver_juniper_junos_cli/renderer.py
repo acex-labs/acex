@@ -67,9 +67,10 @@ class JunosCLIRenderer:
     # there's no enter/exit context to track — generators emit complete
     # lines and rendering is just a join.
 
+    # Interfaces have no generator on purpose: a change there is listed as unrendered until the mapper blocks can
+    # write it. A generator that returns a stand-in line would be sent to the device as it is.
     def _register(self):
         self.registry.register(("system", "config"), self._generate_system_config_commands)
-        self.registry.register(("interfaces", "*"), self._generate_interface_config_commands)
 
     def render_patch(self, diff: Diff, node_instance: Any) -> RenderResult[str]:
         """Render device commands for a Diff using registered generators; a change no generator handles is
@@ -105,12 +106,6 @@ class JunosCLIRenderer:
                 elif component_change.op == "remove":
                     commands.append(Command(context=ctx, command="delete system host-name"))
         return commands
-
-    def _generate_interface_config_commands(self, component_change, node_instance) -> list[Command]:
-        # Stub mirroring the Cisco renderer's placeholder — real attribute
-        # mapping per change.op / attr.attribute_name lands here.
-        ctx = Context(path=component_change.path)
-        return [Command(context=ctx, command='set interfaces TODO description "TODO"')]
 
     def pre_process(self, configuration: dict, asset) -> dict[str, Any]:
         """Pre-process the configuration model before rendering j2."""
