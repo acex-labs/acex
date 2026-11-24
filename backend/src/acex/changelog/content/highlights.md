@@ -13,6 +13,10 @@ writes the draft, a person or an assistant. `python scripts/changelog.py validat
 Nothing is compiled: an edit that is merged is live in the next image.
 -->
 
+## 2026-11-24 ZTP discovers and provisions Cisco switches again
+
+A Cisco switch that fetches its ZTP bootstrap is logged in to, identified and listed for approval again, and an approved switch gets its full configuration pushed. A device that has not applied its bootstrap yet is tried again for up to ten minutes.
+
 ## 2026-11-24 See which nodes the collection agent cannot reach
 
 A node the collection agent could not collect on its last try gets a red label with the reason: unreachable, login failed, privilege level, SSH algorithm and more. The node and the agent show since when and how many attempts in a row, and the Nodes list can be filtered on it.
