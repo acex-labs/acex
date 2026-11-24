@@ -15,6 +15,14 @@ class CiscoIOSDevice(DeviceType, abstract=True):
     os: list[OS] = [OS.cisco_ios]
 
 
+class CiscoBusinessDevice(DeviceType, abstract=True):
+    """Cisco device running Cisco Business firmware (cisco_business): Catalyst 1300, CBS250 and CBS350."""
+
+    vendor: Vendor = Vendor.cisco
+    os: list[OS] = [OS.cisco_business]
+    stackable: bool = False
+
+
 class CiscoIOSXEDevice(DeviceType, abstract=True):
     """Cisco device running cisco_iosxe."""
 
