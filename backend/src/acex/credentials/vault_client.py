@@ -2,18 +2,39 @@
 
 import logging
 import threading
+from pathlib import Path
 
 logger = logging.getLogger("acex.vault")
+
+#: Where Kubernetes mounts the token of the pod's service account.
+SERVICE_ACCOUNT_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+#: The mount a Vault Kubernetes auth method has unless it was enabled under another path.
+KUBERNETES_AUTH_MOUNT = "kubernetes"
 
 
 class VaultClient:
     """Reads secrets from Vault KV v2.
 
-    A client that logged in with an AppRole logs in again when its token has stopped working, so it keeps reading
-    after the token has expired. A client given a token has nothing to log in with and behaves as it always did.
+    The client logs in with an AppRole, or from Kubernetes with the token of the pod's service account. If both are
+    given the AppRole is used, and either beats a static token. A client that logged in logs in again when its token
+    has stopped working, so it keeps reading after the token has expired. A client given a token has nothing to log in
+    with and behaves as it always did.
+
+    `verify` is True, False, or the path of a CA file to check Vault's certificate against. It applies to this
+    client only, not to any other HTTPS call the process makes.
     """
 
-    def __init__(self, url: str, token: str = None, role_id: str = None, secret_id: str = None, verify: bool = True):
+    def __init__(
+        self,
+        url: str,
+        token: str = None,
+        role_id: str = None,
+        secret_id: str = None,
+        verify: bool | str = True,
+        k8s_role: str = None,
+        k8s_mount: str = KUBERNETES_AUTH_MOUNT,
+        k8s_token_path: str = SERVICE_ACCOUNT_TOKEN_PATH,
+    ):
         try:
             import hvac
         except ImportError as exc:
@@ -21,29 +42,49 @@ class VaultClient:
                 "HashiCorp Vault support requires the 'hvac' package. Install it with: pip install hvac"
             ) from exc
 
+        if isinstance(verify, str) and not Path(verify).is_file():
+            raise RuntimeError(f"The CA file for Vault does not exist: {verify}")
+
         self._hvac = hvac
         self._client = hvac.Client(url=url, token=token, verify=verify)
         self._role_id = role_id
         self._secret_id = secret_id
+        self._k8s_role = k8s_role
+        self._k8s_mount = k8s_mount
+        self._k8s_token_path = k8s_token_path
+        self._can_log_in = bool((role_id and secret_id) or k8s_role)
         # Readers run on several threads. The count of logins tells a reader whose read failed whether another
         # reader has logged in again since, so the readers of an expired token make one login between them.
         self._login_lock = threading.Lock()
         self._logins = 0
 
-        # AppRole auth (preferred for production)
+        # AppRole, then Kubernetes, then a static token
         if role_id and secret_id:
             self._log_in()
             logger.info("Authenticated to Vault via AppRole")
+        elif k8s_role:
+            self._log_in()
+            logger.info("Authenticated to Vault via Kubernetes")
         elif token:
             logger.info("Authenticated to Vault via token")
         else:
-            raise RuntimeError("Vault requires either token or role_id+secret_id for authentication")
+            raise RuntimeError("Vault requires a token, role_id+secret_id or a Kubernetes role for authentication")
 
         if not self._client.is_authenticated():
             raise RuntimeError("Vault authentication failed")
 
     def _log_in(self) -> None:
-        resp = self._client.auth.approle.login(role_id=self._role_id, secret_id=self._secret_id)
+        if self._role_id and self._secret_id:
+            resp = self._client.auth.approle.login(role_id=self._role_id, secret_id=self._secret_id)
+        else:
+            # Kubernetes rotates the token of a service account, so the file is read again at every login
+            try:
+                jwt = Path(self._k8s_token_path).read_text().strip()
+            except OSError as e:
+                raise RuntimeError(f"Cannot read the service account token at {self._k8s_token_path}: {e}") from e
+            resp = self._client.auth.kubernetes.login(
+                role=self._k8s_role, jwt=jwt, use_token=False, mount_point=self._k8s_mount
+            )
         self._client.token = resp["auth"]["client_token"]
         self._logins += 1
 
@@ -54,14 +95,14 @@ class VaultClient:
         A 403 also means that the policy of a working token does not allow the path, and then another login changes
         nothing, so the token is asked whether it still works before anything else is done.
         """
-        if not (self._role_id and self._secret_id):
+        if not self._can_log_in:
             return False
         with self._login_lock:
             if self._logins != logins_before_the_read:
                 return True  # another reader has logged in since this read started
             if self._client.is_authenticated():
                 return False
-            logger.warning("The Vault token no longer works, logging in again via AppRole")
+            logger.warning("The Vault token no longer works, logging in again")
             self._log_in()
             return True
 

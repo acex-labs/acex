@@ -71,19 +71,39 @@ class CorsSettings(Section, name="cors", env_ignore_empty=False):
 class VaultSettings(Section, name="credentials.vault"):
     """HashiCorp Vault for credential storage.
 
-    Used when an address and either a token or an AppRole (role + secret id)
-    are set.
+    Used when an address and either a token, an AppRole (role + secret id) or
+    a Kubernetes role are set. With several, the AppRole is used before
+    Kubernetes and Kubernetes before the token.
     """
 
     addr: str | None = None
     token: SecretStr | None = None
     role_id: str | None = None
     secret_id: SecretStr | None = None
-    verify: bool = True
+    #: Log in from Kubernetes as this Vault role, with the service account token of the pod.
+    k8s_role: str | None = None
+    #: The path the Vault Kubernetes auth method is mounted on.
+    k8s_mount: str = "kubernetes"
+    #: Where the pod's service account token is mounted. The file is read at every login.
+    k8s_token_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    #: Check Vault's certificate: true, false, or the path of a CA file to check it against (for a private CA).
+    #: The CA file is used for Vault only and leaves every other HTTPS call of the backend as it is.
+    verify: bool | str = True
+
+    @field_validator("verify", mode="before")
+    @classmethod
+    def _verify_is_a_flag_or_a_path(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            flag = value.strip().lower()
+            if flag in ("true", "1", "yes", "on"):
+                return True
+            if flag in ("false", "0", "no", "off"):
+                return False
+        return value
 
     @property
     def configured(self) -> bool:
-        return bool(self.addr and (self.token or (self.role_id and self.secret_id)))
+        return bool(self.addr and (self.token or (self.role_id and self.secret_id) or self.k8s_role))
 
 
 class CredentialSettings(Section, name="credentials"):
