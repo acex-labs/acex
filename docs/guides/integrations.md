@@ -34,12 +34,18 @@ NetBox can also be used as the inventory backend to populate Assets and Logical 
 Used to store SSH credentials and SNMP secrets for network devices. Supports both token auth and AppRole.
 
 ```bash
-ACEX_VAULT_URL=https://vault.example.com
-ACEX_VAULT_TOKEN=...
+ACEX_CREDENTIALS_VAULT_ADDR=https://vault.example.com
+ACEX_CREDENTIALS_VAULT_TOKEN=...
 # or AppRole:
-ACEX_VAULT_ROLE_ID=...
-ACEX_VAULT_SECRET_ID=...
+ACEX_CREDENTIALS_VAULT_ROLE_ID=...
+ACEX_CREDENTIALS_VAULT_SECRET_ID=...
+# false turns the certificate check off (default true):
+ACEX_CREDENTIALS_VAULT_VERIFY=true
 ```
+
+With an AppRole the backend logs in again when its Vault token has expired, so a credential with source `vault` keeps
+working for as long as the role can log in. A static token is not renewed: when it expires the credentials read from
+Vault fail until the token is replaced and the backend restarted.
 
 If Vault is not configured, credentials are stored encrypted in PostgreSQL using a symmetric key (`ACEX_CREDENTIALS_ENCRYPTION_KEY`).
 
