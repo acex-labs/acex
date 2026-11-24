@@ -32,8 +32,7 @@ class RstpAttributes(ContainerEntry, SpanningTreeModeConfig):
 
 
 class RSTPConfig(BaseModel):
-    # config: RstpAttributes = RstpAttributes()
-    config: dict[str, RstpAttributes] | None = None
+    config: RstpAttributes | None = None
 
 
 ### MSTP
@@ -51,9 +50,8 @@ class MstpAttributes(ContainerEntry, SpanningTreeModeConfig):
 
 
 class MSTPConfig(BaseModel):
-    # config: MstpAttributes = MstpAttributes()
-    config: dict[str, MstpAttributes] | None = None
-    mst_instances: dict[str, MstpInstanceAttributes] | None = None
+    config: MstpAttributes | None = None
+    mst_instances: dict[str, MstpInstanceAttributes] | None = {}
 
 
 ### Rapid PVST
@@ -75,11 +73,14 @@ class RapidPVSTAttributes(ContainerEntry, SpanningTreeModeConfig):
 
 
 class RapidPVSTConfig(BaseModel):
-    vlan: dict[str, RapidPVSTAttributes] | None = None
+    vlan: dict[str, RapidPVSTAttributes] | None = {}
 
 
 class SpanningTree(BaseModel):
-    config: dict[str, SpanningTreeGlobalAttributes] | None = None  # SpanningTreeGlobalAttributes()
+    # The global settings, MST and RSTP are one object each. The instances and the VLANs are collections keyed by name:
+    # a collection has to default to {} for a component to be placed in it by name, and None makes it place the object
+    # itself, so that only the last one of several survives and the tree no longer validates when read back.
+    config: SpanningTreeGlobalAttributes | None = None
     rstp: RSTPConfig | None = RSTPConfig()
     mstp: MSTPConfig | None = MSTPConfig()
     rapidpvst: RapidPVSTConfig | None = RapidPVSTConfig()
