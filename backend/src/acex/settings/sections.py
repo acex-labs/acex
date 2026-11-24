@@ -95,9 +95,10 @@ class VaultSettings(Section, name="credentials.vault"):
     def _verify_is_a_flag_or_a_path(cls, value: Any) -> Any:
         if isinstance(value, str):
             flag = value.strip().lower()
-            if flag in ("true", "1", "yes", "on"):
+            # Every spelling the plain boolean accepted before, so an existing setting keeps its meaning
+            if flag in ("true", "1", "yes", "on", "t", "y"):
                 return True
-            if flag in ("false", "0", "no", "off"):
+            if flag in ("false", "0", "no", "off", "f", "n"):
                 return False
         return value
 
