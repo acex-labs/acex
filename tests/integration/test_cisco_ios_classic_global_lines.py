@@ -13,8 +13,8 @@ STARTS_WITH = ["spanning-tree mode rapid-pvst", "spanning-tree extend system-id"
 
 
 def spanning_tree(mode: str) -> SpanningTree:
-    """The collection the model types `stp.config` as, which is how a configuration read back from JSON holds it."""
-    return SpanningTree(config={"core": SpanningTreeGlobalAttributes(mode=mode)})
+    """A configuration read back from JSON holds the one object, as one composed from components does."""
+    return SpanningTree(config=SpanningTreeGlobalAttributes(mode=mode))
 
 
 def composed(*components) -> ComposedConfiguration:
@@ -103,7 +103,7 @@ def test_spans_follow_the_lines_they_describe():
     lines = result.payload.splitlines()
     spans = {tuple(span.path): (span.start, span.end) for span in result.metadata.spans}
 
-    assert spans[("stp", "config", "core")] == (1, 2)
+    assert spans[("stp", "config")] == (1, 2)
     start, end = spans[("system", "config")]
     assert start <= lines.index("hostname sw1") + 1 <= end
 

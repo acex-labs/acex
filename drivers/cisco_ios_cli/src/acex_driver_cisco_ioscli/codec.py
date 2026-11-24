@@ -23,10 +23,10 @@ SEPARATOR = "!"
 class CiscoIOSCodec(Codec[str]):
     """Cisco IOS-XE CLI syntax. Render and parse share one Mapper, so the two directions cannot drift apart.
 
-    The one exception is the spanning tree mode. `stp.config` has no shape the mapper can read and write back
-    (the model types it as a collection, a configuration composed from components holds the one object), so
-    that mode, and `extend system-id` which no model field covers, are written ahead of the rest in `render`
-    and, like any line the syntax has no field for, are left unread by `parse`."""
+    The one exception is the spanning tree mode. It is written ahead of the rest in `render`, with `extend
+    system-id` which no model field covers, and is left unread by `parse`, like any line the syntax has no field
+    for: IOS needs the mode even when no component declares it, and reading it back would put a `stp.config` into
+    every configuration read from a device."""
 
     mapper = Mapper(BLOCKS, indent=" ", separator=SEPARATOR)
     normalizer = CiscoIOSNormalizer()
@@ -51,12 +51,9 @@ class CiscoIOSCodec(Codec[str]):
     def declared_spanning_trees(
         config: ComposedConfiguration,
     ) -> Iterator[tuple[list[str], SpanningTreeGlobalAttributes]]:
-        """Every `SpanningTreeGlobal` in the tree with its path. A configuration composed from components holds
-        the object itself in `stp.config`, one read back from JSON a collection of them by name."""
+        """The `SpanningTreeGlobal` in the tree, with its path."""
         node = config.stp.config if config.stp else None
-        if isinstance(node, dict):
-            yield from ((["stp", "config", name], entry) for name, entry in node.items())
-        elif node is not None:
+        if node is not None:
             yield ["stp", "config"], node
 
     def spanning_tree(self, config: ComposedConfiguration) -> tuple[str, list[str] | None]:
