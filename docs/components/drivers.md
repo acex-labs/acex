@@ -9,6 +9,7 @@ A NED (Network Element Driver) is a Python package that knows one kind of device
 | Cisco IOS CLI | `acex-driver-cisco-ioscli` | Cisco IOS XE |
 | Cisco IOS (classic) CLI | `acex-driver-cisco-ios-classic-cli` | Cisco IOS |
 | Juniper JunOS CLI | `acex-driver-juniper-junoscli` | Juniper JunOS |
+| Fortinet FortiOS CLI | `acex-driver-fortinet-fortios-cli` | Fortinet FortiOS |
 
 ## The pieces
 

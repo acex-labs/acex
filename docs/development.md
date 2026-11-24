@@ -54,7 +54,8 @@ acex/
 ├── drivers/
 │   ├── cisco_ios_cli/   # acex-driver-cisco-ioscli
 │   ├── cisco_ios_classic_cli/   # acex-driver-cisco-ios-classic-cli
-│   └── juniper_junos_cli/   # acex-driver-juniper-junoscli
+│   ├── juniper_junos_cli/   # acex-driver-juniper-junoscli
+│   └── fortinet_fortios_cli/   # acex-driver-fortinet-fortios-cli
 ├── mock-device/         # SSH mock devices for the local stack
 ├── keycloak/            # realm for the local stack
 ├── scripts/             # dev-setup.sh, changelog.py, seed scripts
