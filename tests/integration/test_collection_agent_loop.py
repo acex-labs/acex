@@ -7,6 +7,8 @@ Only the client, the collector and the clock are replaced; the agent's own loop 
 
 import asyncio
 import logging
+import threading
+import time as real_time
 from types import SimpleNamespace
 
 import pytest
@@ -332,3 +334,63 @@ def test_the_agent_still_says_when_a_driver_class_failed_to_load_without_saying_
     assert "NED CiscoIOS v5.0.0 installed but not usable: its driver class failed to load" in [
         r.getMessage() for r in caplog.records
     ]
+
+
+class SlowRound:
+    """A collector whose round lasts until the agent has acknowledged the manifest `acks_needed` times meanwhile."""
+
+    def __init__(self, acks: list, acks_needed: int):
+        self.acks, self.acks_needed = acks, acks_needed
+        self.acks_when_it_ended = None
+
+    async def collect_all(self, targets, max_concurrent=20):
+        deadline = real_time.monotonic() + 5
+        while len(self.acks) < self.acks_needed and real_time.monotonic() < deadline:
+            await asyncio.to_thread(real_time.sleep, 0.005)
+        self.acks_when_it_ended = len(self.acks)
+        return [
+            {"node_id": t.node_id, "hostname": "node", "status": "ok", "message": "Config uploaded"} for t in targets
+        ]
+
+
+def test_the_manifest_is_acknowledged_while_a_round_runs(an_agent, clock, monkeypatch):
+    # The web interface calls an agent offline when its last acknowledgement is older than two minutes, and a round
+    # over thousands of nodes takes longer than that. The poll in the loop waits for the round, so something else acks.
+    acks = []
+    monkeypatch.setattr(agent_module, "POLL_INTERVAL", 0.01)
+    an_agent._ack_manifest = lambda revision: acks.append((revision, threading.current_thread().name))
+    an_agent.collector = SlowRound(acks, acks_needed=3)
+
+    run(an_agent, clock, monkeypatch, polls=1, manifest_at=lambda m: manifest(FIRST_NODE, SECOND_NODE))
+
+    assert an_agent.collector.acks_when_it_ended >= 3
+    assert {revision for revision, _ in acks} == {1}
+
+
+def test_the_acknowledgements_of_a_round_do_not_wait_for_the_threads_the_round_uses(an_agent, clock, monkeypatch):
+    acks = []
+    monkeypatch.setattr(agent_module, "POLL_INTERVAL", 0.01)
+    an_agent._ack_manifest = lambda revision: acks.append(threading.current_thread().name)
+    an_agent.collector = SlowRound(acks, acks_needed=2)
+
+    run(an_agent, clock, monkeypatch, polls=1, manifest_at=lambda m: manifest(FIRST_NODE))
+
+    assert acks and set(acks) == {"acex-ack_0"}
+
+
+def test_a_failing_acknowledgement_does_not_stop_the_round(an_agent, clock, monkeypatch, caplog):
+    attempts = []
+
+    def refuses(**kwargs):
+        attempts.append(kwargs["id"])
+        raise AcexHTTPError(503, "Unavailable")
+
+    monkeypatch.setattr(agent_module, "POLL_INTERVAL", 0.01)
+    an_agent.client.inventory = SimpleNamespace(collection_agents=SimpleNamespace(ack=refuses))
+    an_agent.collector = SlowRound(attempts, acks_needed=2)
+
+    with caplog.at_level(logging.WARNING, logger="acex_collection_agent"):
+        run(an_agent, clock, monkeypatch, polls=1, manifest_at=lambda m: manifest(FIRST_NODE))
+
+    assert an_agent.collector.acks_when_it_ended >= 2
+    assert any("Failed to ack manifest" in r.getMessage() for r in caplog.records)

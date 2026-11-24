@@ -1,6 +1,7 @@
 """Core agent loop — polls manifest frequently, runs collection on interval."""
 
 import asyncio
+import concurrent.futures
 import importlib.metadata
 import logging
 import os
@@ -54,6 +55,9 @@ class CollectionAgent:
         self._neds_synced = False
         self._waiting_for_driver: set[int] = set()
         self._driver_retry_at = 0.0
+        # The acknowledgements during a round go through a thread of their own: a round that keeps every thread of
+        # the default pool busy would otherwise hold them back, and the agent would look offline anyway.
+        self._ack_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="acex-ack")
 
     def run(self):
         """Entry point — delegates to async loop."""
@@ -84,16 +88,7 @@ class CollectionAgent:
                 if should_collect or retry_due:
                     if revision_changed:
                         logger.info(f"Config revision changed ({self._last_revision} -> {revision})")
-                    await asyncio.to_thread(self._ensure_neds)
-                    targets = manifest.targets
-                    if not should_collect:
-                        targets = [t for t in targets if t.node_id in self._waiting_for_driver]
-                    results = await self._collect(targets) if targets or should_collect else []
-                    await asyncio.to_thread(self._report_results, results)
-                    if should_collect:
-                        self._last_collection = now
-                    self._waiting_for_driver = {r["node_id"] for r in results if r.get("driver_unavailable")}
-                    self._driver_retry_at = now + DRIVER_RETRY_SECONDS
+                    await self._while_acking(self._round(manifest, should_collect, now), revision)
 
                 self._last_revision = revision
                 await asyncio.sleep(POLL_INTERVAL)
@@ -104,6 +99,37 @@ class CollectionAgent:
             except Exception as e:
                 logger.error(f"Unexpected error: {e}", exc_info=True)
                 await asyncio.sleep(POLL_INTERVAL)
+
+    async def _round(self, manifest: CollectionAgentManifest, should_collect: bool, now: float):
+        """One round: bring the drivers up to date, collect the nodes, report what was found."""
+        await asyncio.to_thread(self._ensure_neds)
+        targets = manifest.targets
+        if not should_collect:
+            targets = [t for t in targets if t.node_id in self._waiting_for_driver]
+        results = await self._collect(targets) if targets or should_collect else []
+        await asyncio.to_thread(self._report_results, results)
+        if should_collect:
+            self._last_collection = now
+        self._waiting_for_driver = {r["node_id"] for r in results if r.get("driver_unavailable")}
+        self._driver_retry_at = now + DRIVER_RETRY_SECONDS
+
+    async def _while_acking(self, work, config_revision: int):
+        """Run `work` and acknowledge the manifest every POLL_INTERVAL until it is done.
+
+        A full round takes minutes, and the web interface calls an agent offline when its last acknowledgement is
+        older than two. Between rounds the poll of the manifest acknowledges it; during a round this does.
+        """
+        task = asyncio.ensure_future(work)
+        loop = asyncio.get_running_loop()
+        try:
+            while True:
+                done, _ = await asyncio.wait({task}, timeout=POLL_INTERVAL)
+                if done:
+                    return task.result()
+                await loop.run_in_executor(self._ack_pool, self._ack_manifest, config_revision)
+        finally:
+            if not task.done():
+                task.cancel()
 
     def _fetch_manifest(self) -> CollectionAgentManifest | None:
         """Fetch manifest from ACEX API."""
