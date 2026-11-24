@@ -4,6 +4,57 @@
   "name": "Cisco IOS (classic) CLI driver",
   "releases": [
     {
+      "version": "0.3.0",
+      "date": "2026-11-24",
+      "entries": [
+        {
+          "id": "20261117-the-cisco-ios-driver-says-why-it-could",
+          "kind": "changed",
+          "title": "The Cisco IOS driver says why it could not connect",
+          "description": "A refused connection, a privilege level that could not be reached and an SSH algorithm the device does not share are raised as `HostUnreachable`, `PrivilegeFailed` and `SshAlgorithmMismatch` instead of the raw scrapli, asyncssh or socket error, so the collection agent can tell the reasons apart.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261116-cisco-ios-classic-configuration-starts",
+          "kind": "fixed",
+          "title": "Cisco IOS (classic) configuration starts with the spanning tree mode",
+          "description": "The rendered configuration now begins with `spanning-tree mode rapid-pvst` and `spanning-tree extend system-id`, as it did in earlier versions of the driver, so a switch configured from ACEX does not fall back to PVST. A `SpanningTreeGlobal` whose `mode` is `pvst`, `rapid-pvst` or `mst` (`mstp` and `rapid_pvst` are read the same way) is written as that mode instead. The lines are written but not read back from the running configuration.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261116-cisco-ios-classic-writes-and-reads-the",
+          "kind": "fixed",
+          "title": "Cisco IOS (classic) writes and reads the clock timezone",
+          "description": "The timezone of `system.clock.config`, for example `CET 1`, is written as `clock timezone CET 1` and read from the running configuration. IOS reports the minutes as well (`CET 1 0`); a zero is left out so the device and the declared value compare equal. An offset with real minutes, such as `IST 5 30`, is kept.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261119-older-devices-that-only-offer-cbc",
+          "kind": "fixed",
+          "title": "Older devices that only offer CBC ciphers over SSH can be reached",
+          "description": "The driver now accepts the CBC ciphers (3DES and AES) that some older devices offer over SSH. Collection and jobs against such a device used to fail with \"No matching encryption algorithm found\". A device that supports a modern cipher still gets one, since the CBC ciphers are only a fallback.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261124-the-hardware-model-of-a-cisco-1900-2900",
+          "kind": "fixed",
+          "title": "The hardware model of a Cisco 1900, 2900 or 3900 router is read from the device",
+          "description": "These routers print their model right after \"Cisco\" and have no processor on that line (`Cisco CISCO1941/K9 (revision 1.0) with ...`), so the driver reported no hardware model for them. It now reads it, for example `CISCO1941/K9`, together with the serial number, OS and version.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "0.2.0",
       "date": "2026-11-13",
       "entries": [

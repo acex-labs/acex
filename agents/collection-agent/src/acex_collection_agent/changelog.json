@@ -4,6 +4,39 @@
   "name": "ACEX collection agent",
   "releases": [
     {
+      "version": "0.18.0",
+      "date": "2026-11-24",
+      "entries": [
+        {
+          "id": "20261117-the-collection-agent-reports-what-it",
+          "kind": "added",
+          "title": "The collection agent reports what it found for each node",
+          "description": "After each round the agent sends the result for every node it tried to ACEX, with a category (`unreachable`, `authentication_failed`, `privilege_failed`, `ssh_algorithm`, `driver_unavailable`, `no_management_ip`, `no_credentials`, `empty_configuration` or `other`) and the start of the message for a node that failed. Against a backend without the route it logs a warning and carries on.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261105-the-agent-does-not-install-a-driver-it",
+          "kind": "changed",
+          "title": "The agent does not install a driver it cannot run",
+          "description": "When the backend serves a driver that declares a NED interface the agent cannot run, for example after the backend was upgraded before the agent, the agent does not install it and logs the reason once. If the agent already has a driver for that NED it keeps using it. If it has none, every node that needs the NED gets the reason as its result and is tried again every five minutes until the driver is usable, instead of waiting for the next collection; the other nodes are not collected again. A driver whose code cannot be loaded is reported the same way and no longer stops the whole collection. Before, the driver was installed and the collection failed on every one of those nodes. A backend that does not say which interface a driver declares is trusted as before. Update the agent to run the new interface.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": []
+        },
+        {
+          "id": "20261124-the-agent-shows-as-live-during-a-long",
+          "kind": "fixed",
+          "title": "The agent shows as live during a long collection round",
+          "description": "The web interface calls an agent offline when its last acknowledgement is more than two minutes old, and the agent only acknowledged between collection rounds. A round over a couple of thousand nodes takes several minutes, so the agent looked offline for part of every round although nothing was wrong. It now acknowledges the manifest every minute while a round runs, from a thread of its own, so a busy round cannot hold the acknowledgement back.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "0.17.0",
       "date": "2026-11-06",
       "entries": [

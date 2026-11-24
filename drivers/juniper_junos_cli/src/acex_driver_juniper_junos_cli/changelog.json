@@ -4,6 +4,21 @@
   "name": "Juniper Junos CLI driver",
   "releases": [
     {
+      "version": "2.2.0",
+      "date": "2026-11-24",
+      "entries": [
+        {
+          "id": "20261117-the-junos-driver-says-why-it-could-not",
+          "kind": "changed",
+          "title": "The Junos driver says why it could not connect",
+          "description": "A refused connection and an SSH negotiation the device does not share are raised as `HostUnreachable` and `SshAlgorithmMismatch` instead of as a timeout, so the collection agent can tell the reasons apart. A real timeout is still `ConnectionTimeout`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "2.1.0",
       "date": "2026-11-06",
       "entries": [

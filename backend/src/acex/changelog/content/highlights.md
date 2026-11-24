@@ -13,6 +13,30 @@ writes the draft, a person or an assistant. `python scripts/changelog.py validat
 Nothing is compiled: an edit that is merged is live in the next image.
 -->
 
+## 2026-11-24 See which nodes the collection agent cannot reach
+
+A node the collection agent could not collect on its last try gets a red label with the reason: unreachable, login failed, privilege level, SSH algorithm and more. The node and the agent show since when and how many attempts in a row, and the Nodes list can be filtered on it.
+
+## 2026-11-24 Software compliance, asset by asset
+
+Compliance > Software lists every asset with the version it runs and its status: not allowed, unknown version, no policy, accepted or golden. Filter by status, site or region, search and sort, and share the view through the address.
+
+## 2026-11-24 Choose the columns of the Nodes list
+
+Configure Table on the Nodes list picks the columns and their order, including the new collection columns. The choice is kept in the browser.
+
+## 2026-11-24 No duplicate assets, hostnames or nodes
+
+The inventory refuses an asset with a serial number that already exists, a logical node with a hostname that already exists and a second node on the same logical node or asset. The forms say which record is in the way and link to it.
+
+## 2026-11-24 A first driver for FortiGate
+
+ACEX can reach a FortiGate over SSH and read its configuration, so a FortiGate can be collected like the other devices. Changing its configuration comes later.
+
+## 2026-11-24 MikroTik, Waystream and Cisco Business devices can be added
+
+MikroTik RouterOS routers and switches, two Waystream iBOS switches and Cisco Catalyst 1300 switches can now be created as assets, with their hardware models. There is no driver for them yet.
+
 ## 2026-11-13 A driver for Cisco IOS devices
 
 Devices that run classic IOS now have a driver of their own, next to the one for IOS-XE. It reads what IOS prints in its own way, such as ACL entries without sequence numbers, numbered access lists, port-fast on access ports and device tracking. An asset uses it when its driver is set to the new one.
