@@ -11,6 +11,7 @@ from enum import StrEnum
 
 class OS(StrEnum):
     arista_eos = "arista_eos"
+    cisco_business = "cisco_business"
     cisco_ios = "cisco_ios"
     cisco_iosxe = "cisco_iosxe"
     cisco_iosxr = "cisco_iosxr"

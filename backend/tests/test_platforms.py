@@ -109,3 +109,14 @@ def test_a_mikrotik_routerboard_is_offered_on_routeros_with_no_ned_yet(api):
 def test_a_waystream_switch_is_offered_on_ibos_with_no_ned_yet(api):
     assert model(api, "MS7048-AC")["operating_systems"] == ["waystream_ibos"]
     assert model(api, "MS7048-AC")["supported_os"] == []
+
+
+def test_a_catalyst_1300_is_offered_on_cisco_business_firmware_with_no_ned_yet(api):
+    assert model(api, "C1300-48P-4X")["operating_systems"] == ["cisco_business"]
+    assert model(api, "C1300-48P-4X")["supported_os"] == []
+
+
+def test_the_catalog_gives_examples_of_cisco_business_versions(api):
+    examples = api.get("/api/v1/platforms").json()["version_examples"]
+
+    assert "4.1.7.17" in examples["cisco_business"]

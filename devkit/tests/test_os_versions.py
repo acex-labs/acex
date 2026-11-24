@@ -95,3 +95,42 @@ def test_routeros_versions_are_ordered_by_their_numbers_and_not_as_strings():
 def test_a_routeros_release_of_two_numbers_is_the_one_with_a_fix_number_of_zero():
     scheme = OsVersionScheme.for_os(OS.mikrotik_routeros)
     assert scheme.normalize("7.17") == scheme.normalize("7.17.0")
+
+
+def test_cisco_business_firmware_has_four_numbers_and_is_accepted():
+    scheme = OsVersionScheme.for_os(OS.cisco_business)
+    for version in ["4.1.7.17", "4.1.7.24", "4.1.6.54", "4.1.3.36", "3.5.2.8"]:
+        assert scheme.accepts(version), version
+    for junk in ["nonsense", "4.1", "v4.1.7.17", "4.1.7.", "4.1.7.17.1"]:
+        assert not scheme.accepts(junk), junk
+
+
+@pytest.mark.parametrize("os", [OS.cisco_ios, OS.cisco_iosxe])
+def test_ios_and_ios_xe_still_refuse_the_four_numbers_of_cisco_business_firmware(os):
+    """IOS and IOS-XE number a release with three, so a four-number version on one of them is a platform picked
+    wrongly, not a spelling to accept."""
+    assert not OsVersionScheme.for_os(os).accepts("4.1.7.17")
+
+
+def test_cisco_business_versions_are_ordered_by_their_numbers_and_not_as_strings():
+    scheme = OsVersionScheme.for_os(OS.cisco_business)
+    versions = [scheme.normalize(v) for v in ["4.1.7.24", "4.1.3.36", "4.1.7.9", "3.5.2.8", "4.1.7.17", "4.1.6.54"]]
+    assert [str(v) for v in sorted(versions)] == [
+        "3.5.2.8",
+        "4.1.3.36",
+        "4.1.6.54",
+        "4.1.7.9",
+        "4.1.7.17",
+        "4.1.7.24",
+    ]
+
+
+def test_an_asset_can_run_cisco_business_firmware():
+    asset = Asset(
+        vendor=Vendor.cisco,
+        serial_number="SN1",
+        os=OS.cisco_business,
+        hardware_model="C1300-48P-4X",
+        os_version="4.1.7.17",
+    )
+    assert (asset.os, asset.os_version) == (OS.cisco_business, "4.1.7.17")

@@ -43,6 +43,15 @@ ROUTEROS = (
 )
 
 
+class CiscoBusinessVersions(OsVersionScheme):
+    """Cisco Business firmware (Catalyst 1300, CBS250 and CBS350). It numbers its releases with four components, which
+    the IOS and IOS-XE schemes take as three and reject."""
+
+    os: OS = OS.cisco_business
+    patterns: list[str] = [DOTTED_BUILD]
+    examples: list[str] = ["4.1.7.17", "4.1.7.24", "4.1.6.54", "4.1.3.36"]
+
+
 class CiscoIosVersions(OsVersionScheme):
     os: OS = OS.cisco_ios
     patterns: list[str] = [TRAIN, DOTTED]
