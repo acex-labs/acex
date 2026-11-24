@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -589,17 +589,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#github-gitlab-build-trigger" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        GitHub → GitLab build trigger
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -902,6 +891,34 @@
     
   
     Release notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/image-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image builds
   
 
     
@@ -1266,17 +1283,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#github-gitlab-build-trigger" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        GitHub → GitLab build trigger
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -1459,15 +1465,6 @@
 
     CMD[Patch commands] --&gt; T2[Transport&lt;br/&gt;send_config]
     T2 --&gt; DEV</code></pre>
-<h2 id="github-gitlab-build-trigger">GitHub → GitLab build trigger<a class="headerlink" href="#github-gitlab-build-trigger" title="Permanent link">¶</a></h2>
-<p>On every push to <code>main</code> and on release events, a GitHub Actions workflow triggers a downstream GitLab pipeline via the GitLab pipeline trigger API. This is a one-way call — GitHub fires the trigger, GitLab builds independently.</p>
-<pre class="mermaid"><code>sequenceDiagram
-    participant GH as GitHub Actions
-    participant GL as GitLab CI
-
-    GH-&gt;&gt;GL: POST /trigger/pipeline&lt;br/&gt;(token + BUILD_TARGET=acex)
-    GL--&gt;&gt;GH: 201 Created
-    Note over GL: GitLab builds downstream NaaS artifact</code></pre>
 
 
 

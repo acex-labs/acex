@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -791,6 +791,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/image-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -989,10 +1017,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-drivers-are-loaded" class="md-nav__link">
+  <a href="#the-pieces" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How drivers are loaded
+        The pieces
       
     </span>
   </a>
@@ -1000,55 +1028,55 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#driver-roles" class="md-nav__link">
+  <a href="#parse-what-goes-in-and-what-comes-out" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Driver roles
+        Parse: what goes in and what comes out
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Driver roles">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-forms-of-a-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three forms of a configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#declaring-the-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Declaring the syntax
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-a-driver-is-found-and-delivered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How a driver is found and delivered
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How a driver is found and delivered">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#renderer-renderconfig-asset-str" class="md-nav__link">
+  <a href="#keeping-a-driver-and-the-process-that-runs-it-in-step" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Renderer — render(config, asset) -&gt; str
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#patch-renderer-render_patchdiff-node_instance-str" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Patch renderer — render_patch(diff, node_instance) -&gt; str
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#transport-get_config-send_config" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Transport — get_config / send_config
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#parser-parseraw_config-str-composedconfiguration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Parser — parse(raw_config: str) -&gt; ComposedConfiguration
+        Keeping a driver and the process that runs it in step
       
     </span>
   </a>
@@ -1061,10 +1089,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#writing-a-custom-driver" class="md-nav__link">
+  <a href="#errors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Writing a custom driver
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-a-new-driver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing a new driver
       
     </span>
   </a>
@@ -1234,10 +1273,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-drivers-are-loaded" class="md-nav__link">
+  <a href="#the-pieces" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How drivers are loaded
+        The pieces
       
     </span>
   </a>
@@ -1245,55 +1284,55 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#driver-roles" class="md-nav__link">
+  <a href="#parse-what-goes-in-and-what-comes-out" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Driver roles
+        Parse: what goes in and what comes out
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Driver roles">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-forms-of-a-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three forms of a configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#declaring-the-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Declaring the syntax
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-a-driver-is-found-and-delivered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How a driver is found and delivered
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How a driver is found and delivered">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#renderer-renderconfig-asset-str" class="md-nav__link">
+  <a href="#keeping-a-driver-and-the-process-that-runs-it-in-step" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Renderer — render(config, asset) -&gt; str
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#patch-renderer-render_patchdiff-node_instance-str" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Patch renderer — render_patch(diff, node_instance) -&gt; str
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#transport-get_config-send_config" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Transport — get_config / send_config
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#parser-parseraw_config-str-composedconfiguration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Parser — parse(raw_config: str) -&gt; ComposedConfiguration
+        Keeping a driver and the process that runs it in step
       
     </span>
   </a>
@@ -1306,10 +1345,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#writing-a-custom-driver" class="md-nav__link">
+  <a href="#errors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Writing a custom driver
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-a-new-driver" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Writing a new driver
       
     </span>
   </a>
@@ -1342,7 +1392,7 @@
 
 
 <h1 id="drivers-neds">Drivers (NEDs)<a class="headerlink" href="#drivers-neds" title="Permanent link">¶</a></h1>
-<p>A NED (Network Element Driver) is a Python package that translates between ACE-X's vendor-agnostic configuration model and a specific device OS. Each driver implements four roles: render, render_patch, transport, and parse.</p>
+<p>A NED (Network Element Driver) is a Python package that knows one kind of device: how to reach it, how its configuration reads, and how to turn that text into ACE-X's vendor-neutral model and back. Most of ACE-X works on the model and never sees a device's syntax.</p>
 <h2 id="built-in-drivers">Built-in drivers<a class="headerlink" href="#built-in-drivers" title="Permanent link">¶</a></h2>
 <table>
 <thead>
@@ -1368,39 +1418,122 @@
 <td><code>acex-driver-juniper-junoscli</code></td>
 <td>Juniper JunOS</td>
 </tr>
+<tr>
+<td>Fortinet FortiOS CLI</td>
+<td><code>acex-driver-fortinet-fortios-cli</code></td>
+<td>Fortinet FortiOS</td>
+</tr>
 </tbody>
 </table>
-<h2 id="how-drivers-are-loaded">How drivers are loaded<a class="headerlink" href="#how-drivers-are-loaded" title="Permanent link">¶</a></h2>
-<p>Drivers are discovered at startup via the <code>acex.neds</code> setuptools entry point group:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># In a driver's pyproject.toml</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">[project.entry-points.</span><span class="s2">"acex.neds"</span><span class="k">]</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">cisco-ios-cli</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"acex_driver_cisco_ioscli:CiscoIOSCLIDriver"</span>
-</code></pre></div>
-<p>The <code>NEDManager</code> scans all installed packages for this entry point and registers the drivers. Collection agents download any missing drivers from the backend's <code>/api/v1/neds/download/{filename}</code> endpoint and install them via pip at startup.</p>
-<h2 id="driver-roles">Driver roles<a class="headerlink" href="#driver-roles" title="Permanent link">¶</a></h2>
-<h3 id="renderer-renderconfig-asset-str">Renderer — <code>render(config, asset) -&gt; str</code><a class="headerlink" href="#renderer-renderconfig-asset-str" title="Permanent link">¶</a></h3>
-<p>Converts a <code>ComposedConfiguration</code> (vendor-agnostic Pydantic model) into a vendor-specific config string.</p>
-<p>For Cisco IOS, this involves:</p>
-<ol>
-<li>Resolving abstract interface indices to real hardware port names (e.g., <code>GigabitEthernet1/0/1</code>) by looking up the device's hardware model YAML</li>
-<li>Handling stacked switches (asset clusters) — distributing interfaces across stack members</li>
-<li>Resolving cross-references (e.g., VRF membership onto interfaces, SSH source interface)</li>
-<li>Grouping VTY lines into ranges</li>
-<li>Rendering a Jinja2 template that walks the configuration tree</li>
-</ol>
-<h3 id="patch-renderer-render_patchdiff-node_instance-str">Patch renderer — <code>render_patch(diff, node_instance) -&gt; str</code><a class="headerlink" href="#patch-renderer-render_patchdiff-node_instance-str" title="Permanent link">¶</a></h3>
-<p>Converts a computed diff into a minimal set of patch commands. Uses a <code>GeneratorRegistry</code> that maps change paths (e.g., <code>("system", "config")</code>, <code>("interfaces", "*")</code>) to command generator functions.</p>
-<h3 id="transport-get_config-send_config">Transport — <code>get_config</code> / <code>send_config</code><a class="headerlink" href="#transport-get_config-send_config" title="Permanent link">¶</a></h3>
-<p>Opens SSH connections to network devices using Scrapli/asyncssh.</p>
+<h2 id="the-pieces">The pieces<a class="headerlink" href="#the-pieces" title="Permanent link">¶</a></h2>
+<p>A driver is a few small classes tied together by one more. Their base classes are in <code>devkit/src/acex_devkit/drivers/base.py</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>What it does</th>
+<th>Talks to the device?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NetworkElementDriver</code></td>
+<td>Names the pieces below and the platforms the driver supports. No logic of its own.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>Transport</code></td>
+<td>Opens the session, sends commands and returns text: <code>open</code>, <code>close</code>, <code>get_config</code>, <code>apply</code>, <code>execute</code>. One instance per session, and the only part that holds device state.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>Codec</code></td>
+<td>Turns configuration text into the model (<code>parse</code>) and the model into text (<code>render</code>, <code>render_patch</code>). Also <code>normalize</code> and <code>mask</code>. Pure: no device, no network.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>State</code></td>
+<td>Reads operational facts into devkit models, for example <code>get_facts</code> (model, serial number, version) and <code>get_arp_table</code>.</td>
+<td>Through the transport it is given</td>
+</tr>
+<tr>
+<td><code>Actions</code></td>
+<td>Runs actions on the device, for example <code>ping</code>.</td>
+<td>Through the transport it is given</td>
+</tr>
+</tbody>
+</table>
+<p>A driver implements only the optional methods it can. Which ones it has is read off the class, so a driver never declares its capabilities by hand. Callers do not use the pieces directly; they open a <code>Session</code> (<code>driver.session(node, credentials)</code>), which runs one call at a time.</p>
+<pre class="mermaid"><code>flowchart LR
+    device[Device] --&gt;|Transport.get_config| raw[Raw text]
+    raw --&gt;|Codec.normalize| normalized[Normalized text]
+    normalized --&gt;|Codec.parse| parsed["ParseResult: model and unmatched lines"]
+    desired[Desired model] --&gt;|Codec.render| payload[Payload]
+    payload --&gt;|Transport.apply| device</code></pre>
+<h2 id="parse-what-goes-in-and-what-comes-out">Parse: what goes in and what comes out<a class="headerlink" href="#parse-what-goes-in-and-what-comes-out" title="Permanent link">¶</a></h2>
+<p><code>Codec.parse(raw, node)</code> takes the configuration text of a device and returns a <code>ParseResult</code> with two parts:</p>
 <ul>
-<li><code>get_config(node, connection)</code> — runs <code>show running-config</code> and returns the raw text</li>
-<li><code>send_config(node, connection, commands)</code> — sends a list of CLI commands</li>
-<li><code>get_lldp_neighbors(node, connection)</code> — runs <code>show lldp neighbors detail</code> and <code>show cdp neighbors detail</code>, parses the output, returns a neighbor list for topology mapping</li>
+<li><code>configuration</code> is the model, a <code>ComposedConfiguration</code>: hostname under <code>system</code>, interfaces under <code>interfaces</code>, and so on, the same for every vendor.</li>
+<li><code>metadata</code> is information about the parsing. It holds <code>spans</code>, which lines made which component, and <code>unmatched</code>, a list of the lines the driver could not translate.</li>
 </ul>
-<h3 id="parser-parseraw_config-str-composedconfiguration">Parser — <code>parse(raw_config: str) -&gt; ComposedConfiguration</code><a class="headerlink" href="#parser-parseraw_config-str-composedconfiguration" title="Permanent link">¶</a></h3>
-<p>Parses raw CLI output (from <code>show running-config</code>) back into the vendor-agnostic model using TextFSM templates. This is what enables the intent-diff workflow — both desired and observed configs are represented as the same structured model, so diffing is deterministic.</p>
-<h2 id="writing-a-custom-driver">Writing a custom driver<a class="headerlink" href="#writing-a-custom-driver" title="Permanent link">¶</a></h2>
-<p>Subclass <code>RendererBase</code>, <code>TransportBase</code>, and <code>ParserBase</code> from <code>acex.plugins.neds.core.base_driver</code>, implement the abstract methods, and register your class via the <code>acex.neds</code> entry point.</p>
+<p>In the Cisco IOS driver <code>parse</code> is one line: it normalizes the text and hands it to the mapper (see below). Take this configuration:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>interface GigabitEthernet1/0/1
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a> description Uplink
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a> no shutdown
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a> mls qos trust dscp
+</code></pre></div>
+<p>If the driver has a declaration for <code>description</code> and <code>no shutdown</code> but none for <code>mls qos trust</code>, the first two end up in the model and the third is kept as an unmatched line:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>UnmatchedLine(
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    line=" mls qos trust dscp",
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    parents=["interface GigabitEthernet1/0/1"],
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>)
+</code></pre></div>
+<p><code>line</code> is the line as the device wrote it, and <code>parents</code> are the header lines it sat under, outermost first.</p>
+<p>An unmatched line is kept, not dropped, for two reasons. The comparison of desired and observed state would otherwise look clean while the device has settings ACE-X does not know about, so the lines travel with the node's diff and their number is part of the compliance result. And the list is a to-do list for the driver author: the most common unmatched lines are the ones to teach the driver next.</p>
+<h2 id="three-forms-of-a-configuration">Three forms of a configuration<a class="headerlink" href="#three-forms-of-a-configuration" title="Permanent link">¶</a></h2>
+<p>A configuration exists in three forms:</p>
+<ul>
+<li>Raw: exactly what the device printed, with nothing removed. <code>Transport.get_config</code> returns it.</li>
+<li>Normalized: raw without the lines that change by themselves, for example the timestamp of the last change, so that two reads of the same device compare equal. <code>Codec.normalize</code> does this, and the Cisco driver parses this form.</li>
+<li>Parsed: the model plus the unmatched lines.</li>
+</ul>
+<p>Secrets are replaced by <code>Codec.mask</code>, which returns a new text and gives the same result when it is applied twice. The rules are <code>RewriteRule</code>s in the driver's normalizer, and each one swaps a secret for <code>&lt;REDACTED&gt;</code>. When an agent uploads a configuration, the backend runs <code>normalize</code> and then <code>mask</code> on it and stores only the result (<code>DeviceConfigManager.upload_config</code>). The worker masks patches and command output the same way before it shows them.</p>
+<h2 id="declaring-the-syntax">Declaring the syntax<a class="headerlink" href="#declaring-the-syntax" title="Permanent link">¶</a></h2>
+<p>A driver does not need a hand-written parser. It declares the syntax once, with <code>Block</code>, <code>Line</code>, <code>Flag</code> and <code>Dispatch</code> from <code>acex_devkit.drivers.mapper</code>, and a <code>Mapper</code> reads text into the model and writes the model back to text from the same declarations, so the two directions cannot drift apart. The declarations usually live in a <code>syntax.py</code>; read the docstring of <code>Block</code> in <code>devkit/src/acex_devkit/drivers/mapper/syntax.py</code> first.</p>
+<p>Which lines to drop and which to mask are separate rules, written as <code>LineRule</code>, <code>BlockRule</code> and <code>RewriteRule</code> on a <code>BaseNormalizer</code> subclass (<code>acex_devkit.normalizer</code>).</p>
+<h2 id="how-a-driver-is-found-and-delivered">How a driver is found and delivered<a class="headerlink" href="#how-a-driver-is-found-and-delivered" title="Permanent link">¶</a></h2>
+<p>A driver registers itself with the <code>acex.neds</code> entry point in its <code>pyproject.toml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># In a driver's pyproject.toml</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">[project.entry-points.</span><span class="s2">"acex.neds"</span><span class="k">]</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">cisco-ios-cli</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"acex_driver_cisco_ioscli:CiscoIOSCLIDriver"</span>
+</code></pre></div>
+<ul>
+<li>The driver's name is its class name. It is stored as <code>ned_id</code> on an asset, and the backend's <code>NEDManager</code> finds the driver by that name.</li>
+<li>A driver declares the platforms it supports with <code>platforms = [Platform(vendor=..., os=...)]</code>, and <code>driver.supports(asset)</code> checks an asset against them. <code>Vendor</code> and <code>OS</code> come from the devkit (<code>acex_devkit.models.platform</code>), so a new vendor or OS has to be added there first, together with a version scheme (<code>acex_devkit.os_versions</code>).</li>
+<li>The backend lists the installed drivers at <code>GET /api/v1/neds</code>, packages each one as a wheel and serves it at <code>/api/v1/neds/download/{filename}</code>. Agents and workers fetch the drivers they are missing, or have at another version, and install them with pip.</li>
+</ul>
+<h3 id="keeping-a-driver-and-the-process-that-runs-it-in-step">Keeping a driver and the process that runs it in step<a class="headerlink" href="#keeping-a-driver-and-the-process-that-runs-it-in-step" title="Permanent link">¶</a></h3>
+<p>Agents and workers install their drivers from the backend, so they can meet a driver that was written for another version of the contract between a driver and the process that runs it. That contract is the <strong>NED interface</strong>: a number that devkit defines (<code>acex_devkit.drivers.NED_INTERFACE</code>) and raises only when the contract changes in a way that breaks either side.</p>
+<p>A driver declares the interface it was written for as a number in its class body:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">CiscoIOSCLIDriver</span><span class="p">(</span><span class="n">NetworkElementDriver</span><span class="p">):</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">interface_version</span> <span class="o">=</span> <span class="mi">2</span>
+</code></pre></div>
+<p>Write the number, not <code>NED_INTERFACE</code>. The declaration says what the driver was written for, and a reference would follow whichever devkit the driver happens to be loaded under. When devkit raises <code>NED_INTERFACE</code>, a test fails for each driver in this repository until it has been ported and declares the new number. The backend lists the declared number for each driver as <code>interface_version</code> in <code>GET /api/v1/neds</code>. A driver that declares none is listed with <code>null</code> and is not checked.</p>
+<p>An agent or worker names the interfaces it can run. A driver that declares another one is not installed and not used. The process says why in its log, and what needs the driver fails with the reason, for example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>NED 'CiscoIOSCLIDriver' not loaded: CiscoIOSCLIDriver v5.0.0 implements NED interface 3, this process runs 2: update this agent or worker
+</code></pre></div>
+<p>If an agent already has a driver for that NED it keeps using it and only logs the reason. If it has none, every node that needs the NED reports the reason, and the agent tries those nodes again every five minutes, so a driver that is fixed from the outside is picked up without waiting for the next full collection. A worker, which must render what the backend publishes, fails the job with the reason. When the backend serves a driver that is older than the process runs, the message says to update the API instead. A driver whose code cannot be loaded in the process, for example because a dependency is missing, is not used either, and the reason is reported the same way.</p>
+<p>Nothing is held against a driver that declares no interface, which is what every driver served by a backend from before the number looks like, or against a process that names no interfaces. When devkit raises <code>NED_INTERFACE</code>, the collection agent and the worker have to be changed to run the new interface (<code>SUPPORTED_NED_INTERFACES</code>). Their tests fail until they are.</p>
+<h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">¶</a></h2>
+<p>A transport should raise the devkit's exceptions, not the library's, so that callers handle one set whatever library the driver uses: <code>AuthenticationFailed</code>, <code>ConnectionTimeout</code> and <code>ConnectionError</code> for the connection, <code>ConfigurationError</code> for a rejected change, and <code>DriverException</code> as the base of them all (<code>acex_devkit.exceptions</code>).</p>
+<h2 id="writing-a-new-driver">Writing a new driver<a class="headerlink" href="#writing-a-new-driver" title="Permanent link">¶</a></h2>
+<ol>
+<li>Read <code>devkit/src/acex_devkit/drivers/example_ned.py</code>, a small NED that runs against a fake device, and then the Cisco IOS driver in <code>drivers/cisco_ios_cli/</code>: <code>transport/transport.py</code>, <code>normalizer.py</code>, <code>syntax.py</code>, <code>state.py</code> and <code>codec.py</code>.</li>
+<li>Make a package with the same layout and register it with the <code>acex.neds</code> entry point.</li>
+<li>Write the transport, then the normalizer rules, then the syntax declarations. Test the codec with text files and the transport against something that speaks the protocol (the repository's <code>mock-device/</code> is one), so that no test needs a real device.</li>
+<li>Declare the platform, and add the vendor, OS and version scheme to the devkit if they are new.</li>
+<li>Add the package to the CI matrices, the README and the cross-package integration test, the way the existing drivers are.</li>
+</ol>
 
 
 

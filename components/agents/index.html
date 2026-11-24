@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -791,6 +791,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/image-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1375,6 +1403,10 @@
   cycle — no driver is baked into the agent image, so a NED added or upgraded on the backend is
   picked up without rebuilding or restarting the agent (an upgrade of a driver the process has
   already imported is the exception and is logged as needing a restart)</li>
+<li>Does not install a driver that declares a NED interface it cannot run. If it already has a driver
+  for that NED it keeps using it and logs the reason; if it has none, the nodes that need the NED report
+  the reason and are tried again every five minutes
+  (see <a href="../drivers/#keeping-a-driver-and-the-process-that-runs-it-in-step">Drivers</a>)</li>
 <li>Parses the raw config through the NED driver's parser before uploading — the backend stores the structured <code>ComposedConfiguration</code>, not raw text</li>
 </ul>
 <h3 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">¶</a></h3>

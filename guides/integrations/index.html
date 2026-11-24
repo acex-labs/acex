@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -920,6 +920,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../image-builds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image builds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1328,12 +1356,25 @@
 <h2 id="hashicorp-vault">HashiCorp Vault<a class="headerlink" href="#hashicorp-vault" title="Permanent link">¶</a></h2>
 <p><strong>Direction:</strong> Read-only (ACE-X reads secrets; never writes to Vault)</p>
 <p>Used to store SSH credentials and SNMP secrets for network devices. Supports both token auth and AppRole.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">ACEX_VAULT_URL</span><span class="o">=</span>https://vault.example.com
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nv">ACEX_VAULT_TOKEN</span><span class="o">=</span>...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">ACEX_CREDENTIALS_VAULT_ADDR</span><span class="o">=</span>https://vault.example.com
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nv">ACEX_CREDENTIALS_VAULT_TOKEN</span><span class="o">=</span>...
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># or AppRole:</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nv">ACEX_VAULT_ROLE_ID</span><span class="o">=</span>...
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nv">ACEX_VAULT_SECRET_ID</span><span class="o">=</span>...
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nv">ACEX_CREDENTIALS_VAULT_ROLE_ID</span><span class="o">=</span>...
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nv">ACEX_CREDENTIALS_VAULT_SECRET_ID</span><span class="o">=</span>...
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c1"># or, in Kubernetes, the service account of the pod (no secret to store):</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="nv">ACEX_CREDENTIALS_VAULT_K8S_ROLE</span><span class="o">=</span>acex
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="nv">ACEX_CREDENTIALS_VAULT_K8S_MOUNT</span><span class="o">=</span>kubernetes<span class="w">          </span><span class="c1"># where the Kubernetes auth method is mounted (default)</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="nv">ACEX_CREDENTIALS_VAULT_K8S_TOKEN_PATH</span><span class="o">=</span>/var/run/secrets/kubernetes.io/serviceaccount/token<span class="w">   </span><span class="c1"># default</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># the certificate check: true (default), false, or the path of the CA file Vault's certificate is checked against:</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="nv">ACEX_CREDENTIALS_VAULT_VERIFY</span><span class="o">=</span><span class="nb">true</span>
 </code></pre></div>
+<p>If more than one way to log in is set, the AppRole is used before Kubernetes and Kubernetes before the token. With an
+AppRole or Kubernetes the backend logs in again when its Vault token has expired, so a credential with source <code>vault</code>
+keeps working for as long as the role can log in; the service account token file is read again at every login, since
+Kubernetes rotates it. A static token is not renewed: when it expires the credentials read from Vault fail until the
+token is replaced and the backend restarted.</p>
+<p>A CA file given in <code>ACEX_CREDENTIALS_VAULT_VERIFY</code> is used for Vault only. Nothing else the backend calls over HTTPS,
+such as the OIDC provider, is affected by it.</p>
 <p>If Vault is not configured, credentials are stored encrypted in PostgreSQL using a symmetric key (<code>ACEX_CREDENTIALS_ENCRYPTION_KEY</code>).</p>
 <h2 id="keycloak">Keycloak<a class="headerlink" href="#keycloak" title="Permanent link">¶</a></h2>
 <p><strong>Direction:</strong> ACE-X calls Keycloak to validate tokens; Keycloak never calls ACE-X</p>
