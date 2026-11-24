@@ -8,6 +8,7 @@ from acex_devkit.models import AttributeValue, ExternalValue
 
 from .asset import Asset, AssetCluster, AssetClusterLink, AssetResponse, AssetUpdate, Ned
 from .collection_agent import CollectionAgent, CollectionAgentMatchRule, CollectionAgentNodeLink
+from .collection_state import NodeCollectionState
 from .contacts import Contact, ContactAssignment, ContactResponse
 from .credential import Credential, CredentialField, NodeCredential, SiteCredential
 from .device_config import DeviceConfig, DeviceConfigResponse, StoredDeviceConfig
@@ -59,6 +60,7 @@ __all__ = [
     "CollectionAgent",
     "CollectionAgentMatchRule",
     "CollectionAgentNodeLink",
+    "NodeCollectionState",
     "Contact",
     "ContactAssignment",
     "ContactResponse",

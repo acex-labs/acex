@@ -4,6 +4,120 @@
   "name": "ACEX backend",
   "releases": [
     {
+      "version": "7.4.0",
+      "date": "2026-11-24",
+      "entries": [
+        {
+          "id": "20261116-nodes-say-whether-the-collection-agent",
+          "kind": "added",
+          "title": "Nodes say whether the collection agent can reach them",
+          "description": "A collection agent reports the result for each node after a round to `POST /api/v1/inventory/collection_agents/{id}/results`. A node then carries `collection` in the node list and on the node: `ok` or `failing`, the time of the last attempt and of the last successful collection, since when it has failed, how many times in a row, the category and message of the last failure, and the id and name of the collection agent that made the last attempt. An uploaded configuration counts as a successful collection; it does not say which agent made it, so the agent that reported last stays. The node list can be filtered on `collection_status` (`ok`, `failing` or `unknown`, for nodes no agent has reported on yet) and on `collection_agent_id`. `GET /api/v1/inventory/collection_agents/{id}/collection` says how many of the nodes that agent made the last attempt on were collected and, for the others, how many failed for each reason. Run the migration to add the table.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261119-software-compliance-can-be-listed-asset",
+          "kind": "added",
+          "title": "Software compliance can be listed asset by asset",
+          "description": "The assets of every node, each against the software policy, as a page you can filter, search and sort: `GET /api/v1/compliance/software/assets`. Each row has the asset, its running version, the version to aim for, its status, and the node, site and regions it belongs to. Narrow it with `status` (more than once if you like), `site` and `region`, search with `q`, and order it with `sort` and `order`. Without a `sort` the assets that are not on an approved version come first. `status_counts` says how many assets each status has among those the other filters match. It counts the same assets as the compliance of the installation and answers at once however many nodes there are, because it reads the software policy and the inventory and never a node's configuration.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261105-the-driver-list-says-which-ned-interface",
+          "kind": "added",
+          "title": "The driver list says which NED interface each driver implements",
+          "description": "`GET /api/v1/neds` and `GET /api/v1/neds/{ned_id}` return `interface_version` for each driver, the NED interface it declares or `null` when it declares none, so an agent or worker can tell before it installs a driver whether it can run it.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261124-the-fortinet-fortios-driver-is-served-to",
+          "kind": "added",
+          "title": "The Fortinet FortiOS driver is served to the collection agents",
+          "description": "`GET /api/v1/neds` now lists the Fortinet FortiOS driver, so a collection agent installs it for an asset of vendor Fortinet and OS FortiOS. The driver reads a FortiGate's configuration over SSH; it does not write configuration yet.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261119-the-node-list-can-be-filtered-by-asset-ref-type",
+          "kind": "added",
+          "title": "The node list can be filtered by asset_ref_type",
+          "description": "`GET /api/v1/inventory/node_instances` takes `asset_ref_type`, `asset` or `asset_cluster`, to use with `asset_ref_id`. A node is bound to either an asset or an asset cluster, and the two have their own numbers, so `asset_ref_id` alone could return a node that belongs to a cluster when an asset had the same number. Without `asset_ref_type` the list answers as before.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261124-vault-login-from-kubernetes-and-a-ca",
+          "kind": "added",
+          "title": "Vault login from Kubernetes, and a CA file for Vault's certificate",
+          "description": "The backend can log in to Vault from Kubernetes, with the token of the pod's service account, so a pod needs no stored secret. Set `ACEX_CREDENTIALS_VAULT_K8S_ROLE` to the Vault role; `ACEX_CREDENTIALS_VAULT_K8S_MOUNT` (default `kubernetes`) and `ACEX_CREDENTIALS_VAULT_K8S_TOKEN_PATH` (default the standard service account path) only need setting when yours differ. The token file is read again at every login, because Kubernetes rotates it, and the backend logs in again when its Vault token has expired. If an AppRole and a Kubernetes role are both set the AppRole is used, and either goes before a static token.\n\n`ACEX_CREDENTIALS_VAULT_VERIFY` can also be the path of a CA file, for a Vault with a private CA. It applies to Vault only: the other HTTPS calls of the backend, such as the one to the OIDC provider, keep the certificate authorities they use today. A path that does not exist stops the backend from starting.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261117-duplicate-assets-logical-nodes-and-nodes",
+          "kind": "changed",
+          "title": "Duplicate assets, logical nodes and nodes are refused",
+          "description": "Adding or editing an asset with a serial number that another asset already has is now refused. The same goes for a logical node with a hostname that already exists, for a second node on a logical node that already has one, and for a second node on an asset or cluster that already backs a node. Serial numbers and hostnames are compared ignoring capital letters and spaces around them, and a blank one is refused. The API answers 409 and names the existing record, so a client can point the user at it.\n\nAdding a node for a logical node or asset that does not exist, or moving a node onto one, is now answered with 404.\n\nIf your database already holds duplicates, including nodes that share an asset, the backend still starts. It writes them to the startup log, with the statement to run once they are sorted out, and leaves that unique index out until then. New duplicates are refused either way.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261120-a-management-connection-can-be-changed",
+          "kind": "fixed",
+          "title": "A management connection can be changed, so Set primary works",
+          "description": "`PATCH /api/v1/inventory/management_connections/{id}` now exists. Before, the API had no such route and answered 405, so Set primary on a node's Management Connections card did nothing and showed no message, and `client.inventory.management_connections.update(...)` failed the same way. Send only the fields to change: `primary`, `connection_type` or `target_ip`. A field left out or sent as `null` keeps its value. Making a connection primary makes the node's other connections non-primary. A connection that does not exist answers 404.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261123-a-region-lists-only-its-own-sites-and",
+          "kind": "fixed",
+          "title": "A whole region name finds that region only, in lists and when assigning sites",
+          "description": "A region was found by a pattern, so a region whose name is part of another's got the sites of both: `eu` listed the sites of `eu-north` in `GET /api/v1/inventory/regions/{id}` and in the list of regions with their sites. Where two sites had names like `hq` and `hq-2`, the region could show the details of the wrong one. Both now use the whole name.\n\nAssigning a site to a region (`POST /api/v1/inventory/region_assignments`) had the same flaw in two ways. A site already in `eu-north` was refused with 409 when assigned to `eu`. And a region or a site that does not exist was accepted when a longer name contained it (assigning to `eu` when only `eu-north` existed stored an assignment to a region that is not there). It now answers 409 only for an assignment that exists, and 404 for a region or site that does not.\n\nThe `region` filter of the node instance, logical node and site lists did the same: `region=eu` also returned what is in `eu-north`. Now a whole region name, in any case, means that region and no other, even when it has no sites. A part of a name still matches every region that contains it, as before, so `region=eu` finds both `eu-north` and `eu-south` while no region is named `eu`. Creating a region with exactly that name changes what the filter finds.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261124-credentials-in-vault-keep-working-after",
+          "kind": "fixed",
+          "title": "Credentials in Vault keep working after the Vault token has expired",
+          "description": "A backend that logs in to Vault with an AppRole used to log in once, at startup. When that token expired, every credential with source `vault` answered 503 until the backend was restarted. The backend now logs in again when Vault refuses a read and the token no longer works, and tries the read once more. Several requests that meet an expired token share one new login. A refusal because the policy does not allow the path is left alone, and so are the other errors (Vault sealed or unreachable, a secret that does not exist). A backend given a static token behaves as before: the token is not renewed.\n\nThe integrations guide names the settings as they are, `ACEX_CREDENTIALS_VAULT_ADDR`, `_TOKEN`, `_ROLE_ID`, `_SECRET_ID` and `_VERIFY`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261116-lists-without-a-sort-keep-a-stable-order",
+          "kind": "fixed",
+          "title": "Lists without a sort keep a stable order while you page through them",
+          "description": "Sites, logical nodes, assets, contacts and regions are now returned in ID order when you do not ask for a sort. Before, their order was not defined, so paging through one while entries were being edited could show the same entry twice and skip another. Lists you sort explicitly are unchanged.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261118-lldp-neighbors-match-names-in-any-case",
+          "kind": "fixed",
+          "title": "LLDP neighbors are matched to nodes whatever case the device reports its name in",
+          "description": "A neighbor that reported its name in another case than the inventory holds, such as `CORE-SW1` for `core-sw1`, or with spaces around it, was left unresolved, so its link was missing from the topology. It is now matched ignoring case and spaces, with or without the domain. A name that matches exactly still wins. Links that were left unresolved for this reason are filled in the next time the node's neighbors are collected.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "7.3.0",
       "date": "2026-11-13",
       "entries": [

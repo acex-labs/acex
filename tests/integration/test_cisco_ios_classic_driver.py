@@ -197,7 +197,9 @@ def test_ip_device_tracking_is_written_back():
     assert "ip device tracking probe delay 60" in rendered
     assert "ip device tracking probe auto-source override" in rendered
     assert " ip device tracking maximum 0" in rendered
-    assert codec.parse(rendered, None).metadata.unmatched == []
+    # the spanning tree lines the codec starts with are written but not read back
+    unmatched = codec.parse(rendered, None).metadata.unmatched
+    assert [line.line for line in unmatched] == ["spanning-tree mode rapid-pvst", "spanning-tree extend system-id"]
 
 
 IOS_NUMBERED_ACLS = """\

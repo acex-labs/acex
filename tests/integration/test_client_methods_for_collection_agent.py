@@ -11,6 +11,7 @@ Agreed method table (verified against actual collection-agent call sites):
 
     client.inventory.collection_agents.manifest(id)        GET  /inventory/collection_agents/{id}/manifest
     client.inventory.collection_agents.ack(id, payload=)  POST /inventory/collection_agents/{id}/ack
+    client.inventory.collection_agents.report_results(id, payload=)  POST /inventory/collection_agents/{id}/results
     client.inventory.credentials.secret(id)               GET  /inventory/credentials/{id}/secret
     client.inventory.node_instances.upload_observed(id, payload=)  POST /inventory/node_instances/{id}/
                                                                         configuration/observed/
@@ -22,11 +23,17 @@ collector for loading driver instances:
     client.neds.get_missing()        — returns list of NEDs missing locally
     client.neds.install(ned)          — downloads + pip-installs a NED wheel
     client.neds.get_driver_instance(ned_id) — resolves an installed driver instance
+    client.neds.incompatible          — dict of NED name -> why this process does not use it
+    Acex(..., ned_interfaces=)       — the NED interfaces the agent can run
 """
+
+import json
 
 import pytest
 from acex_client import Acex
 from acex_client.auth.provider import AuthProvider
+from acex_client.resources.inventory.collection_agents import CollectionAgents
+from acex_devkit.models.collection_state import CollectionFailure, CollectionResult, CollectionResultsUpload
 
 
 class _NoAuth(AuthProvider):
@@ -66,6 +73,7 @@ class TestClientInterfaceContract:
             # Methods verified against collection-agent call sites (agent.py, collector.py)
             "inventory.collection_agents.manifest",
             "inventory.collection_agents.ack",
+            "inventory.collection_agents.report_results",
             "inventory.credentials.secret",
             "inventory.node_instances.upload_observed",
             "operations.lldp.upload",
@@ -77,3 +85,42 @@ class TestClientInterfaceContract:
     )
     def test_method_exists(self, client_shape, dotted_path):
         assert _resolves(client_shape, dotted_path), f"Acex is missing client.{dotted_path}"
+
+    def test_the_results_of_a_round_go_to_the_route_the_backend_has(self):
+        sent = []
+
+        class Rest:
+            def request(self, method, path, **kwargs):
+                sent.append((method, path, json.loads(json.dumps(kwargs["json"]))))
+                return {"accepted": 2, "unknown_nodes": [9]}
+
+        upload = CollectionResultsUpload(
+            results=[
+                CollectionResult(node_id=1, ok=True),
+                CollectionResult(node_id=9, ok=False, category=CollectionFailure.privilege_failed, message="no enable"),
+            ]
+        )
+
+        accepted = CollectionAgents(Rest()).report_results(id=7, payload=upload)
+
+        assert sent == [
+            (
+                "POST",
+                "/inventory/collection_agents/7/results",
+                {
+                    "results": [
+                        {"node_id": 1, "ok": True},
+                        {"node_id": 9, "ok": False, "category": "privilege_failed", "message": "no enable"},
+                    ]
+                },
+            )
+        ]
+        assert (accepted.accepted, accepted.unknown_nodes) == (2, [9])
+
+    def test_neds_say_why_a_driver_is_not_used(self, client_shape):
+        assert isinstance(client_shape.neds.incompatible, dict)
+
+    def test_the_client_takes_the_ned_interfaces_the_agent_runs(self):
+        client = Acex(base_url="http://unused.invalid/", auth=_NoAuth(), ned_interfaces=[2])
+
+        assert client.neds.ned_interfaces == frozenset({2})

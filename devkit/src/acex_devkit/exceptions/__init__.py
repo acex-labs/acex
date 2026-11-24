@@ -37,6 +37,24 @@ class AuthenticationFailed(ConnectionError):
     pass
 
 
+class HostUnreachable(ConnectionError):
+    """Raised when no connection to the device could be made: refused, no route, network down."""
+
+    pass
+
+
+class PrivilegeFailed(ConnectionError):
+    """Raised when the login works but the privilege level the driver needs cannot be reached."""
+
+    pass
+
+
+class SshAlgorithmMismatch(ConnectionError):
+    """Raised when the device and the driver share no SSH key exchange, cipher or MAC algorithm."""
+
+    pass
+
+
 class ConfigurationError(DriverException):
     """Raised when configuration application fails."""
 

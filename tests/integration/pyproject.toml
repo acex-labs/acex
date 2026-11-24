@@ -14,6 +14,7 @@ acex-telemetry-agent = { path = "../../agents/telemetry-agent", develop = true }
 acex-driver-cisco-ioscli = { path = "../../drivers/cisco_ios_cli", develop = true }
 acex-driver-cisco-ios-classic-cli = { path = "../../drivers/cisco_ios_classic_cli", develop = true }
 acex-driver-juniper-junoscli = { path = "../../drivers/juniper_junos_cli", develop = true }
+acex-driver-fortinet-fortios-cli = { path = "../../drivers/fortinet_fortios_cli", develop = true }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"

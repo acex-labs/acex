@@ -9,6 +9,7 @@ import json
 
 from acex.models.asset import Asset
 from acex.models.ztp_discovery import ZtpDiscovery
+from acex.utils.identity import clean
 from acex.ztp.review_context import ReviewContext
 from acex_devkit.models.asset import Asset as AssetSchema
 from acex_devkit.models.platform import OS, Vendor
@@ -63,17 +64,18 @@ class ApprovalPlanner:
         return asset
 
     def _plan_create(self, discovery, vendor, os_, blocked) -> ZtpApprovalProposal:
+        serial = clean(discovery.serial_number or "")
         blocked += [
             f"The device did not report its {fact.replace('_', ' ')}"
-            for fact in _REQUIRED_FACTS
-            if not getattr(discovery, fact)
+            for fact in ("serial_number", *_REQUIRED_FACTS)
+            if not (serial if fact == "serial_number" else getattr(discovery, fact))
         ]
         if blocked:
             return self._blocked(*blocked)
         try:
             valid = AssetSchema(
                 vendor=vendor,
-                serial_number=discovery.serial_number,
+                serial_number=serial,
                 os=os_,
                 hardware_model=discovery.hardware_model,
                 os_version=discovery.os_version,

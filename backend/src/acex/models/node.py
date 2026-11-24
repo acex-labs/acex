@@ -10,6 +10,7 @@ from acex_devkit.models.node_response import (
 from acex_devkit.models.node_response import (
     NodeListItem as NodeListResponse,
 )
+from sqlalchemy import Index
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -26,6 +27,12 @@ class NodeBase(SQLModel):
 
 
 class Node(NodeBase, table=True):
+    # One node instance per logical node and per asset or cluster. Created by a migration only when the data is clean.
+    __table_args__ = (
+        Index("uq_node_logical_node_id", "logical_node_id", unique=True),
+        Index("uq_node_asset_ref", "asset_ref_type", "asset_ref_id", unique=True),
+    )
+
     id: int | None = Field(default=None, primary_key=True)
     #: The provision_status the node had when it was enrolled in ZTP; it returns
     #: to it if ZTP is cancelled. None while the node is not in ZTP.

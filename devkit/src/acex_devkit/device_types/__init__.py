@@ -9,6 +9,8 @@ from functools import cache
 from acex_devkit.device_types import cisco as _cisco  # noqa: F401  (registers Cisco declarations)
 from acex_devkit.device_types import fortinet as _fortinet  # noqa: F401  (registers Fortinet declarations)
 from acex_devkit.device_types import juniper as _juniper  # noqa: F401  (registers Juniper declarations)
+from acex_devkit.device_types import mikrotik as _mikrotik  # noqa: F401  (registers MikroTik declarations)
+from acex_devkit.device_types import waystream as _waystream  # noqa: F401  (registers Waystream declarations)
 from acex_devkit.models.device_type import (
     DeviceType,
     InterfaceSlot,

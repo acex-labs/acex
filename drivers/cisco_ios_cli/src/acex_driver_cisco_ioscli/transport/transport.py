@@ -3,10 +3,17 @@ import logging
 import re
 
 from acex_devkit.drivers import Transport
-from acex_devkit.exceptions import AuthenticationFailed, ConnectionTimeout
+from acex_devkit.exceptions import (
+    AuthenticationFailed,
+    ConnectionTimeout,
+    HostUnreachable,
+    PrivilegeFailed,
+    SshAlgorithmMismatch,
+)
 from acex_devkit.models.management_connection import ConnectionType
+from asyncssh import KeyExchangeFailed
 from scrapli.driver.core import AsyncIOSXEDriver
-from scrapli.exceptions import ScrapliAuthenticationFailed, ScrapliTimeout
+from scrapli.exceptions import ScrapliAuthenticationFailed, ScrapliPrivilegeError, ScrapliTimeout
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +25,8 @@ class CiscoIOSTransport(Transport[str]):
 
     PORT = 22
 
-    # Legacy KEX/ciphers for older IOS devices that don't support modern algorithms
+    # Legacy KEX/ciphers for older IOS devices that don't support modern algorithms. The CBC ciphers are appended
+    # after asyncssh's defaults, so a device that speaks a modern cipher still gets one and CBC is only a fallback.
     LEGACY_ASYNCSSH_OPTIONS = {
         "kex_algs": [
             "diffie-hellman-group-exchange-sha256",
@@ -27,6 +35,7 @@ class CiscoIOSTransport(Transport[str]):
             "diffie-hellman-group14-sha1",
             "diffie-hellman-group1-sha1",
         ],
+        "encryption_algs": "+aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc",
     }
 
     async def open(self) -> None:
@@ -50,8 +59,14 @@ class CiscoIOSTransport(Transport[str]):
             if isinstance(e.__cause__, asyncio.TimeoutError):
                 raise ConnectionTimeout(f"Connection to {self.address} timed out") from e
             raise AuthenticationFailed(f"Authentication to {self.address} failed") from e
-        except ScrapliTimeout as e:
+        except (ScrapliTimeout, TimeoutError) as e:
             raise ConnectionTimeout(f"Connection to {self.address} timed out") from e
+        except ScrapliPrivilegeError as e:
+            raise PrivilegeFailed(f"Login accepted, but not the privilege level needed: {e}") from e
+        except KeyExchangeFailed as e:
+            raise SshAlgorithmMismatch(f"No SSH algorithm in common with the device: {e}") from e
+        except OSError as e:
+            raise HostUnreachable(f"Could not connect to the device: {e}") from e
 
     async def close(self) -> None:
         try:

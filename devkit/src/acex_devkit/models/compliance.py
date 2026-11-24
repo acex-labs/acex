@@ -9,7 +9,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
-from acex_devkit.models.platform import OS
+from acex_devkit.models.pagination import PaginatedResponse
+from acex_devkit.models.platform import OS, Vendor
 
 
 class ConfigurationStatus(StrEnum):
@@ -90,6 +91,29 @@ class SoftwareCompliance(SoftwareComplianceSummary):
     """A node's software compliance, asset by asset."""
 
     assets: list[AssetSoftwareCompliance] = []
+
+
+class SoftwareAssetRow(AssetSoftwareCompliance):
+    """One asset against the software policy, with the node it belongs to: a row of the list of assets to work
+    through."""
+
+    vendor: Vendor
+    serial_number: str
+    node_id: int
+    hostname: str | None = None
+    site: str | None = None
+    #: The regions the node's site is in.
+    regions: list[str] = []
+    #: The asset cluster the asset is a member of; None for an asset that is a node on its own.
+    cluster: str | None = None
+
+
+class SoftwareAssetList(PaginatedResponse[SoftwareAssetRow]):
+    """A page of the assets that software compliance counts. `total` is of the assets matching every filter."""
+
+    #: Assets per status among those matching every filter except `status`, so the filter can show how many each
+    #: status would give. Every status is present.
+    status_counts: dict[SoftwareStatus, int] = {}
 
 
 class NodeCompliance(BaseModel):

@@ -51,3 +51,86 @@ def test_ordering_is_semantic():
 def test_undiscovered_asset_needs_no_version():
     asset = Asset(vendor=Vendor.juniper, serial_number="JN1", os=OS.juniper_junos, hardware_model="EX4400-24X")
     assert asset.os_version is None
+
+
+def test_ibos_versions_as_the_device_prints_them_are_accepted():
+    scheme = OsVersionScheme.for_os(OS.waystream_ibos)
+    for version in ["6.3.0-ED-R", "6.3.5-ED-R", "7.6.2-GD-R", "6.1.0-ED-RC2", "3.21.4-ED-R", "6.3.5"]:
+        assert scheme.accepts(version), version
+    for junk in ["nonsense", "6.3", "6.3.5-", "-ED-R", "ibos-ms4k-6.3.5-ED-R"]:
+        assert not scheme.accepts(junk), junk
+
+
+def test_ibos_versions_are_ordered_by_their_numbers_and_not_as_strings():
+    scheme = OsVersionScheme.for_os(OS.waystream_ibos)
+    versions = [scheme.normalize(v) for v in ["7.6.2-GD-R", "6.3.5-ED-R", "6.10.0-ED-R", "6.3.0-ED-R"]]
+    assert [str(v) for v in sorted(versions)] == ["6.3.0-ED-R", "6.3.5-ED-R", "6.10.0-ED-R", "7.6.2-GD-R"]
+
+
+def test_an_ibos_asset_takes_the_version_of_its_show_version():
+    asset = Asset(
+        vendor=Vendor.waystream,
+        serial_number="0008AE00D004",
+        os=OS.waystream_ibos,
+        hardware_model="MS4026-AC",
+        os_version="6.3.0-ED-R",
+    )
+    assert asset.os_version == "6.3.0-ED-R"
+
+
+def test_routeros_versions_as_the_device_reports_them_are_accepted():
+    scheme = OsVersionScheme.for_os(OS.mikrotik_routeros)
+    for version in ["6.49.17", "7.16.1", "7.17", "7.17rc3", "7.17beta2", "7.9"]:
+        assert scheme.accepts(version), version
+    for junk in ["nonsense", "7", "7.17 (stable)", "v7.17", "7.17.", "7.17rc"]:
+        assert not scheme.accepts(junk), junk
+
+
+def test_routeros_versions_are_ordered_by_their_numbers_and_not_as_strings():
+    scheme = OsVersionScheme.for_os(OS.mikrotik_routeros)
+    versions = [scheme.normalize(v) for v in ["7.17", "6.49.17", "7.9", "7.16.1", "7.17.1"]]
+    assert [str(v) for v in sorted(versions)] == ["6.49.17", "7.9", "7.16.1", "7.17", "7.17.1"]
+
+
+def test_a_routeros_release_of_two_numbers_is_the_one_with_a_fix_number_of_zero():
+    scheme = OsVersionScheme.for_os(OS.mikrotik_routeros)
+    assert scheme.normalize("7.17") == scheme.normalize("7.17.0")
+
+
+def test_cisco_business_firmware_has_four_numbers_and_is_accepted():
+    scheme = OsVersionScheme.for_os(OS.cisco_business)
+    for version in ["4.1.7.17", "4.1.7.24", "4.1.6.54", "4.1.3.36", "3.5.2.8"]:
+        assert scheme.accepts(version), version
+    for junk in ["nonsense", "4.1", "v4.1.7.17", "4.1.7.", "4.1.7.17.1"]:
+        assert not scheme.accepts(junk), junk
+
+
+@pytest.mark.parametrize("os", [OS.cisco_ios, OS.cisco_iosxe])
+def test_ios_and_ios_xe_still_refuse_the_four_numbers_of_cisco_business_firmware(os):
+    """IOS and IOS-XE number a release with three, so a four-number version on one of them is a platform picked
+    wrongly, not a spelling to accept."""
+    assert not OsVersionScheme.for_os(os).accepts("4.1.7.17")
+
+
+def test_cisco_business_versions_are_ordered_by_their_numbers_and_not_as_strings():
+    scheme = OsVersionScheme.for_os(OS.cisco_business)
+    versions = [scheme.normalize(v) for v in ["4.1.7.24", "4.1.3.36", "4.1.7.9", "3.5.2.8", "4.1.7.17", "4.1.6.54"]]
+    assert [str(v) for v in sorted(versions)] == [
+        "3.5.2.8",
+        "4.1.3.36",
+        "4.1.6.54",
+        "4.1.7.9",
+        "4.1.7.17",
+        "4.1.7.24",
+    ]
+
+
+def test_an_asset_can_run_cisco_business_firmware():
+    asset = Asset(
+        vendor=Vendor.cisco,
+        serial_number="SN1",
+        os=OS.cisco_business,
+        hardware_model="C1300-48P-4X",
+        os_version="4.1.7.17",
+    )
+    assert (asset.os, asset.os_version) == (OS.cisco_business, "4.1.7.17")

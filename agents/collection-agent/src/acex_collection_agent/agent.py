@@ -1,20 +1,26 @@
 """Core agent loop — polls manifest frequently, runs collection on interval."""
 
 import asyncio
+import concurrent.futures
 import importlib.metadata
 import logging
 import os
 import time
 
 from acex_client import Acex
-from acex_devkit.models.agent_manifest import CollectionAgentManifest
+from acex_devkit.models.agent_manifest import CollectionAgentManifest, ManifestTarget
 from acex_devkit.models.collection_agent import CollectionAgentAck
+from acex_devkit.models.collection_state import MESSAGE_LENGTH, CollectionResult, CollectionResultsUpload
 
-from acex_collection_agent.collector import Collector
+from acex_collection_agent.collector import SUPPORTED_NED_INTERFACES, Collector
 
 logger = logging.getLogger("acex_collection_agent")
 
 POLL_INTERVAL = 60  # Poll manifest every 60s for liveness + change detection
+
+# How soon the nodes that had no driver to collect through are tried again, at most: a driver that was missing or
+# refused is fixed from outside, and waiting for the next full collection would leave those nodes unserved for hours.
+DRIVER_RETRY_SECONDS = 300
 
 
 def _build_info() -> tuple[str | None, str | None, str | None]:
@@ -26,15 +32,32 @@ def _build_info() -> tuple[str | None, str | None, str | None]:
     return version, os.environ.get("ACEX_BUILD_ID") or None, os.environ.get("ACEX_BUILD_REF") or None
 
 
+def _as_collection_result(result: dict) -> CollectionResult:
+    """What one node's collection says to ACEX: a success, or the category and the start of the message."""
+    if result["status"] != "error":
+        return CollectionResult(node_id=result["node_id"], ok=True)
+    return CollectionResult(
+        node_id=result["node_id"],
+        ok=False,
+        category=result.get("category"),
+        message=result["message"][:MESSAGE_LENGTH],
+    )
+
+
 class CollectionAgent:
     def __init__(self, api_url: str, agent_id: int, verify_ssl: bool = False, max_concurrent: int = 20):
         self.agent_id = agent_id
         self.max_concurrent = max_concurrent
-        self.client = Acex(base_url=api_url, verify=verify_ssl)
+        self.client = Acex(base_url=api_url, verify=verify_ssl, ned_interfaces=SUPPORTED_NED_INTERFACES)
         self.collector = Collector(self.client)
         self._last_revision = None
         self._last_collection = 0
         self._neds_synced = False
+        self._waiting_for_driver: set[int] = set()
+        self._driver_retry_at = 0.0
+        # The acknowledgements during a round go through a thread of their own: a round that keeps every thread of
+        # the default pool busy would otherwise hold them back, and the agent would look offline anyway.
+        self._ack_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="acex-ack")
 
     def run(self):
         """Entry point — delegates to async loop."""
@@ -60,13 +83,12 @@ class CollectionAgent:
                 interval_elapsed = (now - self._last_collection) >= interval
 
                 should_collect = revision_changed or interval_elapsed or self._last_collection == 0
+                retry_due = not should_collect and bool(self._waiting_for_driver) and now >= self._driver_retry_at
 
-                if should_collect:
+                if should_collect or retry_due:
                     if revision_changed:
                         logger.info(f"Config revision changed ({self._last_revision} -> {revision})")
-                    await asyncio.to_thread(self._ensure_neds)
-                    await self._collect(manifest)
-                    self._last_collection = now
+                    await self._while_acking(self._round(manifest, should_collect, now), revision)
 
                 self._last_revision = revision
                 await asyncio.sleep(POLL_INTERVAL)
@@ -77,6 +99,37 @@ class CollectionAgent:
             except Exception as e:
                 logger.error(f"Unexpected error: {e}", exc_info=True)
                 await asyncio.sleep(POLL_INTERVAL)
+
+    async def _round(self, manifest: CollectionAgentManifest, should_collect: bool, now: float):
+        """One round: bring the drivers up to date, collect the nodes, report what was found."""
+        await asyncio.to_thread(self._ensure_neds)
+        targets = manifest.targets
+        if not should_collect:
+            targets = [t for t in targets if t.node_id in self._waiting_for_driver]
+        results = await self._collect(targets) if targets or should_collect else []
+        await asyncio.to_thread(self._report_results, results)
+        if should_collect:
+            self._last_collection = now
+        self._waiting_for_driver = {r["node_id"] for r in results if r.get("driver_unavailable")}
+        self._driver_retry_at = now + DRIVER_RETRY_SECONDS
+
+    async def _while_acking(self, work, config_revision: int):
+        """Run `work` and acknowledge the manifest every POLL_INTERVAL until it is done.
+
+        A full round takes minutes, and the web interface calls an agent offline when its last acknowledgement is
+        older than two. Between rounds the poll of the manifest acknowledges it; during a round this does.
+        """
+        task = asyncio.ensure_future(work)
+        loop = asyncio.get_running_loop()
+        try:
+            while True:
+                done, _ = await asyncio.wait({task}, timeout=POLL_INTERVAL)
+                if done:
+                    return task.result()
+                await loop.run_in_executor(self._ack_pool, self._ack_manifest, config_revision)
+        finally:
+            if not task.done():
+                task.cancel()
 
     def _fetch_manifest(self) -> CollectionAgentManifest | None:
         """Fetch manifest from ACEX API."""
@@ -106,6 +159,19 @@ class CollectionAgent:
         except Exception as e:
             logger.warning(f"Failed to ack manifest: {e}")
 
+    def _report_results(self, results: list[dict]):
+        """Tell ACEX what the round found for each node. A backend that cannot take it must not stop the loop."""
+        if not results:
+            return
+        try:
+            payload = CollectionResultsUpload(results=[_as_collection_result(r) for r in results])
+            accepted = self.client.inventory.collection_agents.report_results(id=self.agent_id, payload=payload)
+        except Exception as e:
+            logger.warning(f"Failed to report the collection results: {e}")
+            return
+        if accepted.unknown_nodes:
+            logger.info(f"ACEX does not know these nodes, left out of the report: {accepted.unknown_nodes}")
+
     def _ensure_neds(self):
         """Sync local NEDs against the API.
 
@@ -124,7 +190,11 @@ class CollectionAgent:
 
         if not missing:
             if not self._neds_synced:
-                logger.info("All NEDs up to date")
+                not_used = sorted(self.client.neds.incompatible)
+                if not_used:
+                    logger.info(f"No NED to install; not used by this agent: {', '.join(not_used)}")
+                else:
+                    logger.info("All NEDs up to date")
                 self._neds_synced = True
             return
 
@@ -142,18 +212,18 @@ class CollectionAgent:
                     "imported in this process — restart the agent to run the new code"
                 )
             elif self.client.neds.get_driver_instance(ned.name) is None:
-                logger.error(f"NED {ned.name} v{ned.version} installed but its driver class failed to load")
+                reason = self.client.neds.incompatible.get(ned.name) or "its driver class failed to load"
+                logger.error(f"NED {ned.name} v{ned.version} installed but not usable: {reason}")
             else:
                 logger.info(f"NED {ned.name} v{ned.version} installed and loaded")
 
         self._neds_synced = True
 
-    async def _collect(self, manifest: CollectionAgentManifest):
-        """Run config collection for all targets."""
-        targets = manifest.targets
+    async def _collect(self, targets: list[ManifestTarget]) -> list[dict]:
+        """Run config collection for the targets and return the result of each."""
         if not targets:
             logger.info("No targets in manifest, nothing to collect")
-            return
+            return []
 
         logger.info(f"Starting collection for {len(targets)} nodes")
         t0 = time.time()
@@ -176,3 +246,5 @@ class CollectionAgent:
             logger.info("Error summary:")
             for msg, count in counts.most_common():
                 logger.info(f"  {count:>4}x  {msg}")
+
+        return results

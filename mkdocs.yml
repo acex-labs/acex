@@ -70,6 +70,7 @@ nav:
     - Integrations: guides/integrations.md
     - API FAQ: guides/api-faq.md
     - Release notes: guides/changelog.md
+    - Image builds: guides/image-builds.md
   - Components:
     - CLI: components/cli.md
     - Agents: components/agents.md

@@ -76,6 +76,9 @@ pip install acex-driver-cisco-ios-classic-cli
 
 # Juniper JunOS CLI driver
 pip install acex-driver-juniper-junoscli
+
+# Fortinet FortiOS CLI driver
+pip install acex-driver-fortinet-fortios-cli
 ```
 
 Drivers are discovered automatically at startup via the `acex.neds` setuptools entry point group. Collection agents download and install missing NEDs automatically on startup.

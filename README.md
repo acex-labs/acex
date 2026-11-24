@@ -322,6 +322,7 @@ Everything talks to the same REST API. The web UI, the CLI and the AI tooling ar
 /api/v1/inventory/node_instances/{id}/configuration/intent_diff  # desired vs observed
 /api/v1/compliance                                               # summary per site and in total
 /api/v1/compliance/{nodes/{id},sites/{name},regions/{name}}
+/api/v1/compliance/software/assets                               # every asset against the software policy, filterable
 /api/v1/config_components/{generate,reconcile,translate}
 /api/v1/observability/agents                                     # manifest, config, ack
 /api/v1/observability/grafana/{dashboards,datasources}           # generated definitions
@@ -387,7 +388,7 @@ class MyDriver(NetworkElementDriver):
     state_class = MyState  # optional: facts, LLDP neighbors
 ```
 
-Shipped: `acex-driver-cisco-ioscli`, `acex-driver-cisco-ios-classic-cli`, `acex-driver-juniper-junoscli`. Hardware models (165 of them, describing real port layouts) are declared once in the devkit and shared by every driver.
+Shipped: `acex-driver-cisco-ioscli`, `acex-driver-cisco-ios-classic-cli`, `acex-driver-juniper-junoscli`, `acex-driver-fortinet-fortios-cli`. Hardware models (180 of them, describing real port layouts) are declared once in the devkit and shared by every driver.
 
 **Config normalizers** — declarative rules that strip non-intent lines (counters, timestamps) and redact secrets from collected configurations, in two isolated passes, so diffs mean something and secrets are never stored.
 
@@ -408,7 +409,7 @@ client/     acex-client    — typed REST client
 cli/        acex-cli       — command line interface
 mcp/        acex-mcp       — MCP server
 worker/     acex-worker    — distributed task execution (scaffold)
-drivers/    NEDs           — cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli
+drivers/    NEDs           — cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli, fortinet_fortios_cli
 agents/     collection-agent, telemetry-agent, grafana-sync
 mock-device/               — SSH + SNMP device simulator for development
 docs/                      — integration examples

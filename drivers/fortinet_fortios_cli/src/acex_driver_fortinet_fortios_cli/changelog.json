@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "component": "acex-driver-fortinet-fortios-cli",
+  "name": "Fortinet FortiOS CLI driver",
+  "releases": [
+    {
+      "version": "0.2.0",
+      "date": "2026-11-24",
+      "entries": [
+        {
+          "id": "20261120-a-driver-for-fortinet-fortigate-devices",
+          "kind": "added",
+          "title": "A driver for Fortinet FortiGate devices (first step)",
+          "description": "ACEX can now reach a FortiGate over SSH and read its configuration with `show full-configuration`. Of that configuration it understands the hostname so far, and every other line is listed as one ACEX has no field for yet, so a node shows how much of the device is covered. Secrets in the configuration, passwords, pre-shared keys and private keys, are masked before it is stored. Writing configuration to a FortiGate and comparing it is not available yet: a change that ACEX would have made is reported as not rendered.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    }
+  ],
+  "coming": [],
+  "highlights": []
+}

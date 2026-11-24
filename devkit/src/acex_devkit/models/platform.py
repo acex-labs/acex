@@ -11,12 +11,15 @@ from enum import StrEnum
 
 class OS(StrEnum):
     arista_eos = "arista_eos"
+    cisco_business = "cisco_business"
     cisco_ios = "cisco_ios"
     cisco_iosxe = "cisco_iosxe"
     cisco_iosxr = "cisco_iosxr"
     cisco_nxos = "cisco_nxos"
     fortinet_fortios = "fortinet_fortios"
     juniper_junos = "juniper_junos"
+    mikrotik_routeros = "mikrotik_routeros"
+    waystream_ibos = "waystream_ibos"
 
 
 class Vendor(StrEnum):
@@ -24,3 +27,5 @@ class Vendor(StrEnum):
     cisco = "cisco"
     fortinet = "fortinet"
     juniper = "juniper"
+    mikrotik = "mikrotik"
+    waystream = "waystream"

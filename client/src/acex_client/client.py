@@ -31,6 +31,8 @@ Namespaces:
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from acex_client.auth import AuthProvider, create_auth_provider
 from acex_client.http import RestClient
 from acex_client.resources.ai import Ai
@@ -59,6 +61,7 @@ class Acex:
         verify: bool = True,
         auth: AuthProvider | None = None,
         timeout: float = 30.0,
+        ned_interfaces: Iterable[int] | None = None,
     ):
         # Normalize base_url so concatenation with /api/v{ver} is safe.
         if not base_url.endswith("/"):
@@ -79,7 +82,7 @@ class Acex:
         self.policies = PoliciesNamespace(self.rest)
         self.config_components = ConfigComponents(self.rest)
         self.cves = Cves(self.rest)
-        self.neds = Neds(self.rest)
+        self.neds = Neds(self.rest, ned_interfaces=ned_interfaces)
         self.system = SystemNamespace(self.rest)
         self.workers = Workers(self.rest)
         self.ztp_methods = ZtpMethods(self.rest)

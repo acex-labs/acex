@@ -3,8 +3,10 @@ import logging
 from datetime import UTC, datetime
 from typing import Literal
 
+from acex.inventory.uniqueness import NODE_ASSET, NODE_CLUSTER, NODE_LOGICAL_NODE, unique
 from acex.models import Asset, AssetCluster, ManagementConnection, Node
 from acex.plugins.neds.manager.ned_manager import NEDManager
+from acex.utils import collection_state
 from acex_devkit.models.config_origin import AnnotatedConfigResponse, ComponentOrigin, OriginSpan
 from acex_devkit.models.management_connection import ManagementConnectionResponse
 from acex_devkit.models.node_response import AssetRefType, NodeAdminStatus, NodeInstance, NodeProvisionStatus
@@ -42,6 +44,17 @@ class NodeService:
         else:
             return method(*args, **kwargs)
 
+    def _collection_states(self, node_ids: list[int]) -> dict:
+        """What the collection agents last found for these nodes. Nothing when there is no database to ask."""
+        db = getattr(getattr(self.adapter, "plugin", None), "db", None)
+        if db is None or not node_ids:
+            return {}
+        session = next(db.get_session())
+        try:
+            return collection_state.states_for(session, node_ids)
+        finally:
+            session.close()
+
     async def _enrich_data(self, node):
         """När en specific node hämtas vill vi,
         berika responsen med datat från refererade objekt."""
@@ -52,6 +65,7 @@ class NodeService:
         connections = sorted(getattr(node, "management_connections", None) or [], key=lambda c: (not c.primary, c.id))
         node = node.model_dump()
         node["management_connections"] = [c.model_dump() for c in connections]
+        node["collection"] = self._collection_states([node["id"]]).get(node["id"])
         if node.get("asset_ref_type") == "asset_cluster":
             node["asset"] = self.inventory.asset_cluster_manager.get_cluster(node["asset_ref_id"]).model_dump()
         else:
@@ -104,14 +118,32 @@ class NodeService:
         matches = [o for o in origins if path[: len(o.path)] == o.path]
         return max(matches, key=lambda o: len(o.path), default=None)
 
+    async def _require_logical_node(self, logical_node_id):
+        """The logical node a node instance is for; 404 if there is none."""
+        ln = await self._call_method(self.inventory.logical_nodes.adapter.get, logical_node_id)
+        if ln is None:
+            raise HTTPException(status_code=404, detail=f"Logical node {logical_node_id} not found")
+        return ln
+
+    async def _asset_ref(self, asset_ref_type, asset_ref_id):
+        """The uniqueness rule and the name for what a node instance runs on; 404 if it does not exist."""
+        if asset_ref_type == "asset_cluster":
+            cluster = self.inventory.asset_cluster_manager.get_cluster(asset_ref_id)  # raises 404 itself
+            return NODE_CLUSTER, cluster.name
+        asset = await self.inventory.assets.get(asset_ref_id)
+        if asset is None:
+            raise HTTPException(status_code=404, detail=f"Asset {asset_ref_id} not found")
+        return NODE_ASSET, asset.serial_number
+
     async def create(self, logical_node: Node) -> NodeInstance:
-        if logical_node.asset_ref_type == "asset_cluster":
-            self.inventory.asset_cluster_manager.get_cluster(logical_node.asset_ref_id)  # raises 404 itself
-        else:
-            asset = await self.inventory.assets.get(logical_node.asset_ref_id)
-            if asset is None:
-                raise HTTPException(status_code=404, detail=f"Asset {logical_node.asset_ref_id} not found")
-        result = await self._call_method(self.adapter.create, logical_node)
+        """Add a node instance; 409 if its logical node or asset already has one."""
+        asset_spec, asset_name = await self._asset_ref(logical_node.asset_ref_type, logical_node.asset_ref_id)
+        ln = await self._require_logical_node(logical_node.logical_node_id)
+        async with (
+            unique(self.adapter, NODE_LOGICAL_NODE, logical_node.logical_node_id, subject=ln.hostname),
+            unique(self.adapter, asset_spec, logical_node.asset_ref_id, subject=asset_name),
+        ):
+            result = await self._call_method(self.adapter.create, logical_node)
         node_id = getattr(result, "id", None)
         if node_id is not None:
             self.inventory.telemetry_agent_manager.bump_revisions_for_node(node_id)
@@ -132,11 +164,14 @@ class NodeService:
         management_connection_ip: str = None,
         logical_node_id: int = None,
         asset_ref_id: int = None,
+        asset_ref_type: AssetRefType | None = None,
         vendor: str = None,
         os: str = None,
         role: str = None,
         admin_status: NodeAdminStatus | None = None,
         provision_status: NodeProvisionStatus | None = None,
+        collection_status: Literal["ok", "failing", "unknown"] | None = None,
+        collection_agent_id: int | None = None,
         limit: int | None = 100,  # None: every item
         offset: int = 0,
         sort: str | None = None,
@@ -150,6 +185,7 @@ class NodeService:
                 "logical_node.role": role,
                 "logical_node_id": logical_node_id,
                 "asset_ref_id": asset_ref_id,
+                "asset_ref_type": asset_ref_type,
                 "admin_status": admin_status,
                 "provision_status": provision_status,
             }.items()
@@ -170,23 +206,27 @@ class NodeService:
                 query_filters["asset_ref_id"] = matching_ids
 
         if region:
-            assignments = self.inventory.region_assignment_manager.list_assignments(region_name=region)
-            site_names = [a.site_name for a in assignments]
+            site_names = self.inventory.region_assignment_manager.site_names_in(region)
             if not site_names:
                 return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
             query_filters["logical_node.site"] = site_names
         elif site is not None:
             query_filters["logical_node.site"] = site
 
-        extra_filters = None
+        extra_filters = []
         if management_connection_ip:
-            extra_filters = [
+            extra_filters.append(
                 Node.id.in_(
                     select(ManagementConnection.node_id).where(
                         ManagementConnection.target_ip.ilike(f"{management_connection_ip}%")
                     )
                 )
-            ]
+            )
+        if collection_status:
+            extra_filters.append(collection_state.status_filter(collection_status))
+        if collection_agent_id is not None:
+            extra_filters.append(collection_state.agent_filter(collection_agent_id))
+        extra_filters = extra_filters or None
 
         sort_column = "id"
         if sort is not None:
@@ -271,6 +311,8 @@ class NodeService:
             if cluster:
                 clusters_by_id[cid] = cluster
 
+        states = self._collection_states([n.id for n in result["items"]])
+
         items = []
         for node in result["items"]:
             if getattr(node, "asset_ref_type", "asset") == "asset_cluster":
@@ -294,6 +336,7 @@ class NodeService:
                     os=os_val,
                     ned_id=ned_id,
                     management_connections=[ManagementConnectionResponse(**c.model_dump()) for c in conns],
+                    collection=states.get(node.id),
                 )
             )
 
@@ -313,9 +356,33 @@ class NodeService:
     async def update(self, id: str, logical_node: Node) -> NodeInstance:
         """Update the node instance and answer it as `get` does, so a client can read both the same way."""
         logical_node.updated_at = datetime.now(UTC)
-        # admin_status, provision_status and logical_node_id affect telemetry rule matching.
-        with self.inventory.telemetry_agent_manager.bumping_revisions_for_nodes([int(id)]):
-            await self._call_method(self.adapter.update, id, logical_node)
+
+        # Moving to another logical node, asset or cluster: the target must exist and be free. A patch that
+        # leaves them as they are is not checked, so a node that already shares an asset stays editable.
+        moved_to = subject = None
+        ref_spec = ref_id = ref_name = None
+        fields = logical_node.model_fields_set
+        if fields & {"logical_node_id", "asset_ref_id", "asset_ref_type"}:
+            current = await self._call_method(self.adapter.get, id)
+            if current is None:
+                raise HTTPException(status_code=404, detail=f"Node instance {id} not found")
+            if "logical_node_id" in fields and logical_node.logical_node_id != current.logical_node_id:
+                moved_to = logical_node.logical_node_id
+                subject = (await self._require_logical_node(moved_to)).hostname
+            ref_type = logical_node.asset_ref_type if "asset_ref_type" in fields else current.asset_ref_type
+            ref_id = logical_node.asset_ref_id if "asset_ref_id" in fields else current.asset_ref_id
+            if (ref_type, ref_id) != (current.asset_ref_type, current.asset_ref_id):
+                ref_spec, ref_name = await self._asset_ref(ref_type, ref_id)
+
+        async with (
+            unique(
+                self.adapter, NODE_LOGICAL_NODE, moved_to, exclude_id=int(id), skip=moved_to is None, subject=subject
+            ),
+            unique(self.adapter, ref_spec, ref_id, exclude_id=int(id), skip=ref_spec is None, subject=ref_name),
+        ):
+            # admin_status, provision_status and logical_node_id affect telemetry rule matching.
+            with self.inventory.telemetry_agent_manager.bumping_revisions_for_nodes([int(id)]):
+                await self._call_method(self.adapter.update, id, logical_node)
         return await self.get(id)
 
     async def delete(self, id: str):
