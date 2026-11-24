@@ -177,6 +177,9 @@ class AutomationEngine:
                 role_id=vault.role_id,
                 secret_id=vault.secret_id.get_secret_value() if vault.secret_id else None,
                 verify=vault.verify,
+                k8s_role=vault.k8s_role,
+                k8s_mount=vault.k8s_mount,
+                k8s_token_path=vault.k8s_token_path,
             )
         key = creds.encryption_key.get_secret_value() if creds.encryption_key else None
         self.credential_manager = CredentialManager(self.db, key, vault_client=vault_client)

@@ -39,13 +39,22 @@ ACEX_CREDENTIALS_VAULT_TOKEN=...
 # or AppRole:
 ACEX_CREDENTIALS_VAULT_ROLE_ID=...
 ACEX_CREDENTIALS_VAULT_SECRET_ID=...
-# false turns the certificate check off (default true):
+# or, in Kubernetes, the service account of the pod (no secret to store):
+ACEX_CREDENTIALS_VAULT_K8S_ROLE=acex
+ACEX_CREDENTIALS_VAULT_K8S_MOUNT=kubernetes          # where the Kubernetes auth method is mounted (default)
+ACEX_CREDENTIALS_VAULT_K8S_TOKEN_PATH=/var/run/secrets/kubernetes.io/serviceaccount/token   # default
+# the certificate check: true (default), false, or the path of the CA file Vault's certificate is checked against:
 ACEX_CREDENTIALS_VAULT_VERIFY=true
 ```
 
-With an AppRole the backend logs in again when its Vault token has expired, so a credential with source `vault` keeps
-working for as long as the role can log in. A static token is not renewed: when it expires the credentials read from
-Vault fail until the token is replaced and the backend restarted.
+If more than one way to log in is set, the AppRole is used before Kubernetes and Kubernetes before the token. With an
+AppRole or Kubernetes the backend logs in again when its Vault token has expired, so a credential with source `vault`
+keeps working for as long as the role can log in; the service account token file is read again at every login, since
+Kubernetes rotates it. A static token is not renewed: when it expires the credentials read from Vault fail until the
+token is replaced and the backend restarted.
+
+A CA file given in `ACEX_CREDENTIALS_VAULT_VERIFY` is used for Vault only. Nothing else the backend calls over HTTPS,
+such as the OIDC provider, is affected by it.
 
 If Vault is not configured, credentials are stored encrypted in PostgreSQL using a symmetric key (`ACEX_CREDENTIALS_ENCRYPTION_KEY`).
 
