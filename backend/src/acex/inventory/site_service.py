@@ -66,8 +66,7 @@ class SiteService:
         }
 
         if region and hasattr(self.inventory, "region_assignment_manager"):
-            assignments = self.inventory.region_assignment_manager.list_assignments(region_name=region)
-            site_names = [a.site_name for a in assignments]
+            site_names = self.inventory.region_assignment_manager.site_names_in(region)
             if not site_names:
                 return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
             query_filters["name"] = site_names

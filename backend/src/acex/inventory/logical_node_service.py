@@ -1,5 +1,6 @@
 import inspect
 
+from acex.inventory.region_assignment_manager import site_names_in_region
 from acex.inventory.uniqueness import LOGICAL_NODE_HOSTNAME, as_id, require_text, unique
 from acex.models import LogicalNode
 from acex.models.node import Node
@@ -92,17 +93,7 @@ class LogicalNodeService:
         }
 
         if region and self.db_manager:
-            session = next(self.db_manager.get_session())
-            try:
-                site_names = list(
-                    session.exec(
-                        select(SiteRegionAssignment.site_name).where(
-                            SiteRegionAssignment.region_name.ilike(f"%{region}%")
-                        )
-                    ).all()
-                )
-            finally:
-                session.close()
+            site_names = site_names_in_region(self.db_manager, region)
             if not site_names:
                 return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
             query_filters["site"] = site_names
