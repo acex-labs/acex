@@ -58,10 +58,11 @@ jobs:
       cisco-ios-cli-result: ${{ steps.result-cisco-ios-cli.outputs.result }}
       cisco-ios-classic-cli-result: ${{ steps.result-cisco-ios-classic-cli.outputs.result }}
       juniper-junos-cli-result: ${{ steps.result-juniper-junos-cli.outputs.result }}
+      fortinet-fortios-cli-result: ${{ steps.result-fortinet-fortios-cli.outputs.result }}
     strategy:
       fail-fast: false
       matrix:
-        component: [backend, cli, client, mcp, devkit, worker, cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli]
+        component: [backend, cli, client, mcp, devkit, worker, cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli, fortinet_fortios_cli]
         include:
           - component: backend
             working-dir: ./backend
@@ -81,6 +82,8 @@ jobs:
             working-dir: ./drivers/cisco_ios_classic_cli
           - component: juniper_junos_cli
             working-dir: ./drivers/juniper_junos_cli
+          - component: fortinet_fortios_cli
+            working-dir: ./drivers/fortinet_fortios_cli
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -156,6 +159,11 @@ jobs:
       - name: Set matrix output
         id: result-juniper-junos-cli
         if: always() && matrix.component == 'juniper_junos_cli'
+        run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
+
+      - name: Set matrix output
+        id: result-fortinet-fortios-cli
+        if: always() && matrix.component == 'fortinet_fortios_cli'
         run: echo "result=${{ steps.result.outputs.result }}" >> $GITHUB_OUTPUT
 
   unit-tests:
@@ -322,6 +330,7 @@ jobs:
           LINT_CISCO: ${{ needs.lint-per-package.outputs.cisco-ios-cli-result }}
           LINT_CISCO_CLASSIC: ${{ needs.lint-per-package.outputs.cisco-ios-classic-cli-result }}
           LINT_JUNIPER: ${{ needs.lint-per-package.outputs.juniper-junos-cli-result }}
+          LINT_FORTINET: ${{ needs.lint-per-package.outputs.fortinet-fortios-cli-result }}
           UT_BACKEND: ${{ needs.unit-tests.outputs.backend-result }}
           UT_CLI: ${{ needs.unit-tests.outputs.cli-result }}
           UT_CLIENT: ${{ needs.unit-tests.outputs.client-result }}
@@ -359,6 +368,7 @@ jobs:
           row "Lint: cisco_ios_cli" "$LINT_CISCO"
           row "Lint: cisco_ios_classic_cli" "$LINT_CISCO_CLASSIC"
           row "Lint: juniper_junos_cli" "$LINT_JUNIPER"
+          row "Lint: fortinet_fortios_cli" "$LINT_FORTINET"
           row "Unit tests: backend" "$UT_BACKEND"
           row "Unit tests: cli" "$UT_CLI"
           row "Unit tests: client" "$UT_CLIENT"
@@ -393,6 +403,7 @@ jobs:
           LINT_CISCO: ${{ needs.lint-per-package.outputs.cisco-ios-cli-result }}
           LINT_CISCO_CLASSIC: ${{ needs.lint-per-package.outputs.cisco-ios-classic-cli-result }}
           LINT_JUNIPER: ${{ needs.lint-per-package.outputs.juniper-junos-cli-result }}
+          LINT_FORTINET: ${{ needs.lint-per-package.outputs.fortinet-fortios-cli-result }}
           UT_BACKEND: ${{ needs.unit-tests.outputs.backend-result }}
           UT_CLI: ${{ needs.unit-tests.outputs.cli-result }}
           UT_CLIENT: ${{ needs.unit-tests.outputs.client-result }}
@@ -417,7 +428,7 @@ jobs:
           }
 
           overall="✅ Alla checks gröna"
-          for r in "$LINT_RESULT" "$LINT_BACKEND" "$LINT_CLI" "$LINT_CLIENT" "$LINT_MCP" "$LINT_DEVKIT" "$LINT_WORKER" "$LINT_CISCO" "$LINT_CISCO_CLASSIC" "$LINT_JUNIPER" "$UT_BACKEND" "$UT_CLI" "$UT_CLIENT" "$UT_MCP" "$UT_DEVKIT" "$UT_WORKER" "$IT_RESULT"; do
+          for r in "$LINT_RESULT" "$LINT_BACKEND" "$LINT_CLI" "$LINT_CLIENT" "$LINT_MCP" "$LINT_DEVKIT" "$LINT_WORKER" "$LINT_CISCO" "$LINT_CISCO_CLASSIC" "$LINT_JUNIPER" "$LINT_FORTINET" "$UT_BACKEND" "$UT_CLI" "$UT_CLIENT" "$UT_MCP" "$UT_DEVKIT" "$UT_WORKER" "$IT_RESULT"; do
             case "$r" in
               success|ok|passed|no-tests|unformatted|"") ;;
               *) overall="❌ Minst en check failar"; break ;;
@@ -435,6 +446,7 @@ jobs:
           $(badge "$LINT_CISCO") cisco_ios_cli
           $(badge "$LINT_CISCO_CLASSIC") cisco_ios_classic_cli
           $(badge "$LINT_JUNIPER") juniper_junos_cli
+          $(badge "$LINT_FORTINET") fortinet_fortios_cli
           EOF
           )
 
@@ -776,9 +788,11 @@ jobs:
       cisco-ios-classic-cli-version: ${{ steps.check-cisco-ios-classic-cli.outputs.version }}
       juniper-junos-cli-should-publish: ${{ steps.check-juniper-junos-cli.outputs.should-publish }}
       juniper-junos-cli-version: ${{ steps.check-juniper-junos-cli.outputs.version }}
+      fortinet-fortios-cli-should-publish: ${{ steps.check-fortinet-fortios-cli.outputs.should-publish }}
+      fortinet-fortios-cli-version: ${{ steps.check-fortinet-fortios-cli.outputs.version }}
     strategy:
       matrix:
-        driver: [cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli]
+        driver: [cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli, fortinet_fortios_cli]
         include:
           - driver: cisco_ios_cli
             pypi-name: acex-driver-cisco-ioscli
@@ -786,6 +800,8 @@ jobs:
             pypi-name: acex-driver-cisco-ios-classic-cli
           - driver: juniper_junos_cli
             pypi-name: acex-driver-juniper-junoscli
+          - driver: fortinet_fortios_cli
+            pypi-name: acex-driver-fortinet-fortios-cli
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -841,6 +857,12 @@ jobs:
         run: |
           echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
           echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
+      - name: Set matrix output
+        id: check-fortinet-fortios-cli
+        if: matrix.driver == 'fortinet_fortios_cli'
+        run: |
+          echo "should-publish=${{ steps.check-pypi.outputs.should-publish }}" >> $GITHUB_OUTPUT
+          echo "version=${{ steps.get-version.outputs.version }}" >> $GITHUB_OUTPUT
 
   version-summary:
     name: Version summary
@@ -866,6 +888,8 @@ jobs:
           CISCO_CLASSIC_SHOULD_PUBLISH: ${{ needs.check-driver-versions.outputs.cisco-ios-classic-cli-should-publish }}
           JUNIPER_VERSION: ${{ needs.check-driver-versions.outputs.juniper-junos-cli-version }}
           JUNIPER_SHOULD_PUBLISH: ${{ needs.check-driver-versions.outputs.juniper-junos-cli-should-publish }}
+          FORTINET_VERSION: ${{ needs.check-driver-versions.outputs.fortinet-fortios-cli-version }}
+          FORTINET_SHOULD_PUBLISH: ${{ needs.check-driver-versions.outputs.fortinet-fortios-cli-should-publish }}
         run: |
           row() {
             local name="$1" version="$2" should_publish="$3"
@@ -887,6 +911,7 @@ jobs:
           row "acex-driver-cisco-ioscli" "$CISCO_VERSION" "$CISCO_SHOULD_PUBLISH"
           row "acex-driver-cisco-ios-classic-cli" "$CISCO_CLASSIC_VERSION" "$CISCO_CLASSIC_SHOULD_PUBLISH"
           row "acex-driver-juniper-junoscli" "$JUNIPER_VERSION" "$JUNIPER_SHOULD_PUBLISH"
+          row "acex-driver-fortinet-fortios-cli" "$FORTINET_VERSION" "$FORTINET_SHOULD_PUBLISH"
 
   build-drivers:
     name: Build Driver ${{ matrix.driver }}
@@ -896,7 +921,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        driver: [cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli]
+        driver: [cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli, fortinet_fortios_cli]
         include:
           - driver: cisco_ios_cli
             pypi-name: acex-driver-cisco-ioscli
@@ -907,6 +932,9 @@ jobs:
           - driver: juniper_junos_cli
             pypi-name: acex-driver-juniper-junoscli
             should-publish-output: juniper-junos-cli-should-publish
+          - driver: fortinet_fortios_cli
+            pypi-name: acex-driver-fortinet-fortios-cli
+            should-publish-output: fortinet-fortios-cli-should-publish
     steps:
       - name: Check if should publish
         id: should-publish
@@ -985,7 +1013,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        driver: [cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli]
+        driver: [cisco_ios_cli, cisco_ios_classic_cli, juniper_junos_cli, fortinet_fortios_cli]
         include:
           - driver: cisco_ios_cli
             pypi-name: acex-driver-cisco-ioscli
@@ -996,6 +1024,9 @@ jobs:
           - driver: juniper_junos_cli
             pypi-name: acex-driver-juniper-junoscli
             should-publish-output: juniper-junos-cli-should-publish
+          - driver: fortinet_fortios_cli
+            pypi-name: acex-driver-fortinet-fortios-cli
+            should-publish-output: fortinet-fortios-cli-should-publish
     steps:
       - name: Check if should publish
         id: should-publish
