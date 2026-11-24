@@ -17,7 +17,9 @@ class CiscoIOSState(State):
             os=OS.cisco_iosxe if re.search(r"Cisco IOS[ -]XE Software", output) else OS.cisco_ios,
             os_version=self.find(r"^Cisco IOS.*?Version ([^\s,]+)", output),
             hardware_model=self.find(r"Model Number\s+:\s*(\S+)", output)
-            or self.find(r"^cisco (\S+) .*processor", output),
+            or self.find(r"^cisco (\S+) .*processor", output)
+            # A 1900, 2900 or 3900 router has no processor on its line: "Cisco CISCO1941/K9 (revision 1.0) with ..."
+            or self.find(r"^Cisco (\S+) \(revision [^)]*\) with ", output),
             serial_number=self.find(r"System Serial Number\s+:\s*(\S+)", output)
             or self.find(r"Processor board ID (\S+)", output),
         )
