@@ -5,6 +5,7 @@ One module per hardware family; add a new family by adding a file here.
 """
 
 from acex_devkit.device_types.cisco import (  # noqa: F401  (registers devices)
+    catalyst1300,
     catalyst2950,
     catalyst2960,
     catalyst3500,
@@ -26,6 +27,7 @@ from acex_devkit.device_types.cisco import (  # noqa: F401  (registers devices)
     routers,
 )
 from acex_devkit.device_types.cisco.base import (
+    CiscoBusinessDevice,
     CiscoIOSDevice,
     CiscoIOSXEDevice,
     CiscoNetworkModule,
@@ -33,6 +35,7 @@ from acex_devkit.device_types.cisco.base import (
 )
 
 __all__ = [
+    "CiscoBusinessDevice",
     "CiscoIOSDevice",
     "CiscoIOSXEDevice",
     "CiscoNXOSDevice",
