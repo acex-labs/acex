@@ -15,6 +15,13 @@ from acex_devkit.models.platform import OS
 DOTTED = r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?P<qualifier>[A-Za-z]\w*)?"
 # 15.2(7)E3, 12.2(55)SE12, 9.3(8) - Cisco train notation
 TRAIN = r"(?P<major>\d+)\.(?P<minor>\d+)\((?P<patch>\d+)\)(?P<qualifier>[A-Za-z]\w*)?"
+# 7.0(3)I7(9), 9.3(8), 7.0(3)I7 - NX-OS train notation. The qualifier is the train (I7) and the number in the last
+# parentheses is the rebuild of that train, which is the build component: 7.0(3)I7 sorts before 7.0(3)I7(9), and
+# (10) after (9). A rebuild follows a train, so 9.3(8)(2) is not a version.
+TRAIN_REBUILD = (
+    r"(?P<major>\d+)\.(?P<minor>\d+)\((?P<patch>\d+)\)"
+    r"(?:(?P<qualifier>[A-Za-z]\w*)(?:\((?P<build>\d+)\))?)?"
+)
 # 4.30.3M, 4.28.6.1M - dotted with an optional fourth component, as Arista EOS uses
 DOTTED_BUILD = (
     r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
@@ -72,8 +79,8 @@ class CiscoIosXrVersions(OsVersionScheme):
 
 class CiscoNxosVersions(OsVersionScheme):
     os: OS = OS.cisco_nxos
-    patterns: list[str] = [DOTTED, TRAIN]
-    examples: list[str] = ["10.2.5", "9.3(8)"]
+    patterns: list[str] = [DOTTED, TRAIN_REBUILD]
+    examples: list[str] = ["10.2.5", "9.3(8)", "7.0(3)I7(9)"]
 
 
 class JuniperJunosVersions(OsVersionScheme):
