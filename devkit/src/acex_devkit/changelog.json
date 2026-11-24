@@ -4,6 +4,102 @@
   "name": "ACEX devkit",
   "releases": [
     {
+      "version": "3.3.0",
+      "date": "2026-11-24",
+      "entries": [
+        {
+          "id": "20261105-a-driver-declares-which-ned-interface-it",
+          "kind": "added",
+          "title": "A driver declares which NED interface it implements",
+          "description": "A driver sets `interface_version` to a number in its class body: the NED interface it was written for. `acex_devkit.drivers.NED_INTERFACE` is the number devkit defines now, raised only when the contract between a driver and the process that runs it changes in a way that breaks either side, and `NetworkElementDriver.interface_version` is `None` for a driver that does not say, which agents and workers do not check. `Ned`, the entry in the list of drivers, carries the number as `interface_version`, which is `None` where the driver declares none or the backend predates the field.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261124-cisco-business-firmware-is-a-known",
+          "kind": "added",
+          "title": "Cisco Business firmware is a known platform",
+          "description": "New `OS.cisco_business` for the firmware of the Catalyst 1300, CBS250 and CBS350, with a version scheme (`CiscoBusinessVersions`) that accepts what it reports: four numbers, for example `4.1.7.17` or `3.5.2.8`. `cisco_ios` and `cisco_iosxe` still take three, so a four-number version on one of them is refused. Five Catalyst 1300 models are declared with the ports of their data sheet (`C1300-8P-E-2G`, `C1300-24P-4X`, `C1300-48P-4X`, `C1300-48P-4G` and `C1300-48T-4G`), so an asset of vendor Cisco, OS `cisco_business` can be created and is offered in the asset form. There is no driver yet.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261117-driver-errors-for-a-refused-connection-a",
+          "kind": "added",
+          "title": "Driver errors for a refused connection, a privilege level and an SSH algorithm",
+          "description": "A driver can raise `HostUnreachable` when no connection could be made (refused, no route), `PrivilegeFailed` when the login works but the privilege level it needs cannot be reached, and `SshAlgorithmMismatch` when the device and the driver share no SSH algorithm. They are connection errors like `AuthenticationFailed` and `ConnectionTimeout`, and the collection agent uses their type to say why a node was not collected.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261123-mikrotik-routeros-is-a-known-platform",
+          "kind": "added",
+          "title": "MikroTik RouterOS is a known platform",
+          "description": "New `Vendor.mikrotik` and `OS.mikrotik_routeros`, with a version scheme (`MikrotikRouterosVersions`) that accepts what RouterOS reports, for example `6.49.17`, `7.16.1` and `7.17`, and the testing channel spellings `7.17beta2` and `7.17rc3`. The channel that `/system resource print` writes after the number, such as `(stable)`, is not part of the version. Versions compare by their numbers; a pre-release sorts after its release. Six RouterBOARDs are declared, so MikroTik is offered as a vendor when an asset is created: `RB750Gr3` (hEX), `RB760iGS` (hEX S), `RB4011iGS+RM`, `RB5009UG+S+IN`, `CCR2004-16G-2S+` and `CRS326-24G-2S+RM`. Their ports come from MikroTik's product pages, not from an observed device. There is no MikroTik driver yet, so no model is supported by a NED.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261116-models-for-the-collection-state-of-a",
+          "kind": "added",
+          "title": "Models for the collection state of a node",
+          "description": "A collection agent reports what it found for each node with `CollectionResult` (`node_id`, `ok`, a `CollectionFailure` category and a message of at most 500 characters), sent as a `CollectionResultsUpload`. `NodeCollectionStateResponse` says whether a node is `ok` or `failing`, when it was last tried and last collected, since when it has failed, how many times in a row, why, and which collection agent made the last attempt (`agent_id` and `agent_name`). It is on `NodeListItem` and `NodeInstance` as `collection`, empty until an agent has reported on the node. `AgentCollectionSummary` counts the nodes an agent made the last attempt on: `collected`, `not_collected` and `by_category`.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261119-models-for-the-list-of-assets-in",
+          "kind": "added",
+          "title": "Models for the list of assets in software compliance",
+          "description": "`SoftwareAssetRow` is one asset against the software policy with its node, site and regions, and `SoftwareAssetList` is a page of them with the number of assets per status.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261123-two-waystream-switches-can-be-added-as",
+          "kind": "added",
+          "title": "Two Waystream switches can be added as assets",
+          "description": "Waystream is offered as a vendor when an asset is created, with two models declared: `MS4026-AC` and `MS7048-AC`, both on iBOS. The names come from `show version` on a device and in a report; no port layout is declared for either, because none of the sources states one, so a model has no ports until someone adds them. Every iBOS version seen so far is accepted, for example `6.3.0-ED-R`, `6.3.5-ED-R`, `7.5.2-ED-R` and `7.6.2-GD-R`. There is no Waystream driver in this release, so no model is supported by a NED.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261113-waystream-ibos-is-a-known-platform",
+          "kind": "added",
+          "title": "Waystream iBOS is a known platform",
+          "description": "New `Vendor.waystream` and `OS.waystream_ibos`, with a version scheme (`WaystreamIbosVersions`) that accepts what `show version` prints, for example `6.3.5-ED-R`, `7.6.2-GD-R` and `6.1.0-ED-RC2`. Versions compare by their numbers and the release class (ED, GD); the suffix after it (R, RC2) is accepted but not compared. No device types are declared yet, so no Waystream hardware appears in the platform catalog until a model is added.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261124-a-configuration-with-spanning-tree",
+          "kind": "fixed",
+          "title": "A configuration with spanning tree components validates after a JSON round trip",
+          "description": "A configuration composed from `SpanningTreeGlobal`, `SpanningTreeRSTP`, `SpanningTreeMSTP`, `SpanningTreeMstpInstance` or `SpanningTreeRapidPVST` components failed validation when it was read back from JSON, for example `stp.config.loop_guard: Input should be a valid dictionary`. The model typed `stp.config`, `stp.rstp.config` and `stp.mstp.config` as collections keyed by name, while the configuration engine places one object there, which is also what the API returns. They are now typed as one object each. The MST instances and the Rapid PVST VLANs are collections, and they now start out empty, so that each component is placed under its name; before, only the last of several instances or VLANs was kept. A configuration saved with `stp.config` as a collection keyed by name is no longer accepted.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        },
+        {
+          "id": "20261119-a-management-connection-can-be-created",
+          "kind": "fixed",
+          "title": "A management connection can be created with its node",
+          "description": "`ManagementConnectionCreate` has the field `node_id`, the node the connection belongs to, which the API has always required. Before, the model left it out and dropped it when a body was validated, so `client.inventory.management_connections.create(node_id=..., target_ip=...)` sent a body without it and the API answered 422. `node_id` is required: a call that leaves it out now fails in the client with a validation error instead of a 422 from the API. Nothing changes for code that only reads connections (`ManagementConnectionResponse` already had `node_id`).",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "3.2.0",
       "date": "2026-11-13",
       "entries": [
