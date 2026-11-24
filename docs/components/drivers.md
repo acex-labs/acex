@@ -11,6 +11,14 @@ A NED (Network Element Driver) is a Python package that knows one kind of device
 | Juniper JunOS CLI | `acex-driver-juniper-junoscli` | Juniper JunOS |
 | Fortinet FortiOS CLI | `acex-driver-fortinet-fortios-cli` | Fortinet FortiOS |
 
+### The account a FortiGate is read with
+
+The FortiOS driver reads with `get system status` and `show full-configuration` and changes nothing in the device: a long output is paged with `--More--`, and the driver answers the pager with a key for every page instead of switching the pager off.
+
+- Give it an administrator that may run those two commands. Whether a profile with read access only is enough has not been tried on a real unit; the only unit it was checked on is a FortiGate-VM 7.6.8, as its administrator.
+- On a unit with VDOMs, use an administrator that sees all of them (a global one). The read then holds the global part and every VDOM. An account limited to one VDOM is refused with an error, since its read would be partial.
+- A read that is not whole is an error and is never stored: it must begin with the header comment (`#config-version=`), end with the closing line of the last block, hold no `--More--` and, with VDOMs, include `config global`.
+
 ## The pieces
 
 A driver is a few small classes tied together by one more. Their base classes are in `devkit/src/acex_devkit/drivers/base.py`.
