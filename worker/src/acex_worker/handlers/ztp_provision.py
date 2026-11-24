@@ -1,10 +1,14 @@
-"""acex.ztp.discover: log in to a device that fetched its ZTP bootstrap and ask what it is."""
+"""acex.ztp.provision: push a node's full configuration to its approved device, logging in with the ZTP method's
+bootstrap login."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from acex_client import Acex
+from acex_devkit.drivers import NetworkElementDriver
+from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.job import JobResponse
 from acex_devkit.models.node_response import NodeProvisionStatus
 from acex_devkit.models.ztp import ZtpProvisionData, ZtpProvisionResult
@@ -25,28 +29,32 @@ class HandleZtpProvision(Handler):
 
         driver = load_ned(client, node.asset.ned_id)
 
-        # mgmt connectionset
+        # The device was approved at the address it was discovered at, which is the node's primary connection.
         connections = client.inventory.management_connections.query(node_id=node.id).items
         connection = next((c for c in connections if c.primary), None)
         if connection is None or not connection.target_ip:
             raise RuntimeError(f"Node {node.id} has no primary management connection with an IP")
 
-        # Config to send
-        configuration = client.inventory.logical_nodes.get(node.logical_node_id).configuration().configuration
-
-        # Get init credentials for ztp
-        m = client.ztp_methods.get(method=job_data.method)
-        username, password = m.bootstrap_username, m.bootstrap_password
-
-        driver.provision(
-            configuration,
-            node,
-            connection.target_ip,
-            {"username": username, "password": password},
+        configuration = client.inventory.logical_nodes.configuration(id=node.logical_node_id).configuration
+        method = client.ztp_methods.get(method=job_data.method)
+        if not method.bootstrap_username or not method.bootstrap_password:
+            raise RuntimeError(f"No bootstrap login is set for ZTP method {job_data.method}")
+        login = CredentialSecret(
+            id=0,
+            credential_type="userpass",
+            fields={"username": method.bootstrap_username, "password": method.bootstrap_password},
         )
 
-        out = node.provision_status = NodeProvisionStatus.provisioned
+        payload = str(driver.render(configuration, node).payload)
+        lines = len([line for line in payload.splitlines() if line.strip() and line.strip() != "!"])
+        output = asyncio.run(self.push(driver, node, connection.target_ip, [login], payload))
+
+        node.provision_status = NodeProvisionStatus.provisioned
         node.save()
 
-        result = ZtpProvisionResult(lines_sent=400000, output=out)
-        return result
+        return ZtpProvisionResult(lines_sent=lines, output=driver.mask(str(output or "")))
+
+    @staticmethod
+    async def push(driver: NetworkElementDriver, node, address: str, credentials: list[CredentialSecret], payload: str):
+        async with driver.connect(address, credentials, node) as session:
+            return await session.apply(payload)
