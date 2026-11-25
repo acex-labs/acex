@@ -2,12 +2,20 @@
 
 Every datetime column was created as `timestamp without time zone`, but the backend writes aware UTC values. PostgreSQL
 turns such a value into the wall clock of the session's time zone when it stores it in a `timestamp` column, so on a
-server that runs in Europe/Amsterdam every stored time was one hour ahead of UTC in winter and two in summer, and the
-API then labelled it UTC.
+server that runs in a zone ahead of UTC every stored time was one or two hours ahead of UTC, and the API then labelled
+it UTC.
 
 A `timestamp` column is read in the session's zone when it becomes a `timestamptz`, which is the zone it was written in,
-so every existing row gets the moment it always stood for. PostgreSQL only: SQLite has no time zones and the backend
-already stores UTC there. The migration runs in the API's own session, so it reads the zone the API wrote with.
+so the rows get the moment they stood for. PostgreSQL only: SQLite has no time zones and the backend already stores UTC
+there. The migration runs in the API's own session, so it reads the zone the API wrote with.
+
+One group of columns needs more. Until acex 6.20.0 (released 2026-09-22) the models of `node`, `device_config` and
+`lldpneighbor` wrote `datetime.utcnow()`, a naive UTC value that PostgreSQL stores as it is: those rows hold the UTC
+clock, not the server's. A deployment that took 6.20.0 on the day it came out has the UTC clock in every row stored
+before 16:00 that day and the server's clock in every row after, with nothing in between, because the server's clock
+is at least one hour ahead of UTC. The upgrade reads the first kind as UTC. A deployment that took 6.20.0 on another
+day, or whose server runs behind UTC, has to change `_UTC_CLOCK_BEFORE` to the stored clock up to which its old rows
+were written.
 
 Revision ID: d3a9f5c1e7b4
 Revises: c9e4a2f6b8d1
@@ -64,6 +72,24 @@ _COLUMNS: tuple[tuple[str, str], ...] = (
     ("ztp_vendor_class", "updated_at"),
 )
 
+#: The columns whose old rows hold the UTC clock (see above). Every other column was written as an aware value from the
+#: day its table was made, so all of its rows hold the server's clock.
+_LEGACY: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("node", "created_at"),
+        ("node", "updated_at"),
+        ("device_config", "created_at"),
+        ("lldpneighbor", "collected_at"),
+    }
+)
+
+#: A stored value of a legacy column before this is the UTC clock; from it, the server's clock.
+_UTC_CLOCK_BEFORE = "2026-09-22 16:00:00"
+#: The same boundary after the conversion, where the value is a moment and not a clock: a moment before this was
+#: stored as the UTC clock and goes back to it when the migration is undone. It lies between the last old row and the
+#: first new one, like the boundary above, and is an hour earlier because the server's clock is one or two hours ahead.
+_UTC_MOMENT_BEFORE = "2026-09-22 15:00:00+00"
+
 
 def _present(bind, with_time_zone: bool) -> list[tuple[str, str]]:
     """The listed columns that exist and are (not) `timestamptz` at the moment."""
@@ -79,14 +105,22 @@ def _present(bind, with_time_zone: bool) -> list[tuple[str, str]]:
     return found
 
 
-def _convert(bind, columns: list[tuple[str, str]], to: str) -> None:
+def _reading(table: str, column: str, to: str) -> str:
+    """The expression that gives the column its new value."""
     # `AT TIME ZONE` with the session's zone is what a plain cast does; spelled out so that the migration says
     # which zone it reads.
+    server = f"\"{column}\" AT TIME ZONE current_setting('TimeZone')"
+    if (table, column) not in _LEGACY:
+        return server
+    utc = f"\"{column}\" AT TIME ZONE 'UTC'"
+    if to == "timestamptz":
+        return f"CASE WHEN \"{column}\" < timestamp '{_UTC_CLOCK_BEFORE}' THEN {utc} ELSE {server} END"
+    return f"CASE WHEN \"{column}\" < timestamptz '{_UTC_MOMENT_BEFORE}' THEN {utc} ELSE {server} END"
+
+
+def _convert(columns: list[tuple[str, str]], to: str) -> None:
     for table, column in columns:
-        op.execute(
-            f'ALTER TABLE "{table}" ALTER COLUMN "{column}" TYPE {to} '
-            f"USING \"{column}\" AT TIME ZONE current_setting('TimeZone')"
-        )
+        op.execute(f'ALTER TABLE "{table}" ALTER COLUMN "{column}" TYPE {to} USING {_reading(table, column, to)}')
 
 
 def upgrade() -> None:
@@ -95,15 +129,17 @@ def upgrade() -> None:
         return
     columns = _present(bind, with_time_zone=False)
     logger.info(
-        "Timestamps: %d column(s) to timestamptz, existing values read in time zone %s",
+        "Timestamps: %d column(s) to timestamptz, rows read in time zone %s, but as UTC before %s in %d of them",
         len(columns),
         bind.exec_driver_sql("show timezone").scalar(),
+        _UTC_CLOCK_BEFORE,
+        len(_LEGACY & set(columns)),
     )
-    _convert(bind, columns, "timestamptz")
+    _convert(columns, "timestamptz")
 
 
 def downgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name != "postgresql":
         return
-    _convert(bind, _present(bind, with_time_zone=True), "timestamp")
+    _convert(_present(bind, with_time_zone=True), "timestamp")

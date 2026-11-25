@@ -1,8 +1,10 @@
 """The timestamp migration: PostgreSQL columns keep the moment they stand for, whatever zone the server runs in.
 
 The backend writes aware UTC values. Into a `timestamp` column PostgreSQL stores them as the wall clock of the session's
-zone, and the API then called that UTC, so a server in Europe/Amsterdam showed every time one hour late in winter and
-two in summer. The migration makes the columns `timestamptz` and reads the old rows in the zone they were written in.
+zone, and the API then called that UTC, so a server in Europe/Amsterdam showed every time one hour ahead in winter and
+two in summer. The migration makes the columns `timestamptz` and reads the old rows in the zone they were written in,
+except the rows that the older models wrote as the UTC clock (`node`, `device_config` and `lldpneighbor`, before
+2026-09-22).
 
 The SQLite tests always run. The PostgreSQL ones run when `ACEX_TEST_POSTGRES_URL` names a server that may create
 and drop a database, for example `postgresql+psycopg2://postgres:postgres@localhost:55432/postgres`.
@@ -16,6 +18,7 @@ from pathlib import Path
 
 import pytest
 from acex.database import Connection, DatabaseManager
+from acex.models.device_config import StoredDeviceConfig
 from acex.models.git_repository import GitRepositoryRow
 from alembic import command
 from alembic.config import Config
@@ -105,6 +108,10 @@ def should_list_every_datetime_column_of_the_models():
         if isinstance(getattr(column.type, "impl", column.type), DateTime)
     }
     assert in_models == set(MODULE._COLUMNS) | LATER
+
+
+def should_name_only_listed_columns_as_written_in_utc_before():
+    assert MODULE._LEGACY <= set(MODULE._COLUMNS)
 
 
 def should_leave_sqlite_alone(tmp_path, monkeypatch):
@@ -234,3 +241,73 @@ def should_go_back_to_the_wall_clock_on_downgrade(server_zone_amsterdam):
     assert column_types(amsterdam) == {"timestamp without time zone"}
     assert stored(amsterdam, "last_checked_at", repo_id) == "2026-11-25 14:13:54.427564"
     assert stored(amsterdam, "last_synced_at", repo_id) == "2026-07-01 12:00:00"
+
+
+def device_config_row(engine, created: str | None = None, written: datetime | None = None) -> int:
+    """A device config stored the way the old code stored it (`created`, the UTC clock as text) or the way the
+    current code stores it (`written`, an aware value through the models)."""
+    if written is not None:
+        with Session(engine) as session:
+            row = StoredDeviceConfig(node_instance_id="n", content="c", hash="h", created_at=written)
+            session.add(row)
+            session.commit()
+            return row.id
+    with engine.begin() as connection:
+        return connection.execute(
+            text(
+                "insert into device_config (node_instance_id, content, hash, created_at) "
+                "values ('n', 'c', 'h', :created) returning id"
+            ),
+            {"created": created},
+        ).scalar()
+
+
+def moment(engine, table: str, column: str, row_id: int) -> str:
+    """The moment a `timestamptz` column holds, as UTC clock text."""
+    with engine.connect() as connection:
+        return connection.execute(
+            text(f"select ({column} at time zone 'UTC')::text from {table} where id = :id"), {"id": row_id}
+        ).scalar()
+
+
+def clock(engine, table: str, column: str, row_id: int) -> str:
+    with engine.connect() as connection:
+        return connection.execute(text(f"select {column}::text from {table} where id = :id"), {"id": row_id}).scalar()
+
+
+@needs_postgres
+def should_read_the_rows_the_old_code_wrote_as_the_utc_clock(server_zone_amsterdam):
+    amsterdam = server_zone_amsterdam()
+    command.upgrade(alembic_config(amsterdam), BEFORE)
+    old = device_config_row(amsterdam, created="2026-09-03 14:21:34")  # written by utcnow(): the UTC clock
+    last_old = device_config_row(amsterdam, created="2026-09-22 15:59:59")
+    first_new = device_config_row(amsterdam, created="2026-09-22 16:00:00")  # a server clock, UTC+2 that day
+    new = device_config_row(amsterdam, written=WINTER)  # written by now(UTC): the server clock, 14:13:54
+    with Session(amsterdam) as session:  # a column that was never written as the UTC clock, early in September
+        other = repository(created_at=datetime(2026, 9, 3, 12, 21, 34, tzinfo=UTC))
+        session.add(other)
+        session.commit()
+        other_id = other.id
+    assert clock(amsterdam, "device_config", "created_at", new) == "2026-11-25 14:13:54.427564"
+
+    command.upgrade(alembic_config(amsterdam), AFTER)
+
+    assert moment(amsterdam, "device_config", "created_at", old) == "2026-09-03 14:21:34"
+    assert moment(amsterdam, "device_config", "created_at", last_old) == "2026-09-22 15:59:59"
+    assert moment(amsterdam, "device_config", "created_at", first_new) == "2026-09-22 14:00:00"
+    assert moment(amsterdam, "device_config", "created_at", new) == "2026-11-25 13:13:54.427564"
+    assert moment(amsterdam, "git_repository", "created_at", other_id) == "2026-09-03 12:21:34"
+
+
+@needs_postgres
+def should_give_old_utc_rows_back_as_the_utc_clock_on_downgrade(server_zone_amsterdam):
+    amsterdam = server_zone_amsterdam()
+    command.upgrade(alembic_config(amsterdam), BEFORE)
+    old = device_config_row(amsterdam, created="2026-09-03 14:21:34")
+    new = device_config_row(amsterdam, written=WINTER)
+    command.upgrade(alembic_config(amsterdam), AFTER)
+
+    command.downgrade(alembic_config(amsterdam), BEFORE)
+
+    assert clock(amsterdam, "device_config", "created_at", old) == "2026-09-03 14:21:34"
+    assert clock(amsterdam, "device_config", "created_at", new) == "2026-11-25 14:13:54.427564"
