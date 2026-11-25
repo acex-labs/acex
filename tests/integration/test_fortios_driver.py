@@ -305,29 +305,125 @@ def test_an_error_while_opening_is_raised_as_the_devkit_error_for_it(monkeypatch
     assert type(caught.value) is raised
 
 
-def a_session_printing(output, name="FGT-1"):
-    """What a FortiOS session prints for `run`: a prompt before each of the seven lines it is typed (the lines are not
-    echoed), the output of the command following the fourth."""
-    before = f"{name} # \n{name} (console) # \n{name} (console) # \n{name} # "
-    after = f"\n{name} # \n{name} (console) # \n{name} (console) # \n{name} # "
-    return before + output + after
-
-
 class FakeConnection:
-    """What `asyncssh.connect` returns: a typed-in script that holds a command of `printing` is answered the way a
-    session prints that command's output, any other by `answers`, keyed by the command (None for a session)."""
+    """What `asyncssh.connect` returns for a configuration: a script typed into a session is answered by `answers`,
+    keyed by the command (None for a session)."""
 
-    def __init__(self, answers=None, printing=None):
+    def __init__(self, answers=None):
         self.answers = answers or {}
-        self.printing = printing or {}
         self.runs = []
 
     async def run(self, command, input=None, check=True):
         self.runs.append((command, input))
-        for line in (input or "").splitlines():
-            if line in self.printing:
-                return SimpleNamespace(stdout=a_session_printing(self.printing[line]))
         return SimpleNamespace(stdout=self.answers.get(command, ""))
+
+
+class FakeFortiOS:
+    """What `asyncssh.connect` returns for a unit that is read: each `create_process` is a CLI session that prints a
+    prompt and takes a command line. The output is printed `page` lines at a time; after each page but the last the
+    pager prints `--More--` and waits for a key, which it echoes and erases the way FortiOS does. `exit` ends the
+    session. With `pager=False` the output is printed at once."""
+
+    def __init__(self, outputs, page=3, name="FGT-1", pager=True, cut_after=None, keys_taken=True, split_after=None):
+        self.outputs = outputs
+        self.page = page
+        self.name = name
+        self.pager = pager
+        self.cut_after = cut_after
+        self.keys_taken = keys_taken
+        self.split_after = split_after
+        self.sessions = []
+
+    async def create_process(self, **kwargs):
+        session = FakeSession(self)
+        self.sessions.append(session)
+        return session
+
+
+class FakeSession:
+    def __init__(self, device):
+        self.device = device
+        self.typed = []
+        self.writes = []
+        self.keys = 0
+        self.closed = False
+        self.stdin = self
+        self.stdout = self
+        self._out = asyncio.Queue()
+        self._in = bytearray()
+        self._wake = asyncio.Event()
+        self._task = asyncio.ensure_future(self._serve())
+
+    # stdin
+    def write(self, data):
+        self.writes.append(data)
+        self._in.extend(data)
+        self._wake.set()
+
+    # stdout
+    async def read(self, n):
+        return await self._out.get()
+
+    def close(self):
+        self.closed = True
+        self._task.cancel()
+
+    @property
+    def lines(self):
+        """What was typed, line by line, without the keys left over in front of a line."""
+        return [line.strip() for line in b"".join(self.writes).decode().split("\n") if line.strip()]
+
+    def _say(self, text):
+        if text:
+            self._out.put_nowait(text.encode())
+
+    async def _byte(self):
+        while not self._in:
+            self._wake.clear()
+            await self._wake.wait()
+        return self._in.pop(0)
+
+    async def _line(self):
+        line = bytearray()
+        while True:
+            byte = await self._byte()
+            if byte == ord("\n"):
+                return line.decode().strip()
+            line.append(byte)
+
+    async def _serve(self):
+        d = self.device
+        prompt = f"{d.name} # "
+        self._say(prompt)
+        while True:
+            command = await self._line()
+            self.typed.append(command)
+            if command == "exit":
+                self._out.put_nowait(b"")
+                return
+            lines = d.outputs.get(command, "Unknown action 0\n").splitlines(keepends=True)
+            step = d.page if d.pager else max(len(lines), 1)
+            pages = [lines[i : i + step] for i in range(0, len(lines), step)] or [[]]
+            for number, page in enumerate(pages):
+                text = "".join(page)
+                if d.split_after and d.split_after in text:
+                    head, _, rest = text.partition(d.split_after)
+                    self._say(head + d.split_after)
+                    await asyncio.sleep(0.02)
+                    text = rest
+                self._say(text)
+                if number < len(pages) - 1:
+                    self._say("--More-- ")
+                    if d.cut_after == number:
+                        self._out.put_nowait(b"")
+                        return
+                    if d.keys_taken:
+                        await self._byte()
+                        self.keys += 1
+                        self._say(" \r         \r")
+                    else:
+                        await asyncio.sleep(3600)
+            self._say(prompt)
 
 
 def transport_on(connection):
@@ -336,45 +432,144 @@ def transport_on(connection):
     return transport
 
 
-def test_the_configuration_is_read_in_a_session_with_the_pager_off_and_back_on():
-    connection = FakeConnection(printing={"show full-configuration": SHOW_FULL_CONFIGURATION})
+LONG_CONFIGURATION = "".join(
+    [SHOW_FULL_CONFIGURATION.split("config system global")[0]]
+    + [
+        f'config firewall address\n    edit "host-{n}"\n        set subnet 10.0.{n // 250}.{n % 250} 255.255.255.255\n'
+        "    next\nend\n"
+        for n in range(300)
+    ]
+    + ['config system global\n    set hostname "FGT-1"\nend\n']
+)
 
-    config = asyncio.run(transport_on(connection).get_config())
+
+def test_a_configuration_is_read_with_the_pager_answered_and_nothing_changed_in_the_device():
+    unit = FakeFortiOS({"show full-configuration": SHOW_FULL_CONFIGURATION}, page=4)
+
+    config = asyncio.run(transport_on(unit).get_config())
 
     assert config == SHOW_FULL_CONFIGURATION
-    assert connection.runs == [
-        (
-            None,
-            "config system console\nset output standard\nend\n"
-            "show full-configuration\n"
-            "config system console\nset output more\nend\nexit\n",
-        )
+    assert [s.lines for s in unit.sessions] == [["show full-configuration", "exit"]]
+    assert unit.sessions[0].keys == len(SHOW_FULL_CONFIGURATION.splitlines()) // 4
+
+
+def test_a_long_configuration_is_read_whole_and_the_keys_for_its_pages_are_sent_in_batches():
+    unit = FakeFortiOS({"show full-configuration": LONG_CONFIGURATION}, page=7)
+
+    config = asyncio.run(transport_on(unit).get_config())
+
+    pages = len(LONG_CONFIGURATION.splitlines()) // 7
+    assert config == LONG_CONFIGURATION
+    assert unit.sessions[0].keys == pages
+    assert len(unit.sessions[0].writes) < pages // 4
+
+
+def test_a_command_that_fits_on_one_page_is_not_given_a_key():
+    unit = FakeFortiOS(
+        {"get system status": "Version: FortiGate-VM64 v7.4.2,build2571\nSerial-Number: FGVM01\n"}, page=40
+    )
+
+    assert asyncio.run(transport_on(unit).execute(["get system status"])) == [
+        "Version: FortiGate-VM64 v7.4.2,build2571\nSerial-Number: FGVM01\n"
     ]
+    assert unit.sessions[0].keys == 0
 
 
 def test_each_command_runs_in_its_own_session_and_answers_in_order():
-    connection = FakeConnection(printing={"get system status": "status\n", "get system performance status": "perf\n"})
+    unit = FakeFortiOS({"get system status": "status\n", "get system performance status": "perf\n"})
 
-    answers = asyncio.run(transport_on(connection).execute(["get system status", "get system performance status"]))
+    answers = asyncio.run(transport_on(unit).execute(["get system status", "get system performance status"]))
 
     assert answers == ["status\n", "perf\n"]
-    assert len(connection.runs) == 2
+    assert [s.lines for s in unit.sessions] == [
+        ["get system status", "exit"],
+        ["get system performance status", "exit"],
+    ]
 
 
-def test_the_output_is_cut_out_between_the_prompts_even_when_a_line_in_it_looks_like_one():
-    output = "config firewall policy\n    set comment x\nbanner # not a prompt\nend\n"
-    connection = FakeConnection(printing={"show full-configuration": output})
+def test_a_line_in_the_output_that_looks_like_a_prompt_is_not_taken_for_the_end():
+    output = SHOW_FULL_CONFIGURATION.replace("end\nconfig system interface", "end\nFGT-1 # \nconfig system interface")
+    unit = FakeFortiOS({"show full-configuration": output}, pager=False, split_after="FGT-1 # ")
 
-    assert asyncio.run(transport_on(connection).get_config()) == output
+    assert asyncio.run(transport_on(unit).get_config()) == output
 
 
-def test_what_cannot_be_told_from_a_session_is_an_error_that_carries_what_the_device_printed():
-    connection = FakeConnection(answers={None: "Permission denied"})
+def test_a_session_that_ends_before_the_output_is_complete_is_an_error_that_carries_what_was_printed():
+    unit = FakeFortiOS({"show full-configuration": SHOW_FULL_CONFIGURATION}, page=4, cut_after=1)
 
     with pytest.raises(DriverException) as caught:
-        asyncio.run(transport_on(connection).get_config())
+        asyncio.run(transport_on(unit).get_config())
 
-    assert "Permission denied" in str(caught.value)
+    assert "ended the session before the output was complete" in str(caught.value)
+    assert "config-version" not in str(caught.value) or "--More--" in str(caught.value)
+
+
+def test_a_pager_that_takes_no_keys_is_a_timeout(monkeypatch):
+    unit = FakeFortiOS({"get system status": "a\nb\nc\nd\n"}, page=2, keys_taken=False)
+    transport = transport_on(unit)
+    monkeypatch.setattr(transport, "COMMAND_TIMEOUT", 0.3)
+    monkeypatch.setattr(fortios, "STUCK", 0.05)
+
+    with pytest.raises(ConnectionTimeout):
+        asyncio.run(transport.execute(["get system status"]))
+
+    assert len(unit.sessions[0].writes) > 1
+
+
+def test_a_marker_of_the_pager_left_in_the_output_is_an_error():
+    unit = FakeFortiOS({"get system status": "Version: x\n--More--\nSerial-Number: y\n"}, pager=False)
+
+    with pytest.raises(DriverException) as caught:
+        asyncio.run(transport_on(unit).execute(["get system status"]))
+
+    assert "cut off by the pager" in str(caught.value)
+
+
+def test_a_session_that_does_not_answer_is_a_connection_timeout(monkeypatch):
+    class Silent:
+        async def create_process(self, **kwargs):
+            return SimpleNamespace(
+                stdin=SimpleNamespace(write=lambda data: None),
+                stdout=SimpleNamespace(read=lambda n: asyncio.sleep(10)),
+                close=lambda: None,
+            )
+
+    transport = transport_on(Silent())
+    monkeypatch.setattr(transport, "COMMAND_TIMEOUT", 0.01)
+
+    with pytest.raises(ConnectionTimeout):
+        asyncio.run(transport.execute(["get system status"]))
+
+
+MULTI_VDOM_HEADER = "#config-version=FGVM64-7.4.2-FW-build2571-230918:opmode=1:vdom=1:user=admin"
+
+
+@pytest.mark.parametrize(
+    ("config", "said"),
+    [
+        ("config system global\nend\n", "does not begin with its header"),
+        ("", "does not begin with its header"),
+        (
+            SHOW_FULL_CONFIGURATION.rsplit("    next\nend", 1)[0] + "    next\n",
+            "does not end where a configuration ends",
+        ),
+        (MULTI_VDOM_HEADER + "\nconfig vdom\nedit root\nconfig system interface\nend\n", "has no global part"),
+    ],
+)
+def test_a_configuration_that_is_not_whole_is_an_error_and_never_returned(config, said):
+    unit = FakeFortiOS({"show full-configuration": config})
+
+    with pytest.raises(DriverException) as caught:
+        asyncio.run(transport_on(unit).get_config())
+
+    assert said in str(caught.value)
+
+
+def test_a_unit_with_vdoms_is_read_whole_when_its_global_part_is_there():
+    config = MULTI_VDOM_HEADER + "\nconfig vdom\nedit root\nnext\nend\nconfig global\nconfig system global\nend\nend\n"
+    unit = FakeFortiOS({"show full-configuration": config}, page=2)
+
+    assert asyncio.run(transport_on(unit).get_config()) == config
 
 
 def test_a_configuration_is_typed_into_a_session_without_blank_lines():
@@ -409,13 +604,13 @@ def test_a_configuration_the_device_rejects_is_an_error_that_carries_what_it_sai
     assert answer in str(caught.value)
 
 
-def test_a_command_that_does_not_finish_is_a_connection_timeout(monkeypatch):
+def test_a_configuration_that_does_not_finish_is_a_connection_timeout(monkeypatch):
     class Stuck:
         async def run(self, command, input=None, check=True):
             await asyncio.sleep(10)
 
     transport = transport_on(Stuck())
-    monkeypatch.setattr(transport, "COMMAND_TIMEOUT", 0.01)
+    monkeypatch.setattr(transport, "CONFIG_TIMEOUT", 0.01)
 
     with pytest.raises(ConnectionTimeout):
-        asyncio.run(transport.execute(["get system status"]))
+        asyncio.run(transport.apply('config system global\n    set hostname "x"\nend'))

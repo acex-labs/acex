@@ -1,10 +1,11 @@
 """Core sections: database, serving, auth, CORS, credential storage and messaging."""
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from urllib.parse import quote, urlsplit
 
 from acex.settings.section import Section
-from pydantic import Field, SecretStr, field_validator
+from acex_devkit.messaging import amqp_ssl_options
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import NoDecode
 
 
@@ -43,6 +44,35 @@ class OidcSettings(Section, name="oidc"):
     audience: str = "acex"
     jwks_ttl: int = 3600
     verify_ssl: bool = True
+
+
+class AuthorizationSettings(Section, name="authz"):
+    """Who may do what, from the roles in the access token.
+
+    A valid token is all that most endpoints ask for. The ones that hand out or act on device logins check a role as
+    well, so that the first tenant to be locked down is not everyone with a token. Roll it out in steps: `log` lets
+    every request through and logs the ones that `enforce` would have refused, so the roles can be given to the
+    agents, workers and people that need them before anything is refused.
+    """
+
+    #: off: no role is checked. log: a request that would be refused is logged and let through. enforce: it is
+    #: refused with 403.
+    mode: Literal["off", "log", "enforce"] = "off"
+    #: Where in the access token roles are listed, as dotted paths. `{audience}` is replaced by ACEX_OIDC_AUDIENCE.
+    #: The default reads Keycloak's realm roles and the client roles of the audience's client. Comma-separated in the
+    #: environment.
+    roles_claims: Annotated[list[str], NoDecode] = ["realm_access.roles", "resource_access.{audience}.roles"]
+    #: May do everything the roles below may, and read the secrets of device logins from the web interface.
+    admin_role: str = "acex-admin"
+    #: For the agents and workers that fetch device logins to do their work.
+    service_role: str = "acex-service"
+
+    @field_validator("roles_claims", mode="before")
+    @classmethod
+    def _split(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
 
 
 # An explicitly empty ACEX_CORS_ALLOWED_ORIGINS means "no origins", so here
@@ -117,8 +147,8 @@ class CredentialSettings(Section, name="credentials"):
 class RabbitMQSettings(Section, name="rabbitmq"):
     """RabbitMQ broker the backend publishes jobs to for workers to run.
 
-    Off until a host is set. Workers are handed the same connection. The queues
-    are declared in code, so the user needs configure, write and read
+    Off until a host is set. Workers are handed the same connection unless the ``worker_*`` settings say that they
+    reach the broker another way. The queues are declared in code, so the user needs configure, write and read
     permissions on the vhost.
     """
 
@@ -128,6 +158,25 @@ class RabbitMQSettings(Section, name="rabbitmq"):
     vhost: str = "/"
     user: str | None = None
     password: SecretStr | None = None
+    #: Connect to the broker with TLS (amqps://), always verifying its certificate.
+    tls: bool = False
+    #: CA bundle the broker's certificate is checked against. Unset: the system's trusted roots.
+    tls_ca_file: str | None = None
+    #: The backend's own client certificate and key, for a broker that requires one. Set both or neither.
+    tls_cert_file: str | None = None
+    tls_key_file: str | None = None
+    #: What workers are handed instead of the backend's own host, port and TLS setting, when they do not reach the
+    #: broker the way the backend does: the backend inside the cluster on the plain port, a worker in a customer's
+    #: network through a TLS endpoint. Unset: the same as the backend.
+    worker_host: str | None = None
+    worker_port: int | None = None
+    worker_tls: bool | None = None
+
+    @model_validator(mode="after")
+    def _client_certificate_is_a_pair(self) -> "RabbitMQSettings":
+        if (self.tls_cert_file is None) != (self.tls_key_file is None):
+            raise ValueError("ACEX_RABBITMQ_TLS_CERT_FILE and ACEX_RABBITMQ_TLS_KEY_FILE must be set together")
+        return self
 
     @property
     def configured(self) -> bool:
@@ -142,7 +191,24 @@ class RabbitMQSettings(Section, name="rabbitmq"):
             if self.password is not None:
                 credentials += ":" + quote(self.password.get_secret_value(), safe="")
             credentials += "@"
-        return f"amqp://{credentials}{self.host}:{self.port}/{quote(self.vhost, safe='')}"
+        scheme = "amqps" if self.tls else "amqp"
+        return f"{scheme}://{credentials}{self.host}:{self.port}/{quote(self.vhost, safe='')}"
+
+    @property
+    def ssl_options(self) -> dict[str, Any] | None:
+        """Celery's ``broker_use_ssl`` for the backend's own connection, or None without TLS."""
+        return amqp_ssl_options(
+            tls=self.tls, ca_file=self.tls_ca_file, cert_file=self.tls_cert_file, key_file=self.tls_key_file
+        )
+
+    @property
+    def worker_connection(self) -> tuple[str | None, int, bool]:
+        """The host, port and TLS setting that workers are told to use."""
+        return (
+            self.worker_host or self.host,
+            self.worker_port or self.port,
+            self.tls if self.worker_tls is None else self.worker_tls,
+        )
 
 
 class ZtpSettings(Section, name="ztp"):

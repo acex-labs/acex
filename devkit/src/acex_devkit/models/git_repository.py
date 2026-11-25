@@ -51,6 +51,13 @@ def _directory_in_the_repository(path: str) -> str:
     return "" if path in ("", ".") else pure.as_posix()
 
 
+def _site(site: str | None) -> str | None:
+    """A site name without the spaces around it; empty means no site."""
+    if site is None:
+        return None
+    return site.strip() or None
+
+
 def _pem(ca_certificate: str | None) -> str | None:
     if ca_certificate and _PEM_CERTIFICATE not in ca_certificate:
         raise ValueError(f"ca_certificate must be one or more PEM certificates, each starting with {_PEM_CERTIFICATE}")
@@ -74,6 +81,14 @@ class GitRepositoryCreate(BaseModel):
     #: PEM certificates to trust for the host besides the system's, for a host that an internal CA signed.
     ca_certificate: str | None = None
     enabled: bool = True
+    #: Set: the ConfigMaps of this repository apply to the logical nodes of this site only, whatever their filters
+    #: say, so each site can have a repository of its own that cannot reach another site.
+    site: str | None = None
+
+    @field_validator("site")
+    @classmethod
+    def _check_site(cls, site: str | None) -> str | None:
+        return _site(site)
 
     @field_validator("url")
     @classmethod
@@ -92,8 +107,8 @@ class GitRepositoryCreate(BaseModel):
 
 
 class GitRepositoryUpdate(BaseModel):
-    """Changes to a repository: only the fields sent are changed. `credential_id`, `username` and
-    `ca_certificate` are cleared by sending null; the other fields keep their value when sent as null."""
+    """Changes to a repository: only the fields sent are changed. `credential_id`, `username`, `ca_certificate` and
+    `site` are cleared by sending null; the other fields keep their value when sent as null."""
 
     name: str | None = Field(None, min_length=1)
     url: str | None = None
@@ -104,6 +119,12 @@ class GitRepositoryUpdate(BaseModel):
     username: str | None = None
     ca_certificate: str | None = None
     enabled: bool | None = None
+    site: str | None = None
+
+    @field_validator("site")
+    @classmethod
+    def _check_site(cls, site: str | None) -> str | None:
+        return _site(site)
 
     @field_validator("url")
     @classmethod
@@ -133,6 +154,8 @@ class GitRepositoryResponse(PersistedResponse):
     username: str | None = None
     ca_certificate: str | None = None
     enabled: bool
+    #: The only site whose logical nodes the repository's ConfigMaps apply to; empty: any, as their filters say.
+    site: str | None = None
     #: The commit that is loaded, when the branch was last asked about and when a commit was last loaded.
     commit: str | None = None
     last_checked_at: datetime | None = None

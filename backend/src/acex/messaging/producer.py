@@ -56,6 +56,8 @@ class JobProducer:
             task_queues=[Queue(name, durable=QUEUE_DURABLE) for name in QUEUES],
             # Fail a publish quickly instead of holding up the request that made it.
             broker_transport_options={"confirm_publish": True},
+            # None without TLS, which is Celery's default.
+            broker_use_ssl=settings.ssl_options,
             task_publish_retry_policy={"max_retries": 2, "interval_start": 0, "interval_step": 0.5, "interval_max": 1},
         )
         return app

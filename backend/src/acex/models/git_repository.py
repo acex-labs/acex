@@ -21,6 +21,8 @@ class GitRepositoryRow(SQLModel, table=True):
     #: PEM certificates to trust for the host, besides the system's.
     ca_certificate: str | None = None
     enabled: bool = True
+    #: Set: the repository's ConfigMaps apply to the logical nodes of this site only.
+    site: str | None = None
 
     commit: str | None = None
     last_checked_at: datetime | None = None

@@ -134,3 +134,68 @@ def test_an_asset_can_run_cisco_business_firmware():
         os_version="4.1.7.17",
     )
     assert (asset.os, asset.os_version) == (OS.cisco_business, "4.1.7.17")
+
+
+def test_nxos_versions_with_a_rebuild_number_are_accepted():
+    scheme = OsVersionScheme.for_os(OS.cisco_nxos)
+    for version in ["7.0(3)I7(9)", "7.0(3)I7(10)", "7.0(3)I4(1)", "6.0(2)U6(10)"]:
+        assert scheme.accepts(version), version
+    for junk in ["7.0(3)I7()", "7.0(3)I7(a)", "7.0(3)I7(9", "7.0(3)I7(9)(1)", "7.0(3)(9)", "9.3(8)(2)", "7.0(3)I7 (9)"]:
+        assert not scheme.accepts(junk), junk
+
+
+def test_nxos_versions_without_a_rebuild_number_are_still_accepted():
+    scheme = OsVersionScheme.for_os(OS.cisco_nxos)
+    for version in ["10.2.5", "9.3(8)", "9.3(12)", "7.0(3)I7", "10.2.5F"]:
+        assert scheme.accepts(version), version
+
+
+def test_the_rebuild_of_an_nxos_train_is_its_build_component():
+    scheme = OsVersionScheme.for_os(OS.cisco_nxos)
+    rebuilt = scheme.normalize("7.0(3)I7(9)")
+    assert (rebuilt.major, rebuilt.minor, rebuilt.patch, rebuilt.qualifier, rebuilt.build) == (7, 0, 3, "I7", 9)
+    assert str(rebuilt) == "7.0(3)I7(9)"
+    plain = scheme.normalize("9.3(8)")
+    assert (plain.major, plain.minor, plain.patch, plain.qualifier, plain.build) == (9, 3, 8, None, None)
+
+
+def test_nxos_rebuilds_are_ordered_by_their_numbers_and_not_as_strings():
+    scheme = OsVersionScheme.for_os(OS.cisco_nxos)
+    versions = [scheme.normalize(v) for v in ["9.3(12)", "7.0(3)I7(10)", "7.0(3)I7(9)", "7.0(3)I7", "9.3(8)", "10.2.5"]]
+    assert [str(v) for v in sorted(versions)] == [
+        "7.0(3)I7",
+        "7.0(3)I7(9)",
+        "7.0(3)I7(10)",
+        "9.3(8)",
+        "9.3(12)",
+        "10.2.5",
+    ]
+
+
+def test_an_nxos_version_with_a_rebuild_is_not_the_version_of_its_train():
+    """A software policy for 7.0(3)I7 does not approve 7.0(3)I7(9): the rebuild is part of what the switch runs."""
+    from acex_devkit.models.policy import SoftwarePolicyCreate
+
+    assert SoftwarePolicyCreate.version_key(OS.cisco_nxos, "7.0(3)I7(9)") != SoftwarePolicyCreate.version_key(
+        OS.cisco_nxos, "7.0(3)I7"
+    )
+    assert SoftwarePolicyCreate.version_key(OS.cisco_nxos, "7.0(3)I7(9)") == SoftwarePolicyCreate.version_key(
+        OS.cisco_nxos, " 7.0(3)I7(9) "
+    )
+
+
+@pytest.mark.parametrize("os", [OS.cisco_ios, OS.cisco_iosxe])
+def test_ios_and_ios_xe_still_refuse_the_rebuild_number_of_an_nxos_train(os):
+    """The rebuild number belongs to NX-OS; on IOS and IOS-XE a version like this is a platform picked wrongly."""
+    assert not OsVersionScheme.for_os(os).accepts("7.0(3)I7(9)")
+
+
+def test_an_nxos_asset_can_run_a_train_with_a_rebuild():
+    asset = Asset(
+        vendor=Vendor.cisco,
+        serial_number="SN1",
+        os=OS.cisco_nxos,
+        hardware_model="N3K-C3048TP-1GE",
+        os_version="7.0(3)I7(9)",
+    )
+    assert (asset.os, asset.os_version) == (OS.cisco_nxos, "7.0(3)I7(9)")

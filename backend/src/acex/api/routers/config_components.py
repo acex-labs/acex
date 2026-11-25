@@ -61,9 +61,14 @@ class FilterSpec(BaseModel):
     value: str = "/.*/"
 
 
+#: How the filters of a request combine: `all` of them must match a node (AND), or `any` one of them (OR).
+FilterMatch = Literal["all", "any"]
+
+
 class GenerateRequest(BaseModel):
     class_name: str = "MyConfigMap"
     filter: list[FilterSpec] | None = None
+    filter_match: FilterMatch = "all"
     components: list[ComponentInstance]
 
 
@@ -74,6 +79,7 @@ class GenerateResponse(BaseModel):
 class ReconcileOptions(BaseModel):
     class_name: str = "ReconcileConfigMap"
     filter: list[FilterSpec] | None = None
+    filter_match: FilterMatch = "all"
     mode: Literal["diff", "full"] = "diff"
     # Only used in diff mode:
     include_removed: bool = True
@@ -84,6 +90,7 @@ class TranslateRequest(BaseModel):
     ned_id: str
     config_text: str
     filter: list[FilterSpec] | None = None
+    filter_match: FilterMatch = "all"
 
 
 # ── Component metadata ────────────────────────────────────────────
@@ -597,24 +604,14 @@ def generate_configmap(request: GenerateRequest) -> GenerateResponse:
     # Instantiation and filter
     inst_var = _to_snake_case(request.class_name)
     filter_block = f"\n{inst_var} = {request.class_name}()\n"
-    # Build filter block based on request.filter list
+    # The filters of the request, joined as the request says: `&` needs every one to match, `|` any one.
     if request.filter:
-        # If several filters
-        if len(request.filter) > 1:
-            filter_block += f"{inst_var}.filters = (\n"
-            for i, f in enumerate(request.filter):
-                filter_block += f'\tFilterAttribute("{f.attribute}").{f.operator}("{f.value}")'
-                if i < len(request.filter) - 1:
-                    filter_block += "| \n"
-                else:
-                    filter_block += "\n"
-            filter_block += ")"
-        # Single filter
+        expressions = [f'FilterAttribute("{f.attribute}").{f.operator}("{f.value}")' for f in request.filter]
+        if len(expressions) == 1:
+            filter_block += f"{inst_var}.filters = {expressions[0]}\n"
         else:
-            filter_block += (
-                f'{inst_var}.filters = FilterAttribute("{request.filter[0].attribute}")'
-                f'.{request.filter[0].operator}("{request.filter[0].value}")\n'
-            )
+            joiner = " &\n\t" if request.filter_match == "all" else " |\n\t"
+            filter_block += f"{inst_var}.filters = (\n\t" + joiner.join(expressions) + "\n)\n"
 
     code = (
         "\n".join(import_lines)
@@ -1056,6 +1053,7 @@ def create_router(automation_engine):
             request = GenerateRequest(
                 class_name=unique,
                 filter=options.filter,
+                filter_match=options.filter_match,
                 components=[ci],
             )
             result = generate_configmap(request)
@@ -1137,6 +1135,7 @@ def create_router(automation_engine):
             gen_request = GenerateRequest(
                 class_name=unique,
                 filter=request.filter,
+                filter_match=request.filter_match,
                 components=[ci],
             )
             code_blocks.append(generate_configmap(gen_request).code)

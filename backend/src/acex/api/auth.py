@@ -26,6 +26,16 @@ _JWKS_RETRY_BACKOFF = 30  # seconds between failed JWKS refresh attempts
 _JWKS_MAX_STALE = 24 * 3600  # refuse to serve cached JWKS older than this
 _VERIFY_SSL = True
 
+#: How roles are checked (see AuthorizationSettings). Set from Settings.authz by configure_authorization() when the app
+#: is built. Off until set, so nothing is refused that was not before.
+AUTHZ_MODE = "off"
+_ROLES_CLAIMS: tuple[str, ...] = ("realm_access.roles", "resource_access.{audience}.roles")
+_ROLE_NAMES: dict[str, str] = {"admin": "acex-admin", "service": "acex-service"}
+#: A request that would be refused is logged once per caller and route in this many seconds, not on every call: an
+#: agent asks for a login per node in every round.
+_LOG_EVERY = 600.0
+_logged_denials: dict[tuple, float] = {}
+
 #: Serving an API with no OIDC issuer configured means serving it to anyone.
 #: That is only ever acceptable while developing locally, so it has to be asked
 #: for: Settings(dev=True). Otherwise such a deployment is treated as
@@ -277,5 +287,65 @@ def require_scopes(*required: str):
                 detail=f"Missing required scope(s): {', '.join(missing)}",
             )
         return user
+
+    return dep
+
+
+def configure_authorization(mode: str, roles_claims: list[str] | tuple[str, ...], role_names: dict[str, str]) -> None:
+    """Set how roles are checked (called from AutomationEngine.create_app)."""
+    global AUTHZ_MODE, _ROLES_CLAIMS, _ROLE_NAMES
+    AUTHZ_MODE = mode
+    _ROLES_CLAIMS = tuple(roles_claims)
+    _ROLE_NAMES = dict(role_names)
+    _logged_denials.clear()
+
+
+def roles_of(claims: dict) -> set[str]:
+    """The roles a token lists, read from the paths in the settings. A path that is missing, or holds anything but a
+    list of names or one string of names, is skipped."""
+    roles: set[str] = set()
+    for path in _ROLES_CLAIMS:
+        value = claims
+        for key in path.replace("{audience}", OIDC_AUDIENCE).split("."):
+            value = value.get(key) if isinstance(value, dict) else None
+        if isinstance(value, str):
+            value = value.split()
+        if isinstance(value, list):
+            roles.update(item for item in value if isinstance(item, str))
+    return roles
+
+
+def require_role(*allowed: str):
+    """Dependency factory: the caller's token must list one of the given roles, named as the settings do (`admin`,
+    `service`). What happens when it does not depends on the mode: nothing (off), a log line and the request goes on
+    (log), or 403 (enforce). Without an OIDC issuer there are no roles to check, as for `require_scopes`.
+
+        Depends(require_role("admin", "service"))
+    """
+    wanted = tuple(allowed)
+
+    def dep(request: Request, user: dict = Depends(get_current_user)) -> dict:  # noqa: B008
+        if AUTHZ_MODE == "off" or OIDC_ISSUER_URL is None:
+            return user
+        names = {_ROLE_NAMES[role] for role in wanted}
+        if roles_of(user) & names:
+            return user
+        route = getattr(request.scope.get("route"), "path", request.url.path)
+        who = _UNSAFE_LOG_CHARS.sub("?", str(user.get("azp") or user.get("sub") or "unknown"))[:64]
+        needs = ", ".join(sorted(names))
+        if AUTHZ_MODE == "log":
+            key, now = (who, request.method, route), time.monotonic()
+            if now - _logged_denials.get(key, -_LOG_EVERY) >= _LOG_EVERY:
+                _logged_denials[key] = now
+                logger.warning(
+                    f"Would be refused ({request.method} {route}): '{who}' has none of the roles {needs}. "
+                    "Set ACEX_AUTHZ_MODE=enforce once every caller has its role."
+                )
+            return user
+        logger.warning(f"Authorization denied ({request.method} {route}): '{who}' has none of the roles {needs}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Requires one of the roles: {needs}",
+        )
 
     return dep

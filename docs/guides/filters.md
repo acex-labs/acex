@@ -17,6 +17,10 @@ lo.filters = FilterAttribute("site").eq("hq")
 lo.filters = FilterAttribute("site").eq("hq") & FilterAttribute("role").eq("core")
 ```
 
+When the config builder, the reconcile function or the Config Translator in the web interface generates a ConfigMap
+from several filters, the generated code combines them with `&`, so every filter has to match. Choose "any" there,
+or `"filter_match": "any"` in the request, to combine them with `|` instead, so that one is enough.
+
 ## Operators
 
 | Method | Meaning |
