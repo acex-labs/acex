@@ -20,6 +20,8 @@ class BrokerConnection(BaseModel):
     host: str
     port: int
     vhost: str
+    #: Connect with TLS (amqps://). A client that does not know the field connects without it.
+    tls: bool = False
     user: str | None = None
     #: Hidden in repr and logs, but sent in full: the worker has to log in with it.
     password: SecretStr | None = None
