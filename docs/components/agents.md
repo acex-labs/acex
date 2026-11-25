@@ -145,6 +145,17 @@ The grafana-sync agent:
 - Only manages dashboards in its own folder — never touches user-created dashboards in other folders
 - Retries on the next cycle if an apply fails
 
+### The dashboards
+
+A dashboard is generated only when the telemetry agents have nodes of its kind, so each one appears once the matching capability is in use. Both read one measurement shared by all nodes, filtered on the tags `node` and `site`, with the Site and Node variables at the top.
+
+| Dashboard | UID | Measurement | What it shows |
+|---|---|---|---|
+| ACEX — ICMP Ping Overview | `acex-icmp-overview` | `ping` | Latency, jitter and packet loss per node and site, the worst ten, and a reachability timeline |
+| ACEX — SNMP Overview | `acex-snmp-overview` | `snmp` | Nodes reporting, uptime per node and over time (a drop is a restart), and a timeline of when a node was not polled |
+
+The SNMP input writes the field `uptime` (`sysUpTime`, in hundredths of a second) and the tags `node`, `node_id`, `site`, `region` and `source` (the node's own `sysName`). An installation that polled SNMP before this dashboard existed has its samples in one measurement per node name; they stay where they are, and new samples go to `snmp`.
+
 ### Configuration
 
 ```bash

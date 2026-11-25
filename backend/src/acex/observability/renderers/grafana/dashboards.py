@@ -6,6 +6,7 @@ None if there are no relevant components and the dashboard would be empty).
 """
 
 from acex.observability.components.icmp_ping import IcmpPingTelemetry
+from acex.observability.components.snmp import SnmpTelemetry
 from acex.observability.registry import TelemetryRegistry
 from acex.observability.renderers.grafana.builder import (
     bargauge_panel,
@@ -33,6 +34,24 @@ LATENCY_THRESHOLDS = [
     {"color": "orange", "value": 150},
     {"color": "red", "value": 500},
 ]
+
+# Threshold steps for uptime in seconds: a short uptime means the device restarted lately.
+UPTIME_THRESHOLDS = [
+    {"color": "red", "value": None},
+    {"color": "orange", "value": 3600},
+    {"color": "yellow", "value": 86400},
+    {"color": "green", "value": 604800},
+]
+
+# Threshold steps for the number of SNMP samples that arrived in a bucket.
+POLLED_THRESHOLDS = [
+    {"color": "red", "value": None},
+    {"color": "green", "value": 1},
+]
+
+# `sysUpTime` is TimeTicks, hundredths of a second.
+TICKS_PER_SECOND = 100
+TICKS_PER_DAY = TICKS_PER_SECOND * 86400
 
 
 def icmp_overview_dashboard(registry: TelemetryRegistry) -> dict | None:
@@ -221,9 +240,145 @@ def icmp_overview_dashboard(registry: TelemetryRegistry) -> dict | None:
     )
 
 
+def snmp_overview_dashboard(registry: TelemetryRegistry) -> dict | None:
+    """SNMP overview with site/node filters: which nodes answer, how long they were up, when they were not polled."""
+    nodes: list[SnmpTelemetry] = registry.by_kind(SnmpTelemetry.kind)
+    if not nodes:
+        return None
+
+    measurement = SnmpTelemetry.measurement
+    tag_filter = '"node" =~ /^($node)$/ AND "site" =~ /^($site)$/'
+
+    templating = [
+        query_variable(
+            name="site",
+            label="Site",
+            query=f'SHOW TAG VALUES FROM "{measurement}" WITH KEY = "site"',
+            refresh=2,
+        ),
+        query_variable(
+            name="node",
+            label="Node",
+            query=(f'SHOW TAG VALUES FROM "{measurement}" WITH KEY = "node" WHERE "site" =~ /^($site)$/'),
+            refresh=2,
+        ),
+    ]
+
+    def reporting_since(window: str) -> str:
+        return (
+            f'SELECT count("v") FROM ('
+            f'SELECT last("uptime") AS v FROM "{measurement}" '
+            f'WHERE time > now() - {window} AND {tag_filter} GROUP BY "node")'
+        )
+
+    # The newest uptime of each node in the range, in seconds; the extremes of those are the stats below.
+    newest_uptime = (
+        f'SELECT last("uptime") / {TICKS_PER_SECOND} AS v FROM "{measurement}" '
+        f'WHERE $timeFilter AND {tag_filter} GROUP BY "node"'
+    )
+    shortest_query = f'SELECT min("v") FROM ({newest_uptime})'
+    longest_query = f'SELECT max("v") FROM ({newest_uptime})'
+    uptime_by_node_query = (
+        f'SELECT last("uptime") / {TICKS_PER_SECOND} FROM "{measurement}" '
+        f'WHERE $timeFilter AND {tag_filter} GROUP BY "node"'
+    )
+    uptime_query = (
+        f'SELECT mean("uptime") / {TICKS_PER_DAY} FROM "{measurement}" '
+        f'WHERE $timeFilter AND {tag_filter} GROUP BY time($__interval), "node" fill(null)'
+    )
+    polled_query = (
+        f'SELECT count("uptime") FROM "{measurement}" '
+        f'WHERE $timeFilter AND {tag_filter} GROUP BY time($__interval), "node" fill(0)'
+    )
+
+    panels = [
+        # --- Row 1: scalar overview (y=0, h=4) ---
+        stat_panel(
+            panel_id=1,
+            title="Nodes reporting (5 min)",
+            targets=[influxql_target(reporting_since("5m"), result_format="table")],
+            grid=grid_pos(0, 0, 6, 4),
+            description="Nodes that sent an SNMP sample in the last five minutes.",
+        ),
+        stat_panel(
+            panel_id=2,
+            title="Nodes seen (24 h)",
+            targets=[influxql_target(reporting_since("24h"), result_format="table")],
+            grid=grid_pos(6, 0, 6, 4),
+            description=(
+                "Nodes that sent an SNMP sample in the last day. "
+                "Fewer reporting than seen means some stopped answering."
+            ),
+        ),
+        stat_panel(
+            panel_id=3,
+            title="Shortest uptime",
+            targets=[influxql_target(shortest_query, result_format="table")],
+            grid=grid_pos(12, 0, 6, 4),
+            unit="dtdurations",
+            thresholds=UPTIME_THRESHOLDS,
+            description="The node that restarted most recently.",
+        ),
+        stat_panel(
+            panel_id=4,
+            title="Longest uptime",
+            targets=[influxql_target(longest_query, result_format="table")],
+            grid=grid_pos(18, 0, 6, 4),
+            unit="dtdurations",
+            thresholds=UPTIME_THRESHOLDS,
+        ),
+        # --- Row 2: uptime per node and over time (y=4, h=9) ---
+        bargauge_panel(
+            panel_id=5,
+            title="Uptime by node",
+            targets=[influxql_target(uptime_by_node_query, alias="$tag_node")],
+            grid=grid_pos(0, 4, 12, 9),
+            unit="dtdurations",
+            thresholds=UPTIME_THRESHOLDS,
+            limit=20,
+            description=(
+                "How long each node has been up. Red: under an hour, orange: under a day, yellow: under a week."
+            ),
+        ),
+        timeseries_panel(
+            panel_id=6,
+            title="Uptime over time (days)",
+            targets=[influxql_target(uptime_query, alias="$tag_node")],
+            grid=grid_pos(12, 4, 12, 9),
+            unit="short",
+            description="Uptime of each node in days. A drop to zero is a restart.",
+            span_nulls=True,
+        ),
+        # --- Row 3: polling state timeline (y=13, h=10) ---
+        state_timeline_panel(
+            panel_id=7,
+            title="Polled over SNMP",
+            targets=[influxql_target(polled_query, alias="$tag_node")],
+            grid=grid_pos(0, 13, 24, 10),
+            thresholds=POLLED_THRESHOLDS,
+            min_interval="5m",
+            description=(
+                "Samples that arrived in each five-minute bucket per node. Green = the node answered, "
+                "red = nothing arrived: the node did not answer, or the telemetry agent is not running."
+            ),
+        ),
+    ]
+
+    return make_dashboard(
+        uid="acex-snmp-overview",
+        title="ACEX — SNMP Overview",
+        description=(
+            f"Auto-generated from active node-instances in ACEX inventory. Currently tracking {len(nodes)} node(s)."
+        ),
+        panels=panels,
+        templating=templating,
+    )
+
+
 # Map of dashboard UID -> (title, builder). The router uses this for both
 # the index endpoint and the per-UID lookup. Keep keys stable — they are
 # the deterministic Grafana UIDs.
 DASHBOARDS = {
     "acex-icmp-overview": ("ACEX — ICMP Ping Overview", icmp_overview_dashboard),
+    "acex-snmp-overview": ("ACEX — SNMP Overview", snmp_overview_dashboard),
 }

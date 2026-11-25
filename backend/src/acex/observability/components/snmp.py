@@ -53,7 +53,9 @@ class SnmpTelemetry(TelemetryComponent):
             "plugin": "snmp",
             "config": {
                 "agents": [f"udp://{self.target_ip}:161"],
-                "name": self.hostname,
+                # The measurement is shared by every node, as for ping; the node is a tag. A measurement named after
+                # the node would make a table for each node, which no dashboard can query as one.
+                "name": self.measurement,
                 "version": 2,
                 "community": self.community,
             },
