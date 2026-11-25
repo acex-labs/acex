@@ -38,20 +38,21 @@ class ConfigCompiler:
         self.config_map_paths = []
         # Added in code or from a directory: kept for the life of the process.
         self._static_maps: list[ConfigMap] = []
-        # Replaced as a whole while running (a git repository synced): key -> (root, [(name, map)]).
-        # Never changed in place, only swapped, so a compile that is reading it is never disturbed.
-        self._sources: dict[str, tuple[str, list[tuple[str, ConfigMap]]]] = {}
+        # Replaced as a whole while running (a git repository synced): key -> (root, [(name, map)], site).
+        # Never changed in place, only swapped, so a compile that is reading it is never disturbed. A source with a
+        # site only ever applies to the logical nodes of that site, whatever its ConfigMaps' filters say.
+        self._sources: dict[str, tuple[str, list[tuple[str, ConfigMap]], str | None]] = {}
         self.db = db_manager
 
     @property
     def config_maps(self) -> list[ConfigMap]:
         sources = self._sources
-        return [*self._static_maps, *(m for _, maps in sources.values() for _, m in maps)]
+        return [*self._static_maps, *(m for _, maps, _site in sources.values() for _, m in maps)]
 
     @property
     def source_roots(self) -> list[str]:
         sources = self._sources
-        return [*self.config_map_paths, *(root for root, _ in sources.values())]
+        return [*self.config_map_paths, *(root for root, _maps, _site in sources.values())]
 
     def add_config_map_path(self, dir_path: str):
         self.config_map_paths.append(dir_path)
@@ -64,16 +65,19 @@ class ConfigCompiler:
         """
         self._static_maps.append(config_map)
 
-    def set_source(self, key: str, root: str, config_maps: list[tuple[str, ConfigMap]]) -> None:
-        """Use `config_maps` for source `key` from now on, in place of what it had."""
-        self._sources = {**self._sources, key: (root, config_maps)}
+    def set_source(
+        self, key: str, root: str, config_maps: list[tuple[str, ConfigMap]], site: str | None = None
+    ) -> None:
+        """Use `config_maps` for source `key` from now on, in place of what it had. With a `site`, they apply to
+        the logical nodes of that site only."""
+        self._sources = {**self._sources, key: (root, config_maps, site)}
 
     def remove_source(self, key: str) -> None:
         self._sources = {k: v for k, v in self._sources.items() if k != key}
 
     def source_names(self, key: str) -> list[str]:
         """The names of the ConfigMaps source `key` has loaded."""
-        _, maps = self._sources.get(key, ("", []))
+        _, maps, _site = self._sources.get(key, ("", [], None))
         return [name for name, _ in maps]
 
     def has_source(self, key: str) -> bool:
@@ -131,7 +135,14 @@ class ConfigCompiler:
         Finds all processors that match the logical node's filters.
         This method should be implemented to discover and register processors.
         """
-        for config_map in self.config_maps:
+        site = getattr(self.ln.logical_node, "site", None)
+        sources = self._sources
+        scoped = [(m, None) for m in self._static_maps]
+        scoped += [(m, source_site) for _, maps, source_site in sources.values() for _, m in maps]
+        for config_map, only_site in scoped:
+            # A repository that belongs to a site cannot reach the nodes of another one.
+            if only_site is not None and site != only_site:
+                continue
             if self.ln.check_config_map_filter(config_map):
                 self.ln.register(config_map.compile)
 
