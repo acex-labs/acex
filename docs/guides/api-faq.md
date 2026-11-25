@@ -120,6 +120,10 @@ them). The API reads them from the token at `realm_access.roles` and at `resourc
 where Keycloak puts the realm roles and the roles of the client `acex`. `ACEX_AUTHZ_ROLES_CLAIMS` takes other dotted
 paths, comma-separated, for another identity provider (for example `roles` or `groups`).
 
+The realm of the Docker Compose setup (`keycloak/realm-export.json`) has both roles: `acex-admin` for the user `admin` and
+`acex-service` for the service account of the client `acex-agents`. A realm that was imported before they were added keeps
+its old roles, since Keycloak imports a realm only once.
+
 To roll it out in Keycloak:
 
 1. Create the realm roles `acex-admin` and `acex-service`.
