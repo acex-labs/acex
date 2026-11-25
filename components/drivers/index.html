@@ -1014,6 +1014,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Built-in drivers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-account-a-fortigate-is-read-with" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The account a FortiGate is read with
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1270,6 +1287,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Built-in drivers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-account-a-fortigate-is-read-with" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The account a FortiGate is read with
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1425,6 +1459,13 @@
 </tr>
 </tbody>
 </table>
+<h3 id="the-account-a-fortigate-is-read-with">The account a FortiGate is read with<a class="headerlink" href="#the-account-a-fortigate-is-read-with" title="Permanent link">¶</a></h3>
+<p>The FortiOS driver reads with <code>get system status</code> and <code>show full-configuration</code> and changes nothing in the device: a long output is paged with <code>--More--</code>, and the driver answers the pager with a key for every page instead of switching the pager off.</p>
+<ul>
+<li>Give it an administrator that may run those two commands. Whether a profile with read access only is enough has not been tried on a real unit; the only unit it was checked on is a FortiGate-VM 7.6.8, as its administrator.</li>
+<li>On a unit with VDOMs, use an administrator that sees all of them (a global one). The read then holds the global part and every VDOM. An account limited to one VDOM is refused with an error, since its read would be partial.</li>
+<li>A read that is not whole is an error and is never stored: it must begin with the header comment (<code>#config-version=</code>), end with the closing line of the last block, hold no <code>--More--</code> and, with VDOMs, include <code>config global</code>.</li>
+</ul>
 <h2 id="the-pieces">The pieces<a class="headerlink" href="#the-pieces" title="Permanent link">¶</a></h2>
 <p>A driver is a few small classes tied together by one more. Their base classes are in <code>devkit/src/acex_devkit/drivers/base.py</code>.</p>
 <table>

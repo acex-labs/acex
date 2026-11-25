@@ -801,6 +801,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#one-repository-for-each-site" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One repository for each site
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#when-configmaps-are-loaded-again" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1340,6 +1351,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#one-repository-for-each-site" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One repository for each site
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#when-configmaps-are-loaded-again" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1610,11 +1632,31 @@ if it failed, why (<code>last_error</code>).</p>
 <td>PEM certificates to trust for the host, for one whose certificate an internal CA signed. Include intermediates the host doesn't send. Left out, the system's trusted CAs are used.</td>
 </tr>
 <tr>
+<td><code>site</code></td>
+<td>Set, the repository belongs to this site: its ConfigMaps apply to the logical nodes of that site only. Left out, they apply to any site their filters say. See below.</td>
+</tr>
+<tr>
 <td><code>enabled</code></td>
 <td>A disabled repository is not synced and its ConfigMaps are not used.</td>
 </tr>
 </tbody>
 </table>
+<h3 id="one-repository-for-each-site">One repository for each site<a class="headerlink" href="#one-repository-for-each-site" title="Permanent link">¶</a></h3>
+<p>Give a repository a <code>site</code> and the ConfigMaps in it can only ever apply to the logical nodes of that site. The
+ConfigMaps' own filters still apply, on top of it: a ConfigMap with <code>FilterAttribute("role").eq("core")</code> in the
+repository of site <code>got</code> applies to the core nodes of <code>got</code>, and to no core node of another site. A node with no
+site is never reached by a repository that has one.</p>
+<p>This is how several teams, or a customer's sites, each work from a repository of their own without being able to
+change another site's devices. Add one repository for each site:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$ACEX</span>/api/v1/git_repositories<span class="w"> </span>-d<span class="w"> </span><span class="s1">'{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="s1">  "name": "got-config", "url": "https://github.com/example/got-config.git",</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="s1">  "auth_method": "https_token", "credential_id": 12, "site": "got"</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="s1">}'</span>
+</code></pre></div>
+<p>The site is the name the logical nodes carry (<code>site</code> in their filters), written the same way, and the match is exact.
+A name that no node has is not an error: the repository then applies to nothing. Send <code>"site": null</code> to a repository
+to take the limit away again. A repository without a <code>site</code> is not limited, so keep the repositories of the sites
+you want to separate all set.</p>
 <h3 id="when-configmaps-are-loaded-again">When ConfigMaps are loaded again<a class="headerlink" href="#when-configmaps-are-loaded-again" title="Permanent link">¶</a></h3>
 <p>Every API process checks each repository when it starts and then every 30 minutes. A check asks the host
 for the branch's latest commit (<code>git ls-remote</code>); only when it has moved, or the repository's settings

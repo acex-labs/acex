@@ -895,6 +895,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#who-may-read-a-device-login-in-the-clear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Who may read a device login in the clear?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-do-i-get-403" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why do I get 403?
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1461,6 +1483,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#who-may-read-a-device-login-in-the-clear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Who may read a device login in the clear?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-do-i-get-403" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why do I get 403?
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1705,13 +1749,62 @@ setup uses one hour). The API checks the signature and the claims itself and doe
 has been revoked. Disabling a client or a user, or changing a secret, therefore stops new tokens at once but a token
 that is already issued works until it expires.</p>
 <h3 id="which-permissions-are-needed-can-i-have-a-read-only-account">Which permissions are needed? Can I have a read-only account?<a class="headerlink" href="#which-permissions-are-needed-can-i-have-a-read-only-account" title="Permanent link">¶</a></h3>
-<p>Not yet. Authorization is not role based: a valid token gives access to the whole API. Role-based access, with a
-read-only role, is planned. Until it exists, treat every token as full access:</p>
+<p>A valid token gives access to the whole API, with one exception: reading a device login in the clear
+(<code>GET /api/v1/inventory/credentials/{id}/secret</code>) can be limited to tokens that list a role. There is no read-only role
+yet, so treat every other token as full access:</p>
 <ul>
 <li>give each integration its own client, so that it can be disabled by itself,</li>
 <li>keep the client secret in a secret store and not in a script,</li>
 <li>keep the lifetime of the token short.</li>
 </ul>
+<h3 id="who-may-read-a-device-login-in-the-clear">Who may read a device login in the clear?<a class="headerlink" href="#who-may-read-a-device-login-in-the-clear" title="Permanent link">¶</a></h3>
+<p><code>ACEX_AUTHZ_MODE</code> decides, and it is <code>off</code> until it is changed, so nothing is refused after an upgrade:</p>
+<table>
+<thead>
+<tr>
+<th><code>ACEX_AUTHZ_MODE</code></th>
+<th>A token without the role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>off</code></td>
+<td>gets the login, as before</td>
+</tr>
+<tr>
+<td><code>log</code></td>
+<td>gets the login, and the API logs who would have been refused (once for each caller and route every ten minutes)</td>
+</tr>
+<tr>
+<td><code>enforce</code></td>
+<td>is refused with 403</td>
+</tr>
+</tbody>
+</table>
+<p>The roles are <code>acex-admin</code>, for people who read a login in the web interface, and <code>acex-service</code>, for the collection
+agent and the worker, which fetch logins to do their work (<code>ACEX_AUTHZ_ADMIN_ROLE</code> and <code>ACEX_AUTHZ_SERVICE_ROLE</code> rename
+them). The API reads them from the token at <code>realm_access.roles</code> and at <code>resource_access.&lt;audience&gt;.roles</code>, which is
+where Keycloak puts the realm roles and the roles of the client <code>acex</code>. <code>ACEX_AUTHZ_ROLES_CLAIMS</code> takes other dotted
+paths, comma-separated, for another identity provider (for example <code>roles</code> or <code>groups</code>).</p>
+<p>The realm of the Docker Compose setup (<code>keycloak/realm-export.json</code>) has both roles: <code>acex-admin</code> for the user <code>admin</code> and
+<code>acex-service</code> for the service account of the client <code>acex-agents</code>. A realm that was imported before they were added keeps
+its old roles, since Keycloak imports a realm only once.</p>
+<p>To roll it out in Keycloak:</p>
+<ol>
+<li>Create the realm roles <code>acex-admin</code> and <code>acex-service</code>.</li>
+<li>Give <code>acex-service</code> to the service account of each client that fetches logins (the collection agent and the worker:
+   the client, <strong>Service accounts roles</strong>, <strong>Assign role</strong>). Give <code>acex-admin</code> to the people who may read a login.</li>
+<li>Check that a token lists them: <code>realm_access.roles</code> in the decoded access token. The API reads the access token, not
+   the ID token that the web interface reads for its own checks. A client that does not have full scope (Keycloak: the
+   client, <strong>Client scopes</strong>, <strong>Full scope allowed</strong> off) gets a realm role in its token only after a scope mapping
+   for that role, so add one for each such client.</li>
+<li>Set <code>ACEX_AUTHZ_MODE=log</code>, let the agents run a round, and read the log. A <code>Would be refused</code> line names the caller
+   (the client or the user) that still lacks a role.</li>
+<li>When it stays quiet, set <code>ACEX_AUTHZ_MODE=enforce</code>.</li>
+</ol>
+<h3 id="why-do-i-get-403">Why do I get 403?<a class="headerlink" href="#why-do-i-get-403" title="Permanent link">¶</a></h3>
+<p>The token is valid but does not list a role the route needs, and the API runs with <code>ACEX_AUTHZ_MODE=enforce</code>. The
+<code>detail</code> names the roles. Ask for one of them for your user or client.</p>
 <h2 id="inventory-data">Inventory data<a class="headerlink" href="#inventory-data" title="Permanent link">¶</a></h2>
 <h3 id="how-are-nodes-hardware-and-management-connections-related">How are nodes, hardware and management connections related?<a class="headerlink" href="#how-are-nodes-hardware-and-management-connections-related" title="Permanent link">¶</a></h3>
 <p>A node (<code>node_instance</code>) ties them together:</p>

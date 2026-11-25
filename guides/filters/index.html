@@ -1283,6 +1283,9 @@
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Combine filters (AND)</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">lo</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="n">FilterAttribute</span><span class="p">(</span><span class="s2">"site"</span><span class="p">)</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s2">"hq"</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">FilterAttribute</span><span class="p">(</span><span class="s2">"role"</span><span class="p">)</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s2">"core"</span><span class="p">)</span>
 </code></pre></div>
+<p>When the config builder, the reconcile function or the Config Translator in the web interface generates a ConfigMap
+from several filters, the generated code combines them with <code>&amp;</code>, so every filter has to match. Choose "any" there,
+or <code>"filter_match": "any"</code> in the request, to combine them with <code>|</code> instead, so that one is enough.</p>
 <h2 id="operators">Operators<a class="headerlink" href="#operators" title="Permanent link">¶</a></h2>
 <table>
 <thead>
