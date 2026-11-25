@@ -38,7 +38,7 @@ from sqlmodel import select
 logger = logging.getLogger("acex.git_sync")
 
 #: The fields that decide what is checked out and loaded; changing one loads the repository again.
-_SOURCE_FIELDS = ("url", "branch", "path", "auth_method", "credential_id", "username")
+_SOURCE_FIELDS = ("url", "branch", "path", "auth_method", "credential_id", "username", "site")
 
 
 class GitRepositoryNotFound(LookupError):
@@ -110,7 +110,7 @@ class GitSyncManager:
             row = self._row(session, repo_id)
             for field, value in changes.items():
                 # Only these can be cleared; the rest keep their value when sent as null.
-                if value is not None or field in ("credential_id", "username", "ca_certificate"):
+                if value is not None or field in ("credential_id", "username", "ca_certificate", "site"):
                     setattr(row, field, value)
             if "name" in changes:
                 self._check_name_free(session, row.name, but=repo_id)
@@ -208,7 +208,7 @@ class GitSyncManager:
             self._failed(session, row, str(exc))
             return
 
-        self.compiler.set_source(self._key(row.id), str(self._map_dir(row)), maps)
+        self.compiler.set_source(self._key(row.id), str(self._map_dir(row)), maps, row.site)
         logger.info(f"Loaded {len(maps)} ConfigMap(s) from git repository {row.name} at {commit[:12]}")
         row.commit = commit
         row.last_synced_at = datetime.now(UTC)
@@ -230,7 +230,7 @@ class GitSyncManager:
                 maps = self._load(row)
         except (ConfigMapLoadError, OSError):
             return
-        self.compiler.set_source(self._key(row.id), str(self._map_dir(row)), maps)
+        self.compiler.set_source(self._key(row.id), str(self._map_dir(row)), maps, row.site)
         self._fetched[row.id] = (source, row.commit)
         logger.warning(f"Git repository {row.name} unreachable; loaded its last checkout at {row.commit[:12]}")
 

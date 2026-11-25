@@ -5,11 +5,14 @@ here (file://); the token goes to git through the environment only."""
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from acex.api import auth
 from acex.api.routers import git_repositories
+from acex.compilers.compiled_logical_node import CompiledLogicalNode
 from acex.compilers.config_compiler import ConfigCompiler
+from acex.configuration import Configuration
 from acex.credentials.credential_manager import CredentialManager
 from acex.git_sync import Git, GitAuth, GitError, GitSyncManager, HttpsTokenAuth
 from acex.settings import GitSyncSettings
@@ -30,6 +33,20 @@ class {cls}(ConfigMap):
 
 
 {var} = {cls}()
+"""
+
+
+# A ConfigMap that applies to every node with the role core.
+CORE_MAP = """from acex.config_map import ConfigMap, FilterAttribute
+
+
+class {cls}(ConfigMap):
+    def compile(self, context):
+        pass
+
+
+{var} = {cls}()
+{var}.filters = FilterAttribute("role").eq("core")
 """
 
 
@@ -111,7 +128,12 @@ def env(tmp_path):
 def anonymous(remote, **fields) -> GitRepositoryCreate:
     # Validation wants https; the tests sync from a local path, so the URL is set past it.
     payload = GitRepositoryCreate(
-        name="maps", url="https://example.com/maps.git", auth_method=GitAuthMethod.HTTPS_ANONYMOUS, **fields
+        **{
+            "name": "maps",
+            "url": "https://example.com/maps.git",
+            "auth_method": GitAuthMethod.HTTPS_ANONYMOUS,
+            **fields,
+        }
     )
     return payload.model_copy(update={"url": remote.url})
 
@@ -411,3 +433,109 @@ def test_a_ca_certificate_must_be_pem(env, remote):
     bad = "-----BEGIN CERTIFICATE-----\nnope\n-----END CERTIFICATE-----"
     with pytest.raises(ValueError, match="not valid PEM"):
         manager.create(anonymous(remote, ca_certificate=bad), created_by="admin")
+
+
+def applied_to(compiler, **node) -> list[str]:
+    """The ConfigMaps that the compiler would apply to a logical node like `node`."""
+    logical_node = SimpleNamespace(
+        **{"id": 1, "hostname": "sw-1", "role": "core", "site": "got", "sequence": 1, **node}
+    )
+    compiler.ln = CompiledLogicalNode(Configuration(1, source_roots=[]), logical_node, None)
+    compiler._find_processors_for_ln()
+    return sorted(p.__self__.__class__.__name__ for p in compiler.ln.processors)
+
+
+def test_a_repository_without_a_site_applies_to_the_nodes_its_filters_say(env, remote):
+    manager, compiler, _, _ = env
+    remote.commit({"gitsync_a.py": CORE_MAP.format(cls="Alpha", var="alpha")})
+    manager.create(anonymous(remote), created_by="admin")
+
+    assert applied_to(compiler) == ["Alpha"]
+    assert applied_to(compiler, site="sto") == ["Alpha"]
+    assert applied_to(compiler, role="access") == []
+
+
+def test_a_repository_of_a_site_applies_to_that_sites_nodes_only(env, remote):
+    manager, compiler, _, _ = env
+    remote.commit({"gitsync_a.py": CORE_MAP.format(cls="Alpha", var="alpha")})
+    repo = manager.create(anonymous(remote, site="got"), created_by="admin")
+
+    assert repo.site == "got"
+    assert applied_to(compiler, site="got") == ["Alpha"]
+    # The ConfigMap's own filter says core, and core nodes of another site are still out of its reach.
+    assert applied_to(compiler, site="sto") == []
+    assert applied_to(compiler, site=None) == []
+
+
+def test_the_site_of_a_repository_is_kept_inside_the_sites_filter_too(env, remote):
+    manager, compiler, _, _ = env
+    remote.commit({"gitsync_a.py": CORE_MAP.format(cls="Alpha", var="alpha").replace('"core"', '"access"')})
+    manager.create(anonymous(remote, site="got"), created_by="admin")
+
+    # In the right site but not the role the ConfigMap asks for.
+    assert applied_to(compiler, site="got", role="core") == []
+    assert applied_to(compiler, site="got", role="access") == ["Alpha"]
+
+
+def test_each_site_works_from_its_own_repository(env, remote, tmp_path):
+    manager, compiler, _, _ = env
+    other = _Remote(_empty_dir(tmp_path, "other"))
+    remote.commit({"gitsync_a.py": CORE_MAP.format(cls="Alpha", var="alpha")})
+    other.commit({"gitsync_b.py": CORE_MAP.format(cls="Beta", var="beta")})
+    manager.create(anonymous(remote, name="got-maps", site="got"), created_by="admin")
+    manager.create(anonymous(other, name="sto-maps", site="sto"), created_by="admin")
+
+    assert applied_to(compiler, site="got") == ["Alpha"]
+    assert applied_to(compiler, site="sto") == ["Beta"]
+    assert applied_to(compiler, site="osl") == []
+
+
+def test_a_repository_is_moved_to_another_site_or_freed_by_an_update(env, remote):
+    manager, compiler, _, git = env
+    remote.commit({"gitsync_a.py": CORE_MAP.format(cls="Alpha", var="alpha")})
+    repo = manager.create(anonymous(remote, site="got"), created_by="admin")
+
+    moved = manager.update(repo.id, GitRepositoryUpdate(site=" sto "), updated_by="admin")
+    assert moved.site == "sto"
+    assert applied_to(compiler, site="got") == []
+    assert applied_to(compiler, site="sto") == ["Alpha"]
+
+    freed = manager.update(repo.id, GitRepositoryUpdate(site=None), updated_by="admin")
+    assert freed.site is None
+    assert applied_to(compiler, site="got") == ["Alpha"]
+    assert applied_to(compiler, site="osl") == ["Alpha"]
+
+
+def test_an_update_that_does_not_mention_the_site_keeps_it(env, remote):
+    manager, compiler, _, _ = env
+    remote.commit({"gitsync_a.py": CORE_MAP.format(cls="Alpha", var="alpha")})
+    repo = manager.create(anonymous(remote, site="got"), created_by="admin")
+
+    kept = manager.update(repo.id, GitRepositoryUpdate(branch="main"), updated_by="admin")
+
+    assert kept.site == "got"
+    assert applied_to(compiler, site="sto") == []
+
+
+def test_a_blank_site_means_no_site(remote):
+    assert anonymous(remote, site="   ").site is None
+    assert GitRepositoryUpdate(site="  ").site is None
+
+
+def test_the_last_checkout_of_a_restarted_process_keeps_the_site(env, remote, tmp_path):
+    manager, compiler, credentials, git = env
+    remote.commit({"gitsync_a.py": CORE_MAP.format(cls="Alpha", var="alpha")})
+    manager.create(anonymous(remote, site="got"), created_by="admin")
+    restarted = ConfigCompiler(manager.db)
+    again = GitSyncManager(manager.db, restarted, credentials, manager.settings, git=git)
+    remote.path.rename(tmp_path / "gone")
+
+    again.sync_all()
+
+    assert applied_to(restarted, site="got") == ["Alpha"]
+    assert applied_to(restarted, site="sto") == []
+
+
+def _empty_dir(tmp_path, name):
+    (tmp_path / name).mkdir()
+    return tmp_path / name

@@ -143,7 +143,30 @@ from a directory, and loads them again when the branch moves.
 | `credential_id` | The credential holding the token. A Vault-backed credential works too. |
 | `username` | Sent with the token. Most hosts accept any; Bitbucket wants the account's username. |
 | `ca_certificate` | PEM certificates to trust for the host, for one whose certificate an internal CA signed. Include intermediates the host doesn't send. Left out, the system's trusted CAs are used. |
+| `site` | Set, the repository belongs to this site: its ConfigMaps apply to the logical nodes of that site only. Left out, they apply to any site their filters say. See below. |
 | `enabled` | A disabled repository is not synced and its ConfigMaps are not used. |
+
+### One repository for each site
+
+Give a repository a `site` and the ConfigMaps in it can only ever apply to the logical nodes of that site. The
+ConfigMaps' own filters still apply, on top of it: a ConfigMap with `FilterAttribute("role").eq("core")` in the
+repository of site `got` applies to the core nodes of `got`, and to no core node of another site. A node with no
+site is never reached by a repository that has one.
+
+This is how several teams, or a customer's sites, each work from a repository of their own without being able to
+change another site's devices. Add one repository for each site:
+
+```bash
+curl -X POST $ACEX/api/v1/git_repositories -d '{
+  "name": "got-config", "url": "https://github.com/example/got-config.git",
+  "auth_method": "https_token", "credential_id": 12, "site": "got"
+}'
+```
+
+The site is the name the logical nodes carry (`site` in their filters), written the same way, and the match is exact.
+A name that no node has is not an error: the repository then applies to nothing. Send `"site": null` to a repository
+to take the limit away again. A repository without a `site` is not limited, so keep the repositories of the sites
+you want to separate all set.
 
 ### When ConfigMaps are loaded again
 
