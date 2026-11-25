@@ -2,6 +2,9 @@
 its settings change, and never replaced by a commit in which a file fails to import. Repositories are local
 here (file://); the token goes to git through the environment only."""
 
+import hashlib
+import hmac
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -14,7 +17,7 @@ from acex.compilers.compiled_logical_node import CompiledLogicalNode
 from acex.compilers.config_compiler import ConfigCompiler
 from acex.configuration import Configuration
 from acex.credentials.credential_manager import CredentialManager
-from acex.git_sync import Git, GitAuth, GitError, GitSyncManager, HttpsTokenAuth
+from acex.git_sync import Git, GitAuth, GitError, GitSyncManager, HttpsTokenAuth, webhook
 from acex.settings import GitSyncSettings
 from acex_devkit.models.credential import CredentialCreate
 from acex_devkit.models.git_repository import GitAuthMethod, GitRepositoryCreate, GitRepositoryUpdate
@@ -539,3 +542,212 @@ def test_the_last_checkout_of_a_restarted_process_keeps_the_site(env, remote, tm
 def _empty_dir(tmp_path, name):
     (tmp_path / name).mkdir()
     return tmp_path / name
+
+
+# ── Webhook: a push tells the API to sync at once ───────────────────────────────────────────────────────────────
+
+HOOK_SECRET = "hook-secret"
+PUSH = {"object_kind": "push", "ref": "refs/heads/main", "before": "1" * 40, "after": "2" * 40}
+
+
+def webhook_repo(env, remote, secret=HOOK_SECRET, **fields):
+    manager, _, credentials, _ = env
+    credential = credentials.create(CredentialCreate(name="hook", credential_type="token", fields={"token": secret}))
+    return manager.create(anonymous(remote, webhook_credential_id=credential.id, **fields), created_by="admin")
+
+
+def hook(client, repo, body=None, token=HOOK_SECRET, headers=None, raw=None):
+    """What GitLab sends, unless `headers` say otherwise. No bearer token: a git host cannot sign in."""
+    sent = {
+        "x-gitlab-event": "Push Hook",
+        **({"x-gitlab-token": token} if token is not None else {}),
+        **(headers or {}),
+    }
+    content = raw if raw is not None else json.dumps(PUSH if body is None else body).encode()
+    return client.post(
+        f"/api/v1/git_repositories/{repo.id}/webhook",
+        content=content,
+        headers={"content-type": "application/json", **sent},
+    )
+
+
+def test_a_push_to_the_branch_syncs_the_repository_at_once(env, remote, monkeypatch):
+    manager, compiler, _, git = env
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+    remote.commit({"gitsync_b.py": MAP.format(cls="Beta", var="beta")})
+    assert names(compiler) == ["Alpha"]
+
+    response = hook(_client(env, monkeypatch), repo)
+
+    assert response.status_code == 202
+    assert response.json() == {"status": "sync started"}
+    assert names(compiler) == ["Alpha", "Beta"]
+
+
+def test_the_webhook_is_open_without_a_bearer_token_and_the_rest_of_the_api_is_not(env, remote, monkeypatch):
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+    client = _client(env, monkeypatch)
+
+    assert client.get("/api/v1/git_repositories").status_code == 401
+    assert client.post(f"/api/v1/git_repositories/{repo.id}/sync").status_code == 401
+    assert hook(client, repo).status_code == 202
+
+
+def test_github_signs_the_body_with_the_secret(env, remote, monkeypatch):
+    manager, compiler, _, _ = env
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+    remote.commit({"gitsync_b.py": MAP.format(cls="Beta", var="beta")})
+    client = _client(env, monkeypatch)
+    body = json.dumps({"ref": "refs/heads/main", "after": "2" * 40}).encode()
+    signature = "sha256=" + hmac.new(HOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+
+    refused = hook(
+        client, repo, token=None, raw=body, headers={"x-github-event": "push", "x-hub-signature-256": "sha256=00"}
+    )
+    accepted = hook(
+        client, repo, token=None, raw=body, headers={"x-github-event": "push", "x-hub-signature-256": signature}
+    )
+
+    assert refused.status_code == 401
+    assert names(compiler) == ["Alpha", "Beta"]
+    assert accepted.status_code == 202
+
+
+@pytest.mark.parametrize("token", ["wrong", "", None])
+def test_a_request_without_the_secret_syncs_nothing(env, remote, monkeypatch, token):
+    manager, compiler, _, _ = env
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+    remote.commit({"gitsync_b.py": MAP.format(cls="Beta", var="beta")})
+
+    response = hook(_client(env, monkeypatch), repo, token=token)
+
+    assert response.status_code == 401
+    assert names(compiler) == ["Alpha"]
+
+
+def test_a_repository_without_a_webhook_answers_not_found(env, remote, monkeypatch):
+    manager, compiler, _, _ = env
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    plain = manager.create(anonymous(remote), created_by="admin")
+    client = _client(env, monkeypatch)
+
+    assert hook(client, plain).status_code == 404
+    assert client.post("/api/v1/git_repositories/999/webhook", json=PUSH).status_code == 404
+
+
+def test_a_disabled_repository_or_a_removed_secret_answers_not_found(env, remote, monkeypatch):
+    manager, compiler, credentials, _ = env
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+    client = _client(env, monkeypatch)
+    assert hook(client, repo).status_code == 202
+
+    manager.update(repo.id, GitRepositoryUpdate(webhook_credential_id=None), updated_by="admin")
+    assert hook(client, repo).status_code == 404
+
+    manager.update(repo.id, GitRepositoryUpdate(webhook_credential_id=repo.webhook_credential_id), updated_by="admin")
+    manager.update(repo.id, GitRepositoryUpdate(enabled=False), updated_by="admin")
+    assert hook(client, repo).status_code == 404
+
+
+def test_a_credential_that_has_been_deleted_means_no_webhook(env, remote, monkeypatch):
+    manager, compiler, credentials, _ = env
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+    credentials.delete(repo.webhook_credential_id)
+
+    assert hook(_client(env, monkeypatch), repo).status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("body", "headers"),
+    [
+        ({**PUSH, "ref": "refs/heads/other"}, None),
+        ({**PUSH, "ref": "refs/tags/v1"}, None),
+        ({**PUSH, "after": "0" * 40}, None),
+        ({"object_kind": "tag_push", "ref": "refs/tags/v1"}, {"x-gitlab-event": "Tag Push Hook"}),
+        ({"object_kind": "merge_request"}, {"x-gitlab-event": "Merge Request Hook"}),
+        ({"zen": "Keep it logically awesome."}, {"x-github-event": "ping", "x-gitlab-event": ""}),
+    ],
+)
+def test_only_a_push_to_the_followed_branch_syncs(env, remote, monkeypatch, body, headers):
+    manager, compiler, _, _ = env
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+    remote.commit({"gitsync_b.py": MAP.format(cls="Beta", var="beta")})
+
+    response = hook(_client(env, monkeypatch), repo, body=body, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ignored"
+    assert names(compiler) == ["Alpha"]
+
+
+def test_a_body_that_is_not_json_is_not_a_push(env, remote, monkeypatch):
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+
+    response = hook(_client(env, monkeypatch), repo, raw=b"not json")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ignored"
+
+
+def test_a_body_that_is_too_large_is_refused(env, remote, monkeypatch):
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+
+    response = hook(_client(env, monkeypatch), repo, raw=b" " * (webhook.MAX_BODY_BYTES + 1))
+
+    assert response.status_code == 413
+
+
+def test_the_webhook_secret_is_the_token_of_a_token_credential(env, remote):
+    manager, _, credentials, _ = env
+    login = credentials.create(
+        CredentialCreate(name="login", credential_type="userpass", fields={"username": "u", "password": "p"})
+    )
+
+    with pytest.raises(ValueError, match="webhook secret is the token of a token credential"):
+        manager.create(anonymous(remote, webhook_credential_id=login.id), created_by="admin")
+    with pytest.raises(ValueError, match="Credential 999"):
+        manager.create(anonymous(remote, webhook_credential_id=999), created_by="admin")
+
+
+def test_the_secret_is_never_in_what_the_api_returns(env, remote, monkeypatch):
+    remote.commit({"gitsync_a.py": MAP.format(cls="Alpha", var="alpha")})
+    repo = webhook_repo(env, remote)
+    client = _client(env, monkeypatch)
+
+    shown = client.get(f"/api/v1/git_repositories/{repo.id}", headers={"Authorization": "Bearer anna"})
+
+    assert shown.json()["webhook_credential_id"] == repo.webhook_credential_id
+    assert HOOK_SECRET not in shown.text
+
+
+def test_the_webhook_path_is_open_in_the_real_app_and_the_rest_of_the_api_is_not(tmp_path, monkeypatch):
+    """The whole app asks for a token on every route; the webhook route, and only it, answers a caller without one."""
+    from acex.automation_engine.automationengine import AutomationEngine
+    from acex.database import Connection
+    from acex.settings import Settings
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("ACEX_CREDENTIALS_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    engine = AutomationEngine(
+        db_connection=Connection(), settings=Settings(oidc={"issuer_url": "https://idp.example.com"})
+    )
+    try:
+        client = TestClient(engine.create_app())
+
+        reached = client.post("/api/v1/git_repositories/1/webhook", json=PUSH)
+        assert reached.status_code == 404
+        assert "no webhook" in reached.json()["detail"]
+        assert client.post("/api/v1/git_repositories/1/sync").status_code == 401
+        assert client.get("/api/v1/git_repositories/1").status_code == 401
+    finally:
+        auth.configure(None)
+        auth.set_dev_mode(False)

@@ -12,6 +12,9 @@ from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 # Neither holds anything the frontend's own static config would not.
 _PUBLIC_PATHS = {"/api/v1/auth/config", "/api/v1/services"}
 _PUBLIC_PATH_PREFIXES = ("/api/v1/ztp",)
+# A git host calls this when a branch has a new commit. It cannot sign in, so the route checks the secret of the
+# repository itself (see acex.git_sync.webhook).
+_PUBLIC_PATH_PATTERNS = (re.compile(r"^/api/v1/git_repositories/\d+/webhook$"),)
 
 logger = logging.getLogger("acex.auth")
 
@@ -183,8 +186,12 @@ def get_current_user(
 ) -> dict:
     # Public by design: the frontend reads this before it has a token, and the
     # container healthcheck polls it. Kept reachable however auth is configured.
-    if request.url.path in _PUBLIC_PATHS or any(
-        request.url.path == prefix or request.url.path.startswith(f"{prefix}/") for prefix in _PUBLIC_PATH_PREFIXES
+    if (
+        request.url.path in _PUBLIC_PATHS
+        or any(
+            request.url.path == prefix or request.url.path.startswith(f"{prefix}/") for prefix in _PUBLIC_PATH_PREFIXES
+        )
+        or any(pattern.match(request.url.path) for pattern in _PUBLIC_PATH_PATTERNS)
     ):
         return {}
 

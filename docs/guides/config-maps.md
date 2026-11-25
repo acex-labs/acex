@@ -144,6 +144,7 @@ from a directory, and loads them again when the branch moves.
 | `username` | Sent with the token. Most hosts accept any; Bitbucket wants the account's username. |
 | `ca_certificate` | PEM certificates to trust for the host, for one whose certificate an internal CA signed. Include intermediates the host doesn't send. Left out, the system's trusted CAs are used. |
 | `site` | Set, the repository belongs to this site: its ConfigMaps apply to the logical nodes of that site only. Left out, they apply to any site their filters say. See below. |
+| `webhook_credential_id` | A `token` credential whose token is the secret of the repository's webhook, so that a push syncs it at once. See below. Empty: no webhook. |
 | `enabled` | A disabled repository is not synced and its ConfigMaps are not used. |
 
 ### One repository for each site
@@ -167,6 +168,36 @@ The site is the name the logical nodes carry (`site` in their filters), written 
 A name that no node has is not an error: the repository then applies to nothing. Send `"site": null` to a repository
 to take the limit away again. A repository without a `site` is not limited, so keep the repositories of the sites
 you want to separate all set.
+
+### Syncing at once with a webhook
+
+A branch is checked every 30 minutes. A git host can tell ACEX when the branch has a new commit instead, and the repository is
+then synced within seconds.
+
+1. Make a `token` credential whose token is the secret of the webhook: a long random string that only the git host and ACEX
+   know. It is not a token of the git host.
+2. Give the repository the id of that credential, as `webhook_credential_id`, when you add it or in a `PATCH`. `null` removes the
+   webhook.
+3. In the git host, add a webhook that calls `https://<the API>/api/v1/git_repositories/<repository id>/webhook` for push events
+   with that secret.
+
+    - GitLab: **Settings > Webhooks**. Put the secret in **Secret token** and tick **Push events**, with the branch the repository
+      follows. GitLab refuses an address on a private network unless an administrator allows it (**Admin > Settings > Network >
+      Outbound requests**).
+    - GitHub: **Settings > Webhooks**. Content type `application/json`, the secret in **Secret**, and **Just the push event**.
+
+The call needs no login, only the secret: GitLab sends it as `X-Gitlab-Token` and GitHub signs the body with it
+(`X-Hub-Signature-256`). The answers:
+
+| Answer | Meaning |
+|---|---|
+| `202` | A push to the branch the repository follows. It is synced in the background. |
+| `200` | Nothing to do: a ping, a push to another branch or a tag, a deleted branch, or another kind of event. |
+| `401` | The secret does not match. |
+| `404` | The repository does not exist, is disabled, or has no webhook (or its credential is gone). |
+
+The API process that answers loads the new commit at once. With several API processes, the others pick it up at their next
+check. Syncing is the same as `POST /api/v1/git_repositories/{id}/sync`, so a failed sync shows in `last_error` as usual.
 
 ### When ConfigMaps are loaded again
 
