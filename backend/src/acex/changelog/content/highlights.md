@@ -13,6 +13,22 @@ writes the draft, a person or an assistant. `python scripts/changelog.py validat
 Nothing is compiled: an edit that is merged is live in the next image.
 -->
 
+## 2026-11-25 One git repository for each site
+
+A git repository can be limited to one site, so each site of a customer works from a repository of its own that cannot change another site's devices. Set the site when you add the repository under Settings > Git Repositories.
+
+## 2026-11-25 Choose who may read a device login
+
+Reading a stored device login in the clear can require a role. It starts switched off, then logs who would be refused, then enforces, so people and agents can be given their role before anything is refused.
+
+## 2026-11-25 Workers in a customer's network, over TLS
+
+A worker that runs in a customer's network can reach its broker through a TLS entrance that asks for a client certificate, with a renewed certificate picked up without a restart.
+
+## 2026-11-25 Pick the site in a filter, and say whether all or any must match
+
+The filter rows of the Config Builder, Reconcile and the Config Translator offer the site and the other node attributes as a choice. With several filters, a node now has to match all of them, or any one if you choose Any.
+
 ## 2026-11-24 ZTP discovers and provisions Cisco switches again
 
 A Cisco switch that fetches its ZTP bootstrap is logged in to, identified and listed for approval again, and an approved switch gets its full configuration pushed. A device that has not applied its bootstrap yet is tried again for up to ten minutes.

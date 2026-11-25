@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "acex-driver-fortinet-fortios-cli"
-version = "0.2.0"
+version = "0.2.1"
 description = "ACE-X Driver: Fortinet FortiOS CLI SSH"
 authors = ["Isak Ljunggren <Isak.Ljunggren@Acebit.se>"]
 license = "AGPL-3.0"
