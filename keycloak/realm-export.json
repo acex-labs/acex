@@ -4,6 +4,18 @@
   "loginTheme": "keycloak",
   "ssoSessionMaxLifespan": 36000,
   "accessTokenLifespan": 3600,
+  "roles": {
+    "realm": [
+      {
+        "name": "acex-admin",
+        "description": "Administrator of ACEX: may read the stored login of a device in the clear"
+      },
+      {
+        "name": "acex-service",
+        "description": "Agents and workers: fetch the stored logins of the devices they work on"
+      }
+    ]
+  },
   "clients": [
     {
       "clientId": "acex",
@@ -62,6 +74,7 @@
       "enabled": true,
       "emailVerified": true,
       "email": "admin@acex.local",
+      "realmRoles": ["acex-admin"],
       "credentials": [
         {
           "type": "password",
@@ -69,6 +82,12 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "username": "service-account-acex-agents",
+      "enabled": true,
+      "serviceAccountClientId": "acex-agents",
+      "realmRoles": ["acex-service"]
     }
   ]
 }
