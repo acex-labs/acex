@@ -125,7 +125,10 @@ To roll it out in Keycloak:
 1. Create the realm roles `acex-admin` and `acex-service`.
 2. Give `acex-service` to the service account of each client that fetches logins (the collection agent and the worker:
    the client, **Service accounts roles**, **Assign role**). Give `acex-admin` to the people who may read a login.
-3. Check that a token lists them: `realm_access.roles` in the decoded access token.
+3. Check that a token lists them: `realm_access.roles` in the decoded access token. The API reads the access token, not
+   the ID token that the web interface reads for its own checks. A client that does not have full scope (Keycloak: the
+   client, **Client scopes**, **Full scope allowed** off) gets a realm role in its token only after a scope mapping
+   for that role, so add one for each such client.
 4. Set `ACEX_AUTHZ_MODE=log`, let the agents run a round, and read the log. A `Would be refused` line names the caller
    (the client or the user) that still lacks a role.
 5. When it stays quiet, set `ACEX_AUTHZ_MODE=enforce`.
