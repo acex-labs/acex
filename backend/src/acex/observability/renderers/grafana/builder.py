@@ -43,6 +43,7 @@ def timeseries_panel(
     grid: dict,
     unit: str = "short",
     description: str | None = None,
+    span_nulls: bool = False,
 ) -> dict:
     panel = {
         "id": panel_id,
@@ -60,6 +61,8 @@ def timeseries_panel(
                     "lineInterpolation": "linear",
                     "fillOpacity": 10,
                     "showPoints": "never",
+                    # A bucket narrower than the polling interval is empty between two samples.
+                    "spanNulls": span_nulls,
                 },
             },
             "overrides": [],
@@ -82,8 +85,9 @@ def stat_panel(
     unit: str = "short",
     color_mode: str = "value",
     thresholds: list[dict] | None = None,
+    description: str | None = None,
 ) -> dict:
-    return {
+    panel = {
         "id": panel_id,
         "type": "stat",
         "title": title,
@@ -109,6 +113,9 @@ def stat_panel(
             "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
         },
     }
+    if description:
+        panel["description"] = description
+    return panel
 
 
 def bargauge_panel(
@@ -144,7 +151,8 @@ def bargauge_panel(
             "orientation": "horizontal",
             "showUnfilled": True,
             "valueMode": "color",
-            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
+            # The transformations below turn the series into one row per node; `values` shows a bar for each row.
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": True},
         },
         "transformations": [
             {"id": "reduce", "options": {"reducers": ["mean"]}},
@@ -165,6 +173,7 @@ def state_timeline_panel(
     unit: str = "short",
     thresholds: list[dict] | None = None,
     description: str | None = None,
+    min_interval: str | None = None,
 ) -> dict:
     panel = {
         "id": panel_id,
@@ -196,6 +205,10 @@ def state_timeline_panel(
     }
     if description:
         panel["description"] = description
+    if min_interval:
+        # The smallest bucket `$__interval` may take: a count per bucket is only meaningful when a bucket spans
+        # more than one polling interval.
+        panel["interval"] = min_interval
     return panel
 
 
