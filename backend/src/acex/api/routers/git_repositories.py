@@ -1,10 +1,16 @@
 """Git repositories that ConfigMaps are read from. Open to every signed-in user, like the rest of the API."""
 
+import logging
+
 from acex.api import auth as _auth
 from acex.constants import BASE_URL
-from acex.git_sync import GitRepositoryConflict, GitRepositoryNotFound
+from acex.git_sync import GitRepositoryConflict, GitRepositoryNotFound, webhook
 from acex_devkit.models.git_repository import GitRepositoryCreate, GitRepositoryResponse, GitRepositoryUpdate
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
+
+logger = logging.getLogger("acex.git_sync")
 
 
 def _who(user: dict) -> str:
@@ -71,5 +77,40 @@ def create_router(automation_engine):
             return manager.sync(repo_id, force=True)
         except _EXPECTED as exc:
             raise _http(exc) from exc
+
+    def sync_after_push(repo_id: int) -> None:
+        try:
+            manager.sync(repo_id)
+        except Exception:
+            logger.exception(f"Syncing git repository {repo_id} after a webhook failed")
+
+    @router.post("/{repo_id}/webhook", status_code=status.HTTP_202_ACCEPTED)
+    async def receive_webhook(repo_id: int, request: Request, background: BackgroundTasks):
+        """Sync the repository because its git host says that the branch has a new commit.
+
+        Open without a token, since a git host cannot sign in: the request must carry the secret of the repository,
+        the token of its `webhook_credential_id`, as GitLab's `X-Gitlab-Token` or as GitHub's `X-Hub-Signature-256`.
+        A push to the branch the repository follows answers 202 and syncs in the background; a ping, a push to another
+        ref and any other event answer 200 and do nothing."""
+        if int(request.headers.get("content-length") or 0) > webhook.MAX_BODY_BYTES:
+            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="The request is too large")
+        body = await request.body()
+        if len(body) > webhook.MAX_BODY_BYTES:
+            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="The request is too large")
+        target = await run_in_threadpool(manager.webhook, repo_id)
+        if target is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This repository has no webhook")
+        branch, secret = target
+        if not webhook.signed_by(secret, request.headers, body):
+            logger.warning(f"Webhook for git repository {repo_id} refused: the secret does not match")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="The webhook secret does not match")
+        event = webhook.event_of(request.headers, body)
+        if event.kind != "push":
+            return JSONResponse({"status": "ignored", "reason": f"{event.kind} event"}, status_code=200)
+        if event.deleted or event.ref != f"refs/heads/{branch}":
+            return JSONResponse({"status": "ignored", "reason": f"not a push to {branch}"}, status_code=200)
+        logger.info(f"Webhook for git repository {repo_id}: a push to {branch}, syncing")
+        background.add_task(sync_after_push, repo_id)
+        return {"status": "sync started"}
 
     return router

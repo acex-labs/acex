@@ -91,6 +91,7 @@ class GitSyncManager:
     def create(self, payload: GitRepositoryCreate, *, created_by: str) -> GitRepositoryResponse:
         """Save the repository and, when it is enabled, sync it at once so the answer says how that went."""
         self._check_credential(payload.auth_method, payload.credential_id)
+        self._check_webhook_credential(payload.webhook_credential_id)
         self._check_ca_certificate(payload.ca_certificate)
         with self._session() as session:
             self._check_name_free(session, payload.name)
@@ -110,13 +111,20 @@ class GitSyncManager:
             row = self._row(session, repo_id)
             for field, value in changes.items():
                 # Only these can be cleared; the rest keep their value when sent as null.
-                if value is not None or field in ("credential_id", "username", "ca_certificate", "site"):
+                if value is not None or field in (
+                    "credential_id",
+                    "username",
+                    "ca_certificate",
+                    "site",
+                    "webhook_credential_id",
+                ):
                     setattr(row, field, value)
             if "name" in changes:
                 self._check_name_free(session, row.name, but=repo_id)
             if GIT_AUTH_CREDENTIAL_TYPES[GitAuthMethod(row.auth_method)] is None:
                 row.credential_id = None
             self._check_credential(GitAuthMethod(row.auth_method), row.credential_id)
+            self._check_webhook_credential(row.webhook_credential_id)
             self._check_ca_certificate(row.ca_certificate)
             row.updated_by = updated_by
             row.updated_at = datetime.now(UTC)
@@ -124,6 +132,21 @@ class GitSyncManager:
             session.commit()
         self.sync(repo_id)
         return self.repository(repo_id)
+
+    def webhook(self, repo_id: int) -> tuple[str, str] | None:
+        """The branch the repository follows and the secret its webhook carries, or None when it has no webhook: no such
+        repository, a disabled one, no webhook credential, or a credential that is gone or has no token."""
+        with self._session() as session:
+            row = session.get(GitRepositoryRow, repo_id)
+            if row is None or not row.enabled or row.webhook_credential_id is None:
+                return None
+            branch, credential_id = row.branch, row.webhook_credential_id
+        try:
+            secret = self.credentials.get_secret(credential_id).fields.get("token")
+        except HTTPException:
+            logger.warning(f"Git repository {repo_id}: the webhook credential {credential_id} could not be read")
+            return None
+        return (branch, secret) if secret else None
 
     def delete(self, repo_id: int) -> None:
         """Delete the repository: its ConfigMaps are no longer used and its checkout is removed."""
@@ -302,6 +325,19 @@ class GitSyncManager:
         if credential.credential_type != wanted:
             raise ValueError(
                 f"auth_method {method} needs a {wanted} credential; "
+                f"credential {credential_id} is {credential.credential_type}"
+            )
+
+    def _check_webhook_credential(self, credential_id: int | None) -> None:
+        if credential_id is None:
+            return
+        try:
+            credential = self.credentials.get(credential_id)
+        except HTTPException as exc:
+            raise ValueError(f"Credential {credential_id}: {exc.detail}") from exc
+        if credential.credential_type != "token":
+            raise ValueError(
+                f"the webhook secret is the token of a token credential; "
                 f"credential {credential_id} is {credential.credential_type}"
             )
 

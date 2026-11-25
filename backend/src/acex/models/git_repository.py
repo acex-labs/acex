@@ -23,6 +23,9 @@ class GitRepositoryRow(SQLModel, table=True):
     enabled: bool = True
     #: Set: the repository's ConfigMaps apply to the logical nodes of this site only.
     site: str | None = None
+    #: A `token` credential whose token is the secret of the repository's webhook. Not a foreign key, like the
+    #: credential above. Empty: the repository has no webhook.
+    webhook_credential_id: int | None = None
 
     commit: str | None = None
     last_checked_at: datetime | None = None

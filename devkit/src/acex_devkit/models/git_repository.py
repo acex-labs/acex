@@ -84,6 +84,9 @@ class GitRepositoryCreate(BaseModel):
     #: Set: the ConfigMaps of this repository apply to the logical nodes of this site only, whatever their filters
     #: say, so each site can have a repository of its own that cannot reach another site.
     site: str | None = None
+    #: A `token` credential whose token is the secret that the git host sends with its webhook
+    #: (`POST /api/v1/git_repositories/{id}/webhook`), so a push to the branch syncs the repository at once.
+    webhook_credential_id: int | None = None
 
     @field_validator("site")
     @classmethod
@@ -107,8 +110,9 @@ class GitRepositoryCreate(BaseModel):
 
 
 class GitRepositoryUpdate(BaseModel):
-    """Changes to a repository: only the fields sent are changed. `credential_id`, `username`, `ca_certificate` and
-    `site` are cleared by sending null; the other fields keep their value when sent as null."""
+    """Changes to a repository: only the fields sent are changed. `credential_id`, `username`, `ca_certificate`,
+    `site` and `webhook_credential_id` are cleared by sending null; the other fields keep their value when sent as
+    null."""
 
     name: str | None = Field(None, min_length=1)
     url: str | None = None
@@ -120,6 +124,7 @@ class GitRepositoryUpdate(BaseModel):
     ca_certificate: str | None = None
     enabled: bool | None = None
     site: str | None = None
+    webhook_credential_id: int | None = None
 
     @field_validator("site")
     @classmethod
@@ -156,6 +161,8 @@ class GitRepositoryResponse(PersistedResponse):
     enabled: bool
     #: The only site whose logical nodes the repository's ConfigMaps apply to; empty: any, as their filters say.
     site: str | None = None
+    #: The credential that holds the secret of the repository's webhook; empty: no webhook.
+    webhook_credential_id: int | None = None
     #: The commit that is loaded, when the branch was last asked about and when a commit was last loaded.
     commit: str | None = None
     last_checked_at: datetime | None = None
