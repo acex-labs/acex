@@ -4,6 +4,48 @@
   "name": "ACEX backend",
   "releases": [
     {
+      "version": "7.5.0",
+      "date": "2026-11-25",
+      "entries": [
+        {
+          "id": "20261125-reading-a-device-login-in-the-clear-can",
+          "kind": "security",
+          "title": "Reading a device login in the clear can require a role",
+          "description": "Any token the API accepted could read a stored device login in the clear from `GET /api/v1/inventory/credentials/{id}/secret`, whether it was stored in the database or in Vault. The new setting `ACEX_AUTHZ_MODE` limits it to tokens that list the role `acex-admin` (people) or `acex-service` (the collection agent and the worker). It is `off` by default, so nothing changes after an upgrade. `log` lets every request through and logs the callers that `enforce` would refuse, so the roles can be given first; `enforce` answers 403 without the role. The roles are read from `realm_access.roles` and the roles of the audience client in the token; `ACEX_AUTHZ_ROLES_CLAIMS`, `ACEX_AUTHZ_ADMIN_ROLE` and `ACEX_AUTHZ_SERVICE_ROLE` change where and what. See the API FAQ for the Keycloak steps.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": []
+        },
+        {
+          "id": "20261125-a-git-repository-can-belong-to-one-site",
+          "kind": "added",
+          "title": "A git repository can belong to one site, so its ConfigMaps only reach that site",
+          "description": "A git repository has a new optional `site`. The ConfigMaps loaded from it then apply only to the logical nodes of that site, on top of their own filters, so a customer can work from one repository for each site and no repository can change another site's devices. A repository without a site works as before. Set it with `site` when adding a repository or in an update, and send `null` to take the limit away; changing it loads the repository again. The match is the exact site name of the logical node. Needs a database migration (one nullable column).",
+          "breaking": false,
+          "audience": "admin",
+          "refs": []
+        },
+        {
+          "id": "20261111-reach-rabbitmq-over-tls-and-give-workers",
+          "kind": "added",
+          "title": "Reach RabbitMQ over TLS, and give workers their own broker address",
+          "description": "The backend can now connect to RabbitMQ over TLS. Set `ACEX_RABBITMQ_TLS=true` and it uses `amqps://`, always\nverifying the broker's certificate: against the system's trusted roots, or against a CA bundle in\n`ACEX_RABBITMQ_TLS_CA_FILE`. A broker that requires a client certificate (mutual TLS) gets\n`ACEX_RABBITMQ_TLS_CERT_FILE` and `ACEX_RABBITMQ_TLS_KEY_FILE`, which must be set together. The default is unchanged:\nplain `amqp://`.\n\nWorkers no longer have to reach the broker the way the backend does. `ACEX_RABBITMQ_WORKER_HOST`,\n`ACEX_RABBITMQ_WORKER_PORT` and `ACEX_RABBITMQ_WORKER_TLS` set what `POST /api/v1/workers/connect` hands out. The\nbackend can stay on the plain port inside the cluster while a worker in a customer's network connects through a TLS\nendpoint. Unset, workers are handed the backend's own host, port and TLS setting, as before.",
+          "breaking": false,
+          "audience": "admin",
+          "refs": []
+        },
+        {
+          "id": "20261125-several-filters-of-a-generated-configmap",
+          "kind": "fixed",
+          "title": "Several filters of a generated ConfigMap now all have to match",
+          "description": "The config builder, reconcile and the Config Translator turned a list of filters into a ConfigMap whose filters were combined with OR, although the guide and the release note said that they apply together. They now combine with AND by default, so role core at site hq applies to the core nodes of hq and not to every core node and everything at hq. A new `filter_match` in the three request bodies (`all` by default, or `any`) chooses OR again. ConfigMaps that were generated earlier are not changed.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "7.4.0",
       "date": "2026-11-24",
       "entries": [

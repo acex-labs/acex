@@ -4,6 +4,39 @@
   "name": "ACEX devkit",
   "releases": [
     {
+      "version": "3.4.0",
+      "date": "2026-11-25",
+      "entries": [
+        {
+          "id": "20261125-a-git-repository-can-belong-to-one-site",
+          "kind": "added",
+          "title": "A git repository can belong to one site",
+          "description": "`GitRepositoryCreate`, `GitRepositoryUpdate` and `GitRepositoryResponse` have a new optional `site`: the ConfigMaps of the repository then apply to the logical nodes of that site only. A blank name means no site, and `null` in an update clears it. A client that does not know the field keeps working.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261111-the-broker-connection-handed-to-a-worker",
+          "kind": "added",
+          "title": "The broker connection handed to a worker says whether to use TLS",
+          "description": "`BrokerConnection`, the broker part of `WorkerConnection`, has a new field `tls` (default `False`). A client that does\nnot know the field keeps connecting without TLS. `acex_devkit.messaging.amqp_ssl_options` builds the Celery\n`broker_use_ssl` options for a TLS connection: the broker's certificate is always verified, the host name is sent as\nSNI and checked, and a client certificate is presented when its files are given.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        },
+        {
+          "id": "20261124-nx-os-versions-with-a-rebuild-number-are",
+          "kind": "changed",
+          "title": "NX-OS versions with a rebuild number are accepted",
+          "description": "An NX-OS version such as `7.0(3)I7(9)` is now a valid `cisco_nxos` version, where it was rejected and only `7.0(3)I7` could be stored. The number in the last parentheses is the rebuild of the train and is the `build` component of the normalized version, so `7.0(3)I7` sorts before `7.0(3)I7(9)` and `(9)` before `(10)`. `10.2.5`, `9.3(8)` and `7.0(3)I7` are accepted as before; IOS and IOS-XE do not take the rebuild number. A software policy that names `7.0(3)I7` does not approve `7.0(3)I7(9)`: add the exact version to the policy.",
+          "breaking": false,
+          "audience": "developer",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "3.3.0",
       "date": "2026-11-24",
       "entries": [
