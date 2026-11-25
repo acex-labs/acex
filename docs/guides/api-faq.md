@@ -96,12 +96,44 @@ that is already issued works until it expires.
 
 ### Which permissions are needed? Can I have a read-only account?
 
-Not yet. Authorization is not role based: a valid token gives access to the whole API. Role-based access, with a
-read-only role, is planned. Until it exists, treat every token as full access:
+A valid token gives access to the whole API, with one exception: reading a device login in the clear
+(`GET /api/v1/inventory/credentials/{id}/secret`) can be limited to tokens that list a role. There is no read-only role
+yet, so treat every other token as full access:
 
 - give each integration its own client, so that it can be disabled by itself,
 - keep the client secret in a secret store and not in a script,
 - keep the lifetime of the token short.
+
+### Who may read a device login in the clear?
+
+`ACEX_AUTHZ_MODE` decides, and it is `off` until it is changed, so nothing is refused after an upgrade:
+
+| `ACEX_AUTHZ_MODE` | A token without the role |
+|---|---|
+| `off` | gets the login, as before |
+| `log` | gets the login, and the API logs who would have been refused (once for each caller and route every ten minutes) |
+| `enforce` | is refused with 403 |
+
+The roles are `acex-admin`, for people who read a login in the web interface, and `acex-service`, for the collection
+agent and the worker, which fetch logins to do their work (`ACEX_AUTHZ_ADMIN_ROLE` and `ACEX_AUTHZ_SERVICE_ROLE` rename
+them). The API reads them from the token at `realm_access.roles` and at `resource_access.<audience>.roles`, which is
+where Keycloak puts the realm roles and the roles of the client `acex`. `ACEX_AUTHZ_ROLES_CLAIMS` takes other dotted
+paths, comma-separated, for another identity provider (for example `roles` or `groups`).
+
+To roll it out in Keycloak:
+
+1. Create the realm roles `acex-admin` and `acex-service`.
+2. Give `acex-service` to the service account of each client that fetches logins (the collection agent and the worker:
+   the client, **Service accounts roles**, **Assign role**). Give `acex-admin` to the people who may read a login.
+3. Check that a token lists them: `realm_access.roles` in the decoded access token.
+4. Set `ACEX_AUTHZ_MODE=log`, let the agents run a round, and read the log. A `Would be refused` line names the caller
+   (the client or the user) that still lacks a role.
+5. When it stays quiet, set `ACEX_AUTHZ_MODE=enforce`.
+
+### Why do I get 403?
+
+The token is valid but does not list a role the route needs, and the API runs with `ACEX_AUTHZ_MODE=enforce`. The
+`detail` names the roles. Ask for one of them for your user or client.
 
 ## Inventory data
 

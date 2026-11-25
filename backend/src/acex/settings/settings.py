@@ -5,6 +5,7 @@ from acex.settings.bug_report import BugReportSettings
 from acex.settings.influxdb import InfluxDBSettings
 from acex.settings.section import Section
 from acex.settings.sections import (
+    AuthorizationSettings,
     ChangelogSettings,
     CorsSettings,
     CredentialSettings,
@@ -32,6 +33,7 @@ class Settings(Section):
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     server: ServerSettings = Field(default_factory=ServerSettings)
     oidc: OidcSettings = Field(default_factory=OidcSettings)
+    authz: AuthorizationSettings = Field(default_factory=AuthorizationSettings)
     cors: CorsSettings = Field(default_factory=CorsSettings)
     credentials: CredentialSettings = Field(default_factory=CredentialSettings)
     influxdb: InfluxDBSettings = Field(default_factory=InfluxDBSettings)
