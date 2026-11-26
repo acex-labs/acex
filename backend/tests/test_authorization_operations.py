@@ -51,6 +51,7 @@ ADMIN_HOLDS = frozenset(
         "workflows.edit",
         "workflows.run",
         "workflows.runs.read",
+        "workflows.runs.browse",
     }
 )
 SERVICE_HOLDS = frozenset({"credentials.reveal", "workflows.runs.read", "workers.connect", "workers.report"})
@@ -81,10 +82,11 @@ POLICY: dict[tuple[str, str], str] = {
     ("POST", f"{API}/operations/workflows/runs/{{run_id}}/continue"): "workflows.run",
     ("POST", f"{API}/operations/workflows/runs/{{run_id}}/stop"): "workflows.run",
     ("DELETE", f"{API}/operations/workflows/runs/{{run_id}}"): "workflows.run",
-    # What a run shows: people read it, and the workers read a run and its artifacts to run its later steps.
-    ("GET", f"{API}/operations/workflows/runs"): "workflows.runs.read",
+    # What a run shows: the workers read a run and its artifacts to run its later steps; the runs of everyone, and
+    # what the nodes answered in a step, are for people.
+    ("GET", f"{API}/operations/workflows/runs"): "workflows.runs.browse",
     ("GET", f"{API}/operations/workflows/runs/{{run_id}}"): "workflows.runs.read",
-    ("GET", f"{API}/operations/workflows/runs/{{run_id}}/steps/{{job_id}}"): "workflows.runs.read",
+    ("GET", f"{API}/operations/workflows/runs/{{run_id}}/steps/{{job_id}}"): "workflows.runs.browse",
     ("GET", f"{API}/operations/workflows/runs/{{run_id}}/artifacts"): "workflows.runs.read",
     # What a worker does.
     ("POST", f"{API}/workers/connect"): "workers.connect",
@@ -229,6 +231,16 @@ class TestEnforce:
             refused.json()["detail"]
             == "Requires the permission workflows.runs.read (held by the roles acex-admin, acex-service)"
         )
+
+    def should_let_a_worker_read_a_run_and_its_artifacts_but_not_look_through_the_runs(self, stub_app):
+        _configure("enforce")
+        worker = _as(stub_app, WORKER)
+        for path in ("runs/1", "runs/1/artifacts"):
+            assert _call(worker, "GET", f"{API}/operations/workflows/{path}").status_code not in (401, 403), path
+        for path in ("runs", "runs/1/steps/1"):
+            refused = _call(worker, "GET", f"{API}/operations/workflows/{path}")
+            assert refused.status_code == 403, path
+            assert "workflows.runs.browse (held by the roles acex-admin)" in refused.json()["detail"], path
 
     def should_leave_the_open_routes_open(self, stub_app):
         _configure("enforce")

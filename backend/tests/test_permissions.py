@@ -75,6 +75,7 @@ class TestExpand:
             "workflows.edit",
             "workflows.run",
             "workflows.runs.read",
+            "workflows.runs.browse",
         }
 
     def should_read_one_string_of_names(self):
@@ -164,7 +165,12 @@ class TestPermissionsOfAToken:
         assert auth.permissions_of(_claims("workflows.run")) == {"workflows.run"}
 
     def should_count_a_role_that_is_a_pattern(self):
-        assert auth.permissions_of(_claims("workflows.*")) == {"workflows.edit", "workflows.run", "workflows.runs.read"}
+        assert auth.permissions_of(_claims("workflows.*")) == {
+            "workflows.edit",
+            "workflows.run",
+            "workflows.runs.read",
+            "workflows.runs.browse",
+        }
 
     def should_add_the_permissions_of_every_role(self):
         assert auth.permissions_of(_claims("inspector", "workflows.run")) == {

@@ -92,10 +92,17 @@ _ALL = (
     ),
     Permission(
         "workflows.runs.read",
-        "list workflow runs and read a run with its steps and artifacts",
+        "read a workflow run and the artifacts its steps leave",
         OPERATIONS,
         admin=True,
         service=True,
+    ),
+    Permission(
+        "workflows.runs.browse",
+        "list workflow runs and read what the nodes answered in a step",
+        OPERATIONS,
+        admin=True,
+        service=False,
     ),
     Permission(
         "workers.connect",

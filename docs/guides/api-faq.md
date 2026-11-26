@@ -119,7 +119,8 @@ A token that holds none of them can still read and write the inventory, so treat
 | `operations.jobs` | list, read, queue again, cancel, delete and purge jobs | `acex-admin` |
 | `workflows.edit` | create, change and delete workflow definitions, which are stored commands | `acex-admin` |
 | `workflows.run` | start, continue, stop and delete workflow runs | `acex-admin` |
-| `workflows.runs.read` | list workflow runs and read a run with its steps and artifacts | `acex-admin` and `acex-service` |
+| `workflows.runs.read` | read a workflow run and the artifacts its steps leave | `acex-admin` and `acex-service` |
+| `workflows.runs.browse` | list workflow runs and read what the nodes answered in a step | `acex-admin` |
 | `workers.connect` | receive the login to the message broker | `acex-service` |
 | `workers.report` | report the state and the result of a job | `acex-service` |
 <!-- permissions:end -->

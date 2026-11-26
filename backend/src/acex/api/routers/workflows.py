@@ -25,10 +25,12 @@ def _who(user: dict) -> str:
 
 
 #: A workflow is commands for devices, and a run is what they answered: changing, starting and reading them each have a
-#: permission. The workers read a run and its artifacts to run its later steps.
+#: permission. The workers read a run and its artifacts to run its later steps; looking through the runs of everyone,
+#: and at what the nodes answered in a step, is for people.
 _EDIT = Depends(_auth.require_permission("workflows.edit"))
 _RUN = Depends(_auth.require_permission("workflows.run"))
 _RUNS_READ = Depends(_auth.require_permission("workflows.runs.read"))
+_RUNS_BROWSE = Depends(_auth.require_permission("workflows.runs.browse"))
 
 
 def _http(exc: Exception) -> HTTPException:
@@ -58,7 +60,7 @@ def create_router(automation_engine):
 
     # Runs
 
-    @router.get("/runs", response_model=PaginatedResponse[WorkflowRun], dependencies=[_RUNS_READ])
+    @router.get("/runs", response_model=PaginatedResponse[WorkflowRun], dependencies=[_RUNS_BROWSE])
     def list_runs(
         workflow_id: int | None = None,
         limit: int = Query(50, ge=1, le=500),
@@ -75,7 +77,7 @@ def create_router(automation_engine):
         except _EXPECTED as exc:
             raise _http(exc) from exc
 
-    @router.get("/runs/{run_id}/steps/{job_id}", response_model=list[NodeResponse], dependencies=[_RUNS_READ])
+    @router.get("/runs/{run_id}/steps/{job_id}", response_model=list[NodeResponse], dependencies=[_RUNS_BROWSE])
     def get_step_responses(run_id: int, job_id: int):
         """What each node answered in one round of a step on nodes, sorted by hostname."""
         try:
