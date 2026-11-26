@@ -49,34 +49,52 @@ class OidcSettings(Section, name="oidc"):
 class AuthorizationSettings(Section, name="authz"):
     """Who may do what, from the roles in the access token.
 
-    A valid token is all that most endpoints ask for. The ones that hand out or act on device logins check a role as
-    well, so that the first tenant to be locked down is not everyone with a token. Roll it out in steps: `log` lets
-    every request through and logs the ones that `enforce` would have refused, so the roles can be given to the
-    agents, workers and people that need them before anything is refused.
+    A valid token is all that most endpoints ask for. The ones that hand out or act on device logins check a permission
+    as well (see acex.permissions for the list), so that the first tenant to be locked down is not everyone with a
+    token. The framework says which permission a route needs; the roles that hold them are yours to make, in the
+    identity provider or in `bundles` below. Roll it out in steps: `log` lets every request through and logs the ones
+    that `enforce` would have refused, so the roles can be given to the agents, workers and people that need them
+    before anything is refused.
     """
 
-    #: off: no role is checked. log: a request that would be refused is logged and let through. enforce: it is
-    #: refused with 403. This one is for reading a device login in the clear.
+    #: off: no permission is checked. log: a request that would be refused is logged and let through. enforce: it is
+    #: refused with 403. For reading a device login in the clear.
     mode: Literal["off", "log", "enforce"] = "off"
-    #: The same three values, for the routes that run commands on devices, read what they answered, and hand out the
-    #: broker's login to a worker: operations, workflows and the workers' jobs. A setting of its own, off by
-    #: default whatever `mode` says, so that each group can be switched on in its own time.
+    #: The same three modes for everything that runs on or reads from devices: operations, workflows and workers. Its
+    #: own setting, so that each group of routes can be switched on when its callers have their roles.
     operations_mode: Literal["off", "log", "enforce"] = "off"
     #: Where in the access token roles are listed, as dotted paths. `{audience}` is replaced by ACEX_OIDC_AUDIENCE.
     #: The default reads Keycloak's realm roles and the client roles of the audience's client. Comma-separated in the
     #: environment.
     roles_claims: Annotated[list[str], NoDecode] = ["realm_access.roles", "resource_access.{audience}.roles"]
-    #: People: read the secrets of device logins from the web interface, run commands and patches on devices, and read
-    #: what they answered.
+    #: The role that comes with the framework for people: every permission except the two that only a worker has.
     admin_role: str = "acex-admin"
-    #: The agents and workers that fetch device logins and run jobs to do their work.
+    #: The role that comes with the framework for the agents and workers that fetch device logins to do their work.
     service_role: str = "acex-service"
+    #: Roles of your own, each with the permissions it holds: `ACEX_AUTHZ_BUNDLES__OPERATOR=operations.inspect,
+    #: operations.runs.read`. A permission, or a prefix pattern as `operations.*`. A name that is no permission stops
+    #: the API at startup. A role of the same name as `admin_role` or `service_role` replaces it. A role need not be
+    #: listed here: a role in the token that is itself a permission name (a client role of `acex` in Keycloak, or a
+    #: composite role made of them) holds it without any setting.
+    bundles: dict[str, list[str]] = {}
 
     @field_validator("roles_claims", mode="before")
     @classmethod
     def _split(cls, value: Any) -> Any:
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @field_validator("bundles", mode="before")
+    @classmethod
+    def _split_bundles(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                name: [item.strip() for item in entries.split(",") if item.strip()]
+                if isinstance(entries, str)
+                else entries
+                for name, entries in value.items()
+            }
         return value
 
 

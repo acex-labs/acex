@@ -96,96 +96,108 @@ that is already issued works until it expires.
 
 ### Which permissions are needed? Can I have a read-only account?
 
-A valid token gives access to the whole API, with two exceptions that can be limited to tokens that list a role:
-reading a device login in the clear, and the routes that run commands on devices, read what they answered and hand out
-the broker's login to a worker (see the two questions below). There is no read-only role yet, so treat every other
-token as full access:
+Most routes ask for a valid token and nothing more. A few each need a **permission**: reading a device login in the clear,
+running commands on devices, reading what they answered, and handing out the broker's login to a worker. The framework
+names the permissions and says which route needs which; the roles that hold them are yours to make (see below).
+
+A token that holds none of them can still read and write the inventory, so treat every such token as full access to it:
 
 - give each integration its own client, so that it can be disabled by itself,
 - keep the client secret in a secret store and not in a script,
 - keep the lifetime of the token short.
 
-### Who may read a device login in the clear?
+### Which permissions are there, and which roles hold them?
 
-`ACEX_AUTHZ_MODE` decides, and it is `off` until it is changed, so nothing is refused after an upgrade:
+<!-- permissions:start -->
+| Permission | Allows to | Held by default by |
+|---|---|---|
+| `credentials.reveal` | read the stored login of a device in the clear | `acex-admin` and `acex-service` |
+| `operations.execute` | run raw commands on devices | `acex-admin` |
+| `operations.apply` | send a patch of configuration to devices | `acex-admin` |
+| `operations.inspect` | plan a patch and run the actions, which read from devices and change nothing | `acex-admin` |
+| `operations.runs.read` | list and read runs and their reports, which hold what the devices answered | `acex-admin` |
+| `operations.jobs` | list, read, queue again, cancel, delete and purge jobs | `acex-admin` |
+| `workflows.edit` | create, change and delete workflow definitions, which are stored commands | `acex-admin` |
+| `workflows.run` | start, continue, stop and delete workflow runs | `acex-admin` |
+| `workflows.runs.read` | list workflow runs and read a run with its steps and artifacts | `acex-admin` and `acex-service` |
+| `workers.connect` | receive the login to the message broker | `acex-service` |
+| `workers.report` | report the state and the result of a job | `acex-service` |
+<!-- permissions:end -->
 
-| `ACEX_AUTHZ_MODE` | A token without the role |
-|---|---|
-| `off` | gets the login, as before |
-| `log` | gets the login, and the API logs who would have been refused (once for each caller and route every ten minutes) |
-| `enforce` | is refused with 403 |
+`acex-admin` is for people and `acex-service` is for the collection agent and the worker, which fetch logins to do their
+work. A person does not get `workers.connect` and `workers.report`, and a worker does not order commands.
+`ACEX_AUTHZ_ADMIN_ROLE` and `ACEX_AUTHZ_SERVICE_ROLE` rename the two roles. Each route's description in the API
+reference names the permission it needs, and `GET /api/v1/auth/permissions` lists the permissions and the roles of this
+installation as it is set up.
 
-The roles are `acex-admin`, for people who read a login in the web interface, and `acex-service`, for the collection
-agent and the worker, which fetch logins to do their work (`ACEX_AUTHZ_ADMIN_ROLE` and `ACEX_AUTHZ_SERVICE_ROLE` rename
-them). The API reads them from the token at `realm_access.roles` and at `resource_access.<audience>.roles`, which is
-where Keycloak puts the realm roles and the roles of the client `acex`. `ACEX_AUTHZ_ROLES_CLAIMS` takes other dotted
-paths, comma-separated, for another identity provider (for example `roles` or `groups`).
+The web interface reads a login when someone reveals it, and calls the operations routes when someone orders a run or opens
+Operations, so the people who use it need the permissions of those routes once they are enforced. The collection agent,
+the telemetry agent and the Grafana sync use none of the operations routes.
 
-The realm of the Docker Compose setup (`keycloak/realm-export.json`) has both roles: `acex-admin` for the user `admin` and
-`acex-service` for the service account of the client `acex-agents`. A realm that was imported before they were added keeps
-its old roles, since Keycloak imports a realm only once.
+### How do I make roles of my own?
 
-To roll it out in Keycloak:
+The roles are your decision: a network engineer who may plan and read but not send, a role for a team that runs
+workflows. Two ways, which can be mixed.
 
-1. Create the realm roles `acex-admin` and `acex-service`.
-2. Give `acex-service` to the service account of each client that fetches logins (the collection agent and the worker:
-   the client, **Service accounts roles**, **Assign role**). Give `acex-admin` to the people who may read a login.
-3. Check that a token lists them: `realm_access.roles` in the decoded access token. The API reads the access token, not
-   the ID token that the web interface reads for its own checks. A client that does not have full scope (Keycloak: the
-   client, **Client scopes**, **Full scope allowed** off) gets a realm role in its token only after a scope mapping
-   for that role, so add one for each such client.
-4. Set `ACEX_AUTHZ_MODE=log`, let the agents run a round, and read the log. A `Would be refused` line names the caller
-   (the client or the user) that still lacks a role.
-5. When it stays quiet, set `ACEX_AUTHZ_MODE=enforce`.
+**In the identity provider.** In Keycloak, the permissions are client roles of the client `acex`, and a role of the realm
+made of some of them gives a token those permissions:
 
-### Who may run commands on devices, and read what they answered?
+1. Create the client roles: `python -m acex.permissions keycloak > roles.json`, then **Realm settings**, **Action**,
+   **Partial import**. (The realm of the Docker Compose setup has them, in a Keycloak volume that is new: Keycloak
+   imports a realm only once.)
+2. Create a realm role of your own, for example `network-operator`, **Associated roles**, **Assign role**, filter by
+   clients and pick the permissions of `acex` that it holds.
+3. Give the role to a group or a user. Keycloak lists the permissions of a composite role in the access token, at
+   `resource_access.acex.roles`, which the API reads. A client without full scope (**Full scope allowed** off, as for the
+   worker) needs a scope mapping for each permission or role it should get.
 
-The routes that put commands or configuration on devices, the reports of what the devices answered, and the one that
-hands the broker's login to a worker have their own setting, `ACEX_AUTHZ_OPERATIONS_MODE`. It takes the same three
-values as `ACEX_AUTHZ_MODE` and is `off` until it is changed, whatever `ACEX_AUTHZ_MODE` says, so nothing is refused
-after an upgrade and each group of routes can be switched on in its own time.
+A role in the token that is itself a permission name, or a pattern such as `operations.*`, holds it without any setting.
 
-| `ACEX_AUTHZ_OPERATIONS_MODE` | A token without the role |
+**In the settings.** `ACEX_AUTHZ_BUNDLES` names roles and what each holds, for an identity provider that cannot make
+composite roles, or to give a role a name of your own. It is JSON, or one variable for each role:
+
+```
+ACEX_AUTHZ_BUNDLES='{"network-operator": ["operations.inspect", "operations.runs.read", "workflows.run"]}'
+ACEX_AUTHZ_BUNDLES__READER=operations.inspect,operations.runs.read
+```
+
+The name of a role in the second form is the end of the variable in lower case, so a name with a hyphen needs the JSON
+form. A permission or a pattern that does not exist stops the API at startup with a message that names it. A role of the
+same name as `acex-admin` or `acex-service` replaces it. Where in the token the roles are read from is
+`ACEX_AUTHZ_ROLES_CLAIMS`: by default `realm_access.roles` and `resource_access.<audience>.roles`, which is where Keycloak
+puts the realm roles and the roles of the client `acex`. Another identity provider takes other dotted paths,
+comma-separated (for example `roles` or `groups`).
+
+### How do I roll it out?
+
+Two settings decide, and both are `off` until they are changed, so nothing is refused after an upgrade:
+`ACEX_AUTHZ_MODE` for `credentials.reveal`, and `ACEX_AUTHZ_OPERATIONS_MODE` for all the others. Each group can be
+switched on in its own time.
+
+| Mode | A token without the permission |
 |---|---|
 | `off` | is let through, as before |
 | `log` | is let through, and the API logs who would have been refused (once for each caller and route every ten minutes) |
 | `enforce` | is refused with 403 |
 
-Which role each route needs (the names are those of `ACEX_AUTHZ_ADMIN_ROLE` and `ACEX_AUTHZ_SERVICE_ROLE`; each
-route's description in the API reference says it too):
-
-| Routes | Role |
-|---|---|
-| `POST /api/v1/operations/execute`, `/operations/actions/*`, `/operations/patch/render`, `/operations/patch/apply` | `acex-admin` |
-| `GET /api/v1/operations/runs`, `/operations/runs/{id}`, `/operations/runs/{id}/report` | `acex-admin` |
-| `POST`, `PATCH` and `DELETE` of a workflow under `/api/v1/operations/workflows`, and `POST /operations/workflows/{id}/runs` | `acex-admin` |
-| `GET /api/v1/operations/workflows/runs` and `.../runs/{id}/steps/{job_id}`; `POST .../runs/{id}/continue` and `.../stop`; `DELETE .../runs/{id}` | `acex-admin` |
-| `GET /api/v1/operations/workflows/runs/{id}` and `.../runs/{id}/artifacts` | `acex-admin` or `acex-service` (a worker reads them to run the next step) |
-| `GET /api/v1/workers/jobs`, `GET /workers/jobs/{id}`, `POST .../requeue`, `POST .../cancel`, `DELETE /workers/jobs` and `DELETE /workers/jobs/{id}` | `acex-admin` |
-| `POST /api/v1/workers/connect` and `PATCH /workers/jobs/{id}` | `acex-service` |
+1. Make the roles and give them to the people and to the service accounts of the clients: the collection agent, and the
+   worker, which is a client of its own.
+2. Check that a token lists what you expect: decode the access token, not the ID token that the web interface reads for
+   its own checks.
+3. Set the mode to `log`, let people and workers do what they do for a round, and read the log. A `Would be refused` line
+   names the caller (the client or the user) and the permission it lacks.
+4. When it stays quiet, set the mode to `enforce`.
+5. Start workers only after `ACEX_AUTHZ_OPERATIONS_MODE` is `enforce`: until then any valid token of the installation can
+   order commands once a worker is connected.
 
 The routes that only describe things and reach no device stay open to every valid token: `GET /operations/patch/tree`,
-`GET /workers/job_types`, `POST /operations/workflows/check` and reading a saved workflow. A role of the admin is not
-a role of a worker: a person does not need the broker's login, and a worker does not order commands.
-
-The web interface calls the routes of the first rows when someone orders a run or opens Operations, so the people who
-use it need `acex-admin` once this is enforced. The collection agent, the telemetry agent and the Grafana sync use none
-of these routes.
-
-To roll it out, give the roles as in the steps above (the service account of the worker is a client of its own, with
-`acex-service`), then:
-
-1. Set `ACEX_AUTHZ_OPERATIONS_MODE=log`, let people and workers do what they do for a round, and read the log. A
-   `Would be refused` line that names `ACEX_AUTHZ_OPERATIONS_MODE` is a caller that still lacks a role.
-2. When it stays quiet, set `ACEX_AUTHZ_OPERATIONS_MODE=enforce`.
-3. Start workers only after this: until then any valid token of the installation can order commands once a worker is
-   connected.
+`GET /workers/job_types`, `POST /operations/workflows/check` and reading a saved workflow.
 
 ### Why do I get 403?
 
-The token is valid but does not list a role the route needs, and the setting of that route's group
-(`ACEX_AUTHZ_MODE` or `ACEX_AUTHZ_OPERATIONS_MODE`) is `enforce`. The `detail` names the roles. Ask for one of them for
-your user or client.
+The token is valid but does not hold the permission the route needs, and the mode of that permission's group
+(`ACEX_AUTHZ_MODE` or `ACEX_AUTHZ_OPERATIONS_MODE`) is `enforce`. The `detail` names the permission and the roles that hold
+it by default. Ask for a role that holds it for your user or client.
 
 ## Inventory data
 

@@ -97,8 +97,9 @@ services:
       ACEX_OIDC_AUDIENCE: acex
       ACEX_OIDC_VERIFY_SSL: "false"
       # Who may read a device login in the clear: off, log or enforce. The dev realm ships the roles
-      # (acex-admin for the user admin, acex-service for the agents), but a Keycloak volume created before them
-      # does not have them: import the realm again, or add the roles by hand, before turning this on.
+      # (acex-admin for the user admin, acex-service for the agents) and the permissions as client roles of acex,
+      # but a Keycloak volume created before them does not have them: import the realm again, or add the roles by
+      # hand, before turning this on. Roles of your own: ACEX_AUTHZ_BUNDLES (see docs/guides/api-faq.md).
       ACEX_AUTHZ_MODE: ${ACEX_AUTHZ_MODE:-off}
       # Who may run commands on devices, read what they answered and let a worker connect: off, log or enforce.
       # Needs the same roles in the realm; the user admin and the client acex-agents have them.

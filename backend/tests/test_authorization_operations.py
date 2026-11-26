@@ -1,5 +1,6 @@
-"""Running commands on devices, reading what they answered and getting the broker's login are for people with the admin
-role and for workers with the service role, not for every valid token.
+"""Running commands on devices, reading what they answered and getting the broker's login each need a permission, which
+a token holds through a role: the two roles that come with the framework, a role of the settings, or a role that is
+itself a permission. They are not for every valid token.
 
 The rules have a setting of their own, ACEX_AUTHZ_OPERATIONS_MODE, off by default whatever the mode of reading a device
 login is. Like that one it has three modes: off (nothing is checked), log (what would be refused is logged) and enforce
@@ -16,6 +17,7 @@ from acex.api import auth
 from acex.api.routers import credentials, operation_runs, workers, workflows
 from acex.jobs import JobManager, JobTypeRegistry, registry
 from acex.operations import ACTIONS
+from acex.permissions import PERMISSIONS
 from acex.settings import AuthorizationSettings, RabbitMQSettings, Settings
 from acex_devkit.models.job import JobState
 from acex_devkit.models.ned import Capabilities
@@ -35,47 +37,65 @@ ADMIN = {"sub": "alice", "realm_access": {"roles": ["acex-admin"]}}
 WORKER = {"sub": "svc", "azp": "acex-worker", "realm_access": {"roles": ["offline_access", "acex-service"]}}
 BOTH = {"sub": "carol", "realm_access": {"roles": ["acex-admin", "acex-service"]}}
 OTHER_ROLE = {"sub": "bob", "realm_access": {"roles": ["acex-viewer"]}}
-HOLDS = {"admin": {"admin"}, "worker": {"service"}, "both": {"admin", "service"}, "none": set(), "other": set()}
 TOKENS = {"none": NO_ROLES, "other": OTHER_ROLE, "admin": ADMIN, "worker": WORKER, "both": BOTH}
 
-ADMIN_ONLY = frozenset({"admin"})
-SERVICE_ONLY = frozenset({"service"})
-EITHER = frozenset({"admin", "service"})
+#: What each of the two roles that come with the framework holds, spelled out here and not read from the code.
+ADMIN_HOLDS = frozenset(
+    {
+        "credentials.reveal",
+        "operations.execute",
+        "operations.apply",
+        "operations.inspect",
+        "operations.runs.read",
+        "operations.jobs",
+        "workflows.edit",
+        "workflows.run",
+        "workflows.runs.read",
+    }
+)
+SERVICE_HOLDS = frozenset({"credentials.reveal", "workflows.runs.read", "workers.connect", "workers.report"})
+HOLDS = {
+    "admin": ADMIN_HOLDS,
+    "worker": SERVICE_HOLDS,
+    "both": ADMIN_HOLDS | SERVICE_HOLDS,
+    "none": frozenset(),
+    "other": frozenset(),
+}
 
-#: Who may do what. Spelled out here, apart from the routers, so that changing a rule there fails a test until the
+#: What each route needs. Spelled out here, apart from the routers, so that changing a rule there fails a test until the
 #: decision is made here too. Paths are the routers' own.
-POLICY: dict[tuple[str, str], frozenset[str]] = {
+POLICY: dict[tuple[str, str], str] = {
     # Ordering a run puts commands or configuration on devices; its report holds what they answered.
-    ("POST", f"{API}/operations/execute"): ADMIN_ONLY,
-    ("POST", f"{API}/operations/patch/render"): ADMIN_ONLY,
-    ("POST", f"{API}/operations/patch/apply"): ADMIN_ONLY,
-    **{("POST", f"{API}/operations/actions/{action.name}"): ADMIN_ONLY for action in ACTIONS},
-    ("GET", f"{API}/operations/runs"): ADMIN_ONLY,
-    ("GET", f"{API}/operations/runs/{{run_id}}"): ADMIN_ONLY,
-    ("GET", f"{API}/operations/runs/{{run_id}}/report"): ADMIN_ONLY,
+    ("POST", f"{API}/operations/execute"): "operations.execute",
+    ("POST", f"{API}/operations/patch/render"): "operations.inspect",
+    ("POST", f"{API}/operations/patch/apply"): "operations.apply",
+    **{("POST", f"{API}/operations/actions/{action.name}"): "operations.inspect" for action in ACTIONS},
+    ("GET", f"{API}/operations/runs"): "operations.runs.read",
+    ("GET", f"{API}/operations/runs/{{run_id}}"): "operations.runs.read",
+    ("GET", f"{API}/operations/runs/{{run_id}}/report"): "operations.runs.read",
     # Workflows are stored commands: changing one changes what the next run sends.
-    ("POST", f"{API}/operations/workflows"): ADMIN_ONLY,
-    ("PATCH", f"{API}/operations/workflows/{{workflow_id}}"): ADMIN_ONLY,
-    ("DELETE", f"{API}/operations/workflows/{{workflow_id}}"): ADMIN_ONLY,
-    ("POST", f"{API}/operations/workflows/{{workflow_id}}/runs"): ADMIN_ONLY,
-    ("GET", f"{API}/operations/workflows/runs"): ADMIN_ONLY,
-    ("GET", f"{API}/operations/workflows/runs/{{run_id}}/steps/{{job_id}}"): ADMIN_ONLY,
-    ("POST", f"{API}/operations/workflows/runs/{{run_id}}/continue"): ADMIN_ONLY,
-    ("POST", f"{API}/operations/workflows/runs/{{run_id}}/stop"): ADMIN_ONLY,
-    ("DELETE", f"{API}/operations/workflows/runs/{{run_id}}"): ADMIN_ONLY,
-    # The workers read a run and its artifacts to run its later steps.
-    ("GET", f"{API}/operations/workflows/runs/{{run_id}}"): EITHER,
-    ("GET", f"{API}/operations/workflows/runs/{{run_id}}/artifacts"): EITHER,
+    ("POST", f"{API}/operations/workflows"): "workflows.edit",
+    ("PATCH", f"{API}/operations/workflows/{{workflow_id}}"): "workflows.edit",
+    ("DELETE", f"{API}/operations/workflows/{{workflow_id}}"): "workflows.edit",
+    ("POST", f"{API}/operations/workflows/{{workflow_id}}/runs"): "workflows.run",
+    ("POST", f"{API}/operations/workflows/runs/{{run_id}}/continue"): "workflows.run",
+    ("POST", f"{API}/operations/workflows/runs/{{run_id}}/stop"): "workflows.run",
+    ("DELETE", f"{API}/operations/workflows/runs/{{run_id}}"): "workflows.run",
+    # What a run shows: people read it, and the workers read a run and its artifacts to run its later steps.
+    ("GET", f"{API}/operations/workflows/runs"): "workflows.runs.read",
+    ("GET", f"{API}/operations/workflows/runs/{{run_id}}"): "workflows.runs.read",
+    ("GET", f"{API}/operations/workflows/runs/{{run_id}}/steps/{{job_id}}"): "workflows.runs.read",
+    ("GET", f"{API}/operations/workflows/runs/{{run_id}}/artifacts"): "workflows.runs.read",
     # What a worker does.
-    ("POST", f"{API}/workers/connect"): SERVICE_ONLY,
-    ("PATCH", f"{API}/workers/jobs/{{job_id}}"): SERVICE_ONLY,
+    ("POST", f"{API}/workers/connect"): "workers.connect",
+    ("PATCH", f"{API}/workers/jobs/{{job_id}}"): "workers.report",
     # What people do with jobs.
-    ("GET", f"{API}/workers/jobs"): ADMIN_ONLY,
-    ("GET", f"{API}/workers/jobs/{{job_id}}"): ADMIN_ONLY,
-    ("POST", f"{API}/workers/jobs/{{job_id}}/requeue"): ADMIN_ONLY,
-    ("POST", f"{API}/workers/jobs/{{job_id}}/cancel"): ADMIN_ONLY,
-    ("DELETE", f"{API}/workers/jobs"): ADMIN_ONLY,
-    ("DELETE", f"{API}/workers/jobs/{{job_id}}"): ADMIN_ONLY,
+    ("GET", f"{API}/workers/jobs"): "operations.jobs",
+    ("GET", f"{API}/workers/jobs/{{job_id}}"): "operations.jobs",
+    ("POST", f"{API}/workers/jobs/{{job_id}}/requeue"): "operations.jobs",
+    ("POST", f"{API}/workers/jobs/{{job_id}}/cancel"): "operations.jobs",
+    ("DELETE", f"{API}/workers/jobs"): "operations.jobs",
+    ("DELETE", f"{API}/workers/jobs/{{job_id}}"): "operations.jobs",
 }
 
 #: Routes of the same routers that stay open to every valid token: they answer from the code or from saved
@@ -96,9 +116,11 @@ def _reset_auth():
     auth.configure_authorization("off", KEYCLOAK_CLAIMS, ROLE_NAMES)
 
 
-def _configure(operations_mode: str, mode: str = "off", issuer: str | None = ISSUER) -> None:
+def _configure(
+    operations_mode: str, mode: str = "off", issuer: str | None = ISSUER, bundles: dict | None = None
+) -> None:
     auth.configure(issuer, "acex")
-    auth.configure_authorization(mode, KEYCLOAK_CLAIMS, ROLE_NAMES, operations_mode)
+    auth.configure_authorization(mode, KEYCLOAK_CLAIMS, ROLE_NAMES, operations_mode, bundles)
 
 
 def _app(engine, describe: bool = False) -> FastAPI:
@@ -108,7 +130,7 @@ def _app(engine, describe: bool = False) -> FastAPI:
     app.state.routers = [module.create_router(engine) for module in (operation_runs, workers, workflows)]
     for router in app.state.routers:
         if describe:
-            auth.describe_role_rules(router)
+            auth.describe_permission_rules(router)
         app.include_router(router)
     return app
 
@@ -142,10 +164,10 @@ class TestWhichRoutes:
     def should_have_a_rule_for_every_route_that_runs_or_reads_a_run(self, stub_app):
         guarded, unguarded = {}, set()
         for route in _routes(stub_app):
-            roles = [d.dependency.roles for d in route.dependencies if hasattr(d.dependency, "roles")]
+            permissions = [d.dependency.permission for d in route.dependencies if hasattr(d.dependency, "permission")]
             for method in route.methods:
-                if roles:
-                    guarded[(method, route.path)] = frozenset(roles[0])
+                if permissions:
+                    guarded[(method, route.path)] = permissions[0]
                 else:
                     unguarded.add((method, route.path))
 
@@ -153,11 +175,16 @@ class TestWhichRoutes:
         # A route added later has to be put in one list or the other.
         assert unguarded == OPEN
 
-    def should_belong_to_the_operations_rules(self, stub_app):
+    def should_belong_to_the_operations_group(self, stub_app):
         for route in _routes(stub_app):
             for dependency in route.dependencies:
-                if hasattr(dependency.dependency, "rules"):
-                    assert dependency.dependency.rules == "operations"
+                if hasattr(dependency.dependency, "permission"):
+                    assert PERMISSIONS[dependency.dependency.permission].group == "operations"
+
+    def should_need_no_permission_that_nobody_holds(self):
+        # A permission no default role holds could only be reached through a role of the settings.
+        for permission in set(POLICY.values()):
+            assert permission in ADMIN_HOLDS | SERVICE_HOLDS, permission
 
 
 class TestOff:
@@ -181,24 +208,27 @@ class TestOff:
 class TestEnforce:
     @pytest.mark.parametrize("token", TOKENS)
     @pytest.mark.parametrize(("method", "path"), [key for key, _ in ROUTES], ids=IDS)
-    def should_refuse_a_token_without_the_role_and_only_that(self, stub_app, method, path, token):
+    def should_refuse_a_token_without_the_permission_and_only_that(self, stub_app, method, path, token):
         _configure("enforce")
         needed = POLICY[(method, path)]
         response = _call(_as(stub_app, TOKENS[token]), method, path)
-        if HOLDS[token] & needed:
+        if needed in HOLDS[token]:
             assert response.status_code not in (401, 403)
         else:
             assert response.status_code == 403
-            assert "acex-" in response.json()["detail"]
+            assert needed in response.json()["detail"]
 
-    def should_name_the_roles_a_route_needs(self, stub_app):
+    def should_name_the_permission_a_route_needs_and_the_roles_that_hold_it(self, stub_app):
         _configure("enforce")
         refused = _call(_as(stub_app, NO_ROLES), "POST", f"{API}/operations/execute")
-        assert refused.json()["detail"] == "Requires one of the roles: acex-admin"
+        assert refused.json()["detail"] == "Requires the permission operations.execute (held by the roles acex-admin)"
         refused = _call(_as(stub_app, NO_ROLES), "POST", f"{API}/operations/workflows/runs/1/continue")
-        assert refused.json()["detail"] == "Requires one of the roles: acex-admin"
+        assert refused.json()["detail"] == "Requires the permission workflows.run (held by the roles acex-admin)"
         refused = _call(_as(stub_app, NO_ROLES), "GET", f"{API}/operations/workflows/runs/1/artifacts")
-        assert refused.json()["detail"] == "Requires one of the roles: acex-admin, acex-service"
+        assert (
+            refused.json()["detail"]
+            == "Requires the permission workflows.runs.read (held by the roles acex-admin, acex-service)"
+        )
 
     def should_leave_the_open_routes_open(self, stub_app):
         _configure("enforce")
@@ -239,7 +269,7 @@ class TestLog:
         with caplog.at_level(logging.WARNING, logger="acex.auth"):
             _call(_as(stub_app, NO_ROLES), "POST", f"{API}/operations/execute")
         assert "Would be refused (POST /api/v1/operations/execute)" in caplog.text
-        assert "'alice'" in caplog.text and "acex-admin" in caplog.text
+        assert "'alice'" in caplog.text and "the permission operations.execute" in caplog.text
         assert "ACEX_AUTHZ_OPERATIONS_MODE=enforce" in caplog.text
 
     def should_say_it_once_per_caller_and_route(self, stub_app, caplog):
@@ -270,6 +300,64 @@ class TestLog:
         assert "ACEX_AUTHZ_MODE=enforce" in caplog.text and "OPERATIONS" not in caplog.text
 
 
+def _realm_role(*roles: str) -> dict:
+    return {"sub": "someone", "realm_access": {"roles": list(roles)}}
+
+
+def _allowed_routes(app: FastAPI, claims: dict) -> set[str]:
+    """The permissions of the routes a token gets past, as the routes answer it."""
+    client = _as(app, claims)
+    return {
+        permission
+        for (method, path), permission in POLICY.items()
+        if _call(client, method, path).status_code not in (401, 403)
+    }
+
+
+class TestRolesOfTheInstallation:
+    """The roles are the installation's to make: the framework only says which permission a route needs."""
+
+    def should_let_a_role_of_the_settings_do_what_it_holds_and_nothing_else(self, stub_app):
+        _configure("enforce", bundles={"planner": ["operations.inspect", "workflows.run"]})
+        assert _allowed_routes(stub_app, _realm_role("planner")) == {"operations.inspect", "workflows.run"}
+
+    def should_let_a_role_that_is_a_permission_do_what_it_names(self, stub_app):
+        _configure("enforce")
+        assert _allowed_routes(stub_app, _realm_role("operations.execute")) == {"operations.execute"}
+
+    def should_read_it_from_a_client_role_of_the_audience_as_keycloak_gives_a_composite_role(self, stub_app):
+        _configure("enforce")
+        claims = {"sub": "x", "resource_access": {"acex": {"roles": ["operations.inspect", "operations.runs.read"]}}}
+        assert _allowed_routes(stub_app, claims) == {"operations.inspect", "operations.runs.read"}
+
+    def should_let_a_pattern_cover_a_whole_area_and_not_another(self, stub_app):
+        _configure("enforce")
+        assert _allowed_routes(stub_app, _realm_role("operations.*")) == {
+            p for p in POLICY.values() if p.startswith("operations.")
+        }
+
+    def should_let_a_role_that_is_everything_do_everything(self, stub_app):
+        _configure("enforce")
+        assert _allowed_routes(stub_app, _realm_role("*")) == set(POLICY.values())
+
+    def should_let_a_role_of_the_settings_replace_a_default_role(self, stub_app):
+        _configure("enforce", bundles={"acex-admin": ["operations.inspect"]})
+        assert _allowed_routes(stub_app, ADMIN) == {"operations.inspect"}
+
+    def should_add_what_two_roles_hold(self, stub_app):
+        _configure("enforce", bundles={"planner": ["operations.inspect"], "runner": ["workflows.run"]})
+        assert _allowed_routes(stub_app, _realm_role("planner", "runner")) == {"operations.inspect", "workflows.run"}
+
+    def should_give_a_role_of_the_settings_nothing_in_the_other_group_of_routes(self, stub_app):
+        # Reading a login in the clear is another permission, in the group of ACEX_AUTHZ_MODE.
+        _configure("enforce", bundles={"planner": ["operations.inspect"]})
+        assert "credentials.reveal" not in _allowed_routes(stub_app, _realm_role("planner"))
+
+    def should_not_turn_a_role_of_the_settings_into_a_way_around_the_mode(self, stub_app):
+        _configure("off", bundles={"planner": ["operations.inspect"]})
+        assert _allowed_routes(stub_app, _realm_role("somebody-else")) == set(POLICY.values())
+
+
 class TestSettings:
     def should_read_the_environment(self, monkeypatch):
         monkeypatch.setenv("ACEX_AUTHZ_OPERATIONS_MODE", "log")
@@ -288,16 +376,15 @@ class TestDocumentation:
         _configure("off")
         return _app(MagicMock(), describe=True)
 
-    def should_say_in_each_description_which_role_a_route_needs(self, described):
+    def should_say_in_each_description_which_permission_a_route_needs_and_who_holds_it(self, described):
         schema = described.openapi()["paths"]
 
         for (method, path), needed in POLICY.items():
             description = schema[path][method.lower()]["description"]
             assert "ACEX_AUTHZ_OPERATIONS_MODE" in description, (method, path)
-            for role in needed:
-                assert f"`{ROLE_NAMES[role]}`" in description, (method, path)
-            for role in {"admin", "service"} - needed:
-                assert f"`{ROLE_NAMES[role]}`" not in description, (method, path)
+            assert f"**Permission:** `{needed}`" in description, (method, path)
+            for role, holds in (("acex-admin", ADMIN_HOLDS), ("acex-service", SERVICE_HOLDS)):
+                assert (f"`{role}`" in description) == (needed in holds), (method, path, role)
 
     def should_keep_what_a_route_already_said(self, described):
         description = described.openapi()["paths"][f"{API}/operations/execute"]["post"]["description"]
@@ -305,7 +392,7 @@ class TestDocumentation:
 
     def should_say_nothing_about_an_open_route(self, described):
         for method, path in OPEN:
-            assert "**Role:**" not in described.openapi()["paths"][path][method.lower()].get("description", "")
+            assert "**Permission:**" not in described.openapi()["paths"][path][method.lower()].get("description", "")
 
     def should_use_the_role_names_of_the_settings(self, monkeypatch):
         monkeypatch.setattr(operation_runs, "NEDManager", MagicMock)
@@ -484,8 +571,11 @@ class TestThroughTheApp:
             body = {"iss": ISSUER, "aud": "acex", "sub": "someone", **claims}
             return {"Authorization": "Bearer " + jwt.encode(body, pem, algorithm="RS256", headers={"kid": "test"})}
 
-        def build(operations_mode: str):
-            settings = Settings(oidc={"issuer_url": ISSUER}, authz={"mode": "off", "operations_mode": operations_mode})
+        def build(operations_mode: str, bundles: dict | None = None):
+            settings = Settings(
+                oidc={"issuer_url": ISSUER},
+                authz={"mode": "off", "operations_mode": operations_mode, "bundles": bundles or {}},
+            )
             engine = AutomationEngine(db_connection=Connection(), settings=settings)
             app = engine.create_app()
             return app, TestClient(app, raise_server_exceptions=False)
@@ -540,6 +630,35 @@ class TestThroughTheApp:
             ).status_code
             == 503
         )
+
+    def should_give_a_signed_token_the_permissions_of_the_roles_of_the_settings(self, tokens):
+        build, token = tokens
+        _, client = build("enforce", {"planner": ["operations.inspect"]})
+        planner = token(realm_access={"roles": ["planner"]})
+
+        # Past the check each answers for itself: there is no such node, and no broker.
+        assert client.post(API + "/operations/patch/render", json={}, headers=planner).status_code not in (401, 403)
+        assert client.post(API + "/operations/execute", json=EXECUTE, headers=planner).status_code == 403
+        composite = token(resource_access={"acex": {"roles": ["operations.execute"]}})
+        assert client.post(API + "/operations/execute", json=EXECUTE, headers=composite).status_code in (404, 503)
+        assert client.post(API + "/operations/patch/apply", json={}, headers=composite).status_code == 403
+
+    def should_list_the_permissions_and_the_roles_for_any_valid_token(self, tokens):
+        build, token = tokens
+        _, client = build("log", {"planner": ["operations.inspect"]})
+
+        assert client.get(API + "/auth/permissions").status_code == 401
+        listed = client.get(API + "/auth/permissions", headers=token())
+        assert listed.status_code == 200
+        body = listed.json()
+        assert {p["name"] for p in body["permissions"]} == set(PERMISSIONS)
+        assert body["roles"]["planner"] == ["operations.inspect"]
+        assert body["modes"]["operations"] == {"setting": "ACEX_AUTHZ_OPERATIONS_MODE", "mode": "log"}
+
+    def should_refuse_to_start_on_a_role_of_the_settings_with_a_permission_that_does_not_exist(self, tokens):
+        build, _ = tokens
+        with pytest.raises(ValueError, match="operations.exectue"):
+            build("enforce", {"planner": ["operations.exectue"]})
 
     def should_describe_the_rules_in_the_applications_documentation(self, tokens, monkeypatch):
         build, _ = tokens

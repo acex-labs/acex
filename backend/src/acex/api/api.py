@@ -33,6 +33,7 @@ class Api:
             settings.authz.roles_claims,
             {"admin": settings.authz.admin_role, "service": settings.authz.service_role},
             settings.authz.operations_mode,
+            settings.authz.bundles,
         )
 
         @asynccontextmanager
@@ -49,7 +50,7 @@ class Api:
                 ):
                     if mode != "enforce":
                         what = "only logged" if mode == "log" else "not checked"
-                        print(f"AUTH: roles for {rules} are {what} ({setting})")
+                        print(f"AUTH: permissions for {rules} are {what} ({setting})")
             if _auth.OIDC_ISSUER_URL:
                 try:
                     keys = _auth._get_jwks().get("keys", [])
@@ -143,7 +144,7 @@ class Api:
                 raise e
 
         for router in routers:
-            _auth.describe_role_rules(router)
+            _auth.describe_permission_rules(router)
             Api.include_router(router)
 
         return Api
