@@ -19,10 +19,7 @@ def create_router(automation_engine):
         methods=["GET"],
         tags=tags,
         dependencies=[Depends(_auth.require_role("admin", "service"))],
-        description=(
-            "The stored login in the clear, from the database or from Vault. With ACEX_AUTHZ_MODE=enforce the token "
-            "must list the admin or the service role."
-        ),
+        description="The stored login in the clear, from the database or from Vault.",
     )
     router.add_api_route("/credentials/{id}", cm.get, methods=["GET"], tags=tags)
     router.add_api_route("/credentials/{id}", cm.update, methods=["PATCH"], tags=tags)

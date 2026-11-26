@@ -18,6 +18,10 @@ def _who(user: dict) -> str:
     return user.get("preferred_username") or user.get("sub") or "anonymous"
 
 
+#: Ordering a run puts commands or configuration on devices, and a run's report holds what they answered.
+_ADMIN = Depends(_auth.require_role("admin", rules="operations"))
+
+
 def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/operations", tags=["Operations"])
     runs = OperationRuns(automation_engine.jobs, automation_engine.inventory.node_instances, NEDManager())
@@ -36,7 +40,7 @@ def create_router(automation_engine):
         components with the fields of each entry, and attributes."""
         return tree
 
-    @router.post("/patch/render", response_model=Run, status_code=status.HTTP_202_ACCEPTED)
+    @router.post("/patch/render", response_model=Run, status_code=status.HTTP_202_ACCEPTED, dependencies=[_ADMIN])
     async def render_patch(request: PatchRenderRequest, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Render on each node the patch that brings its configuration at `paths` to the desired state, from a
         live read; with `prune`, removing what desired doesn't declare there too. No paths is the whole tree.
@@ -44,13 +48,13 @@ def create_router(automation_engine):
         apply."""
         return await order(runs.order(PATCH_RENDER, request, _who(user)))
 
-    @router.post("/patch/apply", response_model=Run, status_code=status.HTTP_202_ACCEPTED)
+    @router.post("/patch/apply", response_model=Run, status_code=status.HTTP_202_ACCEPTED, dependencies=[_ADMIN])
     async def apply_patch(request: PatchApplyRequest, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Send a plan's patches to some of its nodes. Each node is read live again and patched only if it
         still renders the plan's patch, then read once more to verify."""
         return await order(runs.apply_patch(request, _who(user)))
 
-    @router.post("/execute", response_model=Run, status_code=status.HTTP_202_ACCEPTED)
+    @router.post("/execute", response_model=Run, status_code=status.HTTP_202_ACCEPTED, dependencies=[_ADMIN])
     async def execute(request: ExecuteRequest, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Run raw commands on each node, in order, in one session per node. Each node's output is masked
         by its NED. Every node's NED must support execute."""
@@ -71,9 +75,10 @@ def create_router(automation_engine):
             response_model=Run,
             status_code=status.HTTP_202_ACCEPTED,
             name=f"run_{action.name}",
+            dependencies=[_ADMIN],
         )
 
-    @router.get("/runs", response_model=PaginatedResponse[Run])
+    @router.get("/runs", response_model=PaginatedResponse[Run], dependencies=[_ADMIN])
     def list_runs(
         kind: Literal["execute", "actions", "patch"] | None = None,
         limit: int = Query(50, ge=1, le=500),
@@ -82,12 +87,12 @@ def create_router(automation_engine):
         """Runs ordered by anyone, newest first."""
         return runs.list(kind, limit, offset)
 
-    @router.get("/runs/{run_id}", response_model=RunReport)
+    @router.get("/runs/{run_id}", response_model=RunReport, dependencies=[_ADMIN])
     async def get_run(run_id: int):
         """A run with each node's response, sorted by hostname."""
         return await runs.report(run_id)
 
-    @router.get("/runs/{run_id}/report")
+    @router.get("/runs/{run_id}/report", dependencies=[_ADMIN])
     async def download_report(run_id: int, format: Literal["json", "csv"] = "csv"):
         """The run's report as a file."""
         report = await runs.report(run_id)

@@ -96,9 +96,10 @@ that is already issued works until it expires.
 
 ### Which permissions are needed? Can I have a read-only account?
 
-A valid token gives access to the whole API, with one exception: reading a device login in the clear
-(`GET /api/v1/inventory/credentials/{id}/secret`) can be limited to tokens that list a role. There is no read-only role
-yet, so treat every other token as full access:
+A valid token gives access to the whole API, with two exceptions that can be limited to tokens that list a role:
+reading a device login in the clear, and the routes that run commands on devices, read what they answered and hand out
+the broker's login to a worker (see the two questions below). There is no read-only role yet, so treat every other
+token as full access:
 
 - give each integration its own client, so that it can be disabled by itself,
 - keep the client secret in a secret store and not in a script,
@@ -137,10 +138,54 @@ To roll it out in Keycloak:
    (the client or the user) that still lacks a role.
 5. When it stays quiet, set `ACEX_AUTHZ_MODE=enforce`.
 
+### Who may run commands on devices, and read what they answered?
+
+The routes that put commands or configuration on devices, the reports of what the devices answered, and the one that
+hands the broker's login to a worker have their own setting, `ACEX_AUTHZ_OPERATIONS_MODE`. It takes the same three
+values as `ACEX_AUTHZ_MODE` and is `off` until it is changed, whatever `ACEX_AUTHZ_MODE` says, so nothing is refused
+after an upgrade and each group of routes can be switched on in its own time.
+
+| `ACEX_AUTHZ_OPERATIONS_MODE` | A token without the role |
+|---|---|
+| `off` | is let through, as before |
+| `log` | is let through, and the API logs who would have been refused (once for each caller and route every ten minutes) |
+| `enforce` | is refused with 403 |
+
+Which role each route needs (the names are those of `ACEX_AUTHZ_ADMIN_ROLE` and `ACEX_AUTHZ_SERVICE_ROLE`; each
+route's description in the API reference says it too):
+
+| Routes | Role |
+|---|---|
+| `POST /api/v1/operations/execute`, `/operations/actions/*`, `/operations/patch/render`, `/operations/patch/apply` | `acex-admin` |
+| `GET /api/v1/operations/runs`, `/operations/runs/{id}`, `/operations/runs/{id}/report` | `acex-admin` |
+| `POST`, `PATCH` and `DELETE` of a workflow under `/api/v1/operations/workflows`, and `POST /operations/workflows/{id}/runs` | `acex-admin` |
+| `GET /api/v1/operations/workflows/runs` and `.../runs/{id}/steps/{job_id}`; `POST .../runs/{id}/continue` and `.../stop`; `DELETE .../runs/{id}` | `acex-admin` |
+| `GET /api/v1/operations/workflows/runs/{id}` and `.../runs/{id}/artifacts` | `acex-admin` or `acex-service` (a worker reads them to run the next step) |
+| `GET /api/v1/workers/jobs`, `GET /workers/jobs/{id}`, `POST .../requeue`, `POST .../cancel`, `DELETE /workers/jobs` and `DELETE /workers/jobs/{id}` | `acex-admin` |
+| `POST /api/v1/workers/connect` and `PATCH /workers/jobs/{id}` | `acex-service` |
+
+The routes that only describe things and reach no device stay open to every valid token: `GET /operations/patch/tree`,
+`GET /workers/job_types`, `POST /operations/workflows/check` and reading a saved workflow. A role of the admin is not
+a role of a worker: a person does not need the broker's login, and a worker does not order commands.
+
+The web interface calls the routes of the first rows when someone orders a run or opens Operations, so the people who
+use it need `acex-admin` once this is enforced. The collection agent, the telemetry agent and the Grafana sync use none
+of these routes.
+
+To roll it out, give the roles as in the steps above (the service account of the worker is a client of its own, with
+`acex-service`), then:
+
+1. Set `ACEX_AUTHZ_OPERATIONS_MODE=log`, let people and workers do what they do for a round, and read the log. A
+   `Would be refused` line that names `ACEX_AUTHZ_OPERATIONS_MODE` is a caller that still lacks a role.
+2. When it stays quiet, set `ACEX_AUTHZ_OPERATIONS_MODE=enforce`.
+3. Start workers only after this: until then any valid token of the installation can order commands once a worker is
+   connected.
+
 ### Why do I get 403?
 
-The token is valid but does not list a role the route needs, and the API runs with `ACEX_AUTHZ_MODE=enforce`. The
-`detail` names the roles. Ask for one of them for your user or client.
+The token is valid but does not list a role the route needs, and the setting of that route's group
+(`ACEX_AUTHZ_MODE` or `ACEX_AUTHZ_OPERATIONS_MODE`) is `enforce`. The `detail` names the roles. Ask for one of them for
+your user or client.
 
 ## Inventory data
 

@@ -100,6 +100,9 @@ services:
       # (acex-admin for the user admin, acex-service for the agents), but a Keycloak volume created before them
       # does not have them: import the realm again, or add the roles by hand, before turning this on.
       ACEX_AUTHZ_MODE: ${ACEX_AUTHZ_MODE:-off}
+      # Who may run commands on devices, read what they answered and let a worker connect: off, log or enforce.
+      # Needs the same roles in the realm; the user admin and the client acex-agents have them.
+      ACEX_AUTHZ_OPERATIONS_MODE: ${ACEX_AUTHZ_OPERATIONS_MODE:-off}
       # The frontend is served from another origin and calls this API from the
       # browser, so it has to be named here. Nothing else is trusted.
       ACEX_CORS_ALLOWED_ORIGINS: ${ACEX_CORS_ALLOWED_ORIGINS:-http://localhost:3000}

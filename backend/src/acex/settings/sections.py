@@ -56,15 +56,20 @@ class AuthorizationSettings(Section, name="authz"):
     """
 
     #: off: no role is checked. log: a request that would be refused is logged and let through. enforce: it is
-    #: refused with 403.
+    #: refused with 403. This one is for reading a device login in the clear.
     mode: Literal["off", "log", "enforce"] = "off"
+    #: The same three values, for the routes that run commands on devices, read what they answered, and hand out the
+    #: broker's login to a worker: operations, workflows and the workers' jobs. A setting of its own, off by
+    #: default whatever `mode` says, so that each group can be switched on in its own time.
+    operations_mode: Literal["off", "log", "enforce"] = "off"
     #: Where in the access token roles are listed, as dotted paths. `{audience}` is replaced by ACEX_OIDC_AUDIENCE.
     #: The default reads Keycloak's realm roles and the client roles of the audience's client. Comma-separated in the
     #: environment.
     roles_claims: Annotated[list[str], NoDecode] = ["realm_access.roles", "resource_access.{audience}.roles"]
-    #: May do everything the roles below may, and read the secrets of device logins from the web interface.
+    #: People: read the secrets of device logins from the web interface, run commands and patches on devices, and read
+    #: what they answered.
     admin_role: str = "acex-admin"
-    #: For the agents and workers that fetch device logins to do their work.
+    #: The agents and workers that fetch device logins and run jobs to do their work.
     service_role: str = "acex-service"
 
     @field_validator("roles_claims", mode="before")

@@ -24,11 +24,17 @@ def _worker(user: dict) -> str:
     return user.get("azp") or user.get("sub") or "anonymous"
 
 
+#: What a worker does: asks for the broker's login and reports on the jobs it runs. No person has to.
+_SERVICE = Depends(_auth.require_role("service", rules="operations"))
+#: What people do with jobs: read what they ran and answered, run them again, stop and delete them.
+_ADMIN = Depends(_auth.require_role("admin", rules="operations"))
+
+
 def create_router(automation_engine):
     router = APIRouter(prefix=f"{BASE_URL}/workers", tags=["Workers"])
     jobs = automation_engine.jobs
 
-    @router.post("/connect", response_model=WorkerConnection)
+    @router.post("/connect", response_model=WorkerConnection, dependencies=[_SERVICE])
     def connect(request: WorkerConnectRequest):
         """Where a starting worker consumes from: the broker, and the queues that carry its job types.
 
@@ -66,7 +72,7 @@ def create_router(automation_engine):
         """Every job type the backend creates, and the queue that carries it."""
         return [JobTypeInfo(name=job_type.name, queue=queue_for(job_type.name)) for job_type in jobs.job_types]
 
-    @router.get("/jobs", response_model=PaginatedResponse[JobSummary])
+    @router.get("/jobs", response_model=PaginatedResponse[JobSummary], dependencies=[_ADMIN])
     def list_jobs(
         state: JobState | None = None,
         type: str | None = None,
@@ -86,14 +92,14 @@ def create_router(automation_engine):
             offset=offset,
         )
 
-    @router.get("/jobs/{job_id}", response_model=JobResponse)
+    @router.get("/jobs/{job_id}", response_model=JobResponse, dependencies=[_ADMIN])
     def get_job(job_id: int):
         job = jobs.get(job_id)
         if job is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No job {job_id}")
         return job
 
-    @router.patch("/jobs/{job_id}", response_model=JobResponse)
+    @router.patch("/jobs/{job_id}", response_model=JobResponse, dependencies=[_SERVICE])
     def report_on_job(job_id: int, report: JobUpdate, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """A worker claims a job (state running), then reports how it ended (succeeded or failed).
 
@@ -115,7 +121,7 @@ def create_router(automation_engine):
                 detail=exc.errors(include_url=False, include_context=False),
             ) from exc
 
-    @router.post("/jobs/{job_id}/requeue", response_model=JobResponse)
+    @router.post("/jobs/{job_id}/requeue", response_model=JobResponse, dependencies=[_ADMIN])
     def requeue_job(job_id: int, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Put a failed or cancelled job on its queue again, under the same id.
 
@@ -135,7 +141,7 @@ def create_router(automation_engine):
         logger.info(f"Job {job_id} ({job.type}) requeued by {user.get('sub') or 'anonymous'}")
         return job
 
-    @router.post("/jobs/{job_id}/cancel", response_model=JobResponse)
+    @router.post("/jobs/{job_id}/cancel", response_model=JobResponse, dependencies=[_ADMIN])
     def cancel_job(job_id: int, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Cancel a queued or running job, or a batch's unfinished jobs. Finished jobs answer 409."""
         who = user.get("sub") or "anonymous"
@@ -148,7 +154,7 @@ def create_router(automation_engine):
         logger.info(f"Job {job_id} ({job.type}) cancelled by {who}")
         return job
 
-    @router.delete("/jobs", response_model=JobPurge)
+    @router.delete("/jobs", response_model=JobPurge, dependencies=[_ADMIN])
     def purge_jobs(state: JobState | None = None, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Delete every job, or with `state` every job in that state, to clean up. Jobs inside batches go too."""
         purged = JobPurge(deleted=jobs.purge(state))
@@ -156,7 +162,7 @@ def create_router(automation_engine):
         logger.info(f"Purged {scope} ({purged.deleted}) by {user.get('sub') or 'anonymous'}")
         return purged
 
-    @router.delete("/jobs/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @router.delete("/jobs/{job_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[_ADMIN])
     def delete_job(job_id: int, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Delete a job in any state, or a batch with its jobs, to clean up. Cancel stops a job and keeps it.
 

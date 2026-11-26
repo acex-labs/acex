@@ -30,8 +30,12 @@ _JWKS_MAX_STALE = 24 * 3600  # refuse to serve cached JWKS older than this
 _VERIFY_SSL = True
 
 #: How roles are checked (see AuthorizationSettings). Set from Settings.authz by configure_authorization() when the app
-#: is built. Off until set, so nothing is refused that was not before.
+#: is built. Off until set, so nothing is refused that was not before. Each group of routes has a mode of its own:
+#: AUTHZ_MODE is for reading a device login in the clear ("credentials"), OPERATIONS_AUTHZ_MODE for running commands on
+#: devices, reading what they answered and handing out the broker's login ("operations").
 AUTHZ_MODE = "off"
+OPERATIONS_AUTHZ_MODE = "off"
+_RULE_SETTINGS = {"credentials": "ACEX_AUTHZ_MODE", "operations": "ACEX_AUTHZ_OPERATIONS_MODE"}
 _ROLES_CLAIMS: tuple[str, ...] = ("realm_access.roles", "resource_access.{audience}.roles")
 _ROLE_NAMES: dict[str, str] = {"admin": "acex-admin", "service": "acex-service"}
 #: A request that would be refused is logged once per caller and route in this many seconds, not on every call: an
@@ -298,10 +302,16 @@ def require_scopes(*required: str):
     return dep
 
 
-def configure_authorization(mode: str, roles_claims: list[str] | tuple[str, ...], role_names: dict[str, str]) -> None:
+def configure_authorization(
+    mode: str,
+    roles_claims: list[str] | tuple[str, ...],
+    role_names: dict[str, str],
+    operations_mode: str = "off",
+) -> None:
     """Set how roles are checked (called from AutomationEngine.create_app)."""
-    global AUTHZ_MODE, _ROLES_CLAIMS, _ROLE_NAMES
+    global AUTHZ_MODE, OPERATIONS_AUTHZ_MODE, _ROLES_CLAIMS, _ROLE_NAMES
     AUTHZ_MODE = mode
+    OPERATIONS_AUTHZ_MODE = operations_mode
     _ROLES_CLAIMS = tuple(roles_claims)
     _ROLE_NAMES = dict(role_names)
     _logged_denials.clear()
@@ -322,17 +332,24 @@ def roles_of(claims: dict) -> set[str]:
     return roles
 
 
-def require_role(*allowed: str):
+def _mode_of(rules: str) -> str:
+    return OPERATIONS_AUTHZ_MODE if rules == "operations" else AUTHZ_MODE
+
+
+def require_role(*allowed: str, rules: str = "credentials"):
     """Dependency factory: the caller's token must list one of the given roles, named as the settings do (`admin`,
-    `service`). What happens when it does not depends on the mode: nothing (off), a log line and the request goes on
-    (log), or 403 (enforce). Without an OIDC issuer there are no roles to check, as for `require_scopes`.
+    `service`). What happens when it does not depends on the mode of the group of routes the rule belongs to (`rules`:
+    `credentials` or `operations`): nothing (off), a log line and the request goes on (log), or 403 (enforce). Without
+    an OIDC issuer there are no roles to check, as for `require_scopes`.
 
         Depends(require_role("admin", "service"))
+        Depends(require_role("admin", rules="operations"))
     """
     wanted = tuple(allowed)
 
     def dep(request: Request, user: dict = Depends(get_current_user)) -> dict:  # noqa: B008
-        if AUTHZ_MODE == "off" or OIDC_ISSUER_URL is None:
+        mode = _mode_of(rules)
+        if mode == "off" or OIDC_ISSUER_URL is None:
             return user
         names = {_ROLE_NAMES[role] for role in wanted}
         if roles_of(user) & names:
@@ -340,13 +357,13 @@ def require_role(*allowed: str):
         route = getattr(request.scope.get("route"), "path", request.url.path)
         who = _UNSAFE_LOG_CHARS.sub("?", str(user.get("azp") or user.get("sub") or "unknown"))[:64]
         needs = ", ".join(sorted(names))
-        if AUTHZ_MODE == "log":
+        if mode == "log":
             key, now = (who, request.method, route), time.monotonic()
             if now - _logged_denials.get(key, -_LOG_EVERY) >= _LOG_EVERY:
                 _logged_denials[key] = now
                 logger.warning(
                     f"Would be refused ({request.method} {route}): '{who}' has none of the roles {needs}. "
-                    "Set ACEX_AUTHZ_MODE=enforce once every caller has its role."
+                    f"Set {_RULE_SETTINGS[rules]}=enforce once every caller has its role."
                 )
             return user
         logger.warning(f"Authorization denied ({request.method} {route}): '{who}' has none of the roles {needs}")
@@ -355,4 +372,25 @@ def require_role(*allowed: str):
             detail=f"Requires one of the roles: {needs}",
         )
 
+    dep.roles = wanted  # type: ignore[attr-defined]  # read by describe_role_rules()
+    dep.rules = rules  # type: ignore[attr-defined]
     return dep
+
+
+def describe_role_rules(router) -> None:
+    """Say in each route's description which role it needs and which setting turns the check on, from the rule the
+    route has, so that the API documentation and the check cannot disagree. Called on a router before it is included
+    in the app, since an app keeps the routers it includes as they are."""
+    for route in router.routes:
+        for dependency in getattr(route, "dependencies", []):
+            roles = getattr(dependency.dependency, "roles", None)
+            if roles is None:
+                continue
+            rules = dependency.dependency.rules
+            names = " or ".join(f"`{_ROLE_NAMES[role]}`" for role in roles)
+            setting = _RULE_SETTINGS[rules]
+            note = (
+                f"**Role:** a token with the role {names}. Checked when `{setting}` is `enforce` (403 without the "
+                f"role) and only logged when it is `log`; `off`, the default, checks nothing."
+            )
+            route.description = f"{route.description}\n\n{note}" if route.description else note
