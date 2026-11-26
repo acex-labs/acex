@@ -1,6 +1,7 @@
 import inspect
 
 from acex.models.regions import Region, RegionBase
+from acex.search.match import quick_match
 from acex_devkit.models.pagination import PaginatedResponse
 from acex_devkit.models.region import RegionResponse, RegionSiteInfo
 
@@ -55,6 +56,7 @@ class RegionService:
         limit: int | None = 100,  # None: every item
         offset: int = 0,
         include_sites: bool = False,
+        q: str | None = None,  # text found in the name or display name
     ) -> PaginatedResponse[RegionResponse]:
 
         query_filters = {
@@ -66,7 +68,14 @@ class RegionService:
             if v is not None
         }
 
-        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
+        extra_filters = []
+        text = (q or "").strip()
+        if text:
+            extra_filters.append(quick_match(text, (Region.name, Region.display_name)))
+
+        result = await self._call_method(
+            self.adapter.query, filters=query_filters, extra_filters=extra_filters or None, limit=limit, offset=offset
+        )
         if include_sites:
             items = [await self._enrich_data(r) for r in result["items"]]
         else:

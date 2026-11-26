@@ -1,6 +1,7 @@
 import inspect
 
 from acex.models.sites import Site, SiteBase
+from acex.search.match import quick_match
 from acex_devkit.models.contact import ContactResponse
 from acex_devkit.models.pagination import PaginatedResponse
 from acex_devkit.models.site import SiteResponse
@@ -52,6 +53,7 @@ class SiteService:
         region: str = None,
         limit: int | None = 100,  # None: every item
         offset: int = 0,
+        q: str | None = None,  # text found in the name, display name, city, country or address
     ) -> PaginatedResponse[SiteResponse]:
 
         query_filters = {
@@ -71,7 +73,16 @@ class SiteService:
                 return PaginatedResponse(items=[], total=0, limit=limit, offset=offset)
             query_filters["name"] = site_names
 
-        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
+        extra_filters = []
+        text = (q or "").strip()
+        if text:
+            extra_filters.append(
+                quick_match(text, (Site.name, Site.display_name, Site.city, Site.country, Site.address))
+            )
+
+        result = await self._call_method(
+            self.adapter.query, filters=query_filters, extra_filters=extra_filters or None, limit=limit, offset=offset
+        )
         items = [await self._enrich_data(s) for s in result["items"]]
         return PaginatedResponse(items=items, total=result["total"], limit=limit, offset=offset)
 
