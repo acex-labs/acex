@@ -16,11 +16,31 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, TypeVar, get_args, get_origin, get_type_hints
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from acex_devkit.configdiffer import Diff
 from acex_devkit.exceptions import DriverException
-from acex_devkit.models.actions import PingParams, PingResult
+from acex_devkit.models.actions import (
+    ActionParams,
+    ArpTableParams,
+    ArpTableResult,
+    InterfaceStatusParams,
+    InterfaceStatusResult,
+    IpRouteParams,
+    IpRouteResult,
+    LookupArpParams,
+    LookupArpResult,
+    LookupMacAddressParams,
+    LookupMacAddressResult,
+    MacAddressTableParams,
+    MacAddressTableResult,
+    PingParams,
+    PingResult,
+    TableParams,
+    TableResult,
+    TracerouteParams,
+    TracerouteResult,
+)
 from acex_devkit.models.asset import Asset
 from acex_devkit.models.codec_result import ParseResult, RenderResult
 from acex_devkit.models.composed_configuration import ComposedConfiguration
@@ -160,12 +180,41 @@ class State(Facade):
 
 
 class Actions(Facade):
-    """Actions run from the device. Implement one method per action."""
+    """Actions run from the device. Implement one method per action, named as the action; a table action
+    returns every row, and `Session.run_action` cuts it to the caller's `max_entries`."""
 
     validate_results = True
 
     @Facade.optional
     async def ping(self, transport: Transport, params: PingParams) -> PingResult:
+        raise NotImplementedError
+
+    @Facade.optional
+    async def get_mac_address_table(self, transport: Transport, params: MacAddressTableParams) -> MacAddressTableResult:
+        raise NotImplementedError
+
+    @Facade.optional
+    async def lookup_mac_address(self, transport: Transport, params: LookupMacAddressParams) -> LookupMacAddressResult:
+        raise NotImplementedError
+
+    @Facade.optional
+    async def get_ip_route(self, transport: Transport, params: IpRouteParams) -> IpRouteResult:
+        raise NotImplementedError
+
+    @Facade.optional
+    async def get_arp_table(self, transport: Transport, params: ArpTableParams) -> ArpTableResult:
+        raise NotImplementedError
+
+    @Facade.optional
+    async def lookup_arp(self, transport: Transport, params: LookupArpParams) -> LookupArpResult:
+        raise NotImplementedError
+
+    @Facade.optional
+    async def traceroute(self, transport: Transport, params: TracerouteParams) -> TracerouteResult:
+        raise NotImplementedError
+
+    @Facade.optional
+    async def get_interface_status(self, transport: Transport, params: InterfaceStatusParams) -> InterfaceStatusResult:
         raise NotImplementedError
 
 
@@ -205,8 +254,12 @@ class Session:
     async def get_arp_table(self) -> list[ArpEntry]:
         return await self.call(self.state, "get_arp_table", self.transport)
 
-    async def ping(self, params: PingParams) -> PingResult:
-        return await self.call(self.actions, "ping", self.transport, params)
+    async def run_action(self, params: ActionParams) -> BaseModel:
+        """Run the action `params` names. A table is cut here to the caller's `max_entries`."""
+        result = await self.call(self.actions, params.action, self.transport, params)
+        if isinstance(result, TableResult) and isinstance(params, TableParams):
+            return result.limit(params.max_entries)
+        return result
 
     async def call(self, facade: Facade | None, method: str, *args) -> Any:
         if facade is None:

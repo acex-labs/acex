@@ -11,7 +11,7 @@ from typing import Any
 
 from acex_client import Acex
 from acex_devkit.drivers import NetworkElementDriver, Session
-from acex_devkit.models.actions import ActionParams, PingResult
+from acex_devkit.models.actions import ACTIONS, ActionParams, PingResult
 from acex_devkit.models.job import JobResponse
 from acex_devkit.models.operations import ExecuteData
 from acex_devkit.models.workflows import (
@@ -162,20 +162,18 @@ class HandleWorkflowExecute(HandleExecute):
 
 class HandleWorkflowAction(NodeOperation):
     """An abstract action from the job's node, its text params rendered for that node; one that renders empty
-    is left out."""
-
-    PARAMS: dict[str, type[ActionParams]] = {params.action: params for params in ActionParams.__subclasses__()}
+    is left out. The actions are devkit's ACTIONS."""
 
     def handle(self, client: Acex, job: JobResponse) -> WorkflowNodeResult:
         data = WorkflowNodeJob.model_validate(job.data)
         context = StepContext(client, data)
         step, host = context.step, context.hostname(data.node_id)
-        if step.action not in self.PARAMS:
+        if step.action not in ACTIONS:
             raise ValueError(f"No action {step.action}")
         templates = {name: Template(value) for name, value in step.params.items() if isinstance(value, str)}
         artifacts = context.artifacts([ref for template in templates.values() for ref in template.references()])
         rendered = {name: template.render(artifacts, host) for name, template in templates.items()}
-        params = self.PARAMS[step.action].model_validate(
+        params = ACTIONS[step.action].params.model_validate(
             {**step.params, **{name: value or None for name, value in rendered.items()}}
         )
         if context.dry_run:
@@ -185,7 +183,7 @@ class HandleWorkflowAction(NodeOperation):
         return WorkflowNodeResult(result=result, artifacts=context.node_artifacts(result, host))
 
     async def operate(self, driver: NetworkElementDriver, session: Session, params: ActionParams) -> Any:
-        return await getattr(session, params.action)(params)
+        return await session.run_action(params)
 
 
 class HandleWorkflowProbe(Handler):

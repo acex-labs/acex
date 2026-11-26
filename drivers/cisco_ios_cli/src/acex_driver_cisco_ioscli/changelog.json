@@ -4,6 +4,21 @@
   "name": "Cisco IOS CLI driver",
   "releases": [
     {
+      "version": "5.4.0",
+      "date": "2026-11-26",
+      "entries": [
+        {
+          "id": "20261126-mac-arp-routes-traceroute-and-interface",
+          "kind": "added",
+          "title": "MAC table, ARP, routes, traceroute and interface status as actions",
+          "description": "Cisco IOS and IOS XE devices can now run seven more actions: read the MAC\naddress table or look up one address, read the IPv4 routing table or look up\nthe route to an address or prefix, read the ARP table or look up one address,\ntrace the route to a target, and read interface status with speed, duplex,\nerrors and discards. Interface names are reported as the device writes them.",
+          "breaking": false,
+          "audience": "user",
+          "refs": []
+        }
+      ]
+    },
+    {
       "version": "5.3.0",
       "date": "2026-11-24",
       "entries": [

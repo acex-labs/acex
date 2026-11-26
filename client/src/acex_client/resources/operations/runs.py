@@ -1,6 +1,6 @@
 from typing import Literal
 
-from acex_devkit.models.actions import PingParams
+from acex_devkit.models.actions import ACTIONS
 from acex_devkit.models.operations import (
     ActionRequest,
     ExecuteRequest,
@@ -36,7 +36,8 @@ class Execute(Resource, ActionMixin):
 class Actions(Resource, ActionMixin):
     """Abstract actions — `/operations/actions/<action>`: the same params and result for every vendor.
 
-    `client.operations.actions.ping([1, 2], target="10.0.0.1", count=5)` orders a run and returns it.
+    `client.operations.actions.run("ping", [1, 2], target="10.0.0.1", count=5)` orders a run of any action
+    in devkit's ACTIONS and returns it; `ping(...)` is the same for ping.
     """
 
     path = "/operations/actions"
@@ -45,11 +46,18 @@ class Actions(Resource, ActionMixin):
     create_model = None  # type: ignore
     update_model = None  # type: ignore
 
-    @action("POST", "ping")
-    def run_ping(self, payload: ActionRequest[PingParams]) -> Run: ...
+    def run(self, action: str, node_ids: list[int], **params) -> Run:
+        """Order `action` on each node. Params are checked against the action's model before sending."""
+        spec = ACTIONS.get(action)
+        if spec is None:
+            raise ValueError(f"No action '{action}'; there are: {', '.join(ACTIONS)}")
+        request = ActionRequest[spec.params](node_ids=node_ids, params=spec.params(**params))
+        return Run.model_validate(
+            self.rest.request("POST", f"{self.path}/{action}", json=request.model_dump(mode="json"))
+        )
 
     def ping(self, node_ids: list[int], **params) -> Run:
-        return self.run_ping(payload=ActionRequest[PingParams](node_ids=node_ids, params=PingParams(**params)))
+        return self.run("ping", node_ids, **params)
 
 
 class Patch(Resource, ActionMixin):

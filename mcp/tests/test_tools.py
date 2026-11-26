@@ -16,6 +16,15 @@ EXPECTED_TOOLS = {
     "diff_observed_configs",
     "get_config_drift",
     "get_neighbors",
+    "ping",
+    "get_mac_address_table",
+    "lookup_mac_address",
+    "get_ip_route",
+    "get_arp_table",
+    "lookup_arp",
+    "traceroute",
+    "get_interface_status",
+    "get_action_run",
 }
 
 
@@ -66,6 +75,7 @@ async def test_node_id_is_the_only_identifier(app):
         "diff_observed_configs",
         "get_config_drift",
         "get_neighbors",
+        "ping",
     }
     tools = await _tools(app)
     for name in per_node:
@@ -73,7 +83,7 @@ async def test_node_id_is_the_only_identifier(app):
 
 
 async def test_all_tools_declare_read_only(app):
-    """v1 is read-only; a client should be able to see that without calling anything."""
+    """No tool changes anything, actions included; a client should see that without calling anything."""
     for name, tool in (await _tools(app)).items():
         assert tool.annotations is not None, f"{name} has no annotations"
         assert tool.annotations.readOnlyHint is True, f"{name} is not marked read-only"

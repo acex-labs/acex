@@ -1,5 +1,5 @@
 """Operation handlers: execute runs a job's commands on its node and reports each output masked by the NED;
-ping runs the abstract action and reports its result as is."""
+an action runs through the session and is reported as the driver's result is."""
 
 from __future__ import annotations
 
@@ -10,7 +10,8 @@ from acex_devkit.models.actions import PingParams, PingResult
 from acex_devkit.models.credential import CredentialSecret
 from acex_devkit.models.job import JobResponse
 from acex_worker.handlers import execute
-from acex_worker.handlers.execute import HandleExecute, HandlePing
+from acex_worker.handlers.execute import HandleAction, HandleExecute
+from acex_worker.registry import HANDLERS
 
 JOB = JobResponse.model_validate(
     {
@@ -39,7 +40,7 @@ class FakeSession:
             raise ConnectionError("unreachable")
         return [f"{command} -> enable secret 9 abc" for command in commands]
 
-    async def ping(self, params: PingParams) -> PingResult:
+    async def run_action(self, params: PingParams) -> PingResult:
         self.driver.pinged = params
         return PingResult(sent=params.count, received=params.count - 1, rtt_min_ms=1, rtt_avg_ms=2, rtt_max_ms=3)
 
@@ -110,7 +111,7 @@ def test_ping_reports_the_abstract_result(driver):
         }
     )
 
-    response = HandlePing().handle_hook(client(), job)
+    response = HandleAction().handle_hook(client(), job)
 
     assert response.success
     assert driver.pinged == PingParams(target="10.0.0.1", count=4)
@@ -124,3 +125,8 @@ def test_ping_reports_the_abstract_result(driver):
         "success": False,
     }
     assert driver.closed
+
+
+def test_every_action_has_the_action_handler():
+    assert HANDLERS["acex.operations.actions.ping"] is HandleAction
+    assert HANDLERS["acex.operations.actions.get_mac_address_table"] is HandleAction
