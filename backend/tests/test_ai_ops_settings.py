@@ -79,28 +79,69 @@ class TestFromEnv:
             "ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY": "gk",
             "ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL": "http://l",
             "ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY": "lk",
-            "ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS": "qwen3:32b, llama3",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__MODELS": "qwen3:32b, llama3",
             "ACEX_AI_OPS_CHAINS__DEFAULT": "groq/Kimi-K3, local/qwen3:32b",
             "ACEX_AI_OPS_CHAINS__ANALYSIS": "groq/deepseek-r1",
         }
         with patch.dict(os.environ, env, clear=True):
             s = AIOpsSettings()
         assert set(s.providers) == {"groq", "local"}
-        assert s.providers["local"].static_models == ["qwen3:32b", "llama3"]
+        assert list(s.providers["local"].models) == ["qwen3:32b", "llama3"]
+        assert s.providers["groq"].api == "chat_completions"
         chat_chain = [(lvl.provider, lvl.model) for lvl in s.chain_for("chat")]
         assert chat_chain == [("groq", "Kimi-K3"), ("local", "qwen3:32b")]
         analysis_chain = [(lvl.provider, lvl.model) for lvl in s.chain_for("analysis")]
         assert analysis_chain == [("groq", "deepseek-r1")]
 
-    def test_static_models_as_json(self):
+    def test_model_list_as_json(self):
         env = {
             "ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL": "http://l",
             "ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY": "lk",
-            "ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS": '["qwen3:32b", "llama3"]',
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__MODELS": '["qwen3:32b", "llama3"]',
             "ACEX_AI_OPS_CHAINS__DEFAULT": "local/qwen3:32b",
         }
         with patch.dict(os.environ, env, clear=True):
-            assert AIOpsSettings().providers["local"].static_models == ["qwen3:32b", "llama3"]
+            assert list(AIOpsSettings().providers["local"].models) == ["qwen3:32b", "llama3"]
+
+    def test_old_field_names_fail_loudly(self):
+        env = {
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL": "http://l",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY": "lk",
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS": "qwen3:32b",
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "local/qwen3:32b",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            with pytest.raises(ValueError, match="static_models"):
+                AIOpsSettings()
+
+    def test_template_url_with_responses_api(self):
+        env = {
+            "ACEX_AI_OPS_PROVIDERS__GW__BASE_URL": "https://gw/{model}/openai/v1/",
+            "ACEX_AI_OPS_PROVIDERS__GW__API": "responses",
+            "ACEX_AI_OPS_PROVIDERS__GW__API_KEY": "k",
+            "ACEX_AI_OPS_PROVIDERS__GW__MODELS": (
+                '{"gpt-a": {"reasoning_effort": "low"}, "gpt-b": {"api": "chat_completions"}}'
+            ),
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "gw/gpt-a",
+            "ACEX_AI_OPS_CHAINS__ANALYSIS": '[{"provider": "gw", "model": "gpt-a", "reasoning_effort": "high"}]',
+        }
+        with patch.dict(os.environ, env, clear=True):
+            s = AIOpsSettings()
+        gw = s.providers["gw"]
+        assert not gw.discoverable
+        assert gw.endpoint("gpt-a") == ("https://gw/gpt-a/openai/v1/", "responses")
+        assert gw.endpoint("gpt-b") == ("https://gw/gpt-b/openai/v1/", "chat_completions")
+        assert gw.models["gpt-a"].reasoning_effort == "low"
+        assert s.chain_for("analysis")[0].reasoning_effort == "high"
+
+    def test_template_url_needs_its_models(self):
+        with pytest.raises(ValueError, match="configure its models"):
+            AIProvider(base_url="https://gw/{model}/v1", api_key="k")
+
+    def test_model_base_url_override(self):
+        provider = AIProvider(base_url="http://a", api_key="k", models={"m": {"base_url": "http://b"}})
+        assert provider.endpoint("m") == ("http://b", "chat_completions")
+        assert provider.endpoint("other") == ("http://a", "chat_completions")
 
     def test_chain_referencing_unknown_provider_raises(self):
         env = {
@@ -122,20 +163,21 @@ class TestFromEnv:
             with pytest.raises(ValueError, match="provider/model"):
                 AIOpsSettings()
 
-    def test_model_meta_from_env(self):
+    def test_model_settings_from_env(self):
         env = {
             "ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL": "http://l",
             "ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY": "k",
-            "ACEX_AI_OPS_PROVIDERS__LOCAL__MODEL_META": (
-                '{"qwen3:32b": {"supports_tools": true, "context_window": 32768}}'
+            "ACEX_AI_OPS_PROVIDERS__LOCAL__MODELS": (
+                '{"qwen3:32b": {"supports_tools": true, "context_window": 32768, "params": {"temperature": 0.2}}}'
             ),
             "ACEX_AI_OPS_CHAINS__DEFAULT": "local/qwen3:32b",
         }
         with patch.dict(os.environ, env, clear=True):
             s = AIOpsSettings()
-        meta = s.providers["local"].model_meta["qwen3:32b"]
-        assert meta.supports_tools is True
-        assert meta.context_window == 32768
+        model = s.providers["local"].models["qwen3:32b"]
+        assert model.supports_tools is True
+        assert model.context_window == 32768
+        assert model.params == {"temperature": 0.2}
 
     def test_providers_without_default_chain_raise(self):
         env = {
@@ -154,6 +196,32 @@ class TestFromEnv:
         with patch.dict(os.environ, env, clear=True):
             with pytest.raises(ValueError, match="api_key"):
                 AIOpsSettings()
+
+    def test_azure_client_secret_auth_from_env(self):
+        env = {
+            "ACEX_AI_OPS_PROVIDERS__AZURE__BASE_URL": "https://apim/gpt/openai/v1/",
+            "ACEX_AI_OPS_PROVIDERS__AZURE__AUTH__TYPE": "azure_client_secret",
+            "ACEX_AI_OPS_PROVIDERS__AZURE__AUTH__TENANT_ID": "t",
+            "ACEX_AI_OPS_PROVIDERS__AZURE__AUTH__CLIENT_ID": "c",
+            "ACEX_AI_OPS_PROVIDERS__AZURE__AUTH__CLIENT_SECRET": "s",
+            "ACEX_AI_OPS_PROVIDERS__AZURE__AUTH__SCOPE": "https://cognitiveservices.azure.com/.default",
+            "ACEX_AI_OPS_CHAINS__DEFAULT": "azure/gpt",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            provider = AIOpsSettings().providers["azure"]
+        assert provider.api_key is None
+        assert (provider.auth.tenant_id, provider.auth.client_id, provider.auth.client_secret) == ("t", "c", "s")
+        assert provider.auth.scope == "https://cognitiveservices.azure.com/.default"
+
+    def test_provider_with_both_api_key_and_auth_raises(self):
+        auth = {"type": "azure_client_secret", "tenant_id": "t", "client_id": "c", "client_secret": "s", "scope": "x"}
+        with pytest.raises(ValueError, match="exactly one of api_key or auth"):
+            AIProvider(base_url="http://a", api_key="k", auth=auth)
+
+    def test_unknown_auth_type_raises(self):
+        auth = {"type": "basic", "tenant_id": "t", "client_id": "c", "client_secret": "s", "scope": "x"}
+        with pytest.raises(ValueError, match="azure_client_secret"):
+            AIProvider(base_url="http://a", auth=auth)
 
     def test_code_fills_in_from_env(self):
         env = {"ACEX_AI_OPS_MCP_SERVER_URL": "http://mcp:8000/mcp"}

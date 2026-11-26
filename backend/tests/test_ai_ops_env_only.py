@@ -14,7 +14,7 @@ ENV_MINIMAL = {
     "ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY": "gk",
     "ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL": "http://l",
     "ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY": "lk",
-    "ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS": "qwen3:32b",
+    "ACEX_AI_OPS_PROVIDERS__LOCAL__MODELS": "qwen3:32b",
     "ACEX_AI_OPS_CHAINS__DEFAULT": "groq/Kimi-K3, local/qwen3:32b",
     "ACEX_AI_OPS_CHAINS__ANALYSIS": "groq/deepseek-r1",
     "ACEX_AI_OPS_MCP_SERVER_URL": "http://localhost:8000/mcp",

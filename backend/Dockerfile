@@ -34,7 +34,7 @@ RUN sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/cisco_ios_cli/pyproje
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/juniper_junos_cli/pyproject.toml && \
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/fortinet_fortios_cli/pyproject.toml && \
     sed -i 's|acex-devkit = .*|acex-devkit = ">=2"|' /deps/backend/pyproject.toml && \
-    pip install --no-cache-dir -c /deps/constraints.txt /deps/devkit /deps/client /deps/cisco_ios_cli /deps/cisco_ios_classic_cli /deps/juniper_junos_cli /deps/fortinet_fortios_cli /deps/backend[vault]
+    pip install --no-cache-dir -c /deps/constraints.txt /deps/devkit /deps/client /deps/cisco_ios_cli /deps/cisco_ios_classic_cli /deps/juniper_junos_cli /deps/fortinet_fortios_cli /deps/backend[vault,azure]
 
 
 ARG BUILD_ID=""

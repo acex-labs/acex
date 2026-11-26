@@ -1,40 +1,75 @@
-"""AI Operations: named providers + per-task failover chains.
+"""AI Operations: named providers, their models, and per-task failover chains.
 
-- **AIProvider**: a named OpenAI-compatible endpoint (base_url + api_key).
-  Multiple chain levels can reference the same provider.
-- **AIChainLevel**: one level in a failover chain — (provider name, model).
-- **chains**: mapping task name → ordered list of levels. Supported tasks are
-  "chat" and "analysis"; "default" is the chain other tasks inherit from.
+- **AIProvider**: a named endpoint — where it is (base_url), how to sign in
+  (api_key or auth) and which wire protocol it speaks (api). Its models share
+  all three unless a model overrides them.
+- **AIModelConfig**: one model of a provider — call settings (reasoning effort,
+  extra request params, its own base_url or api) and what it can do (tools,
+  vision, context window, cost). Anything left out is taken from the
+  provider's /models listing when it has one.
+- **AIChainLevel**: one level in a failover chain — (provider, model), plus
+  call settings that apply to that task only.
+- **chains**: task name → ordered list of levels. Supported tasks are "chat"
+  and "analysis"; "default" is the chain other tasks inherit from.
 
 In the environment, providers and chains are keyed by name:
 
   ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL=https://api.groq.com/openai/v1
   ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY=gsk_...
-  ACEX_AI_OPS_PROVIDERS__LOCAL__STATIC_MODELS=qwen3:32b,llama3.3
-  ACEX_AI_OPS_PROVIDERS__LOCAL__MODEL_META={"qwen3:32b": {"supports_tools": true}}
+  ACEX_AI_OPS_PROVIDERS__LOCAL__MODELS=qwen3:32b,llama3.3
+  ACEX_AI_OPS_PROVIDERS__AZURE__BASE_URL=https://apim.example.com/{model}/openai/v1/
+  ACEX_AI_OPS_PROVIDERS__AZURE__API=responses
+  ACEX_AI_OPS_PROVIDERS__AZURE__AUTH__TYPE=azure_client_secret   # instead of API_KEY
+  ACEX_AI_OPS_PROVIDERS__AZURE__AUTH__TENANT_ID=...              # + CLIENT_ID, CLIENT_SECRET, SCOPE
+  ACEX_AI_OPS_PROVIDERS__AZURE__MODELS={"gpt-6.1": {"reasoning_effort": "medium"}}
   ACEX_AI_OPS_CHAINS__DEFAULT=groq/moonshotai/Kimi-K3,local/qwen3:32b
-  ACEX_AI_OPS_CHAINS__ANALYSIS=groq/deepseek-r1
+  ACEX_AI_OPS_CHAINS__ANALYSIS=[{"provider": "azure", "model": "gpt-6.1", "reasoning_effort": "high"}]
   ACEX_AI_OPS_MCP_SERVER_URL=http://localhost:8000/mcp
 
 AI Ops is on as soon as a provider is configured, and off when none is.
 """
 
-from typing import Any
+import json
+from typing import Any, Literal
 
 from acex.settings.section import Section
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 #: Tasks with dedicated chains. Any other task name inherits "default".
 KNOWN_TASKS = ("chat", "analysis")
 
+#: Wire protocols. chat_completions is what OpenAI-compatible servers speak;
+#: responses is OpenAI's newer API, the only one on which OpenAI and Azure
+#: reasoning models accept tools.
+AIApi = Literal["chat_completions", "responses"]
 
-class AIModelMeta(BaseModel):
-    """Metadata about a model — capabilities and cost.
+#: Placeholder in a base_url that is replaced by the model id, for gateways
+#: that give each model its own URL.
+MODEL_PLACEHOLDER = "{model}"
 
-    Sourced from the provider's /models response when available (several
-    OpenAI-compatible providers expose extra fields), overridable per model
-    via the provider's `model_meta` config.
+
+class _Strict(BaseModel):
+    """Rejects unknown fields, so a misspelt or renamed setting fails at startup
+    instead of being ignored — as Section does for the top level."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class AIModelConfig(_Strict):
+    """One model of a provider: how to call it and what it can do.
+
+    Capability and cost fields left as None are taken from the provider's
+    /models listing; what is set here wins over that listing.
     """
+
+    #: Overrides the provider's base_url for this model.
+    base_url: str | None = None
+    #: Overrides the provider's api for this model.
+    api: AIApi | None = None
+    #: "none", "low", "medium", "high", ... — sent as the protocol expects it.
+    reasoning_effort: str | None = None
+    #: Extra request fields sent as they are, e.g. {"temperature": 0.2}.
+    params: dict[str, Any] = {}
 
     supports_tools: bool | None = None  # function calling / tool use
     supports_vision: bool | None = None
@@ -47,51 +82,103 @@ class AIModelMeta(BaseModel):
     extra: dict | None = None
 
 
-class AIProvider(BaseModel):
-    """A named OpenAI-compatible endpoint."""
+class AzureClientSecretAuth(_Strict):
+    """Entra ID client credentials, for an endpoint that takes a fresh Entra token
+    as its bearer instead of a static key (e.g. Azure OpenAI behind API Management).
+
+    Tokens come from azure.identity.ClientSecretCredential, which caches them and
+    renews them before they expire. Needs the `azure` extra (azure-identity).
+    """
+
+    type: Literal["azure_client_secret"]
+    tenant_id: str
+    client_id: str
+    client_secret: str
+    #: Scope the token is requested for, e.g. https://cognitiveservices.azure.com/.default
+    scope: str
+
+
+class AIProvider(_Strict):
+    """A named endpoint, authenticated by `api_key` or `auth`."""
 
     #: Taken from the provider's key in AIOpsSettings.providers when left out.
     name: str = ""
+    #: May contain {model} when every model has its own URL.
     base_url: str
-    api_key: str
-    # Used when the provider has no GET /models endpoint (e.g. some local servers).
-    # Comma-separated or JSON in the environment.
-    static_models: list[str] | None = None
-    # Per-model metadata overrides: {"model-id": {"supports_tools": true, ...}}.
-    # Wins over whatever the provider's /models endpoint reports.
-    model_meta: dict[str, AIModelMeta] = {}
+    api: AIApi = "chat_completions"
+    api_key: str | None = None
+    auth: AzureClientSecretAuth | None = None
+    #: Models configured by hand: {"model-id": {...}}. In the environment also
+    #: "a,b" or a JSON list when they need no settings. They are listed even when
+    #: the provider's /models does not report them, which is how a provider
+    #: without /models gets a model list at all. Always a dict once validated;
+    #: the list in the type is what lets the environment give "a,b" at all.
+    models: dict[str, AIModelConfig] | list[str] = {}
 
-    @field_validator("static_models", mode="before")
+    @field_validator("models", mode="before")
     @classmethod
-    def _split(cls, value: Any) -> Any:
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
+    def _model_list(cls, value: Any) -> Any:
+        if isinstance(value, str) and not value.strip().startswith("{"):
+            value = json.loads(value) if value.strip().startswith("[") else value.split(",")
+        if isinstance(value, list):
+            return {item.strip(): {} for item in value if item.strip()}
         return value
 
+    @model_validator(mode="after")
+    def _check(self) -> "AIProvider":
+        if (self.api_key is None) == (self.auth is None):
+            raise ValueError("An AI provider needs exactly one of api_key or auth")
+        if not self.discoverable and not self.models:
+            raise ValueError(
+                f"AI provider base_url '{self.base_url}' has a {MODEL_PLACEHOLDER} placeholder, so it has no "
+                "/models to list; configure its models"
+            )
+        return self
 
-class AIChainLevel(BaseModel):
-    """One level in a failover chain: a model served by a named provider."""
+    @property
+    def discoverable(self) -> bool:
+        """Whether the provider has one /models endpoint to list models from."""
+        return MODEL_PLACEHOLDER not in self.base_url
+
+    def model(self, model_id: str) -> AIModelConfig:
+        return self.models.get(model_id) or AIModelConfig()
+
+    def endpoint(self, model_id: str) -> tuple[str, AIApi]:
+        """(base_url, api) that serve a model."""
+        config = self.model(model_id)
+        return (config.base_url or self.base_url).replace(MODEL_PLACEHOLDER, model_id), config.api or self.api
+
+
+class AIChainLevel(_Strict):
+    """One level in a failover chain: a model served by a named provider, with
+    call settings for this task that win over the model's own."""
 
     provider: str
     model: str
+    reasoning_effort: str | None = None
+    params: dict[str, Any] = {}
 
+    @classmethod
+    def parse(cls, value: Any) -> Any:
+        """'provider/model' -> {'provider': ..., 'model': ...}; anything else passes through."""
+        if not isinstance(value, str):
+            return value
+        value = value.strip()
+        if "/" not in value:
+            raise ValueError(f"Invalid chain level '{value}' — expected format 'provider/model'")
+        provider, model = value.split("/", 1)
+        return {"provider": provider.strip(), "model": model.strip()}
 
-def _parse_level(value: Any) -> Any:
-    """'provider/model' -> {'provider': ..., 'model': ...}; anything else passes through."""
-    if not isinstance(value, str):
-        return value
-    value = value.strip()
-    if "/" not in value:
-        raise ValueError(f"Invalid chain level '{value}' — expected format 'provider/model'")
-    provider, model = value.split("/", 1)
-    return {"provider": provider.strip(), "model": model.strip()}
+    @property
+    def label(self) -> str:
+        return f"{self.provider}/{self.model}"
 
 
 class AIOpsSettings(Section, name="ai_ops"):
     """Providers + per-task failover chains."""
 
     providers: dict[str, AIProvider] = {}
-    #: Each chain is a list of levels, or "provider/model,provider/model".
+    #: Each chain is a list of levels, "provider/model,provider/model", or a JSON list.
     chains: dict[str, list[AIChainLevel]] = {}
     mcp_server_url: str | None = None
 
@@ -100,10 +187,12 @@ class AIOpsSettings(Section, name="ai_ops"):
     def _parse_chains(cls, value: Any) -> Any:
         if not isinstance(value, dict):
             return value
-        return {
-            task: [_parse_level(lvl) for lvl in (levels.split(",") if isinstance(levels, str) else levels) if lvl]
-            for task, levels in value.items()
-        }
+        parsed = {}
+        for task, levels in value.items():
+            if isinstance(levels, str):
+                levels = json.loads(levels) if levels.strip().startswith("[") else levels.split(",")
+            parsed[task] = [AIChainLevel.parse(level) for level in levels if level]
+        return parsed
 
     @model_validator(mode="after")
     def _check(self) -> "AIOpsSettings":
