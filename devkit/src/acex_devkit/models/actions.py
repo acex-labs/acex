@@ -40,6 +40,24 @@ class MacFormat:
 MacAddress = Annotated[str, BeforeValidator(MacFormat.normalize)]
 
 
+class ListText:
+    """A list also given as text, `10, 20`, or as one value: what a form or a workflow template fills in."""
+
+    SEPARATORS = re.compile(r"[\s,]+")
+
+    @classmethod
+    def split(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [part for part in cls.SEPARATORS.split(value) if part]
+        if isinstance(value, int):
+            return [value]
+        return value
+
+
+#: A list of whole numbers, also read from `10, 20` or a single number.
+IntList = Annotated[list[int], BeforeValidator(ListText.split)]
+
+
 class ActionParams(BaseModel):
     """Base for action parameters. `action` names the `Actions` method that runs it.
 
@@ -155,7 +173,7 @@ class LookupMacAddressParams(ActionParams):
 
     action: ClassVar[str] = "lookup_mac_address"
     mac: MacAddress = Field(description="The address, written any common way.")
-    vlans: list[int] | None = Field(
+    vlans: IntList | None = Field(
         None, description="Look only in these VLANs; None looks in every VLAN. Some platforms answer faster with them."
     )
 

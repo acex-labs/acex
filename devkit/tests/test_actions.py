@@ -9,6 +9,7 @@ from acex_devkit.models.actions import (
     ACTIONS,
     ActionInfo,
     LookupArpResult,
+    LookupMacAddressParams,
     MacAddressTableParams,
     MacAddressTableResult,
     MacEntry,
@@ -103,3 +104,8 @@ def test_an_action_without_rows_lists_its_results_fields():
 
     assert info.rows is None
     assert "success_rate" in info.columns and "success_rate" in info.result["properties"]
+
+
+@pytest.mark.parametrize(("given", "vlans"), [("10, 20", [10, 20]), ("10 20", [10, 20]), (10, [10]), ([10], [10])])
+def test_a_list_of_vlans_is_read_from_text_as_a_form_or_template_fills_it_in(given, vlans):
+    assert LookupMacAddressParams(mac="aa:aa:aa:aa:aa:aa", vlans=given).vlans == vlans
