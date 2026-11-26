@@ -6,6 +6,8 @@ from acex.messaging import MessagingNotConfigured
 from acex.operations import ACTIONS, EXECUTE, PATCH_RENDER, Action
 from acex.operations.runs import OperationRuns
 from acex.plugins.neds.manager import NEDManager
+from acex_devkit.models.actions import ACTIONS as ACTION_SPECS
+from acex_devkit.models.actions import ActionInfo
 from acex_devkit.models.composed_configuration import ComposedConfiguration
 from acex_devkit.models.config_tree import ConfigTreeNode
 from acex_devkit.models.operations import ExecuteRequest, PatchApplyRequest, PatchRenderRequest, Run, RunReport
@@ -55,6 +57,14 @@ def create_router(automation_engine):
         """Run raw commands on each node, in order, in one session per node. Each node's output is masked
         by its NED. Every node's NED must support execute."""
         return await order(runs.order(EXECUTE, request, _who(user)))
+
+    actions = [ActionInfo.of(spec) for spec in ACTION_SPECS.values()]
+
+    @router.get("/actions", response_model=list[ActionInfo])
+    def list_actions():
+        """Every action, with the JSON schemas of its params and result: what a client builds its form from,
+        and how it shows the answer. A node's NED lists the actions it supports among its capabilities."""
+        return actions
 
     def action_route(action: Action):
         async def run_action(request: action.request, user: dict = Depends(_auth.get_current_user)):  # noqa: B008

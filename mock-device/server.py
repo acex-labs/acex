@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import ipaddress
 import logging
 import os
 import pathlib
@@ -107,6 +108,221 @@ def _ping(cmd: str) -> str:
     )
 
 
+class Operational:
+    """Operational state answered as IOS XE prints it: the MAC address table, ARP, routes, interfaces and
+    traceroute. Filters behave as on a device, so a lookup finds or misses, and an unknown VRF or interface
+    is refused with IOS's own words."""
+
+    INVALID = "                    ^\n% Invalid input detected at '^' marker."
+    VRFS = {"MGMT"}
+    OWN_MAC = ".".join(BASE_MAC.replace(":", "")[i : i + 4] for i in (0, 4, 8))
+    #: Vlan, MAC, type, ports.
+    MACS = [
+        ("All", "0100.0ccc.cccc", "STATIC", "CPU"),
+        ("All", "0180.c200.0000", "STATIC", "CPU"),
+        ("1", OWN_MAC, "STATIC", "Vl1"),
+        ("10", "0050.56a1.2b3c", "DYNAMIC", "Gi1/0/1"),
+        ("10", "0050.56a1.2b3d", "DYNAMIC", "Gi1/0/2"),
+        ("20", "0050.56a1.2b3c", "DYNAMIC", "Gi1/0/1"),
+        ("20", "0100.5e00.0001", "STATIC", "Gi1/0/2 Gi1/0/3"),
+    ]
+    #: Address, age in minutes or "-" for the device's own, MAC or Incomplete, interface.
+    ARP = {
+        None: [
+            ("10.0.0.1", "-", OWN_MAC, "Vlan10"),
+            ("10.0.0.2", "12", "0050.56a1.2b3c", "Vlan10"),
+            ("10.0.0.3", "0", "Incomplete", ""),
+        ],
+        "MGMT": [
+            ("192.168.100.10", "-", OWN_MAC, "GigabitEthernet0/0"),
+            ("192.168.100.1", "3", "0050.56a1.0001", "GigabitEthernet0/0"),
+        ],
+    }
+    ROUTE_TABLE = """\
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2, m - OMP
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       + - replicated route, % - next hop override, p - overrides from PfR
+
+Gateway of last resort is 10.0.0.254 to network 0.0.0.0
+
+S*    0.0.0.0/0 [1/0] via 10.0.0.254
+      10.0.0.0/8 is variably subnetted, 4 subnets, 3 masks
+C        10.0.0.0/24 is directly connected, Vlan10
+L        10.0.0.1/32 is directly connected, Vlan10
+O IA     10.1.0.0/24 [110/2] via 10.0.0.2, 00:12:34, Vlan10
+O E2     10.2.0.0/16 [110/20] via 10.0.0.2, 1d02h, Vlan10
+                     [110/20] via 10.0.0.3, 1d02h, Vlan10"""
+    ROUTE_TABLE_MGMT = """\
+Routing Table: MGMT
+Gateway of last resort is 192.168.100.1 to network 0.0.0.0
+
+S*    0.0.0.0/0 [1/0] via 192.168.100.1
+      192.168.100.0/24 is variably subnetted, 2 subnets, 2 masks
+C        192.168.100.0/24 is directly connected, GigabitEthernet0/0
+L        192.168.100.10/32 is directly connected, GigabitEthernet0/0"""
+    #: The detailed entry of each route in the global table, by prefix.
+    ROUTE_ENTRIES = {
+        "0.0.0.0/0": """\
+Routing entry for 0.0.0.0/0, supernet
+  Known via "static", distance 1, metric 0, candidate default path
+  Routing Descriptor Blocks:
+  * 10.0.0.254
+      Route metric is 0, traffic share count is 1""",
+        "10.0.0.0/24": """\
+Routing entry for 10.0.0.0/24
+  Known via "connected", distance 0, metric 0 (connected, via interface)
+  Routing Descriptor Blocks:
+  * directly connected, via Vlan10
+      Route metric is 0, traffic share count is 1""",
+        "10.1.0.0/24": """\
+Routing entry for 10.1.0.0/24
+  Known via "ospf 1", distance 110, metric 2, type inter area
+  Last update from 10.0.0.2 on Vlan10, 00:12:34 ago
+  Routing Descriptor Blocks:
+  * 10.0.0.2, from 10.255.0.1, 00:12:34 ago, via Vlan10
+      Route metric is 2, traffic share count is 1""",
+        "10.2.0.0/16": """\
+Routing entry for 10.2.0.0/16
+  Known via "ospf 1", distance 110, metric 20, type extern 2, forward metric 1
+  Last update from 10.0.0.2 on Vlan10, 1d02h ago
+  Routing Descriptor Blocks:
+  * 10.0.0.2, from 10.255.0.1, 1d02h ago, via Vlan10
+      Route metric is 20, traffic share count is 1
+    10.0.0.3, from 10.255.0.1, 1d02h ago, via Vlan10
+      Route metric is 20, traffic share count is 1""",
+    }
+    #: Each interface's block of `show interfaces`, by name.
+    INTERFACES = {
+        "GigabitEthernet0/0": """\
+GigabitEthernet0/0 is up, line protocol is up
+  Description: management
+  Full Duplex, 1000Mbps, link type is auto, media type is RJ45
+  Input queue: 0/375/0/0 (size/max/drops/flushes); Total output drops: 0
+     0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored
+     0 output errors, 0 collisions, 0 interface resets""",
+        "GigabitEthernet1/0/1": """\
+GigabitEthernet1/0/1 is up, line protocol is up (connected)
+  Description: UPLINK
+  Full-duplex, 1000Mb/s, media type is 10/100/1000BaseTX
+  Input queue: 0/2000/3/0 (size/max/drops/flushes); Total output drops: 7
+     12 input errors, 4 CRC, 0 frame, 0 overrun, 0 ignored
+     0 output errors, 0 collisions, 1 interface resets""",
+        "GigabitEthernet1/0/2": """\
+GigabitEthernet1/0/2 is down, line protocol is down (notconnect)
+  Auto-duplex, Auto-speed, media type is 10/100/1000BaseTX
+  Input queue: 0/2000/0/0 (size/max/drops/flushes); Total output drops: 0
+     0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored
+     0 output errors, 0 collisions, 0 interface resets""",
+        "GigabitEthernet1/0/3": """\
+GigabitEthernet1/0/3 is administratively down, line protocol is down (disabled)
+  Auto-duplex, Auto-speed, media type is 10/100/1000BaseTX""",
+        "GigabitEthernet1/0/4": """\
+GigabitEthernet1/0/4 is down, line protocol is down (err-disabled)
+  Auto-duplex, Auto-speed, media type is 10/100/1000BaseTX""",
+        "TenGigabitEthernet1/1/1": """\
+TenGigabitEthernet1/1/1 is up, line protocol is up (connected)
+  Full-duplex, 10Gb/s, link type is auto, media type is SFP-10GBase-SR""",
+        "Vlan10": """\
+Vlan10 is up, line protocol is up , Autostate Enabled
+  Description: users
+  Input queue: 0/375/0/0 (size/max/drops/flushes); Total output drops: 0""",
+    }
+
+    @classmethod
+    def answer(cls, cmd: str) -> str | None:
+        """The output of an operational command, or None when it is none of them."""
+        words = cmd.split()
+        if words[:3] == ["show", "mac", "address-table"]:
+            return cls.mac_table(words[3:])
+        if words[:3] == ["show", "ip", "arp"]:
+            return cls.arp(words[3:])
+        if words[:3] == ["show", "ip", "route"]:
+            return cls.ip_route(words[3:])
+        if words[:2] == ["show", "interfaces"]:
+            return cls.interfaces(words[2:])
+        if words[:1] == ["traceroute"]:
+            return cls.traceroute(words[1:])
+        return None
+
+    @staticmethod
+    def vrf(words: list[str]) -> tuple[str | None, list[str]]:
+        return (words[1], words[2:]) if words[:1] == ["vrf"] and len(words) > 1 else (None, words)
+
+    @classmethod
+    def mac_table(cls, words: list[str]) -> str:
+        filters = dict(zip(words[::2], words[1::2], strict=False))
+        rows = [
+            row
+            for row in cls.MACS
+            if ("address" not in filters or row[1] == filters["address"].lower())
+            and ("vlan" not in filters or row[0] == filters["vlan"])
+            and ("interface" not in filters or filters["interface"] in row[3].split())
+        ]
+        lines = [f"{vlan:>4}    {mac}    {kind:<8}    {ports}" for vlan, mac, kind, ports in rows]
+        return "\n".join(
+            [
+                "          Mac Address Table",
+                "-------------------------------------------",
+                "",
+                "Vlan    Mac Address       Type        Ports",
+                "----    -----------       --------    -----",
+                *lines,
+                f"Total Mac Addresses for this criterion: {len(lines)}",
+            ]
+        )
+
+    @classmethod
+    def arp(cls, words: list[str]) -> str:
+        vrf, words = cls.vrf(words)
+        if vrf not in cls.ARP:
+            return f"% IP ARP table vrf {vrf} does not exist"
+        rows = [row for row in cls.ARP[vrf] if not words or words[0] in (row[0], row[3])]
+        lines = [f"Internet  {ip:<16} {age:>5}   {mac:<14}  ARPA   {interface}" for ip, age, mac, interface in rows]
+        return "\n".join(["Protocol  Address          Age (min)  Hardware Addr   Type   Interface", *lines])
+
+    @classmethod
+    def ip_route(cls, words: list[str]) -> str:
+        vrf, words = cls.vrf(words)
+        if vrf is not None and vrf not in cls.VRFS:
+            return f"% IP routing table {vrf} does not exist"
+        if not words:
+            return cls.ROUTE_TABLE_MGMT if vrf else cls.ROUTE_TABLE
+        if vrf:
+            return "% Network not in table"
+        networks = [ipaddress.ip_network(prefix) for prefix in cls.ROUTE_ENTRIES]
+        if len(words) > 1:
+            asked = ipaddress.ip_network(f"{words[0]}/{words[1]}", strict=False)
+            found = [network for network in networks if network == asked]
+        else:
+            found = [network for network in networks if ipaddress.ip_address(words[0]) in network]
+        if not found:
+            return "% Network not in table"
+        return cls.ROUTE_ENTRIES[str(max(found, key=lambda network: network.prefixlen))]
+
+    @classmethod
+    def interfaces(cls, words: list[str]) -> str:
+        if not words:
+            return "\n".join(cls.INTERFACES.values())
+        return cls.INTERFACES.get(words[0], cls.INVALID)
+
+    @classmethod
+    def traceroute(cls, words: list[str]) -> str:
+        """Three hops to the target, or silence after the first when it never answers."""
+        _, words = cls.vrf(words)
+        target, options = words[0], words[1:]
+        probes = int(options[options.index("probe") + 1]) if "probe" in options else 3
+        max_ttl = int(options[options.index("ttl") + 2]) if "ttl" in options else 30
+        hops = [f"  1 10.0.0.254 {' '.join(['1 msec'] * probes)}"]
+        if target in UNREACHABLE:
+            hops += [f"{ttl:>3} {' '.join(['*'] * probes)}" for ttl in range(2, max_ttl + 1)]
+        else:
+            hops += [f"  2 192.0.2.1 {' '.join(['4 msec'] * probes)}", f"  3 {target} {' '.join(['6 msec'] * probes)}"]
+        return "\n".join(["Type escape sequence to abort.", f"Tracing the route to {target}", "", *hops])
+
+
 def _is_show_version(cmd: str) -> bool:
     words = cmd.split()
     return (
@@ -127,6 +343,8 @@ def _handle(cmd: str) -> str:
         return _show_version().rstrip("\n") + PROMPT
     elif cmd.split()[0] == "ping":
         return _ping(cmd) + PROMPT
+    elif (operational := Operational.answer(cmd)) is not None:
+        return operational + PROMPT
     elif "lldp neighbors" in cmd:
         return LLDP_EMPTY + PROMPT
     elif "cdp neighbors" in cmd:
