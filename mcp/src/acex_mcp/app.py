@@ -17,7 +17,11 @@ actually been collected from them.
 Start with find_nodes() to locate a device — every other tool takes the node_id
 it returns. Read the acex://glossary resource before answering configuration
 questions; ACE-X distinguishes desired configuration from observed snapshots,
-and the difference matters. All tools are read-only.
+and the difference matters.
+
+Action tools, such as ping, run live on a device now and wait for its answer;
+everything else reads what ACE-X has stored. No tool changes a device or
+anything in ACE-X.
 """
 
 

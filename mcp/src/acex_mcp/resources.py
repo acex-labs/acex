@@ -74,6 +74,17 @@ ENTITIES
               A node whose asset has no NED cannot have its desired config
               rendered.
 
+ACTIONS
+
+  An action (ping, ...) runs live on a node now, through its NED, to
+  troubleshoot or collect data. It never changes the device's configuration.
+  Its params and result are the same for every vendor, and a node whose NED
+  does not support it is refused. Each one is recorded as a run under
+  Operations › Standard Actions, ordered by the user.
+
+  An action's result is a reading taken now; an observed configuration is a
+  snapshot from when it was collected. Say which one an answer rests on.
+
 TIMESTAMPS
 
   All timestamps are UTC. Snapshot times are stored without a zone offset and
@@ -86,7 +97,8 @@ WRITE_ACCESS = """\
 WHAT THIS SERVER CANNOT DO
 ==========================
 
-Every tool here is read-only. This server cannot change a configuration, push
+Every tool here is read-only. Action tools such as ping run on a device, but
+change nothing there. This server cannot change a configuration, push
 anything to a device, or create or delete records. ACE-X has no config-push
 path at all — configuration reaches devices by other means entirely.
 

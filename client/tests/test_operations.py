@@ -124,3 +124,36 @@ def test_lldp_reverse(operations):
     result = operations.lldp.reverse(node_instance_id=2)
     assert len(result) == 1
     assert result[0].node_instance_id == 1
+
+
+RUN = {
+    "id": 7,
+    "type": "acex.operations.actions.ping",
+    "state": "queued",
+    "jobs": {"queued": 1},
+    "created_by": "johan",
+    "created_at": "2026-11-26T08:00:00",
+}
+
+
+@respx.mock
+def test_actions_run_orders_any_action(operations):
+    route = respx.post("http://test/api/v1/operations/actions/ping").mock(return_value=Response(202, json=RUN))
+    run = operations.actions.run("ping", [24], target="10.10.0.2", count=5)
+    assert run.id == 7
+    body = route.calls.last.request.read()
+    assert b'"node_ids":[24]' in body.replace(b" ", b"")
+    assert b'"target":"10.10.0.2"' in body.replace(b" ", b"")
+
+
+@respx.mock
+def test_actions_ping_is_run_of_ping(operations):
+    respx.post("http://test/api/v1/operations/actions/ping").mock(return_value=Response(202, json=RUN))
+    assert operations.actions.ping([24], target="10.10.0.2").id == 7
+
+
+def test_actions_run_checks_params_before_sending(operations):
+    with pytest.raises(ValueError, match="No action 'traceroot'"):
+        operations.actions.run("traceroot", [24])
+    with pytest.raises(ValueError):
+        operations.actions.run("ping", [24], count=0)
