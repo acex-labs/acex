@@ -75,7 +75,7 @@ class FakeSession:
         self.driver.sent = commands
         return [f"{command} ok" for command in commands]
 
-    async def ping(self, params: PingParams) -> PingResult:
+    async def run_action(self, params: PingParams) -> PingResult:
         self.driver.sent = params
         return PingResult(sent=params.count, received=params.count)
 

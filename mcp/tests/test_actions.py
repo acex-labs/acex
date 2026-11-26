@@ -94,7 +94,7 @@ class TestRun:
 
     async def test_stops_waiting_at_max_wait(self, backend, monkeypatch):
         ping = ACTIONS["ping"]
-        monkeypatch.setitem(ACTIONS, "ping", ActionSpec(ping.params, ping.result, max_wait=0))
+        monkeypatch.setitem(ACTIONS, "ping", ActionSpec(ping.params, ping.result, label=ping.label, max_wait=0))
         backend.operations.runs.get.return_value = _report(False)
         result = await ActionTool.for_action(ACTIONS["ping"]).run({"node_id": 24, "target": "10.10.0.2"})
         answer = result.structured_content

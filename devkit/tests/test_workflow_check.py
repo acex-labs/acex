@@ -141,3 +141,12 @@ def test_an_artifact_without_an_expression_is_all_of_the_steps_result():
     assert result.problems == {"c": ["Artifact nothing is empty"]}
     (upstream,) = result.upstream["ok"]
     assert upstream.name == "ping_google" and upstream.per_node and "success_rate" in upstream.fields
+
+
+def test_an_artifact_of_an_action_has_that_actions_result_fields():
+    table = {"type": "action", "action": "get_mac_address_table", "params": {}, "artifacts": [{"name": "macs"}]}
+    steps = {"macs": table, "ok": {"type": "assert", "checks": ["macs.total > 0"]}}
+
+    (upstream,) = check(steps, "start>macs macs>ok").upstream["ok"]
+
+    assert upstream.fields == ["total", "truncated", "entries"]

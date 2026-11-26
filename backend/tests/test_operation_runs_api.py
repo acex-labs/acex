@@ -36,8 +36,8 @@ class _Producer:
 
 
 class _Nodes:
-    """Node 1 sw-b and node 2 sw-a run a driver with execute, ping and config read and write; node 3 one that
-    only reads config."""
+    """Node 1 sw-b and node 2 sw-a run a driver with execute, ping, the MAC table and config read and write;
+    node 3 one that only reads config."""
 
     NODES = {1: ("sw-b", "Full"), 2: ("sw-a", "Full"), 3: ("old", "Bare")}
 
@@ -52,7 +52,7 @@ class _Nodes:
 
 class _Neds:
     CAPABILITIES = {
-        "Full": Capabilities(operations=["apply", "execute", "get_config"], actions=["ping"]),
+        "Full": Capabilities(operations=["apply", "execute", "get_config"], actions=["get_mac_address_table", "ping"]),
         "Bare": Capabilities(operations=["get_config"]),
     }
 
@@ -93,6 +93,15 @@ def api(monkeypatch) -> _Api:
 
 
 PING = {"node_ids": [1, 2], "params": {"target": "10.0.0.1", "count": 5, "vrf": "MGMT", "size": 1500}}
+
+
+def test_actions_are_listed_with_their_schemas(api):
+    actions = {a["name"]: a for a in api.client.get(f"{OPS}/actions").json()}
+
+    assert actions["ping"]["label"] == "Ping"
+    assert actions["ping"]["params"]["required"] == ["target"]
+    assert actions["get_arp_table"]["rows"] == "entries"
+    assert actions["get_arp_table"]["columns"] == ["ip", "mac", "interface", "age_seconds", "type"]
 
 
 def test_execute_orders_a_run(api):
@@ -185,6 +194,22 @@ def test_report_downloads_as_csv_and_json(api):
 
     json_report = api.client.get(f"{OPS}/runs/{run['id']}/report", params={"format": "json"})
     assert json_report.json()["responses"][1]["result"] == outputs
+
+
+def test_a_table_reports_a_line_per_row(api):
+    run = api.client.post(f"{OPS}/actions/get_mac_address_table", json={"node_ids": [1, 2], "params": {}}).json()
+    entry = {"mac": "00:50:56:a1:2b:3c", "vlan": 10, "interface": "Gi1/0/1", "type": "dynamic"}
+    table = {"total": 2, "truncated": False, "entries": [entry, {**entry, "vlan": 20}]}
+    api.finish(run["id"], {1: table, 2: {"total": 0, "truncated": False, "entries": []}})
+
+    lines = api.client.get(f"{OPS}/runs/{run['id']}/report").text.splitlines()
+
+    assert lines[0] == "hostname,node_id,state,mac,vlan,interface,type,error,finished_at"
+    assert [line.split(",")[:7] for line in lines[1:]] == [
+        ["sw-a", "2", "succeeded", "", "", "", ""],
+        ["sw-b", "1", "succeeded", "00:50:56:a1:2b:3c", "10", "Gi1/0/1", "dynamic"],
+        ["sw-b", "1", "succeeded", "00:50:56:a1:2b:3c", "20", "Gi1/0/1", "dynamic"],
+    ]
 
 
 def test_unknown_run_answers_404(api):

@@ -65,7 +65,8 @@ class Execute(Operation):
 
 
 class Action(Operation):
-    """An abstract action, run through the NED's `Actions`: the same params and result for every vendor."""
+    """An abstract action, run through the NED's `Actions`: the same params and result for every vendor. A
+    result made of rows, such as a table, reports a line per row with the row's fields as columns."""
 
     def __init__(self, spec: ActionSpec):
         self.name = spec.name
@@ -74,13 +75,17 @@ class Action(Operation):
         self.data = ActionData[spec.params]
         self.result = spec.result
         self.capability = ("actions", self.name)
-        self.columns = (*spec.result.model_fields, *spec.result.model_computed_fields)
+        self.rows = spec.rows
+        self.columns = tuple(spec.columns)
 
     def items(self, request: ActionRequest) -> list[BaseModel]:
         return [self.data(node_id=node_id, params=request.params) for node_id in request.node_ids]
 
     def cells(self, result: dict | None) -> list[dict[str, Any]]:
-        return [{column: result.get(column) for column in self.columns}] if result else [{}]
+        if not result:
+            return [{}]
+        rows = result[self.rows] if self.rows else [result]
+        return [{column: row.get(column) for column in self.columns} for row in rows] or [{}]
 
 
 class Patching(Operation):

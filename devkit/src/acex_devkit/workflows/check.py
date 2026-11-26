@@ -5,19 +5,19 @@ won't start while there are any. Warnings don't stop a run: a loop with no way o
 reads an artifact made by a step that doesn't run before it.
 """
 
-from acex_devkit.models.actions import ActionParams, PingResult
+from acex_devkit.models.actions import ACTIONS, ActionParams, PingResult
 from acex_devkit.models.workflows import GraphNode, UpstreamArtifact, WorkflowCheck, WorkflowGraph
 from acex_devkit.workflows.expressions import Expression, ExpressionError, Template
 
 
 class WorkflowChecker:
     #: The abstract actions an action step can run, by name.
-    ACTIONS: dict[str, type[ActionParams]] = {params.action: params for params in ActionParams.__subclasses__()}
+    ACTIONS: dict[str, type[ActionParams]] = {name: spec.params for name, spec in ACTIONS.items()}
     _PING = [*PingResult.model_fields, *PingResult.model_computed_fields]
-    #: The fields of each step type's result, for an artifact that is all of it. An action's are its action's.
+    #: The fields of each step type's result, for an artifact that is all of it. An action's are its action's,
+    #: see `result_fields`.
     RESULT_FIELDS = {
         "execute": ["output", "outputs"],
-        "action": _PING,
         "probe": [*_PING, "address"],
         "assert": ["passed", "checks"],
         "condition": ["value"],
@@ -178,12 +178,18 @@ class WorkflowChecker:
                 name=artifact.name,
                 step=node.key,
                 per_node=self.per_node(artifact.name),
-                fields=[] if artifact.expression.strip() else self.RESULT_FIELDS.get(node.step.type, []),
+                fields=[] if artifact.expression.strip() else self.result_fields(node),
             )
             for node in self.steps
             if node.key in seen
             for artifact in node.step.artifacts
         ]
+
+    def result_fields(self, node: GraphNode) -> list[str]:
+        if node.step.type == "action":
+            spec = ACTIONS.get(node.step.action)
+            return spec.fields if spec else []
+        return self.RESULT_FIELDS.get(node.step.type, [])
 
     def check_loops(self) -> None:
         """Warn on each step of a loop that has no way out, or goes round without waiting."""

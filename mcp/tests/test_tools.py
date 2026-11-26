@@ -17,6 +17,13 @@ EXPECTED_TOOLS = {
     "get_config_drift",
     "get_neighbors",
     "ping",
+    "get_mac_address_table",
+    "lookup_mac_address",
+    "get_ip_route",
+    "get_arp_table",
+    "lookup_arp",
+    "traceroute",
+    "get_interface_status",
     "get_action_run",
 }
 

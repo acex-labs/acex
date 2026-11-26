@@ -183,7 +183,7 @@ class HandleWorkflowAction(NodeOperation):
         return WorkflowNodeResult(result=result, artifacts=context.node_artifacts(result, host))
 
     async def operate(self, driver: NetworkElementDriver, session: Session, params: ActionParams) -> Any:
-        return await getattr(session, params.action)(params)
+        return await session.run_action(params)
 
 
 class HandleWorkflowProbe(Handler):
