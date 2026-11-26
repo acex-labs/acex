@@ -11,6 +11,7 @@ from acex.observability.providers import (
     snmp_provider,
 )
 from acex_devkit.models.telemetry_agent import CapabilityCoverage
+from sqlmodel import select
 
 # Reason used when a node-scoped capability produced neither a component nor
 # an explicit skip for a node (e.g. a custom provider that ignores it).
@@ -112,6 +113,19 @@ class TelemetryRegistry:
 
     def by_kind(self, kind: str) -> list[TelemetryComponent]:
         return [c for c in self.build() if c.kind == kind]
+
+    def granted_capabilities(self) -> set[TelemetryCapability]:
+        """The capabilities that at least one telemetry agent is granted: what is being measured, or can be. A kind
+        of telemetry no agent measures has no data to show, however many nodes could be measured."""
+        # Imported here: the agents package imports this module.
+        from acex.observability.agents.models import TelemetryAgentCapabilityLink
+
+        session = next(self.db.get_session())
+        try:
+            granted = session.exec(select(TelemetryAgentCapabilityLink.capability).distinct()).all()
+            return {TelemetryCapability(capability) for capability in granted}
+        finally:
+            session.close()
 
     def for_telegraf_agent(
         self,

@@ -5,6 +5,7 @@ Each function takes a TelemetryRegistry and returns a dashboard dict (or
 None if there are no relevant components and the dashboard would be empty).
 """
 
+from acex.observability.capability import TelemetryCapability
 from acex.observability.components.icmp_ping import IcmpPingTelemetry
 from acex.observability.components.snmp import SnmpTelemetry
 from acex.observability.registry import TelemetryRegistry
@@ -381,4 +382,12 @@ def snmp_overview_dashboard(registry: TelemetryRegistry) -> dict | None:
 DASHBOARDS = {
     "acex-icmp-overview": ("ACEX — ICMP Ping Overview", icmp_overview_dashboard),
     "acex-snmp-overview": ("ACEX — SNMP Overview", snmp_overview_dashboard),
+}
+
+# The capability whose data a dashboard shows. A dashboard is offered only when some telemetry agent is granted it: with
+# no agent measuring that kind of telemetry every panel would say "No data". A dashboard that is not listed here is
+# always offered.
+DASHBOARD_CAPABILITIES = {
+    "acex-icmp-overview": TelemetryCapability.icmp,
+    "acex-snmp-overview": TelemetryCapability.snmp,
 }

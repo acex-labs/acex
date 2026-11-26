@@ -5,9 +5,10 @@ import re
 from types import SimpleNamespace
 
 import pytest
+from acex.observability.capability import TelemetryCapability
 from acex.observability.components.icmp_ping import IcmpPingTelemetry
 from acex.observability.components.snmp import SnmpTelemetry
-from acex.observability.renderers.grafana.dashboards import DASHBOARDS, snmp_overview_dashboard
+from acex.observability.renderers.grafana.dashboards import DASHBOARD_CAPABILITIES, DASHBOARDS, snmp_overview_dashboard
 from acex.observability.renderers.grafana.renderer import GrafanaRenderer
 from acex.observability.renderers.telegraf import render_inputs
 from fastapi import HTTPException
@@ -15,9 +16,12 @@ from fastapi import HTTPException
 UID = "acex-snmp-overview"
 
 
-def registry(*components):
-    """What the dashboards ask of the registry: the components of a kind."""
-    return SimpleNamespace(by_kind=lambda kind: [c for c in components if c.kind == kind])
+def registry(*components, granted=(TelemetryCapability.snmp, TelemetryCapability.icmp)):
+    """What the dashboards ask of the registry: the components of a kind, and the capabilities some agent is granted."""
+    return SimpleNamespace(
+        by_kind=lambda kind: [c for c in components if c.kind == kind],
+        granted_capabilities=lambda: set(granted),
+    )
 
 
 def snmp_node(node_id=1, hostname="got-sw-1", site="got", region="EMEA"):
@@ -49,6 +53,42 @@ def should_be_served_for_snmp_nodes_and_refused_without(monkeypatch):
     with pytest.raises(HTTPException) as refused:
         GrafanaRenderer(registry()).get_dashboard(UID)
     assert refused.value.status_code == 404
+
+
+def should_offer_only_the_dashboards_of_a_kind_some_agent_measures():
+    uids = lambda granted: {d["uid"] for d in GrafanaRenderer(registry(granted=granted)).list_dashboards()}  # noqa: E731
+
+    assert uids(()) == set()
+    assert uids({TelemetryCapability.snmp}) == {"acex-snmp-overview"}
+    assert uids({TelemetryCapability.icmp}) == {"acex-icmp-overview"}
+    assert uids({TelemetryCapability.snmp, TelemetryCapability.icmp}) == set(DASHBOARDS)
+    # A capability that no dashboard shows offers nothing.
+    assert uids({TelemetryCapability.syslog_rfc5424}) == set()
+
+
+def should_refuse_a_dashboard_no_agent_measures_even_with_nodes_to_measure():
+    nodes = registry(
+        snmp_node(),
+        IcmpPingTelemetry(node_id=2, hostname="r1", target_ip="192.0.2.9"),
+        granted={TelemetryCapability.snmp},
+    )
+    renderer = GrafanaRenderer(nodes)
+
+    assert renderer.get_dashboard("acex-snmp-overview")["uid"] == "acex-snmp-overview"
+    with pytest.raises(HTTPException) as refused:
+        renderer.get_dashboard("acex-icmp-overview")
+    assert refused.value.status_code == 404
+    assert "icmp" in refused.value.detail and "no telemetry agent" in refused.value.detail
+
+
+def should_always_offer_a_dashboard_that_names_no_capability(monkeypatch):
+    monkeypatch.setitem(DASHBOARDS, "custom", ("Custom", lambda registry: {"uid": "custom", "panels": []}))
+    assert "custom" not in DASHBOARD_CAPABILITIES
+
+    renderer = GrafanaRenderer(registry(granted=()))
+
+    assert {"uid": "custom", "title": "Custom"} in renderer.list_dashboards()
+    assert renderer.get_dashboard("custom")["uid"] == "custom"
 
 
 def should_query_only_the_measurement_the_snmp_input_writes():
