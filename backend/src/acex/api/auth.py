@@ -3,6 +3,7 @@ import re
 import time
 
 import requests as _requests
+from acex import permissions as _permissions
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -29,15 +30,17 @@ _JWKS_RETRY_BACKOFF = 30  # seconds between failed JWKS refresh attempts
 _JWKS_MAX_STALE = 24 * 3600  # refuse to serve cached JWKS older than this
 _VERIFY_SSL = True
 
-#: How roles are checked (see AuthorizationSettings). Set from Settings.authz by configure_authorization() when the app
-#: is built. Off until set, so nothing is refused that was not before. Each group of routes has a mode of its own:
-#: AUTHZ_MODE is for reading a device login in the clear ("credentials"), OPERATIONS_AUTHZ_MODE for running commands on
-#: devices, reading what they answered and handing out the broker's login ("operations").
+#: How permissions are checked (see AuthorizationSettings and acex.permissions). Set from Settings.authz by
+#: configure_authorization() when the app is built. Off until set, so nothing is refused that was not before. Each group
+#: of routes has a mode of its own: AUTHZ_MODE is for reading a device login in the clear ("credentials"),
+#: OPERATIONS_AUTHZ_MODE for running commands on devices, reading what they answered and handing out the broker's login
+#: ("operations").
 AUTHZ_MODE = "off"
 OPERATIONS_AUTHZ_MODE = "off"
-_RULE_SETTINGS = {"credentials": "ACEX_AUTHZ_MODE", "operations": "ACEX_AUTHZ_OPERATIONS_MODE"}
 _ROLES_CLAIMS: tuple[str, ...] = ("realm_access.roles", "resource_access.{audience}.roles")
 _ROLE_NAMES: dict[str, str] = {"admin": "acex-admin", "service": "acex-service"}
+#: Role name to the permissions the role holds: the two roles that come with the framework, and those of the settings.
+_BUNDLES: dict[str, frozenset[str]] = _permissions.default_bundles(_ROLE_NAMES)
 #: A request that would be refused is logged once per caller and route in this many seconds, not on every call: an
 #: agent asks for a login per node in every round.
 _LOG_EVERY = 600.0
@@ -307,13 +310,19 @@ def configure_authorization(
     roles_claims: list[str] | tuple[str, ...],
     role_names: dict[str, str],
     operations_mode: str = "off",
+    bundles: dict[str, list[str]] | None = None,
 ) -> None:
-    """Set how roles are checked (called from AutomationEngine.create_app)."""
-    global AUTHZ_MODE, OPERATIONS_AUTHZ_MODE, _ROLES_CLAIMS, _ROLE_NAMES
+    """Set how permissions are checked (called from AutomationEngine.create_app). `role_names` are the names of the two
+    roles that come with the framework (`admin`, `service`); `bundles` are roles of the installation's own, each with
+    the permissions it holds. A permission or a name that does not exist raises ValueError, which stops the API from
+    starting instead of refusing somebody later."""
+    global AUTHZ_MODE, OPERATIONS_AUTHZ_MODE, _ROLES_CLAIMS, _ROLE_NAMES, _BUNDLES
+    resolved = _permissions.resolve_bundles(role_names, bundles)
     AUTHZ_MODE = mode
     OPERATIONS_AUTHZ_MODE = operations_mode
     _ROLES_CLAIMS = tuple(roles_claims)
     _ROLE_NAMES = dict(role_names)
+    _BUNDLES = resolved
     _logged_denials.clear()
 
 
@@ -332,65 +341,113 @@ def roles_of(claims: dict) -> set[str]:
     return roles
 
 
-def _mode_of(rules: str) -> str:
-    return OPERATIONS_AUTHZ_MODE if rules == "operations" else AUTHZ_MODE
+def permissions_of(claims: dict) -> set[str]:
+    """The permissions a token holds: what each of its roles stands for. A role is a bundle of the settings (or one of
+    the two roles that come with the framework), a permission, or a pattern of permissions; any other role, such as
+    Keycloak's `offline_access`, holds nothing."""
+    held: set[str] = set()
+    for role in roles_of(claims):
+        if role in _BUNDLES:
+            held |= _BUNDLES[role]
+        else:
+            held |= {name for name in _permissions.PERMISSIONS if _permissions.matches(role, name)}
+    return held
 
 
-def require_role(*allowed: str, rules: str = "credentials"):
-    """Dependency factory: the caller's token must list one of the given roles, named as the settings do (`admin`,
-    `service`). What happens when it does not depends on the mode of the group of routes the rule belongs to (`rules`:
-    `credentials` or `operations`): nothing (off), a log line and the request goes on (log), or 403 (enforce). Without
-    an OIDC issuer there are no roles to check, as for `require_scopes`.
+def _mode_of(group: str) -> str:
+    return OPERATIONS_AUTHZ_MODE if group == _permissions.OPERATIONS else AUTHZ_MODE
 
-        Depends(require_role("admin", "service"))
-        Depends(require_role("admin", rules="operations"))
+
+def _held_by(permission: str) -> list[str]:
+    """The roles of the settings that hold a permission, by name."""
+    return sorted(role for role, held in _BUNDLES.items() if permission in held)
+
+
+def require_permission(name: str):
+    """Dependency factory: the caller's token must hold the permission, through a role that lists it (see
+    acex.permissions). What happens when it does not depends on the mode of the group of routes the permission belongs
+    to: nothing (off), a log line and the request goes on (log), or 403 (enforce). Without an OIDC issuer there are no
+    roles to check, as for `require_scopes`.
+
+        Depends(require_permission("operations.execute"))
     """
-    wanted = tuple(allowed)
+    permission = _permissions.PERMISSIONS[name]  # a name that does not exist fails when the route is made
 
     def dep(request: Request, user: dict = Depends(get_current_user)) -> dict:  # noqa: B008
-        mode = _mode_of(rules)
+        mode = _mode_of(permission.group)
         if mode == "off" or OIDC_ISSUER_URL is None:
             return user
-        names = {_ROLE_NAMES[role] for role in wanted}
-        if roles_of(user) & names:
+        if name in permissions_of(user):
             return user
         route = getattr(request.scope.get("route"), "path", request.url.path)
         who = _UNSAFE_LOG_CHARS.sub("?", str(user.get("azp") or user.get("sub") or "unknown"))[:64]
-        needs = ", ".join(sorted(names))
+        holders = _held_by(name)
+        by = f" (held by the roles {', '.join(holders)})" if holders else ""
         if mode == "log":
             key, now = (who, request.method, route), time.monotonic()
             if now - _logged_denials.get(key, -_LOG_EVERY) >= _LOG_EVERY:
                 _logged_denials[key] = now
                 logger.warning(
-                    f"Would be refused ({request.method} {route}): '{who}' has none of the roles {needs}. "
-                    f"Set {_RULE_SETTINGS[rules]}=enforce once every caller has its role."
+                    f"Would be refused ({request.method} {route}): '{who}' does not hold the permission {name}{by}. "
+                    f"Set {_permissions.MODE_SETTINGS[permission.group]}=enforce once every caller has a role "
+                    "that holds it."
                 )
             return user
-        logger.warning(f"Authorization denied ({request.method} {route}): '{who}' has none of the roles {needs}")
+        logger.warning(
+            f"Authorization denied ({request.method} {route}): '{who}' does not hold the permission {name}{by}"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Requires one of the roles: {needs}",
+            detail=f"Requires the permission {name}{by}",
         )
 
-    dep.roles = wanted  # type: ignore[attr-defined]  # read by describe_role_rules()
-    dep.rules = rules  # type: ignore[attr-defined]
+    dep.permission = name  # type: ignore[attr-defined]  # read by describe_permission_rules()
     return dep
 
 
-def describe_role_rules(router) -> None:
-    """Say in each route's description which role it needs and which setting turns the check on, from the rule the
-    route has, so that the API documentation and the check cannot disagree. Called on a router before it is included
-    in the app, since an app keeps the routers it includes as they are."""
+def describe_permission_rules(router) -> None:
+    """Say in each route's description which permission it needs, which roles hold it and which setting turns the check
+    on, from the rule the route has, so that the API documentation and the check cannot disagree. Called on a router
+    before it is included in the app, since an app keeps the routers it includes as they are."""
     for route in router.routes:
         for dependency in getattr(route, "dependencies", []):
-            roles = getattr(dependency.dependency, "roles", None)
-            if roles is None:
+            name = getattr(dependency.dependency, "permission", None)
+            if name is None:
                 continue
-            rules = dependency.dependency.rules
-            names = " or ".join(f"`{_ROLE_NAMES[role]}`" for role in roles)
-            setting = _RULE_SETTINGS[rules]
+            permission = _permissions.PERMISSIONS[name]
+            holders = _held_by(name)
+            by = (
+                f"The roles {', '.join(f'`{role}`' for role in holders)} hold it, and any role that lists it. "
+                if holders
+                else ""
+            )
             note = (
-                f"**Role:** a token with the role {names}. Checked when `{setting}` is `enforce` (403 without the "
-                f"role) and only logged when it is `log`; `off`, the default, checks nothing."
+                f"**Permission:** `{name}`, to {permission.summary}. {by}Checked when "
+                f"`{_permissions.MODE_SETTINGS[permission.group]}` is `enforce` (403 without it) and only logged when "
+                "it is "
+                f"`log`; `off`, the default, checks nothing."
             )
             route.description = f"{route.description}\n\n{note}" if route.description else note
+
+
+def authorization_overview() -> dict:
+    """How this installation checks permissions, for `GET /auth/permissions`: the permissions, who holds each, and the
+    roles of the settings with what they hold."""
+    return {
+        "modes": {
+            group: {"setting": setting, "mode": _mode_of(group)}
+            for group, setting in _permissions.MODE_SETTINGS.items()
+        },
+        "roles_claims": list(_ROLES_CLAIMS),
+        "permissions": [
+            {
+                "name": p.name,
+                "summary": p.summary,
+                "group": p.group,
+                "sensitive": p.sensitive,
+                "roles": _held_by(p.name),
+            }
+            for p in _permissions.PERMISSIONS.values()
+        ],
+        "roles": {role: sorted(held) for role, held in sorted(_BUNDLES.items())},
+    }

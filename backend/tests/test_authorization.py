@@ -118,7 +118,9 @@ class TestEnforce:
     def should_refuse_a_valid_token_without_the_role(self, claims):
         response = _client("enforce", claims).get(SECRET)
         assert response.status_code == 403
-        assert "acex-admin" in response.json()["detail"] and "acex-service" in response.json()["detail"]
+        assert response.json()["detail"] == (
+            "Requires the permission credentials.reveal (held by the roles acex-admin, acex-service)"
+        )
         assert "password" not in response.text
 
     def should_leave_the_other_credential_routes_as_they_are(self):

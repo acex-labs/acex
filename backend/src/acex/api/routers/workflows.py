@@ -24,10 +24,11 @@ def _who(user: dict) -> str:
     return user.get("preferred_username") or user.get("sub") or "anonymous"
 
 
-#: A workflow is commands for devices, and a run is what they answered: changing, starting and reading them is for
-#: people with the admin role. The workers read a run and its artifacts to run its later steps.
-_ADMIN = Depends(_auth.require_role("admin", rules="operations"))
-_ADMIN_OR_WORKER = Depends(_auth.require_role("admin", "service", rules="operations"))
+#: A workflow is commands for devices, and a run is what they answered: changing, starting and reading them each have a
+#: permission. The workers read a run and its artifacts to run its later steps.
+_EDIT = Depends(_auth.require_permission("workflows.edit"))
+_RUN = Depends(_auth.require_permission("workflows.run"))
+_RUNS_READ = Depends(_auth.require_permission("workflows.runs.read"))
 
 
 def _http(exc: Exception) -> HTTPException:
@@ -57,7 +58,7 @@ def create_router(automation_engine):
 
     # Runs
 
-    @router.get("/runs", response_model=PaginatedResponse[WorkflowRun], dependencies=[_ADMIN])
+    @router.get("/runs", response_model=PaginatedResponse[WorkflowRun], dependencies=[_RUNS_READ])
     def list_runs(
         workflow_id: int | None = None,
         limit: int = Query(50, ge=1, le=500),
@@ -66,7 +67,7 @@ def create_router(automation_engine):
         """Runs by anyone, newest first: of one workflow, or of all."""
         return runs.page(workflow_id, limit, offset)
 
-    @router.get("/runs/{run_id}", response_model=WorkflowRunDetail, dependencies=[_ADMIN_OR_WORKER])
+    @router.get("/runs/{run_id}", response_model=WorkflowRunDetail, dependencies=[_RUNS_READ])
     def get_run(run_id: int):
         """A run: what it runs, as it was when it started, and every round of every step so far."""
         try:
@@ -74,7 +75,7 @@ def create_router(automation_engine):
         except _EXPECTED as exc:
             raise _http(exc) from exc
 
-    @router.get("/runs/{run_id}/steps/{job_id}", response_model=list[NodeResponse], dependencies=[_ADMIN])
+    @router.get("/runs/{run_id}/steps/{job_id}", response_model=list[NodeResponse], dependencies=[_RUNS_READ])
     def get_step_responses(run_id: int, job_id: int):
         """What each node answered in one round of a step on nodes, sorted by hostname."""
         try:
@@ -82,7 +83,7 @@ def create_router(automation_engine):
         except _EXPECTED as exc:
             raise _http(exc) from exc
 
-    @router.get("/runs/{run_id}/artifacts", response_model=WorkflowArtifacts, dependencies=[_ADMIN_OR_WORKER])
+    @router.get("/runs/{run_id}/artifacts", response_model=WorkflowArtifacts, dependencies=[_RUNS_READ])
     def get_artifacts(run_id: int, names: list[str] | None = Query(None)):  # noqa: B008
         """Artifacts by name, each from the latest finished round of the step that leaves it, or only those of
         `names`. Workers read them to run later steps."""
@@ -91,7 +92,7 @@ def create_router(automation_engine):
         except _EXPECTED as exc:
             raise _http(exc) from exc
 
-    @router.post("/runs/{run_id}/continue", response_model=WorkflowRunDetail, dependencies=[_ADMIN])
+    @router.post("/runs/{run_id}/continue", response_model=WorkflowRunDetail, dependencies=[_RUN])
     def continue_run(run_id: int, to_end: bool = False):
         """Go on with a paused run: fire the edges of the steps that finished, then pause again after the
         next ones, or with `to_end` run to the end."""
@@ -100,7 +101,7 @@ def create_router(automation_engine):
         except _EXPECTED as exc:
             raise _http(exc) from exc
 
-    @router.post("/runs/{run_id}/stop", response_model=WorkflowRunDetail, dependencies=[_ADMIN])
+    @router.post("/runs/{run_id}/stop", response_model=WorkflowRunDetail, dependencies=[_RUN])
     def stop_run(run_id: int, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         """Stop a running or paused run, and every job in it still queued or running."""
         try:
@@ -108,7 +109,7 @@ def create_router(automation_engine):
         except _EXPECTED as exc:
             raise _http(exc) from exc
 
-    @router.delete("/runs/{run_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[_ADMIN])
+    @router.delete("/runs/{run_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[_RUN])
     def delete_run(run_id: int):
         """Delete a finished run with all it made: its jobs, results and artifacts."""
         try:
@@ -123,7 +124,7 @@ def create_router(automation_engine):
         """Every saved workflow, by name."""
         return library.workflows()
 
-    @router.post("", response_model=WorkflowResponse, status_code=status.HTTP_201_CREATED, dependencies=[_ADMIN])
+    @router.post("", response_model=WorkflowResponse, status_code=status.HTTP_201_CREATED, dependencies=[_EDIT])
     def create_workflow(payload: WorkflowCreate, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         try:
             return library.create_workflow(payload, created_by=_who(user))
@@ -137,14 +138,14 @@ def create_router(automation_engine):
         except _EXPECTED as exc:
             raise _http(exc) from exc
 
-    @router.patch("/{workflow_id}", response_model=WorkflowResponse, dependencies=[_ADMIN])
+    @router.patch("/{workflow_id}", response_model=WorkflowResponse, dependencies=[_EDIT])
     def update_workflow(workflow_id: int, payload: WorkflowUpdate, user: dict = Depends(_auth.get_current_user)):  # noqa: B008
         try:
             return library.update_workflow(workflow_id, payload, updated_by=_who(user))
         except _EXPECTED as exc:
             raise _http(exc) from exc
 
-    @router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[_ADMIN])
+    @router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[_EDIT])
     def delete_workflow(workflow_id: int):
         """Delete a workflow. Its runs are kept, each with its own copy of what it ran."""
         try:
@@ -156,7 +157,7 @@ def create_router(automation_engine):
         "/{workflow_id}/runs",
         response_model=WorkflowRunDetail,
         status_code=status.HTTP_202_ACCEPTED,
-        dependencies=[_ADMIN],
+        dependencies=[_RUN],
     )
     async def start_run(
         workflow_id: int,
