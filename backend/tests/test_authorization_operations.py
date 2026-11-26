@@ -104,6 +104,7 @@ POLICY: dict[tuple[str, str], str] = {
 #: definitions and reach no device.
 OPEN = {
     ("GET", f"{API}/operations/patch/tree"),
+    ("GET", f"{API}/operations/actions"),
     ("GET", f"{API}/workers/job_types"),
     ("POST", f"{API}/operations/workflows/check"),
     ("GET", f"{API}/operations/workflows"),
