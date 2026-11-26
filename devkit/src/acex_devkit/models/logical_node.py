@@ -7,18 +7,14 @@ from acex_devkit.models.composed_configuration import ComposedConfiguration
 
 
 class LogicalNodeBase(BaseModel):
-    hostname: str = Field(default="R1")
-    role: str = Field(default="core")
+    hostname: str
+    role: str = Field(default=None)
     site: str | None = Field(default=None)
     sequence: int | None = Field(default=None)
 
 
 class LogicalNodeCreate(LogicalNodeBase):
-    # What a caller of the client has to give. LogicalNodeBase also backs the table and the body of
-    # the API's create and update routes, where a PATCH may leave the hostname out and the role
-    # column is NOT NULL, so the stricter rules stay on this model.
-    hostname: str
-    role: str | None = None
+    pass
 
 
 class LogicalNodeUpdate(BaseModel):
