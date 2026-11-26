@@ -121,6 +121,10 @@ RUNNING   What is on the device right now. ACE-X cannot read this — there is n
           observed snapshot; answer with it, but say when it was collected and never imply
           you read the device just now.
 
+A question about how a device IS configured ("how is X configured", "what does X have
+configured") is answered from the latest observed snapshot, with its collection time.
+Desired answers only what ACE-X intends the device to have, and may cover only part of it.
+
 Reply in ACE-X's own terms — desired and observed — so your language matches what the user
 sees in the interface, even when they asked using other words.
 """,

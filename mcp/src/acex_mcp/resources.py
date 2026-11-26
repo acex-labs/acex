@@ -42,9 +42,11 @@ CONFIGURATION — three distinct things. Conflating them produces wrong answers.
 
 WHAT USERS SAY, AND WHAT THEY MEAN
 
+  "how is X configured", "what's configured on X", "show X's config",
   "running config", "actual config", "live config", "what's on the box"
-      → normally the latest observed snapshot. Answer with it, but say when it
-        was collected. Never imply it was read from the device just now.
+      → the latest observed snapshot. This is the default for any question
+        about how a device is configured. Answer with it, but say when it was
+        collected. Never imply it was read from the device just now.
   "intended", "target", "source of truth", "what it should be"
       → desired.
   "compiled", "rendered"

@@ -22,10 +22,13 @@ DETAIL PAGES
   /network/nodes/:id  (Node detail)
     tabs:
       Overview      status, logical-node info, assigned asset (hardware)
-      Configuration desired config: interfaces, VLANs, routing, ACL
+      Configuration with sub-tabs:
+        Desired     desired config: interfaces, VLANs, routing, ACL
+        Observed    the latest configuration snapshot collected from the device
+        Diff        desired against observed
+        History     configuration snapshots over time, diff between snapshots
       Hardware      physical hardware details
       LLDP          physical neighbours — which devices are directly connected and on which port
-      History       configuration snapshots over time
 
   /network/sites/:id  (Site detail)
     tabs:
@@ -47,8 +50,15 @@ SKILL: See which devices are physically connected to a node
   → Node detail › LLDP tab
   Shows: directly connected neighbour devices and the interfaces used on both sides
 
-SKILL: Inspect or understand a device's configuration
-  → Node detail › Configuration tab
+SKILL: Find out how a device is configured
+  → Answer from the latest observed snapshot (the observed-config tool), and
+    say when it was collected — it is not a live reading. Desired config is
+    what ACE-X intends and may cover only part of the device; it does not
+    answer this question.
+  → To show it in the UI: Node detail › Configuration › Observed
+
+SKILL: Inspect a device's desired configuration in the UI
+  → Node detail › Configuration › Desired
   Shows: desired config — interfaces, VLANs, routing, ACL, system settings
 
 SKILL: Find out what hardware a device runs on
@@ -56,7 +66,7 @@ SKILL: Find out what hardware a device runs on
   Shows: vendor, model, serial number, OS version, driver
 
 SKILL: See how a device's config has changed over time
-  → Node detail › History tab
+  → Node detail › Configuration › History
   Shows: configuration snapshots with timestamps, diff between snapshots
   When the page context says two snapshot ids are being compared, fetch that
   diff yourself with the snapshot-diff tool — don't just restate an earlier
@@ -70,11 +80,12 @@ SKILL: See how devices at a site are connected to each other
   Shows: visual diagram of inter-device connections at the site
 
 SKILL: Find a device's desired (intended) configuration
-  → Logical Nodes list or Node detail › Configuration tab
+  → Logical Nodes list or Node detail › Configuration › Desired
 
 SKILL: Compare a device's desired config against what was last observed on it
   → Use the configuration-drift tool, which does the comparison structurally.
     Don't fetch both configs and diff them by hand.
+  → To show it in the UI: Node detail › Configuration › Diff
 
 SKILL: Find what physical hardware exists in inventory
   → Assets list (/network/assets)

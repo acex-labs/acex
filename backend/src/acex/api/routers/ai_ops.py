@@ -1,19 +1,16 @@
 import json
+import logging
 from typing import Literal
 
-from acex.ai_ops.ai_ops import (
-    AllLevelsExhaustedError,
-    NavigateEvent,
-    PlanEvent,
-    ToolCallEvent,
-    UsageEvent,
-)
+from acex.ai_ops.events import NavigateEvent, PlanEvent, ToolCallEvent, UsageEvent
 from acex.ai_ops.web_ui_context import WEB_UI_SYSTEM_PROMPTS
 from acex.api.auth import get_bearer_token
 from acex.constants import BASE_URL
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+logger = logging.getLogger("acex.ai_ops")
 
 
 class AskRequest(BaseModel):
@@ -110,6 +107,12 @@ def create_router(automation_engine):
             return f"data: {json.dumps({'tool_call': payload})}\n\n"
         return f"data: {json.dumps({'content': chunk})}\n\n"
 
+    def _error(exc: Exception) -> str:
+        """A failed request ends its stream with an error event instead of
+        cutting the stream off, so the UI can say what went wrong."""
+        logger.warning(f"[AI] request failed: {exc}")
+        return f"data: {json.dumps({'error': str(exc)})}\n\n"
+
     @router.post("/ai/ask", tags=tags)
     async def ask(request: AskRequest, access_token: str | None = Depends(get_bearer_token)):  # noqa: B008
         async def sse_stream():
@@ -123,8 +126,8 @@ def create_router(automation_engine):
                     access_token=access_token,
                 ):
                     yield _sse(chunk)
-            except AllLevelsExhaustedError as exc:
-                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+            except Exception as exc:
+                yield _error(exc)
 
         return StreamingResponse(sse_stream(), media_type="text/event-stream")
 
@@ -162,10 +165,8 @@ def create_router(automation_engine):
                     access_token=access_token,
                 ):
                     yield _sse(chunk)
-            except AllLevelsExhaustedError as exc:
-                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
             except Exception as exc:
-                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+                yield _error(exc)
 
         return StreamingResponse(sse_stream(), media_type="text/event-stream")
 

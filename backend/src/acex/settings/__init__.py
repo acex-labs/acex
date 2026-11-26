@@ -21,7 +21,7 @@ expose it; see `Settings.check`. Development conveniences live behind
 `Settings.dev`.
 """
 
-from acex.settings.ai_ops import AIChainLevel, AIModelMeta, AIOpsSettings, AIProvider
+from acex.settings.ai_ops import AIChainLevel, AIModelConfig, AIOpsSettings, AIProvider
 from acex.settings.bug_report import (
     AdoBugReportSettings,
     BugReportSettings,
@@ -48,7 +48,7 @@ from acex.settings.settings import Settings, UnsafeConfiguration
 
 __all__ = [
     "AIChainLevel",
-    "AIModelMeta",
+    "AIModelConfig",
     "AIOpsSettings",
     "AIProvider",
     "AdoBugReportSettings",

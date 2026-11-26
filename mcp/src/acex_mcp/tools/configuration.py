@@ -136,6 +136,11 @@ def register(mcp: FastMCP) -> None:
         node's vendor driver, so it is directly comparable with an observed
         config from the same device.
 
+        Only for questions about intent: what the device should have, what
+        ACE-X would push. It is NOT the answer to how a device is configured —
+        desired may cover only part of the config. For that, use
+        get_observed_config().
+
         Args:
             node_id: From find_nodes().
             section: Keep only matching config blocks, e.g. "GigabitEthernet1/0/49",
@@ -170,9 +175,10 @@ def register(mcp: FastMCP) -> None:
         """Get a configuration snapshot collected from a node.
 
         An observed config is what was actually read off the device and stored,
-        stamped with `collected_at`. When someone asks for the "running
-        config", this is normally what they want — but say which snapshot it is
-        and when it was collected, because it is not a live reading.
+        stamped with `collected_at`. It is the default for any question about
+        how a node IS configured — "how is X configured", "what's configured on
+        X", "show X's config", "running config" — not get_desired_config().
+        Always say when the snapshot was collected: it is not a live reading.
 
         Args:
             node_id: From find_nodes().

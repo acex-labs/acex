@@ -98,21 +98,16 @@ ACE-X generates datasource and dashboard JSON from the observability configurati
 
 **Direction:** Two-way — ACE-X sends prompts, providers stream completions back
 
-Used by the AI Ops feature. Any OpenAI-compatible endpoint is supported (Groq, OpenRouter, Ollama, local models). Configure named providers and per-task failover chains:
+Used by the AI Ops feature. Any OpenAI-compatible endpoint is supported (Groq, OpenRouter, Ollama, local models), over Chat Completions or OpenAI's Responses API, including Azure OpenAI signed in with Entra ID. Configure named providers and per-task failover chains:
 
-```python
-ae.ai_ops(
-    enabled=True,
-    providers=[
-        {"name": "groq", "base_url": "...", "api_key": "..."},
-        {"name": "local", "base_url": "http://localhost:11434/v1", "api_key": "ollama",
-         "static_models": ["qwen3:32b"]},
-    ],
-    chains={
-        "default":  ["groq/llama-3.3-70b-versatile", "local/qwen3:32b"],
-        "analysis": ["groq/deepseek-r1"],
-    },
-)
+```bash
+ACEX_AI_OPS_PROVIDERS__GROQ__BASE_URL=https://api.groq.com/openai/v1
+ACEX_AI_OPS_PROVIDERS__GROQ__API_KEY=gsk_...
+ACEX_AI_OPS_PROVIDERS__LOCAL__BASE_URL=http://localhost:11434/v1
+ACEX_AI_OPS_PROVIDERS__LOCAL__API_KEY=ollama
+ACEX_AI_OPS_PROVIDERS__LOCAL__MODELS=qwen3:32b
+ACEX_AI_OPS_CHAINS__DEFAULT="groq/llama-3.3-70b-versatile, local/qwen3:32b"
+ACEX_AI_OPS_CHAINS__ANALYSIS="groq/deepseek-r1"
 ```
 
 See [AI Ops](../examples/ai_ops.md) for full configuration details.
