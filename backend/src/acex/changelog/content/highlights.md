@@ -13,6 +13,10 @@ writes the draft, a person or an assistant. `python scripts/changelog.py validat
 Nothing is compiled: an edit that is merged is live in the next image.
 -->
 
+## 2026-11-25 Sync a git repository the moment someone pushes
+
+GitLab or GitHub can tell ACEX when a repository has a new commit, so its ConfigMaps load within seconds instead of at the next check. Give the repository a secret and add a webhook in the git host; the config maps guide has the steps.
+
 ## 2026-11-25 One git repository for each site
 
 A git repository can be limited to one site, so each site of a customer works from a repository of its own that cannot change another site's devices. Set the site when you add the repository under Settings > Git Repositories.
