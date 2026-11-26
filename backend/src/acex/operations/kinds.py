@@ -2,7 +2,8 @@
 
 from typing import Any
 
-from acex_devkit.models.actions import ActionParams, PingParams, PingResult
+from acex_devkit.models.actions import ACTIONS as ACTION_SPECS
+from acex_devkit.models.actions import ActionSpec
 from acex_devkit.models.job import JobResponse, JobState
 from acex_devkit.models.operations import (
     ActionData,
@@ -66,14 +67,14 @@ class Execute(Operation):
 class Action(Operation):
     """An abstract action, run through the NED's `Actions`: the same params and result for every vendor."""
 
-    def __init__(self, params: type[ActionParams], result: type[BaseModel]):
-        self.name = params.action
+    def __init__(self, spec: ActionSpec):
+        self.name = spec.name
         self.job_type = f"acex.operations.actions.{self.name}"
-        self.request = ActionRequest[params]
-        self.data = ActionData[params]
-        self.result = result
+        self.request = ActionRequest[spec.params]
+        self.data = ActionData[spec.params]
+        self.result = spec.result
         self.capability = ("actions", self.name)
-        self.columns = (*result.model_fields, *result.model_computed_fields)
+        self.columns = (*spec.result.model_fields, *spec.result.model_computed_fields)
 
     def items(self, request: ActionRequest) -> list[BaseModel]:
         return [self.data(node_id=node_id, params=request.params) for node_id in request.node_ids]
@@ -138,8 +139,8 @@ class PatchApply(Patching):
 
 EXECUTE = Execute()
 
-#: Every abstract action a run can be made of. One route and one job type each.
-ACTIONS = [Action(PingParams, PingResult)]
+#: Every abstract action a run can be made of, from devkit's list. One route and one job type each.
+ACTIONS = [Action(spec) for spec in ACTION_SPECS.values()]
 
 PATCH_RENDER = PatchRender()
 PATCH_APPLY = PatchApply()
