@@ -26,7 +26,7 @@ def credential():
     """The ClientSecretCredential the token provider builds, with get_token stubbed."""
     instance = MagicMock()
     instance.get_token.return_value = SimpleNamespace(token="entra-token", expires_on=0)
-    with patch("azure.identity.ClientSecretCredential", return_value=instance) as cls:
+    with patch("acex.ai_ops.auth.ClientSecretCredential", return_value=instance) as cls:
         yield cls, instance
 
 

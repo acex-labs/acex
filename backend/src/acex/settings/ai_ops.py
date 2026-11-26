@@ -87,7 +87,7 @@ class AzureClientSecretAuth(_Strict):
     as its bearer instead of a static key (e.g. Azure OpenAI behind API Management).
 
     Tokens come from azure.identity.ClientSecretCredential, which caches them and
-    renews them before they expire. Needs the `azure` extra (azure-identity).
+    renews them before they expire.
     """
 
     type: Literal["azure_client_secret"]

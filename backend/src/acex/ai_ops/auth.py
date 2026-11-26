@@ -2,6 +2,8 @@
 
 import asyncio
 
+from azure.identity import ClientSecretCredential
+
 from .config import AzureClientSecretAuth
 
 
@@ -15,12 +17,6 @@ class AzureClientSecretToken:
     """
 
     def __init__(self, auth: AzureClientSecretAuth):
-        try:
-            from azure.identity import ClientSecretCredential
-        except ImportError as exc:
-            raise RuntimeError(
-                "AI provider auth 'azure_client_secret' needs azure-identity; install acex with the 'azure' extra"
-            ) from exc
         self._credential = ClientSecretCredential(
             tenant_id=auth.tenant_id, client_id=auth.client_id, client_secret=auth.client_secret
         )

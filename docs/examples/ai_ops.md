@@ -106,8 +106,7 @@ Configured models are listed together with whatever `/models` reports.
 
 Use `auth` instead of `api_key` when the endpoint takes an Entra ID token as
 its bearer. ACEX gets the token with a client secret (azure-identity's
-`ClientSecretCredential`) and renews it before it expires. The image installs
-the backend with the `azure` extra; elsewhere, install `acex[azure]`.
+`ClientSecretCredential`) and renews it before it expires.
 
 A gateway that gives every model its own URL is one provider whose `base_url`
 has a `{model}` placeholder. Such a provider has no single `/models` to list,
