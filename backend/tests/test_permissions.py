@@ -1,10 +1,13 @@
-"""The permissions the framework names, and the roles that hold them.
+"""The permissions the framework names, and how a token comes to hold them.
 
-The framework says what can be allowed; whoever runs an installation makes the roles. A role in a token is a bundle of
-the settings (or one of the two that come with the framework), a permission, or a pattern of permissions.
+The framework says what can be allowed and which route needs what. It names no roles: a token holds a permission when
+one of its roles is the permission, or a pattern that covers it, which is how a role made of permissions in the identity
+provider reaches a token. Where the identity provider cannot make such a role, the settings can name roles and what
+each holds.
 """
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -14,16 +17,17 @@ from acex.permissions import PERMISSIONS, expand, keycloak_roles, matches, resol
 from acex.settings import AuthorizationSettings, Settings
 
 ISSUER = "https://keycloak.example/realms/acex"
-ROLE_NAMES = {"admin": "acex-admin", "service": "acex-service"}
 KEYCLOAK_CLAIMS = ("realm_access.roles", "resource_access.{audience}.roles")
-DOCS = Path(__file__).resolve().parents[2] / "docs" / "guides" / "api-faq.md"
+REPOSITORY = Path(__file__).resolve().parents[2]
+DOCS = REPOSITORY / "docs" / "guides" / "api-faq.md"
+DEV_REALM = REPOSITORY / "keycloak" / "realm-export.json"
 
 
 @pytest.fixture(autouse=True)
 def _reset_auth():
     yield
     auth.configure(None)
-    auth.configure_authorization("off", KEYCLOAK_CLAIMS, ROLE_NAMES)
+    auth.configure_authorization("off", KEYCLOAK_CLAIMS)
 
 
 class TestTheVocabulary:
@@ -39,13 +43,6 @@ class TestTheVocabulary:
     def should_say_in_a_sentence_what_each_allows(self):
         for permission in PERMISSIONS.values():
             assert len(permission.summary) > 20 and not permission.summary.endswith("."), permission.name
-
-    def should_hold_the_login_of_a_worker_only_by_the_service_role(self):
-        # A person does not need the broker's login, and a worker does not order commands.
-        assert not PERMISSIONS["workers.connect"].admin and PERMISSIONS["workers.connect"].service
-        assert not PERMISSIONS["workers.report"].admin and PERMISSIONS["workers.report"].service
-        assert not PERMISSIONS["operations.execute"].service
-        assert not PERMISSIONS["operations.apply"].service
 
 
 class TestMatches:
@@ -94,39 +91,29 @@ class TestExpand:
             expand(["x"], where="ACEX_AUTHZ_BUNDLES, role 'op'")
 
 
-class TestBundles:
-    def should_come_with_the_two_default_roles(self):
-        bundles = resolve_bundles(ROLE_NAMES)
-        assert set(bundles) == {"acex-admin", "acex-service"}
-        assert bundles["acex-admin"] == {name for name, p in PERMISSIONS.items() if p.admin}
-        assert bundles["acex-service"] == {name for name, p in PERMISSIONS.items() if p.service}
+class TestRolesOfTheSettings:
+    def should_be_none_unless_the_settings_name_some(self):
+        assert resolve_bundles() == {}
+        assert resolve_bundles({}) == {}
 
-    def should_use_the_names_the_settings_give_the_default_roles(self):
-        assert set(resolve_bundles({"admin": "netops", "service": "robots"})) == {"netops", "robots"}
+    def should_hold_what_the_settings_list_for_each(self):
+        assert resolve_bundles({"inspector": ["operations.inspect", "operations.runs.read"]}) == {
+            "inspector": {"operations.inspect", "operations.runs.read"}
+        }
 
-    def should_add_the_roles_of_the_settings(self):
-        bundles = resolve_bundles(ROLE_NAMES, {"inspector": ["operations.inspect", "operations.runs.read"]})
-        assert bundles["inspector"] == {"operations.inspect", "operations.runs.read"}
-        assert "acex-admin" in bundles
-
-    def should_expand_a_pattern_in_a_role_of_the_settings(self):
-        bundles = resolve_bundles(ROLE_NAMES, {"operations": ["operations.*"], "everything": ["*"]})
+    def should_expand_a_pattern(self):
+        bundles = resolve_bundles({"operations": ["operations.*"], "everything": ["*"]})
         assert bundles["operations"] == {name for name in PERMISSIONS if name.startswith("operations.")}
         assert bundles["everything"] == set(PERMISSIONS)
-
-    def should_let_a_role_of_the_settings_replace_a_default_role(self):
-        assert resolve_bundles(ROLE_NAMES, {"acex-admin": ["operations.inspect"]})["acex-admin"] == {
-            "operations.inspect"
-        }
 
     @pytest.mark.parametrize("name", ["operations.execute", "operations.*", "*"])
     def should_refuse_a_role_named_as_a_permission_or_a_pattern(self, name):
         with pytest.raises(ValueError, match="needs a name of its own"):
-            resolve_bundles(ROLE_NAMES, {name: ["operations.inspect"]})
+            resolve_bundles({name: ["operations.inspect"]})
 
     def should_refuse_a_permission_that_does_not_exist(self):
         with pytest.raises(ValueError, match="role 'inspector'.*'operations.inspekt'"):
-            resolve_bundles(ROLE_NAMES, {"inspector": ["operations.inspekt"]})
+            resolve_bundles({"inspector": ["operations.inspekt"]})
 
 
 def _claims(*roles, path=("realm_access", "roles")):
@@ -145,21 +132,9 @@ class TestPermissionsOfAToken:
         auth.configure_authorization(
             "enforce",
             KEYCLOAK_CLAIMS,
-            ROLE_NAMES,
             "enforce",
             {"inspector": ["operations.inspect", "operations.runs.read"], "ops": ["operations.*"]},
         )
-
-    def should_give_what_a_default_role_holds(self):
-        assert auth.permissions_of(_claims("acex-service")) == {
-            "credentials.reveal",
-            "workflows.runs.read",
-            "workers.connect",
-            "workers.report",
-        }
-
-    def should_give_what_a_role_of_the_settings_holds(self):
-        assert auth.permissions_of(_claims("inspector")) == {"operations.inspect", "operations.runs.read"}
 
     def should_count_a_role_that_is_a_permission(self):
         assert auth.permissions_of(_claims("workflows.run")) == {"workflows.run"}
@@ -172,6 +147,25 @@ class TestPermissionsOfAToken:
             "workflows.runs.browse",
         }
 
+    def should_read_a_client_role_of_the_audience_as_well(self):
+        claims = _claims("operations.inspect", path=("resource_access", "acex", "roles"))
+        assert auth.permissions_of(claims) == {"operations.inspect"}
+
+    def should_not_read_a_client_role_of_another_client(self):
+        claims = _claims("operations.inspect", path=("resource_access", "other", "roles"))
+        assert auth.permissions_of(claims) == set()
+
+    def should_hold_what_keycloak_lists_for_a_role_made_of_permissions(self):
+        # Keycloak names such a role among the realm roles and what it is made of among the roles of the client.
+        claims = {
+            "realm_access": {"roles": ["network-operator", "offline_access"]},
+            "resource_access": {"acex": {"roles": ["operations.inspect", "workflows.run"]}},
+        }
+        assert auth.permissions_of(claims) == {"operations.inspect", "workflows.run"}
+
+    def should_give_what_a_role_of_the_settings_holds(self):
+        assert auth.permissions_of(_claims("inspector")) == {"operations.inspect", "operations.runs.read"}
+
     def should_add_the_permissions_of_every_role(self):
         assert auth.permissions_of(_claims("inspector", "workflows.run")) == {
             "operations.inspect",
@@ -183,17 +177,12 @@ class TestPermissionsOfAToken:
         assert auth.permissions_of(_claims("offline_access", "uma_authorization", "acex-viewer")) == set()
         assert auth.permissions_of({}) == set()
 
-    def should_read_a_client_role_of_the_audience_as_well(self):
-        # A client role of `acex` named as a permission is how a composite role in Keycloak shows up in a token.
-        claims = _claims("operations.inspect", path=("resource_access", "acex", "roles"))
-        assert auth.permissions_of(claims) == {"operations.inspect"}
-
-    def should_not_read_a_client_role_of_another_client(self):
-        claims = _claims("operations.inspect", path=("resource_access", "other", "roles"))
-        assert auth.permissions_of(claims) == set()
+    @pytest.mark.parametrize("path", [("realm_access", "roles"), ("resource_access", "acex", "roles")])
+    def should_give_nothing_for_the_names_of_the_roles_the_backend_once_had(self, path):
+        assert auth.permissions_of(_claims("acex-admin", "acex-service", "admin", "service", path=path)) == set()
 
     def should_know_the_roles_of_an_installation_after_it_is_configured_again(self):
-        auth.configure_authorization("enforce", KEYCLOAK_CLAIMS, ROLE_NAMES)
+        auth.configure_authorization("enforce", KEYCLOAK_CLAIMS)
         assert auth.permissions_of(_claims("inspector")) == set()
 
 
@@ -221,34 +210,120 @@ class TestSettings:
 
     def should_stop_the_api_from_starting_on_a_permission_that_does_not_exist(self):
         with pytest.raises(ValueError, match="operations.exectue"):
-            auth.configure_authorization("off", KEYCLOAK_CLAIMS, ROLE_NAMES, "off", {"ops": ["operations.exectue"]})
+            auth.configure_authorization("off", KEYCLOAK_CLAIMS, "off", {"ops": ["operations.exectue"]})
 
     def should_keep_the_old_roles_when_a_new_configuration_is_refused(self):
-        auth.configure_authorization("off", KEYCLOAK_CLAIMS, ROLE_NAMES, "off", {"ops": ["operations.inspect"]})
+        auth.configure_authorization("off", KEYCLOAK_CLAIMS, "off", {"ops": ["operations.inspect"]})
         with pytest.raises(ValueError):
-            auth.configure_authorization("enforce", KEYCLOAK_CLAIMS, ROLE_NAMES, "enforce", {"x": ["nothing"]})
+            auth.configure_authorization("enforce", KEYCLOAK_CLAIMS, "enforce", {"x": ["nothing"]})
         assert auth.AUTHZ_MODE == "off"
         assert "ops" in auth.authorization_overview()["roles"]
 
+    def should_refuse_what_is_not_a_mode(self):
+        # The call used to name the two roles in the third place, where the mode of the operations routes is now.
+        with pytest.raises(ValueError, match="is not a mode"):
+            auth.configure_authorization("off", KEYCLOAK_CLAIMS, {"admin": "acex-admin", "service": "acex-service"})
+        with pytest.raises(ValueError, match="'strict' is not a mode"):
+            auth.configure_authorization("strict", KEYCLOAK_CLAIMS)
+        assert (auth.AUTHZ_MODE, auth.OPERATIONS_AUTHZ_MODE) == ("off", "off")
+
+
+#: The settings that named the two roles the backend once had of its own.
+ADMIN_ROLE, SERVICE_ROLE = "ACEX_AUTHZ_ADMIN_ROLE", "ACEX_AUTHZ_SERVICE_ROLE"
+
+
+class TestASettingThatNamedARoleOfTheBackend:
+    """Nobody is let in under such a name any more. With a check on, starting and refusing every caller that had the
+    role would be worse than not starting."""
+
+    @pytest.fixture(autouse=True)
+    def _clean(self, monkeypatch):
+        for name in (ADMIN_ROLE, SERVICE_ROLE, "ACEX_AUTHZ_MODE", "ACEX_AUTHZ_OPERATIONS_MODE"):
+            monkeypatch.delenv(name, raising=False)
+
+    @pytest.mark.parametrize("variable", [ADMIN_ROLE, SERVICE_ROLE])
+    @pytest.mark.parametrize(
+        ("check", "mode"),
+        [
+            ("ACEX_AUTHZ_MODE", "log"),
+            ("ACEX_AUTHZ_MODE", "enforce"),
+            ("ACEX_AUTHZ_OPERATIONS_MODE", "log"),
+            ("ACEX_AUTHZ_OPERATIONS_MODE", "enforce"),
+        ],
+    )
+    def should_stop_the_api_from_starting_while_a_check_is_on(self, monkeypatch, variable, check, mode):
+        monkeypatch.setenv(variable, "netops")
+        monkeypatch.setenv(check, mode)
+        with pytest.raises(ValueError, match=f"{variable} is no longer read: the backend names no roles") as refused:
+            Settings()
+        assert "ACEX_AUTHZ_BUNDLES" in str(refused.value) and "remove the variable" in str(refused.value)
+
+    def should_name_both_when_both_are_left(self, monkeypatch):
+        monkeypatch.setenv(ADMIN_ROLE, "acex-admin")
+        monkeypatch.setenv(SERVICE_ROLE, "acex-service")
+        with pytest.raises(ValueError, match=f"{ADMIN_ROLE} and {SERVICE_ROLE} are no longer read"):
+            Settings(authz={"mode": "enforce"})
+
+    def should_stop_for_a_mode_given_in_code_as_well(self, monkeypatch):
+        monkeypatch.setenv(SERVICE_ROLE, "robots")
+        with pytest.raises(ValueError, match="no longer read"):
+            AuthorizationSettings(operations_mode="enforce")
+
+    def should_let_it_be_while_nothing_is_checked(self, monkeypatch):
+        # It did nothing before either: a copy of the old .env.example has both.
+        monkeypatch.setenv(ADMIN_ROLE, "acex-admin")
+        monkeypatch.setenv(SERVICE_ROLE, "acex-service")
+        settings = Settings().authz
+        assert (settings.mode, settings.operations_mode) == ("off", "off")
+
+    def should_count_an_empty_one_as_not_set(self, monkeypatch):
+        monkeypatch.setenv(ADMIN_ROLE, "")
+        assert Settings(authz={"mode": "enforce"}).authz.mode == "enforce"
+
+    def should_start_with_a_check_on_when_none_is_left(self):
+        assert Settings(authz={"mode": "enforce", "operations_mode": "log"}).authz.operations_mode == "log"
+
+    @pytest.mark.parametrize("field", ["admin_role", "service_role"])
+    def should_not_take_the_name_of_a_role_in_code_either(self, field):
+        with pytest.raises(ValueError, match=field):
+            AuthorizationSettings(**{field: "netops"})
+
 
 class TestOverview:
-    def should_list_every_permission_with_the_roles_that_hold_it(self):
-        auth.configure_authorization(
-            "log", KEYCLOAK_CLAIMS, ROLE_NAMES, "enforce", {"inspector": ["operations.inspect"]}
-        )
+    def should_list_every_permission_and_how_the_checks_are_set(self):
+        auth.configure_authorization("log", KEYCLOAK_CLAIMS, "enforce")
         overview = auth.authorization_overview()
 
         assert [p["name"] for p in overview["permissions"]] == list(PERMISSIONS)
         by_name = {p["name"]: p for p in overview["permissions"]}
-        assert by_name["operations.inspect"]["roles"] == ["acex-admin", "inspector"]
-        assert by_name["workers.connect"]["roles"] == ["acex-service"]
         assert by_name["operations.execute"]["sensitive"] is True
-        assert overview["roles"]["inspector"] == ["operations.inspect"]
+        assert by_name["operations.inspect"]["sensitive"] is False
+        assert by_name["credentials.reveal"]["group"] == "credentials"
         assert overview["modes"] == {
             "credentials": {"setting": "ACEX_AUTHZ_MODE", "mode": "log"},
             "operations": {"setting": "ACEX_AUTHZ_OPERATIONS_MODE", "mode": "enforce"},
         }
         assert overview["roles_claims"] == list(KEYCLOAK_CLAIMS)
+
+    def should_name_no_roles_unless_the_settings_do(self):
+        auth.configure_authorization("enforce", KEYCLOAK_CLAIMS, "enforce")
+        overview = auth.authorization_overview()
+
+        assert overview["roles"] == {}
+        assert all(p["roles"] == [] for p in overview["permissions"])
+
+    def should_list_the_roles_of_the_settings_with_what_they_hold(self):
+        auth.configure_authorization(
+            "off", KEYCLOAK_CLAIMS, "off", {"inspector": ["operations.inspect"], "ops": ["operations.*"]}
+        )
+        overview = auth.authorization_overview()
+
+        by_name = {p["name"]: p for p in overview["permissions"]}
+        assert by_name["operations.inspect"]["roles"] == ["inspector", "ops"]
+        assert by_name["operations.execute"]["roles"] == ["ops"]
+        assert by_name["workers.connect"]["roles"] == []
+        assert overview["roles"]["inspector"] == ["operations.inspect"]
+        assert set(overview["roles"]) == {"inspector", "ops"}
 
 
 class TestForTheIdentityProvider:
@@ -259,8 +334,12 @@ class TestForTheIdentityProvider:
         assert [role["name"] for role in listed] == list(PERMISSIONS)
         assert all(role["description"].startswith("Allows to ") for role in listed)
 
+    def should_make_no_roles_of_them(self):
+        # Which permissions go together in a role is for whoever runs the installation to say.
+        assert set(keycloak_roles("acex")["roles"]) == {"client"}
+
     def should_ship_the_same_client_roles_in_the_realm_of_the_docker_compose_setup(self):
-        realm = json.loads((DOCS.parents[2] / "keycloak" / "realm-export.json").read_text())
+        realm = json.loads(DEV_REALM.read_text())
         shipped = realm["roles"]["client"]["acex"]
         assert shipped == keycloak_roles("acex")["roles"]["client"]["acex"], "run: python -m acex.permissions keycloak"
 
@@ -283,6 +362,12 @@ class TestForTheIdentityProvider:
         assert "python -m acex.permissions table" in capsys.readouterr().err
 
 
+#: A permission, or a pattern of them, as the documentation writes one: in backticks or, in an example of a setting, in
+#: quotes or after an equals sign or a comma.
+_WRITTEN = re.compile(r"(?<=[`\"=,])(?:credentials|operations|workflows|workers)\.[a-z.*]+(?=[`\",\n])")
+_BUNDLES_AS_JSON = re.compile(r"ACEX_AUTHZ_BUNDLES='(\{.*?\})'")
+
+
 class TestDocumentation:
     def should_have_the_table_of_the_code_in_the_api_faq(self):
         text = DOCS.read_text()
@@ -291,6 +376,29 @@ class TestDocumentation:
         written = text.split(start)[1].split(end)[0].strip()
         assert written == permissions.table(), "run: python -m acex.permissions table"
 
-    def should_have_a_table_that_names_the_default_roles_as_the_settings_do(self):
-        table = permissions.table({"admin": "netops", "service": "robots"})
-        assert "`netops`" in table and "`robots`" in table and "acex-admin" not in table
+    def should_have_a_line_in_the_table_for_each_permission_and_no_column_of_roles(self):
+        header, _, *rows = permissions.table().splitlines()
+        assert header == "| Permission | Allows to |"
+        assert [row.split("|")[1].strip() for row in rows] == [f"`{name}`" for name in PERMISSIONS]
+
+    def should_write_only_permissions_that_exist_in_the_api_faq(self):
+        written = set(_WRITTEN.findall(DOCS.read_text()))
+        assert len(written) >= len(PERMISSIONS), "the pattern no longer finds what the guide writes"
+        for name in written:
+            assert expand([name]), name
+
+    def should_give_examples_of_the_setting_in_the_api_faq_that_the_api_starts_with(self):
+        examples = _BUNDLES_AS_JSON.findall(DOCS.read_text())
+        assert len(examples) >= 2, "the guide shows a role of one's own, and the two old roles for an upgrade"
+        for example in examples:
+            assert resolve_bundles(AuthorizationSettings(bundles=json.loads(example)).bundles)
+
+    def should_say_in_the_api_faq_how_the_two_old_roles_keep_reading_logins(self):
+        # The one check there was let both roles read a device login; the guide's line for an upgrade must do the same.
+        bridges = [
+            json.loads(example) for example in _BUNDLES_AS_JSON.findall(DOCS.read_text()) if "acex-admin" in example
+        ]
+        assert len(bridges) == 1
+        resolved = resolve_bundles(bridges[0])
+        assert set(resolved) == {"acex-admin", "acex-service"}
+        assert all("credentials.reveal" in held for held in resolved.values())

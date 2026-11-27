@@ -1,14 +1,19 @@
-"""Running commands on devices, reading what they answered and getting the broker's login each need a permission, which
-a token holds through a role: the two roles that come with the framework, a role of the settings, or a role that is
-itself a permission. They are not for every valid token.
+"""Running commands on devices, reading what they answered and getting the broker's login each need a permission. They
+are not for every valid token.
+
+Each route asks for one permission, and a token holds it when it lists it among its roles. The backend names no roles:
+which permissions go together, and who gets them, is decided where the roles are made, in the identity provider. Where
+that cannot make a role of permissions, the settings can list what a role holds.
 
 The rules have a setting of their own, ACEX_AUTHZ_OPERATIONS_MODE, off by default whatever the mode of reading a device
 login is. Like that one it has three modes: off (nothing is checked), log (what would be refused is logged) and enforce
 (refused with 403).
 """
 
+import json
 import logging
 import re
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -28,19 +33,14 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 ISSUER = "https://keycloak.example/realms/acex"
-ROLE_NAMES = {"admin": "acex-admin", "service": "acex-service"}
 KEYCLOAK_CLAIMS = ("realm_access.roles", "resource_access.{audience}.roles")
 API = "/api/v1"
+DEV_REALM = Path(__file__).resolve().parents[2] / "keycloak" / "realm-export.json"
 
-NO_ROLES = {"sub": "alice", "aud": "acex"}
-ADMIN = {"sub": "alice", "realm_access": {"roles": ["acex-admin"]}}
-WORKER = {"sub": "svc", "azp": "acex-worker", "realm_access": {"roles": ["offline_access", "acex-service"]}}
-BOTH = {"sub": "carol", "realm_access": {"roles": ["acex-admin", "acex-service"]}}
-OTHER_ROLE = {"sub": "bob", "realm_access": {"roles": ["acex-viewer"]}}
-TOKENS = {"none": NO_ROLES, "other": OTHER_ROLE, "admin": ADMIN, "worker": WORKER, "both": BOTH}
-
-#: What each of the two roles that come with the framework holds, spelled out here and not read from the code.
-ADMIN_HOLDS = frozenset(
+#: Two roles as an installation can make them in its identity provider, and as the realm of the Docker Compose setup
+#: does: `acex-admin` for people and `acex-service` for the agents and workers. What each is made of is spelled out
+#: here, so that the tests say who gets past what.
+PERSON_HOLDS = frozenset(
     {
         "credentials.reveal",
         "operations.execute",
@@ -55,12 +55,32 @@ ADMIN_HOLDS = frozenset(
     }
 )
 SERVICE_HOLDS = frozenset({"credentials.reveal", "workflows.runs.read", "workers.connect", "workers.report"})
+
+
+def _keycloak(sub: str, roles: dict[str, frozenset[str]], **claims) -> dict:
+    """The claims Keycloak gives someone who has realm roles made of permissions: each role by its name among the realm
+    roles, where it counts for nothing, and the permissions the roles are made of as roles of the client `acex`."""
+    return {
+        "sub": sub,
+        "realm_access": {"roles": ["offline_access", *roles]},
+        "resource_access": {"acex": {"roles": sorted(frozenset().union(*roles.values()))}},
+        **claims,
+    }
+
+
+NO_ROLES = {"sub": "alice", "aud": "acex"}
+PERSON = _keycloak("alice", {"acex-admin": PERSON_HOLDS})
+WORKER = _keycloak("svc", {"acex-service": SERVICE_HOLDS}, azp="acex-worker")
+BOTH = _keycloak("carol", {"acex-admin": PERSON_HOLDS, "acex-service": SERVICE_HOLDS})
+#: The names of the two roles and nothing else, as a realm that has not made them of permissions gives them.
+NAMES_ONLY = {"sub": "bob", "realm_access": {"roles": ["acex-admin", "acex-service", "acex-viewer"]}}
+TOKENS = {"none": NO_ROLES, "names": NAMES_ONLY, "person": PERSON, "worker": WORKER, "both": BOTH}
 HOLDS = {
-    "admin": ADMIN_HOLDS,
+    "person": PERSON_HOLDS,
     "worker": SERVICE_HOLDS,
-    "both": ADMIN_HOLDS | SERVICE_HOLDS,
+    "both": PERSON_HOLDS | SERVICE_HOLDS,
     "none": frozenset(),
-    "other": frozenset(),
+    "names": frozenset(),
 }
 
 #: What each route needs. Spelled out here, apart from the routers, so that changing a rule there fails a test until the
@@ -116,14 +136,18 @@ OPEN = {
 def _reset_auth():
     yield
     auth.configure(None)
-    auth.configure_authorization("off", KEYCLOAK_CLAIMS, ROLE_NAMES)
+    auth.configure_authorization("off", KEYCLOAK_CLAIMS)
 
 
 def _configure(
-    operations_mode: str, mode: str = "off", issuer: str | None = ISSUER, bundles: dict | None = None
+    operations_mode: str,
+    mode: str = "off",
+    issuer: str | None = ISSUER,
+    bundles: dict | None = None,
+    roles_claims=KEYCLOAK_CLAIMS,
 ) -> None:
     auth.configure(issuer, "acex")
-    auth.configure_authorization(mode, KEYCLOAK_CLAIMS, ROLE_NAMES, operations_mode, bundles)
+    auth.configure_authorization(mode, roles_claims, operations_mode, bundles)
 
 
 def _app(engine, describe: bool = False) -> FastAPI:
@@ -184,10 +208,34 @@ class TestWhichRoutes:
                 if hasattr(dependency.dependency, "permission"):
                     assert PERMISSIONS[dependency.dependency.permission].group == "operations"
 
-    def should_need_no_permission_that_nobody_holds(self):
-        # A permission no default role holds could only be reached through a role of the settings.
-        for permission in set(POLICY.values()):
-            assert permission in ADMIN_HOLDS | SERVICE_HOLDS, permission
+    def should_ask_each_route_for_one_permission(self, stub_app):
+        for route in _routes(stub_app):
+            asked = [d.dependency.permission for d in route.dependencies if hasattr(d.dependency, "permission")]
+            assert len(asked) <= 1, route.path
+
+
+class TestTheTwoRolesOfTheDevRealm:
+    """The realm of the Docker Compose setup makes its two roles in Keycloak, as an installation does."""
+
+    @pytest.fixture
+    def realm(self) -> dict:
+        return json.loads(DEV_REALM.read_text())
+
+    def should_be_made_of_what_these_tests_give_a_person_and_a_worker(self, realm):
+        made = {role["name"]: role["composites"]["client"]["acex"] for role in realm["roles"]["realm"]}
+        assert {name: set(holds) for name, holds in made.items()} == {
+            "acex-admin": PERSON_HOLDS,
+            "acex-service": SERVICE_HOLDS,
+        }
+        assert all(role["composite"] is True for role in realm["roles"]["realm"])
+
+    def should_hold_every_permission_between_them(self):
+        # A permission added later goes into one of them, or nobody in that setup gets past its routes.
+        assert PERSON_HOLDS | SERVICE_HOLDS == set(PERMISSIONS)
+
+    def should_be_given_to_the_user_and_to_the_agents_of_that_realm(self, realm):
+        given = {user["username"]: user["realmRoles"] for user in realm["users"]}
+        assert given == {"admin": ["acex-admin"], "service-account-acex-agents": ["acex-service"]}
 
 
 class TestOff:
@@ -221,17 +269,29 @@ class TestEnforce:
             assert response.status_code == 403
             assert needed in response.json()["detail"]
 
-    def should_name_the_permission_a_route_needs_and_the_roles_that_hold_it(self, stub_app):
+    def should_name_the_permission_a_route_needs(self, stub_app):
         _configure("enforce")
         refused = _call(_as(stub_app, NO_ROLES), "POST", f"{API}/operations/execute")
-        assert refused.json()["detail"] == "Requires the permission operations.execute (held by the roles acex-admin)"
-        refused = _call(_as(stub_app, NO_ROLES), "POST", f"{API}/operations/workflows/runs/1/continue")
-        assert refused.json()["detail"] == "Requires the permission workflows.run (held by the roles acex-admin)"
+        assert refused.json()["detail"] == "Requires the permission operations.execute"
+        refused = _call(_as(stub_app, NAMES_ONLY), "POST", f"{API}/operations/workflows/runs/1/continue")
+        assert refused.json()["detail"] == "Requires the permission workflows.run"
         refused = _call(_as(stub_app, NO_ROLES), "GET", f"{API}/operations/workflows/runs/1/artifacts")
-        assert (
-            refused.json()["detail"]
-            == "Requires the permission workflows.runs.read (held by the roles acex-admin, acex-service)"
+        assert refused.json()["detail"] == "Requires the permission workflows.runs.read"
+
+    def should_name_the_roles_of_the_settings_that_hold_it_as_well(self, stub_app):
+        _configure("enforce", bundles={"planner": ["operations.inspect"], "night-shift": ["operations.*"]})
+        refused = _call(_as(stub_app, NO_ROLES), "POST", f"{API}/operations/patch/render")
+        assert refused.json()["detail"] == (
+            "Requires the permission operations.inspect (held by the roles night-shift, planner)"
         )
+        refused = _call(_as(stub_app, NO_ROLES), "POST", f"{API}/workers/connect")
+        assert refused.json()["detail"] == "Requires the permission workers.connect"
+
+    def should_not_know_a_role_by_its_name(self, stub_app):
+        # `acex-admin` and `acex-service` let a token in only where a realm makes them of permissions.
+        _configure("enforce")
+        named = _as(stub_app, NAMES_ONLY)
+        assert all(_call(named, method, path).status_code == 403 for method, path in POLICY)
 
     def should_let_a_worker_read_a_run_and_its_artifacts_but_not_look_through_the_runs(self, stub_app):
         _configure("enforce")
@@ -241,7 +301,7 @@ class TestEnforce:
         for path in ("runs", "runs/1/steps/1"):
             refused = _call(worker, "GET", f"{API}/operations/workflows/{path}")
             assert refused.status_code == 403, path
-            assert "workflows.runs.browse (held by the roles acex-admin)" in refused.json()["detail"], path
+            assert refused.json()["detail"] == "Requires the permission workflows.runs.browse", path
 
     def should_leave_the_open_routes_open(self, stub_app):
         _configure("enforce")
@@ -254,15 +314,18 @@ class TestEnforce:
         _configure("enforce", mode="off")
         assert _call(_as(stub_app, NO_ROLES), "POST", f"{API}/operations/execute").status_code == 403
 
-    def should_use_the_role_names_of_the_settings(self, stub_app):
-        auth.configure(ISSUER, "acex")
-        auth.configure_authorization("off", ("roles",), {"admin": "netops", "service": "robots"}, "enforce")
-        client = _as(stub_app, {"sub": "x", "roles": ["netops"]})
+    def should_read_the_permissions_where_the_settings_say_the_token_lists_them(self, stub_app):
+        # Another identity provider than Keycloak: one list of names, or the scope of the token.
+        _configure("enforce", roles_claims=("roles",))
+        client = _as(stub_app, {"sub": "x", "roles": ["operations.execute"]})
         assert _call(client, "POST", f"{API}/operations/execute").status_code not in (401, 403)
         assert _call(client, "POST", f"{API}/workers/connect").status_code == 403
-        client = _as(stub_app, {"sub": "x", "roles": ["robots"]})
+
+        _configure("enforce", roles_claims=("scope",))
+        client = _as(stub_app, {"sub": "x", "scope": "openid workers.connect workers.report"})
         assert _call(client, "POST", f"{API}/workers/connect").status_code not in (401, 403)
         assert _call(client, "POST", f"{API}/operations/execute").status_code == 403
+        assert _call(_as(stub_app, PERSON), "POST", f"{API}/operations/execute").status_code == 403
 
     def should_not_check_roles_when_there_is_no_issuer(self, stub_app):
         # Dev mode: nobody has a token, so nobody has roles.
@@ -281,9 +344,26 @@ class TestLog:
         _configure("log")
         with caplog.at_level(logging.WARNING, logger="acex.auth"):
             _call(_as(stub_app, NO_ROLES), "POST", f"{API}/operations/execute")
-        assert "Would be refused (POST /api/v1/operations/execute)" in caplog.text
-        assert "'alice'" in caplog.text and "the permission operations.execute" in caplog.text
-        assert "ACEX_AUTHZ_OPERATIONS_MODE=enforce" in caplog.text
+        assert (
+            "Would be refused (POST /api/v1/operations/execute): 'alice' does not hold the permission "
+            "operations.execute; it lists no roles. Set ACEX_AUTHZ_OPERATIONS_MODE=enforce once every caller has a "
+            "role that holds it."
+        ) in caplog.text
+
+    def should_say_which_roles_a_token_that_would_be_refused_has(self, stub_app, caplog):
+        _configure("log", bundles={"night-shift": ["workers.*"]})
+        with caplog.at_level(logging.WARNING, logger="acex.auth"):
+            _call(_as(stub_app, NAMES_ONLY), "POST", f"{API}/workers/connect")
+            _call(_as(stub_app, WORKER), "POST", f"{API}/operations/execute")
+        named, worker = (record.getMessage() for record in caplog.records)
+        assert (
+            "'bob' does not hold the permission workers.connect (held by the roles night-shift); its roles are "
+            "acex-admin, acex-service, acex-viewer. Set"
+        ) in named
+        assert (
+            "'acex-worker' does not hold the permission operations.execute; its roles are acex-service, "
+            "credentials.reveal, offline_access, workers.connect, workers.report, workflows.runs.read. Set"
+        ) in worker
 
     def should_say_it_once_per_caller_and_route(self, stub_app, caplog):
         _configure("log")
@@ -294,10 +374,10 @@ class TestLog:
             _call(client, "DELETE", f"{API}/workers/jobs")
         assert caplog.text.count("Would be refused") == 2
 
-    def should_say_nothing_about_a_token_with_the_role(self, stub_app, caplog):
+    def should_say_nothing_about_a_token_that_holds_the_permission(self, stub_app, caplog):
         _configure("log")
         with caplog.at_level(logging.WARNING, logger="acex.auth"):
-            _call(_as(stub_app, ADMIN), "POST", f"{API}/operations/execute")
+            _call(_as(stub_app, PERSON), "POST", f"{API}/operations/execute")
             _call(_as(stub_app, WORKER), "POST", f"{API}/workers/connect")
         assert caplog.text == ""
 
@@ -330,18 +410,23 @@ def _allowed_routes(app: FastAPI, claims: dict) -> set[str]:
 class TestRolesOfTheInstallation:
     """The roles are the installation's to make: the framework only says which permission a route needs."""
 
-    def should_let_a_role_of_the_settings_do_what_it_holds_and_nothing_else(self, stub_app):
-        _configure("enforce", bundles={"planner": ["operations.inspect", "workflows.run"]})
-        assert _allowed_routes(stub_app, _realm_role("planner")) == {"operations.inspect", "workflows.run"}
-
     def should_let_a_role_that_is_a_permission_do_what_it_names(self, stub_app):
         _configure("enforce")
         assert _allowed_routes(stub_app, _realm_role("operations.execute")) == {"operations.execute"}
 
     def should_read_it_from_a_client_role_of_the_audience_as_keycloak_gives_a_composite_role(self, stub_app):
         _configure("enforce")
-        claims = {"sub": "x", "resource_access": {"acex": {"roles": ["operations.inspect", "operations.runs.read"]}}}
+        claims = _keycloak("x", {"network-operator": frozenset({"operations.inspect", "operations.runs.read"})})
         assert _allowed_routes(stub_app, claims) == {"operations.inspect", "operations.runs.read"}
+
+    def should_let_a_role_made_of_every_permission_do_everything(self, stub_app):
+        # An admin is a role like any other: whoever makes it puts every permission in it and calls it what they like.
+        _configure("enforce")
+        assert _allowed_routes(stub_app, _keycloak("x", {"boss": frozenset(PERMISSIONS)})) == set(POLICY.values())
+
+    def should_let_a_role_of_the_settings_do_what_it_holds_and_nothing_else(self, stub_app):
+        _configure("enforce", bundles={"planner": ["operations.inspect", "workflows.run"]})
+        assert _allowed_routes(stub_app, _realm_role("planner")) == {"operations.inspect", "workflows.run"}
 
     def should_let_a_pattern_cover_a_whole_area_and_not_another(self, stub_app):
         _configure("enforce")
@@ -353,9 +438,9 @@ class TestRolesOfTheInstallation:
         _configure("enforce")
         assert _allowed_routes(stub_app, _realm_role("*")) == set(POLICY.values())
 
-    def should_let_a_role_of_the_settings_replace_a_default_role(self, stub_app):
-        _configure("enforce", bundles={"acex-admin": ["operations.inspect"]})
-        assert _allowed_routes(stub_app, ADMIN) == {"operations.inspect"}
+    def should_let_the_settings_say_what_a_role_holds_that_the_realm_makes_of_nothing(self, stub_app):
+        _configure("enforce", bundles={"acex-admin": ["operations.inspect"], "acex-service": ["workers.*"]})
+        assert _allowed_routes(stub_app, NAMES_ONLY) == {"operations.inspect", "workers.connect", "workers.report"}
 
     def should_add_what_two_roles_hold(self, stub_app):
         _configure("enforce", bundles={"planner": ["operations.inspect"], "runner": ["workflows.run"]})
@@ -389,15 +474,14 @@ class TestDocumentation:
         _configure("off")
         return _app(MagicMock(), describe=True)
 
-    def should_say_in_each_description_which_permission_a_route_needs_and_who_holds_it(self, described):
+    def should_say_in_each_description_which_permission_a_route_needs(self, described):
         schema = described.openapi()["paths"]
 
         for (method, path), needed in POLICY.items():
             description = schema[path][method.lower()]["description"]
             assert "ACEX_AUTHZ_OPERATIONS_MODE" in description, (method, path)
-            assert f"**Permission:** `{needed}`" in description, (method, path)
-            for role, holds in (("acex-admin", ADMIN_HOLDS), ("acex-service", SERVICE_HOLDS)):
-                assert (f"`{role}`" in description) == (needed in holds), (method, path, role)
+            assert f"**Permission:** `{needed}`, to {PERMISSIONS[needed].summary}. Checked when" in description
+            assert "acex-admin" not in description and "acex-service" not in description, (method, path)
 
     def should_keep_what_a_route_already_said(self, described):
         description = described.openapi()["paths"][f"{API}/operations/execute"]["post"]["description"]
@@ -407,13 +491,13 @@ class TestDocumentation:
         for method, path in OPEN:
             assert "**Permission:**" not in described.openapi()["paths"][path][method.lower()].get("description", "")
 
-    def should_use_the_role_names_of_the_settings(self, monkeypatch):
+    def should_name_the_roles_of_the_settings_that_hold_it(self, monkeypatch):
         monkeypatch.setattr(operation_runs, "NEDManager", MagicMock)
-        auth.configure_authorization("off", KEYCLOAK_CLAIMS, {"admin": "netops", "service": "robots"})
-        description = _app(MagicMock(), describe=True).openapi()["paths"][f"{API}/workers/connect"]["post"][
-            "description"
-        ]
-        assert "`robots`" in description and "`acex-service`" not in description
+        _configure("off", bundles={"robots": ["workers.*"], "night-shift": ["workers.connect"]})
+        paths = _app(MagicMock(), describe=True).openapi()["paths"]
+        connect = paths[f"{API}/workers/connect"]["post"]["description"]
+        assert "The roles `night-shift`, `robots` of the settings hold it. Checked when" in connect
+        assert "of the settings" not in paths[f"{API}/operations/execute"]["post"]["description"]
 
 
 # The routes with a real database behind them: what a refusal leaves undone, and what a worker can still do.
@@ -474,7 +558,7 @@ EXECUTE = {"node_ids": [1, 2], "commands": ["show version"]}
 
 
 class TestWithRealJobs:
-    def should_leave_no_job_behind_when_a_token_without_the_role_orders_a_command(self, stack):
+    def should_leave_no_job_behind_when_a_token_without_the_permission_orders_a_command(self, stack):
         _configure("enforce")
 
         refused = _as(stack.app, NO_ROLES).post(f"{API}/operations/execute", json=EXECUTE)
@@ -482,10 +566,10 @@ class TestWithRealJobs:
         assert refused.status_code == 403
         assert stack.jobs.list_jobs(limit=10, offset=0).total == 0
 
-    def should_order_a_command_for_the_admin_role(self, stack):
+    def should_order_a_command_for_a_token_that_holds_the_permission(self, stack):
         _configure("enforce")
 
-        ordered = _as(stack.app, ADMIN).post(f"{API}/operations/execute", json=EXECUTE)
+        ordered = _as(stack.app, PERSON).post(f"{API}/operations/execute", json=EXECUTE)
 
         assert ordered.status_code == 202
         assert ordered.json()["created_by"] == "alice"
@@ -499,7 +583,7 @@ class TestWithRealJobs:
         _configure("enforce")
         body = {"job_types": ["acex.operations.execute"]}
 
-        refused = _as(stack.app, ADMIN).post(f"{API}/workers/connect", json=body)
+        refused = _as(stack.app, PERSON).post(f"{API}/workers/connect", json=body)
         assert refused.status_code == 403
         assert "s3cr/et" not in refused.text
         assert _as(stack.app, NO_ROLES).post(f"{API}/workers/connect", json=body).status_code == 403
@@ -510,11 +594,11 @@ class TestWithRealJobs:
 
     def should_let_the_worker_claim_and_report_a_job_and_nobody_else(self, stack):
         _configure("enforce")
-        ordered = _as(stack.app, ADMIN).post(f"{API}/operations/execute", json={**EXECUTE, "node_ids": [1]}).json()
+        ordered = _as(stack.app, PERSON).post(f"{API}/operations/execute", json={**EXECUTE, "node_ids": [1]}).json()
         [job] = stack.jobs.children(ordered["id"])
         url = f"{API}/workers/jobs/{job.id}"
 
-        for caller in (ADMIN, NO_ROLES):
+        for caller in (PERSON, NO_ROLES):
             assert _as(stack.app, caller).patch(url, json={"state": "running"}).status_code == 403
         assert stack.jobs.get(job.id).state == JobState.queued
 
@@ -526,22 +610,22 @@ class TestWithRealJobs:
 
     def should_keep_jobs_from_a_token_that_cannot_purge_them(self, stack):
         _configure("enforce")
-        _as(stack.app, ADMIN).post(f"{API}/operations/execute", json=EXECUTE)
+        _as(stack.app, PERSON).post(f"{API}/operations/execute", json=EXECUTE)
 
         assert _as(stack.app, WORKER).delete(f"{API}/workers/jobs").status_code == 403
         assert _as(stack.app, NO_ROLES).delete(f"{API}/workers/jobs/1").status_code == 403
         assert stack.jobs.list_jobs(limit=10, offset=0).total == 1
 
         # The run's batch and its two jobs.
-        assert _as(stack.app, ADMIN).delete(f"{API}/workers/jobs").json() == {"deleted": 3}
+        assert _as(stack.app, PERSON).delete(f"{API}/workers/jobs").json() == {"deleted": 3}
 
-    def should_keep_the_output_of_a_run_from_a_token_without_the_role(self, stack):
+    def should_keep_the_output_of_a_run_from_a_token_without_the_permission(self, stack):
         _configure("enforce")
-        run = _as(stack.app, ADMIN).post(f"{API}/operations/execute", json=EXECUTE).json()
+        run = _as(stack.app, PERSON).post(f"{API}/operations/execute", json=EXECUTE).json()
 
         for url in (f"{API}/operations/runs", f"{API}/operations/runs/{run['id']}", f"{API}/workers/jobs"):
             assert _as(stack.app, NO_ROLES).get(url).status_code == 403, url
-            assert _as(stack.app, ADMIN).get(url).status_code == 200, url
+            assert _as(stack.app, PERSON).get(url).status_code == 200, url
         csv = _as(stack.app, NO_ROLES).get(f"{API}/operations/runs/{run['id']}/report")
         assert csv.status_code == 403
 
@@ -596,7 +680,7 @@ class TestThroughTheApp:
         yield build, token
         auth.set_dev_mode(False)
 
-    def should_refuse_a_signed_token_without_the_role_on_every_route_that_runs_a_command(self, tokens):
+    def should_refuse_a_signed_token_without_the_permission_on_every_route_that_runs_a_command(self, tokens):
         build, token = tokens
         _, client = build("enforce")
         plain = token()
@@ -613,26 +697,27 @@ class TestThroughTheApp:
             assert client.request(method, API + path, json={}, headers=plain).status_code == 403, (method, path)
         assert client.request("POST", API + "/operations/execute", json={}).status_code == 401
 
-    def should_let_the_roles_through_to_the_handler(self, tokens):
+    def should_let_a_token_of_a_role_made_of_permissions_through_to_the_handler(self, tokens):
         build, token = tokens
         _, client = build("enforce")
-        admin = token(realm_access={"roles": ["acex-admin"]})
-        service = token(resource_access={"acex": {"roles": ["acex-service"]}})
+        person, worker = token(**PERSON), token(**WORKER)
+        connect = {"job_types": ["acex.operations.execute"]}
 
-        # Past the role check each answers for itself: no broker is configured, and there is no such node.
-        assert client.post(API + "/operations/execute", json=EXECUTE, headers=admin).status_code in (404, 503)
-        assert (
-            client.post(
-                API + "/workers/connect", json={"job_types": ["acex.operations.execute"]}, headers=service
-            ).status_code
-            == 503
-        )
-        assert (
-            client.post(
-                API + "/workers/connect", json={"job_types": ["acex.operations.execute"]}, headers=admin
-            ).status_code
-            == 403
-        )
+        # Past the check each answers for itself: no broker is configured, and there is no such node.
+        assert client.post(API + "/operations/execute", json=EXECUTE, headers=person).status_code in (404, 503)
+        assert client.post(API + "/workers/connect", json=connect, headers=worker).status_code == 503
+        assert client.post(API + "/workers/connect", json=connect, headers=person).status_code == 403
+        assert client.post(API + "/operations/execute", json=EXECUTE, headers=worker).status_code == 403
+
+    def should_refuse_a_signed_token_that_only_names_a_role(self, tokens):
+        build, token = tokens
+        _, client = build("enforce")
+        named = token(**NAMES_ONLY)
+
+        refused = client.post(API + "/operations/execute", json=EXECUTE, headers=named)
+        assert (refused.status_code, refused.json()["detail"]) == (403, "Requires the permission operations.execute")
+        connect = client.post(API + "/workers/connect", json={"job_types": ["acex.operations.execute"]}, headers=named)
+        assert connect.status_code == 403
 
     def should_check_nothing_while_the_setting_is_off(self, tokens):
         build, token = tokens
@@ -665,8 +750,13 @@ class TestThroughTheApp:
         assert listed.status_code == 200
         body = listed.json()
         assert {p["name"] for p in body["permissions"]} == set(PERMISSIONS)
-        assert body["roles"]["planner"] == ["operations.inspect"]
+        assert body["roles"] == {"planner": ["operations.inspect"]}
         assert body["modes"]["operations"] == {"setting": "ACEX_AUTHZ_OPERATIONS_MODE", "mode": "log"}
+
+    def should_list_no_roles_for_an_installation_that_makes_them_in_its_identity_provider(self, tokens):
+        build, token = tokens
+        _, client = build("enforce")
+        assert client.get(API + "/auth/permissions", headers=token()).json()["roles"] == {}
 
     def should_refuse_to_start_on_a_role_of_the_settings_with_a_permission_that_does_not_exist(self, tokens):
         build, _ = tokens

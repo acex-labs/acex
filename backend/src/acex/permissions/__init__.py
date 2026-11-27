@@ -1,12 +1,12 @@
-"""What a caller of the API may be allowed to do, and the roles that hold it.
+"""What a caller of the API may be allowed to do.
 
-The framework names the things that can be allowed, the permissions below, and says which route needs which. It does
-not say which people or services get them: whoever runs an installation makes roles of their own in their identity
-provider, or in `ACEX_AUTHZ_BUNDLES`, and lists the permissions each holds. `acex-admin` and `acex-service` are two such
-roles that come with the framework, so that an installation that makes none still has the two it needs.
+The framework names the things that can be allowed, the permissions below, and says which route needs which. It names
+no roles and does not say which people or services get a permission: whoever runs an installation makes the roles in
+their identity provider, each a role made of permissions, and gives them out.
 
-A role in a token counts as one of three things, in this order: a bundle (a role with a list of permissions, from the
-settings), a permission, or a pattern of permissions (`*`, or a prefix as `operations.*`).
+A token holds a permission when one of its roles is the permission, or a pattern that covers it (`*`, or a prefix as
+`operations.*`). Where the identity provider cannot make a role of permissions, `ACEX_AUTHZ_BUNDLES` names roles and
+what each holds, and such a role counts as what the settings list for it.
 
     python -m acex.permissions table      the permissions as a table for the documentation
     python -m acex.permissions keycloak   the permissions as client roles, to import into a realm
@@ -29,90 +29,35 @@ class Permission:
     #: What it lets a caller do, as a sentence that goes after "Allows to".
     summary: str
     group: str
-    #: Held by the default admin role, which is meant for people.
-    admin: bool
-    #: Held by the default service role, which is meant for the agents and workers.
-    service: bool
     #: Hands out a login, or puts commands or configuration on devices.
     sensitive: bool = False
 
 
 _ALL = (
-    Permission(
-        "credentials.reveal",
-        "read the stored login of a device in the clear",
-        CREDENTIALS,
-        admin=True,
-        service=True,
-        sensitive=True,
-    ),
-    Permission(
-        "operations.execute", "run raw commands on devices", OPERATIONS, admin=True, service=False, sensitive=True
-    ),
-    Permission(
-        "operations.apply",
-        "send a patch of configuration to devices",
-        OPERATIONS,
-        admin=True,
-        service=False,
-        sensitive=True,
-    ),
+    Permission("credentials.reveal", "read the stored login of a device in the clear", CREDENTIALS, sensitive=True),
+    Permission("operations.execute", "run raw commands on devices", OPERATIONS, sensitive=True),
+    Permission("operations.apply", "send a patch of configuration to devices", OPERATIONS, sensitive=True),
     # Every action registered today only reads (ping). An action that changes a device needs a permission of its own.
     Permission(
-        "operations.inspect",
-        "plan a patch and run the actions, which read from devices and change nothing",
-        OPERATIONS,
-        admin=True,
-        service=False,
+        "operations.inspect", "plan a patch and run the actions, which read from devices and change nothing", OPERATIONS
     ),
     Permission(
         "operations.runs.read",
         "list and read runs and their reports, which hold what the devices answered",
         OPERATIONS,
-        admin=True,
-        service=False,
     ),
-    Permission(
-        "operations.jobs",
-        "list, read, queue again, cancel, delete and purge jobs",
-        OPERATIONS,
-        admin=True,
-        service=False,
-    ),
+    Permission("operations.jobs", "list, read, queue again, cancel, delete and purge jobs", OPERATIONS),
     Permission(
         "workflows.edit",
         "create, change and delete workflow definitions, which are stored commands",
         OPERATIONS,
-        admin=True,
-        service=False,
         sensitive=True,
     ),
-    Permission(
-        "workflows.run", "start, continue, stop and delete workflow runs", OPERATIONS, admin=True, service=False
-    ),
-    Permission(
-        "workflows.runs.read",
-        "read a workflow run and the artifacts its steps leave",
-        OPERATIONS,
-        admin=True,
-        service=True,
-    ),
-    Permission(
-        "workflows.runs.browse",
-        "list workflow runs and read what the nodes answered in a step",
-        OPERATIONS,
-        admin=True,
-        service=False,
-    ),
-    Permission(
-        "workers.connect",
-        "receive the login to the message broker",
-        OPERATIONS,
-        admin=False,
-        service=True,
-        sensitive=True,
-    ),
-    Permission("workers.report", "report the state and the result of a job", OPERATIONS, admin=False, service=True),
+    Permission("workflows.run", "start, continue, stop and delete workflow runs", OPERATIONS),
+    Permission("workflows.runs.read", "read a workflow run and the artifacts its steps leave", OPERATIONS),
+    Permission("workflows.runs.browse", "list workflow runs and read what the nodes answered in a step", OPERATIONS),
+    Permission("workers.connect", "receive the login to the message broker", OPERATIONS, sensitive=True),
+    Permission("workers.report", "report the state and the result of a job", OPERATIONS),
 )
 
 PERMISSIONS: dict[str, Permission] = {permission.name: permission for permission in _ALL}
@@ -137,20 +82,10 @@ def expand(entries, where: str = "a list of permissions") -> frozenset[str]:
     return frozenset(found)
 
 
-def default_bundles(role_names: dict[str, str]) -> dict[str, frozenset[str]]:
-    """The roles that come with the framework, under the names the settings give them."""
-    return {
-        role_names["admin"]: frozenset(name for name, p in PERMISSIONS.items() if p.admin),
-        role_names["service"]: frozenset(name for name, p in PERMISSIONS.items() if p.service),
-    }
-
-
-def resolve_bundles(
-    role_names: dict[str, str], bundles: dict[str, list[str]] | None = None
-) -> dict[str, frozenset[str]]:
-    """Role name to the permissions it holds: the two default roles, and the roles of the settings on top of them. A
-    role of the settings with the name of a default role replaces it."""
-    resolved = default_bundles(role_names)
+def resolve_bundles(bundles: dict[str, list[str]] | None = None) -> dict[str, frozenset[str]]:
+    """The roles of the settings: role name to the permissions it holds. There are none unless the settings name
+    some."""
+    resolved: dict[str, frozenset[str]] = {}
     for name, entries in (bundles or {}).items():
         if name in PERMISSIONS or "*" in name:
             raise ValueError(
@@ -161,17 +96,11 @@ def resolve_bundles(
     return resolved
 
 
-def table(role_names: dict[str, str] | None = None) -> str:
-    """The permissions as a Markdown table, for the documentation: one line for each, with the default roles that hold
-    it. The documentation is checked against this, so that it cannot say something else than the code does."""
-    roles = role_names or {"admin": "acex-admin", "service": "acex-service"}
-    lines = [
-        "| Permission | Allows to | Held by default by |",
-        "|---|---|---|",
-    ]
-    for p in PERMISSIONS.values():
-        holders = [f"`{roles[kind]}`" for kind in ("admin", "service") if getattr(p, kind)]
-        lines.append(f"| `{p.name}` | {p.summary} | {' and '.join(holders)} |")
+def table() -> str:
+    """The permissions as a Markdown table, for the documentation. The documentation is checked against this, so that
+    it cannot say something else than the code does."""
+    lines = ["| Permission | Allows to |", "|---|---|"]
+    lines += [f"| `{p.name}` | {p.summary} |" for p in PERMISSIONS.values()]
     return "\n".join(lines)
 
 

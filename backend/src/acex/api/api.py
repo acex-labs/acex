@@ -31,7 +31,6 @@ class Api:
         _auth.configure_authorization(
             settings.authz.mode,
             settings.authz.roles_claims,
-            {"admin": settings.authz.admin_role, "service": settings.authz.service_role},
             settings.authz.operations_mode,
             settings.authz.bundles,
         )

@@ -8,11 +8,39 @@
     "realm": [
       {
         "name": "acex-admin",
-        "description": "Administrator of ACEX: may read the stored login of a device in the clear"
+        "description": "An example of a role made of permissions, for people: every permission but the two of a worker",
+        "composite": true,
+        "composites": {
+          "client": {
+            "acex": [
+              "credentials.reveal",
+              "operations.execute",
+              "operations.apply",
+              "operations.inspect",
+              "operations.runs.read",
+              "operations.jobs",
+              "workflows.edit",
+              "workflows.run",
+              "workflows.runs.read",
+              "workflows.runs.browse"
+            ]
+          }
+        }
       },
       {
         "name": "acex-service",
-        "description": "Agents and workers: fetch the stored logins of the devices they work on"
+        "description": "An example of a role made of permissions, for the agents and workers",
+        "composite": true,
+        "composites": {
+          "client": {
+            "acex": [
+              "credentials.reveal",
+              "workflows.runs.read",
+              "workers.connect",
+              "workers.report"
+            ]
+          }
+        }
       }
     ],
     "client": {
