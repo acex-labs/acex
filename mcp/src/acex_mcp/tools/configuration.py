@@ -5,8 +5,8 @@ ACE-X distinguishes three things, and conflating them produces wrong answers:
   desired   — the intended configuration. ACE-X is the source of truth for it.
   observed  — a snapshot actually collected from the device, stamped with
               `collected_at`. Versioned, so any past point in time can be read.
-  running   — what is on the device *right now*. Not retrievable yet; see
-              get_running_config.
+  running   — what is on the device *right now*, read live by the
+              get_running_config action (see tools/actions.py).
 """
 
 from datetime import UTC, datetime, timedelta
@@ -177,8 +177,11 @@ def register(mcp: FastMCP) -> None:
         An observed config is what was actually read off the device and stored,
         stamped with `collected_at`. It is the default for any question about
         how a node IS configured — "how is X configured", "what's configured on
-        X", "show X's config", "running config" — not get_desired_config().
-        Always say when the snapshot was collected: it is not a live reading.
+        X", "show X's config" — not get_desired_config(). Always say when the
+        snapshot was collected: it is not a live reading. It is cheaper than
+        get_running_config(), which reads the device now: use that when the
+        user asks for the running or live config, or when the device may have
+        changed since this snapshot was collected.
 
         Args:
             node_id: From find_nodes().
@@ -281,52 +284,6 @@ def register(mcp: FastMCP) -> None:
                     "State the collection time — do not imply the config was captured at the requested moment."
                 )
         return payload
-
-    @mcp.tool(annotations=READ_ONLY)
-    async def get_running_config(node_id: int) -> dict:
-        """Read a node's live running configuration. NOT AVAILABLE YET.
-
-        ACE-X cannot currently read a device on demand — collection agents poll
-        on their own schedule, so the freshest thing that exists is the last
-        observed snapshot. This tool exists to answer the question honestly
-        rather than let a stale snapshot pass as a live reading.
-
-        Args:
-            node_id: From find_nodes().
-
-        Tell the user ACE-X cannot read the device live right now, say how old
-        the newest snapshot is, and offer it. Only call get_observed_config()
-        if they want it — do not substitute it silently.
-        """
-        snapshots = await call(
-            client().inventory.node_instances.list_observed,
-            id=node_id,
-            limit=1,
-            doing=f"checking the newest snapshot of node {node_id}",
-        )
-        latest = (
-            {"snapshot_id": snapshots[0].id, "collected_at": snapshots[0].created_at, "hash": snapshots[0].hash}
-            if snapshots
-            else None
-        )
-        return {
-            "node_id": node_id,
-            "available": False,
-            "reason": (
-                "Live device reads are not implemented. ACE-X collection agents poll on a schedule; "
-                "there is no on-demand collection yet."
-            ),
-            "latest_observed": latest,
-            "next_step": (
-                "Tell the user ACE-X cannot read the device live, and offer the observed snapshot from "
-                "collected_at instead. Call get_observed_config(node_id) only if they accept."
-                if latest
-                else (
-                    "Tell the user ACE-X cannot read the device live, and that no snapshot has ever "
-                    "been collected from it either."
-                )
-            ),
-        }
 
     @mcp.tool(annotations=READ_ONLY)
     async def list_observed_configs(node_id: int, limit: int = 20, before: str | None = None) -> dict:

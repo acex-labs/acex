@@ -36,6 +36,8 @@ from acex_devkit.models.actions import (
     MacAddressTableResult,
     PingParams,
     PingResult,
+    RunningConfigParams,
+    RunningConfigResult,
     TableParams,
     TableResult,
     TracerouteParams,
@@ -219,13 +221,29 @@ class Actions(Facade):
 
 
 class Session:
-    """One connection to one device. Calls run one at a time, in the order they are made."""
+    """One connection to one device. Calls run one at a time, in the order they are made.
 
-    def __init__(self, transport: Transport, state: State | None, actions: Actions | None):
+    Some actions are the session's own rather than the driver's `Actions`: they are made of what every driver
+    has, so a driver gets them without writing them. `BUILT_IN` names each and what it needs of the driver.
+    """
+
+    #: Action name -> the transport operations it needs; it also needs a codec.
+    BUILT_IN: ClassVar[dict[str, set[str]]] = {"get_running_config": {"get_config"}}
+
+    def __init__(self, transport: Transport, state: State | None, actions: Actions | None, codec: Codec | None = None):
         self.transport = transport
         self.state = state
         self.actions = actions
+        self.codec = codec
         self.lock = asyncio.Lock()
+
+    @classmethod
+    def built_in(cls, transport_class: type[Transport] | None, codec_class: type[Codec] | None) -> list[str]:
+        """The built-in actions a driver with this transport and codec can run."""
+        if transport_class is None or codec_class is None:
+            return []
+        operations = set(transport_class.implemented())
+        return sorted(name for name, needs in cls.BUILT_IN.items() if needs <= operations)
 
     async def __aenter__(self) -> "Session":
         await self.transport.open()
@@ -256,10 +274,18 @@ class Session:
 
     async def run_action(self, params: ActionParams) -> BaseModel:
         """Run the action `params` names. A table is cut here to the caller's `max_entries`."""
+        if params.action in self.BUILT_IN:
+            return await getattr(self, params.action)(params)
         result = await self.call(self.actions, params.action, self.transport, params)
         if isinstance(result, TableResult) and isinstance(params, TableParams):
             return result.limit(params.max_entries)
         return result
+
+    async def get_running_config(self, params: RunningConfigParams) -> RunningConfigResult:
+        """The configuration read from the device now, masked by the codec so that no secret leaves the session."""
+        if self.codec is None:
+            raise DriverException("Driver does not support get_running_config: it has no codec to mask the config")
+        return RunningConfigResult(config=self.codec.mask(await self.get_config()))
 
     async def call(self, facade: Facade | None, method: str, *args) -> Any:
         if facade is None:
@@ -311,7 +337,12 @@ class NetworkElementDriver:
             configuration=self.codec.mapper.supported_components() if self.codec and self.codec.mapper else [],
             operations=self.transport_class.implemented() if self.transport_class else [],
             state=self.state_class.kinds() if self.state_class else [],
-            actions=self.actions_class.implemented() if self.actions_class else [],
+            actions=sorted(
+                [
+                    *(self.actions_class.implemented() if self.actions_class else []),
+                    *Session.built_in(self.transport_class, self.codec_class),
+                ]
+            ),
         )
 
     def supports(self, asset: Asset) -> bool:
@@ -360,7 +391,7 @@ class NetworkElementDriver:
             ]
             if unsupported:
                 raise DriverException(f"{type(self).__name__} does not support {', '.join(unsupported)}")
-        return Session(transport_class(address, credentials, node), self.state, self.actions)
+        return Session(transport_class(address, credentials, node), self.state, self.actions, self.codec)
 
     def require_transport(self) -> type[Transport]:
         if self.transport_class is None:
