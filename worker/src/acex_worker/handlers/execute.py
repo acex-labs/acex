@@ -1,5 +1,5 @@
 """Operations on a node: acex.operations.execute runs raw commands, acex.operations.actions.<action>
-runs an abstract action. Both log in with the node's own credentials over its management connection."""
+runs one of devkit's ACTIONS. Both log in with the node's own credentials over its management connection."""
 
 import asyncio
 import logging
@@ -7,7 +7,7 @@ from typing import Any
 
 from acex_client import Acex
 from acex_devkit.drivers import NetworkElementDriver, Session
-from acex_devkit.models.actions import PingParams
+from acex_devkit.models.actions import ACTIONS, ActionParams
 from acex_devkit.models.job import JobResponse
 from acex_devkit.models.operations import ActionData, CommandOutput, ExecuteData, ExecuteResult
 from pydantic import BaseModel
@@ -64,8 +64,16 @@ class HandleExecute(NodeOperation):
         )
 
 
-class HandlePing(NodeOperation):
-    data = ActionData[PingParams]
+class HandleAction(NodeOperation):
+    """Any action in devkit's ACTIONS, named by the job type, and reported as the driver's result is."""
 
-    async def operate(self, driver: NetworkElementDriver, session: Session, data: ActionData) -> BaseModel:
-        return await session.ping(data.params)
+    PREFIX = "acex.operations.actions."
+
+    def handle(self, client: Acex, job: JobResponse) -> BaseModel:
+        spec = ACTIONS[job.type.removeprefix(self.PREFIX)]
+        data = ActionData[spec.params].model_validate(job.data)
+        log.info(f"Job {job.id}: {spec.name} on node {data.node_id}")
+        return self.on_node(client, data.node_id, data.params)
+
+    async def operate(self, driver: NetworkElementDriver, session: Session, params: ActionParams) -> BaseModel:
+        return await session.run_action(params)

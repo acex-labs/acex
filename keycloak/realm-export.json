@@ -51,7 +51,11 @@
         },
         {
           "name": "workflows.runs.read",
-          "description": "Allows to list workflow runs and read a run with its steps and artifacts."
+          "description": "Allows to read a workflow run and the artifacts its steps leave."
+        },
+        {
+          "name": "workflows.runs.browse",
+          "description": "Allows to list workflow runs and read what the nodes answered in a step."
         },
         {
           "name": "workers.connect",

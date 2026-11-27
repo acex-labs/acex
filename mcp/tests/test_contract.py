@@ -15,6 +15,7 @@ import httpx
 import pytest
 from acex_client import Acex
 from acex_client.auth.provider import NullAuthProvider
+from acex_devkit.models.actions import ACTIONS
 
 #: Every client call the tools make. Renaming one of these in acex_client
 #: without updating the tools would otherwise only surface at runtime, as a
@@ -32,6 +33,8 @@ CLIENT_METHODS = [
     ("inventory.regions", "query"),
     ("operations.lldp", "get"),
     ("operations.lldp", "reverse"),
+    ("operations.actions", "run"),
+    ("operations.runs", "get"),
 ]
 
 #: Paths the tools reach, relative to /api/v1.
@@ -49,6 +52,8 @@ BACKEND_PATHS = [
     "/inventory/regions",
     "/operations/lldp_neighbors/{node_instance_id}",
     "/operations/lldp_neighbors/{node_instance_id}/reverse",
+    *(f"/operations/actions/{name}" for name in ACTIONS),
+    "/operations/runs/{run_id}",
     # get_running_config is a placeholder and calls no endpoint of its own.
 ]
 
