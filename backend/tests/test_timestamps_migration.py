@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+import sqlalchemy as sa
 from acex.database import Connection, DatabaseManager
 from acex.models.device_config import StoredDeviceConfig
 from acex.models.git_repository import GitRepositoryRow
@@ -55,8 +56,15 @@ def alembic_config(engine) -> Config:
     return config
 
 
-def repository(**times) -> GitRepositoryRow:
-    return GitRepositoryRow(
+def columns_there(engine) -> set[str]:
+    """The columns `git_repository` has at the revision the database is at. A migration after this one may add a
+    column that the model has and the database not yet."""
+    return {column["name"] for column in sa.inspect(engine).get_columns(GitRepositoryRow.__tablename__)}
+
+
+def repository(engine, **times) -> int:
+    """Store a repository the way the backend writes it, aware UTC through the model's columns, and return its id."""
+    row = GitRepositoryRow(
         name=f"repo-{uuid.uuid4().hex[:8]}",
         url="https://git.example/configs.git",
         auth_method="https_anonymous",
@@ -64,6 +72,10 @@ def repository(**times) -> GitRepositoryRow:
         updated_by="test",
         **times,
     )
+    there = columns_there(engine)
+    values = {name: value for name, value in row.model_dump(exclude={"id"}).items() if name in there}
+    with engine.begin() as connection:
+        return connection.execute(GitRepositoryRow.__table__.insert().values(**values)).inserted_primary_key[0]
 
 
 def stored(engine, column: str, repo_id: int) -> str:
@@ -85,9 +97,13 @@ def column_types(engine) -> set[str]:
         return {row[0] for row in rows}
 
 
-def read(engine, repo_id: int) -> GitRepositoryRow:
-    with Session(engine) as session:
-        return session.get(GitRepositoryRow, repo_id)
+def read(engine, repo_id: int):
+    """The repository as the model's columns read it."""
+    table = GitRepositoryRow.__table__
+    there = columns_there(engine)
+    with engine.connect() as connection:
+        columns = [column for column in table.c if column.name in there]
+        return connection.execute(sa.select(*columns).where(table.c.id == repo_id)).one()
 
 
 #: Datetime columns that migrations after this one add. Their own migration creates them as
@@ -118,11 +134,7 @@ def should_leave_sqlite_alone(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     manager = DatabaseManager(Connection(backend="sqlite", dbname="migrating.db"))
     manager.upgrade(BEFORE)
-    with Session(manager.connection.engine) as session:
-        row = repository(last_checked_at=WINTER)
-        session.add(row)
-        session.commit()
-        repo_id = row.id
+    repo_id = repository(manager.connection.engine, last_checked_at=WINTER)
 
     manager.upgrade(AFTER)
 
@@ -161,11 +173,7 @@ def should_keep_the_moment_old_rows_stood_for(server_zone_amsterdam):
     assert column_types(amsterdam) == {"timestamp without time zone"}
 
     # Written the way the backend writes: aware UTC through the models.
-    with Session(amsterdam) as session:
-        row = repository(last_checked_at=WINTER, last_synced_at=SUMMER)
-        session.add(row)
-        session.commit()
-        repo_id = row.id
+    repo_id = repository(amsterdam, last_checked_at=WINTER, last_synced_at=SUMMER)
     # Before: the server's wall clock, one and two hours ahead of UTC.
     assert stored(amsterdam, "last_checked_at", repo_id) == "2026-11-25 14:13:54.427564"
     assert stored(amsterdam, "last_synced_at", repo_id) == "2026-07-01 12:00:00"
@@ -189,11 +197,7 @@ def should_keep_the_moment_old_rows_stood_for(server_zone_amsterdam):
 def should_not_depend_on_the_zone_of_the_session_afterwards(server_zone_amsterdam):
     amsterdam = server_zone_amsterdam()
     command.upgrade(alembic_config(amsterdam), BEFORE)
-    with Session(amsterdam) as session:
-        row = repository(last_checked_at=WINTER)
-        session.add(row)
-        session.commit()
-        repo_id = row.id
+    repo_id = repository(amsterdam, last_checked_at=WINTER)
     command.upgrade(alembic_config(amsterdam), AFTER)
 
     for zone in ("UTC", "America/New_York", "Asia/Tokyo"):
@@ -201,11 +205,7 @@ def should_not_depend_on_the_zone_of_the_session_afterwards(server_zone_amsterda
 
     # And a row written in any zone is the same instant for everyone.
     tokyo = server_zone_amsterdam("Asia/Tokyo")
-    with Session(tokyo) as session:
-        row = repository(last_checked_at=SUMMER)
-        session.add(row)
-        session.commit()
-        written = row.id
+    written = repository(tokyo, last_checked_at=SUMMER)
     assert read(amsterdam, written).last_checked_at == SUMMER
 
 
@@ -229,11 +229,7 @@ def should_leave_no_timestamp_without_zone_and_be_repeatable(server_zone_amsterd
 def should_go_back_to_the_wall_clock_on_downgrade(server_zone_amsterdam):
     amsterdam = server_zone_amsterdam()
     command.upgrade(alembic_config(amsterdam), BEFORE)
-    with Session(amsterdam) as session:
-        row = repository(last_checked_at=WINTER, last_synced_at=SUMMER)
-        session.add(row)
-        session.commit()
-        repo_id = row.id
+    repo_id = repository(amsterdam, last_checked_at=WINTER, last_synced_at=SUMMER)
     command.upgrade(alembic_config(amsterdam), AFTER)
 
     command.downgrade(alembic_config(amsterdam), BEFORE)
@@ -283,11 +279,8 @@ def should_read_the_rows_the_old_code_wrote_as_the_utc_clock(server_zone_amsterd
     last_old = device_config_row(amsterdam, created="2026-09-22 15:59:59")
     first_new = device_config_row(amsterdam, created="2026-09-22 16:00:00")  # a server clock, UTC+2 that day
     new = device_config_row(amsterdam, written=WINTER)  # written by now(UTC): the server clock, 14:13:54
-    with Session(amsterdam) as session:  # a column that was never written as the UTC clock, early in September
-        other = repository(created_at=datetime(2026, 9, 3, 12, 21, 34, tzinfo=UTC))
-        session.add(other)
-        session.commit()
-        other_id = other.id
+    # A column that was never written as the UTC clock, early in September.
+    other_id = repository(amsterdam, created_at=datetime(2026, 9, 3, 12, 21, 34, tzinfo=UTC))
     assert clock(amsterdam, "device_config", "created_at", new) == "2026-11-25 14:13:54.427564"
 
     command.upgrade(alembic_config(amsterdam), AFTER)
