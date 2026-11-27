@@ -147,7 +147,7 @@ The grafana-sync agent:
 
 ### The dashboards
 
-A dashboard is generated only when the telemetry agents have nodes of its kind, so each one appears once the matching capability is in use. Both read one measurement shared by all nodes, filtered on the tags `node` and `site`, with the Site and Node variables at the top.
+A dashboard is offered only when a telemetry agent is granted the capability it shows (`icmp` for the ICMP overview, `snmp` for the SNMP overview) and there are nodes with a management address to measure. Without that every panel would say "No data", so a dashboard that nothing measures is not listed by `GET /api/v1/observability/grafana/dashboards`, is not put into Grafana and, if it was, is removed from the folder at the next sync. Both read one measurement shared by all nodes, filtered on the tags `node` and `site`, with the Site and Node variables at the top.
 
 | Dashboard | UID | Measurement | What it shows |
 |---|---|---|---|
