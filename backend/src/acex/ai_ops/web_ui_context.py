@@ -17,6 +17,7 @@ SIDEBAR
   Network › Logical Nodes   /network/logical-nodes  Desired-config templates
   Network › Assets          /network/assets         Physical hardware inventory
   Network › NEDs            /network/neds           Device drivers
+  Observe › Topology        /observe/topology       Observed links by node, site or region
 
 DETAIL PAGES
   /network/nodes/:id  (Node detail)
@@ -78,6 +79,12 @@ SKILL: List all devices at a site
 SKILL: See how devices at a site are connected to each other
   → Site detail › Topology tab
   Shows: visual diagram of inter-device connections at the site
+
+SKILL: See how sites or regions are connected, or the links of one role across the network
+  → Observe › Topology
+  Shows: the observed topology from the perspective of nodes, sites or regions,
+  filtered on region, site and node role; links between sites or regions are
+  folded into one edge with a count
 
 SKILL: Find a device's desired (intended) configuration
   → Logical Nodes list or Node detail › Configuration › Desired

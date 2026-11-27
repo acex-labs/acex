@@ -22,6 +22,7 @@ Namespaces:
     client.ai                — ask, analyze (SSE-streamed) or None if backend
                               does not mount ai_ops
     client.system            — auth_config
+    client.topology          — graph (links over layers, by region or site), layers
     client.workers           — connect, job_types, jobs (query, get, claim, succeed, fail)
     client.ztp_methods       — query, get, update (the NED and bootstrap login of each ZTP method)
     client.ztp_vendor_classes — query, create, update, delete (DHCP vendor class → ZTP method)
@@ -45,6 +46,7 @@ from acex_client.resources.observability import ObservabilityNamespace
 from acex_client.resources.operations import OperationsNamespace
 from acex_client.resources.policies import PoliciesNamespace
 from acex_client.resources.system import SystemNamespace
+from acex_client.resources.topology import Topology
 from acex_client.resources.workers import Workers
 from acex_client.resources.ztp_dhcp import ZtpDhcp
 from acex_client.resources.ztp_dhcp_scopes import ZtpDhcpScopes
@@ -84,6 +86,7 @@ class Acex:
         self.cves = Cves(self.rest)
         self.neds = Neds(self.rest, ned_interfaces=ned_interfaces)
         self.system = SystemNamespace(self.rest)
+        self.topology = Topology(self.rest)
         self.workers = Workers(self.rest)
         self.ztp_methods = ZtpMethods(self.rest)
         self.ztp_vendor_classes = ZtpVendorClasses(self.rest)

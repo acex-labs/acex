@@ -92,7 +92,7 @@ def read(engine, repo_id: int) -> GitRepositoryRow:
 
 #: Datetime columns that migrations after this one add. Their own migration creates them as
 #: `sa.DateTime(timezone=True)`, never as a plain `sa.DateTime()`, which is what made this migration necessary.
-LATER: set[tuple[str, str]] = set()
+LATER: set[tuple[str, str]] = {("topology_position", "updated_at")}
 
 
 def should_list_every_datetime_column_of_the_models():

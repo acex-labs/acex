@@ -14,25 +14,6 @@ class LldpUploadResult(BaseModel):
     errors: list[str] = []
 
 
-class LldpTopologyNode(BaseModel):
-    id: int | str
-    label: str
-    in_inventory: bool
-
-
-class LldpTopologyEdge(BaseModel):
-    source: int | str
-    target: int | str
-    source_interface: str = ""
-    target_interface: str = ""
-    discovery_protocol: str = "lldp"
-
-
-class LldpTopology(BaseModel):
-    nodes: list[LldpTopologyNode] = []
-    edges: list[LldpTopologyEdge] = []
-
-
 class LldpNeighborListItem(PersistedResponse):
     """Compact list shape for `GET /operations/lldp_neighbors/{node_instance_id}`.
 

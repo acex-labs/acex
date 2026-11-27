@@ -116,12 +116,7 @@ from .lldp_neighbor import (
     LldpNeighborResponse,
     LldpNeighborUpload,
 )
-from .lldp_topology import (
-    LldpTopology,
-    LldpTopologyEdge,
-    LldpTopologyNode,
-    LldpUploadResult,
-)
+from .lldp_topology import LldpUploadResult
 from .logical_node import (
     LogicalNodeBase,
     LogicalNodeConfigResponse,
@@ -161,6 +156,16 @@ from .telemetry_agent import (
     TelemetryAgentMatchRuleResponse,
     TelemetryAgentResponse,
     TelemetryAgentUpdate,
+)
+from .topology import (
+    TopologyEndpoint,
+    TopologyGraph,
+    TopologyLayer,
+    TopologyLink,
+    TopologyNode,
+    TopologyNodeKind,
+    TopologyPosition,
+    TopologyPositionResponse,
 )
 
 __all__ = [
@@ -247,10 +252,15 @@ __all__ = [
     "LldpNeighborEntry",
     "LldpNeighborUpload",
     "LldpNeighborResponse",
-    "LldpTopology",
-    "LldpTopologyEdge",
-    "LldpTopologyNode",
     "LldpUploadResult",
+    "TopologyEndpoint",
+    "TopologyGraph",
+    "TopologyLayer",
+    "TopologyLink",
+    "TopologyNode",
+    "TopologyNodeKind",
+    "TopologyPosition",
+    "TopologyPositionResponse",
     "AssetSoftwareCompliance",
     "ComplianceOverview",
     "ComplianceSummary",

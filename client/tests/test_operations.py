@@ -75,34 +75,6 @@ def test_lldp_upload(operations):
 
 
 @respx.mock
-def test_lldp_topology(operations):
-    respx.get("http://test/api/v1/operations/lldp_neighbors/topology").mock(
-        return_value=Response(
-            200,
-            json={
-                "nodes": [
-                    {"id": 1, "label": "R1", "in_inventory": True},
-                    {"id": 2, "label": "R2", "in_inventory": True},
-                ],
-                "edges": [
-                    {
-                        "source": 1,
-                        "target": 2,
-                        "source_interface": "Gi0/1",
-                        "target_interface": "Gi0/1",
-                        "discovery_protocol": "lldp",
-                    },
-                ],
-            },
-        )
-    )
-    topo = operations.lldp.topology(site="stockholm")
-    assert len(topo.nodes) == 2
-    assert topo.nodes[0].label == "R1"
-    assert len(topo.edges) == 1
-
-
-@respx.mock
 def test_lldp_reverse(operations):
     respx.get("http://test/api/v1/operations/lldp_neighbors/2/reverse").mock(
         return_value=Response(

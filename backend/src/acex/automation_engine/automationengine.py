@@ -24,6 +24,7 @@ from acex.plugins import PluginManager
 from acex.plugins.neds.manager import NEDManager
 from acex.policies import SoftwarePolicyManager
 from acex.settings import AIOpsSettings, InfluxDBOutput, OidcSettings, Settings, VaultSettings
+from acex.topology import LldpTopologySource, TopologyPositions, TopologyService
 from acex.workflows.library import WorkflowLibrary
 from acex.workflows.runs import WorkflowRuns
 from acex.ztp import (
@@ -143,6 +144,10 @@ class AutomationEngine:
 
         # Create LldpNeighborManager
         self.lldp_neighbor_manager = LldpNeighborManager(self.db)
+
+        # Topology over layers of links; LLDP/CDP is the only layer so far.
+        self.topology = TopologyService(self.db, [LldpTopologySource()])
+        self.topology_positions = TopologyPositions(self.db)
 
         # Workflows: saved steps and workflows, and the runs the backend moves on as their jobs finish.
         self.workflows = WorkflowLibrary(self.db)
