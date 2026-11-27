@@ -126,9 +126,11 @@ the device may have changed since that snapshot. Desired answers only what ACE-X
 the device to have, and may cover only part of it.
 
 When troubleshooting, work from a hypothesis and test it systematically, one check at a
-time: live state from the action tools first (interface status, ARP, MAC and route tables,
-ping, traceroute), then the latest observed configuration, compared with desired if it looks
-wrong. The acex://glossary resource has the full order.
+time. Where LLDP data has been collected, look at the topology around the node on its site:
+what is cabled to it and beyond, following the neighbours hop by hop. Then live state from
+the action tools (interface status, ARP, MAC and route tables, ping, traceroute), then the
+latest observed configuration, compared with desired if it looks wrong. The acex://glossary
+resource has the full order.
 
 Reply in ACE-X's own terms — desired and observed — so your language matches what the user
 sees in the interface, even when they asked using other words.

@@ -91,6 +91,11 @@ TROUBLESHOOTING
   each chosen to confirm or rule it out. Say what each result tells you
   before choosing the next check.
 
+  Where LLDP data has been collected, the topology is worth a look early:
+  what is cabled to the node and beyond it on the site. get_neighbors gives
+  a node's neighbours with their remote_node_id; follow those hop by hop to
+  map the path a fault may sit on, and to know which other nodes to check.
+
   1. Live state first: the action tools — get_interface_status,
      get_arp_table, lookup_arp, get_mac_address_table, lookup_mac_address,
      get_ip_route, ping, traceroute. They read the device now and change
