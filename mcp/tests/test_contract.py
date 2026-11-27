@@ -54,7 +54,6 @@ BACKEND_PATHS = [
     "/operations/lldp_neighbors/{node_instance_id}/reverse",
     *(f"/operations/actions/{name}" for name in ACTIONS),
     "/operations/runs/{run_id}",
-    # get_running_config is a placeholder and calls no endpoint of its own.
 ]
 
 

@@ -35,18 +35,18 @@ CONFIGURATION — three distinct things. Conflating them produces wrong answers.
              stamped with collected_at. Versioned over time, so any past moment
              can be read. Tool: get_observed_config.
 
-  running    What is on the device right now. NOT retrievable through ACE-X
-             yet — collection agents poll on a schedule and there is no
-             on-demand read. get_running_config exists only to say so and offer
-             the newest observed snapshot instead.
+  running    What is on the device right now, read live from it by the
+             get_running_config action. Heavier than observed: it goes to
+             the device and waits for it.
 
 WHAT USERS SAY, AND WHAT THEY MEAN
 
-  "how is X configured", "what's configured on X", "show X's config",
-  "running config", "actual config", "live config", "what's on the box"
+  "how is X configured", "what's configured on X", "show X's config"
       → the latest observed snapshot. This is the default for any question
         about how a device is configured. Answer with it, but say when it was
         collected. Never imply it was read from the device just now.
+  "running config", "live config", "right now", "what's on the box now"
+      → running: read it with get_running_config.
   "intended", "target", "source of truth", "what it should be"
       → desired.
   "compiled", "rendered"
@@ -85,6 +85,29 @@ ACTIONS
   An action's result is a reading taken now; an observed configuration is a
   snapshot from when it was collected. Say which one an answer rests on.
 
+TROUBLESHOOTING
+
+  Work from a hypothesis and test it systematically: one check at a time,
+  each chosen to confirm or rule it out. Say what each result tells you
+  before choosing the next check.
+
+  Where LLDP data has been collected, the topology is worth a look early:
+  what is cabled to the node and beyond it on the site. get_neighbors gives
+  a node's neighbours with their remote_node_id; follow those hop by hop to
+  map the path a fault may sit on, and to know which other nodes to check.
+
+  1. Live state first: the action tools — get_interface_status,
+     get_arp_table, lookup_arp, get_mac_address_table, lookup_mac_address,
+     get_ip_route, ping, traceroute. They read the device now and change
+     nothing.
+  2. Then the latest observed configuration. It is cheap and doesn't touch
+     the device; say when it was collected.
+  3. If it looks wrong, compare it with desired: get_config_drift.
+  4. get_running_config reads the configuration from the device now. It is
+     heavier than observed: use it when you suspect the device has changed
+     since the last snapshot — the snapshot is old, or live state
+     contradicts it.
+
 TIMESTAMPS
 
   All timestamps are UTC. Snapshot times are stored without a zone offset and
@@ -97,10 +120,10 @@ WRITE_ACCESS = """\
 WHAT THIS SERVER CANNOT DO
 ==========================
 
-Every tool here is read-only. Action tools such as ping run on a device, but
-change nothing there. This server cannot change a configuration, push
-anything to a device, or create or delete records. ACE-X has no config-push
-path at all — configuration reaches devices by other means entirely.
+Every tool here is read-only. Action tools such as ping and
+get_running_config run on a device, but change nothing there. This server
+cannot change a configuration, push anything to a device, or create or
+delete records.
 
 If a user asks you to change something, say plainly that you can read and
 analyse ACE-X but not modify it, and describe what they would need to do.

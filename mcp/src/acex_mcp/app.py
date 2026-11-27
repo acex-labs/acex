@@ -19,9 +19,15 @@ it returns. Read the acex://glossary resource before answering configuration
 questions; ACE-X distinguishes desired configuration from observed snapshots,
 and the difference matters.
 
-Action tools, such as ping, run live on a device now and wait for its answer;
-everything else reads what ACE-X has stored. No tool changes a device or
-anything in ACE-X.
+Action tools, such as ping, get_interface_status and get_running_config, run
+live on a device now and wait for its answer; everything else reads what ACE-X
+has stored. No tool changes a device or anything in ACE-X.
+
+When troubleshooting, test a hypothesis systematically: where LLDP data exists,
+look at the topology around the node with get_neighbors; then live state from
+the action tools, then the latest observed configuration, compared with
+desired if it looks wrong. Read the running configuration only when the device
+may have changed since that snapshot. The glossary has the details.
 """
 
 

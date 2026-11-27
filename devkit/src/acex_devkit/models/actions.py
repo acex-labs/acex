@@ -1,7 +1,8 @@
 """Actions a driver can run from a device. Each action has its own params and result model.
 
 Actions are abstract: the same params and result whatever the vendor, so a result never carries the
-device's own output. An action troubleshoots or collects data; it never changes the device's
+device's own output. The one exception is get_running_config, whose point is the device's own
+configuration text, masked. An action troubleshoots or collects data; it never changes the device's
 configuration.
 
 The shared conventions: interface names are as the device writes them, never translated; a MAC address
@@ -360,6 +361,22 @@ class InterfaceStatusResult(TableResult):
     interfaces: list[InterfaceStatus]
 
 
+# ------------------------------------------------------------------------------------------ running config
+
+
+class RunningConfigParams(ActionParams):
+    """Read the node's running configuration from the device now, as the device writes it, with secrets masked.
+
+    The latest observed configuration is cheaper and doesn't touch the device; read the running one when the
+    device may have changed since that snapshot was collected."""
+
+    action: ClassVar[str] = "get_running_config"
+
+
+class RunningConfigResult(BaseModel):
+    config: str = Field(description="As the device writes it, with secrets masked by the node's driver.")
+
+
 # ---------------------------------------------------------------------------------------------- the list
 
 
@@ -440,5 +457,6 @@ ACTIONS: dict[str, ActionSpec] = {
         ActionSpec(LookupArpParams, LookupArpResult, label="Lookup ARP", max_wait=60),
         ActionSpec(TracerouteParams, TracerouteResult, label="Traceroute", max_wait=120),
         ActionSpec(InterfaceStatusParams, InterfaceStatusResult, label="Interface status", max_wait=60),
+        ActionSpec(RunningConfigParams, RunningConfigResult, label="Running config", max_wait=120),
     ]
 }

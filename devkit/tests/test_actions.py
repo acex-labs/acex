@@ -3,7 +3,7 @@
 import asyncio
 
 import pytest
-from acex_devkit.drivers import Actions, Session, Transport
+from acex_devkit.drivers import Actions, Codec, NetworkElementDriver, Session, Transport
 from acex_devkit.exceptions import DriverException
 from acex_devkit.models.actions import (
     ACTIONS,
@@ -15,6 +15,7 @@ from acex_devkit.models.actions import (
     MacEntry,
     PingParams,
     PingResult,
+    RunningConfigParams,
     TableParams,
     TracerouteResult,
 )
@@ -76,8 +77,52 @@ def test_a_driver_reports_the_actions_it_implements():
     assert TableActions.implemented() == ["get_mac_address_table", "ping"]
 
 
-def test_every_action_is_a_method_of_the_facade_named_as_it():
-    assert {name for name in ACTIONS} <= {name for name in dir(Actions) if not name.startswith("_")}
+def test_every_action_is_a_method_of_the_facade_named_as_it_or_built_into_the_session():
+    facade = {name for name in dir(Actions) if not name.startswith("_")}
+    assert set(ACTIONS) <= facade | set(Session.BUILT_IN)
+    assert all(hasattr(Session, name) for name in Session.BUILT_IN)
+
+
+class ConfigTransport(NoTransport):
+    async def get_config(self) -> str:
+        return "hostname r1\nenable secret 9 abc\n"
+
+
+class MaskingCodec(Codec):
+    def render(self, config, node): ...
+
+    def parse(self, raw, node): ...
+
+    def render_patch(self, diff, node): ...
+
+    def mask(self, raw: str) -> str:
+        return raw.replace("abc", "<REDACTED>")
+
+
+class ConfigDriver(NetworkElementDriver):
+    codec_class = MaskingCodec
+    transport_class = ConfigTransport
+    actions_class = TableActions
+
+
+def test_the_running_config_is_read_from_the_device_and_masked():
+    session = Session(ConfigTransport("10.0.0.1", []), None, None, MaskingCodec())
+
+    result = asyncio.run(session.run_action(RunningConfigParams()))
+
+    assert result.config == "hostname r1\nenable secret 9 <REDACTED>\n"
+
+
+def test_without_a_codec_the_running_config_is_refused_rather_than_sent_unmasked():
+    session = Session(ConfigTransport("10.0.0.1", []), None, None)
+
+    with pytest.raises(DriverException, match="no codec"):
+        asyncio.run(session.run_action(RunningConfigParams()))
+
+
+def test_a_driver_that_reads_its_config_lists_the_running_config_among_its_actions():
+    assert ConfigDriver().capabilities.actions == ["get_mac_address_table", "get_running_config", "ping"]
+    assert Session.built_in(NoTransport, MaskingCodec) == []
 
 
 def test_every_table_action_can_be_cut():
