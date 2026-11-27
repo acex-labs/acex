@@ -4,8 +4,9 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from acex.inventory.uniqueness import NODE_ASSET, NODE_CLUSTER, NODE_LOGICAL_NODE, unique
-from acex.models import Asset, AssetCluster, ManagementConnection, Node
+from acex.models import Asset, AssetCluster, LogicalNode, ManagementConnection, Node
 from acex.plugins.neds.manager.ned_manager import NEDManager
+from acex.search.match import id_match, quick_match
 from acex.utils import collection_state
 from acex_devkit.models.config_origin import AnnotatedConfigResponse, ComponentOrigin, OriginSpan
 from acex_devkit.models.management_connection import ManagementConnectionResponse
@@ -13,7 +14,7 @@ from acex_devkit.models.node_response import AssetRefType, NodeAdminStatus, Node
 from acex_devkit.models.node_response import NodeListItem as NodeListResponse
 from acex_devkit.models.pagination import PaginatedResponse
 from fastapi import HTTPException
-from sqlalchemy import Integer, case, cast, func, select
+from sqlalchemy import Integer, case, cast, func, or_, select
 from sqlalchemy.dialects.postgresql import INET
 
 log = logging.getLogger(__name__)
@@ -156,6 +157,29 @@ class NodeService:
         result = await self._enrich_data(result)
         return result
 
+    @staticmethod
+    def _quick_match(text: str):
+        """Nodes that ``q`` names: by their logical node (hostname, site, role), a management IP,
+        the asset they run on (serial number, model, vendor), or by id when the text is a number.
+
+        Each part is looked up in its own table and matched by id, because the query only joins the
+        tables its filters name; the same way ``management_connection_ip`` is matched below.
+        """
+        logical_nodes = select(LogicalNode.id).where(
+            quick_match(text, (LogicalNode.hostname, LogicalNode.site, LogicalNode.role))
+        )
+        connections = select(ManagementConnection.node_id).where(quick_match(text, (ManagementConnection.target_ip,)))
+        assets = select(Asset.id).where(quick_match(text, (Asset.serial_number, Asset.hardware_model, Asset.vendor)))
+        conditions = [
+            Node.logical_node_id.in_(logical_nodes),
+            Node.id.in_(connections),
+            (Node.asset_ref_type == AssetRefType.asset) & Node.asset_ref_id.in_(assets),
+        ]
+        by_id = id_match(text, Node.id)
+        if by_id is not None:
+            conditions.append(by_id)
+        return or_(*conditions)
+
     async def query(
         self,
         site: str = None,
@@ -176,6 +200,7 @@ class NodeService:
         offset: int = 0,
         sort: str | None = None,
         order: Literal["asc", "desc"] = "asc",
+        q: str | None = None,  # text found in what names a node; see _quick_match
     ) -> PaginatedResponse[NodeListResponse]:
 
         query_filters = {
@@ -226,6 +251,9 @@ class NodeService:
             extra_filters.append(collection_state.status_filter(collection_status))
         if collection_agent_id is not None:
             extra_filters.append(collection_state.agent_filter(collection_agent_id))
+        text = (q or "").strip()
+        if text:
+            extra_filters.append(self._quick_match(text))
         extra_filters = extra_filters or None
 
         sort_column = "id"

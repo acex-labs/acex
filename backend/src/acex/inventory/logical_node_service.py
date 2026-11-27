@@ -5,6 +5,7 @@ from acex.inventory.uniqueness import LOGICAL_NODE_HOSTNAME, as_id, require_text
 from acex.models import LogicalNode
 from acex.models.node import Node
 from acex.models.regions import SiteRegionAssignment
+from acex.search.match import quick_match
 from acex.utils.identity import key_of
 from acex_devkit.models.logical_node import LogicalNodeConfigResponse, LogicalNodeListResponse, LogicalNodeResponse
 from acex_devkit.models.pagination import PaginatedResponse
@@ -80,6 +81,7 @@ class LogicalNodeService:
         assigned: bool | None = None,
         limit: int = 100,
         offset: int = 0,
+        q: str | None = None,  # text found in the hostname, site or role, or the number that is the id
     ) -> PaginatedResponse[LogicalNodeListResponse]:
 
         query_filters = {
@@ -107,6 +109,11 @@ class LogicalNodeService:
                 extra_filters.append(LogicalNode.id.in_(assigned_ids))
             else:
                 extra_filters.append(~LogicalNode.id.in_(assigned_ids))
+        text = (q or "").strip()
+        if text:
+            extra_filters.append(
+                quick_match(text, (LogicalNode.hostname, LogicalNode.site, LogicalNode.role), id_column=LogicalNode.id)
+            )
 
         result = await self._call_method(
             self.adapter.query, filters=query_filters, extra_filters=extra_filters or None, limit=limit, offset=offset

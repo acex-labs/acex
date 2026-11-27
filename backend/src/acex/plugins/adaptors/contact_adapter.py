@@ -13,9 +13,11 @@ class ContactAdapter(AdapterBase):
         if hasattr(self.plugin, "get"):
             return self.plugin.get(id)
 
-    def query(self, filters: dict = None, limit: int = 100, offset: int = 0) -> list[ContactResponse]:
+    def query(
+        self, filters: dict = None, extra_filters: list = None, limit: int = 100, offset: int = 0
+    ) -> list[ContactResponse]:
         if hasattr(self.plugin, "query"):
-            return self.plugin.query(filters, limit=limit, offset=offset)
+            return self.plugin.query(filters, extra_filters=extra_filters, limit=limit, offset=offset)
 
     def update(self, id: str, contact: Contact):
         if hasattr(self.plugin, "update"):

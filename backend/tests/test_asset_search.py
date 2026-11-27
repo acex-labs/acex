@@ -31,9 +31,11 @@ def service(db):
     return AssetService(AssetAdapter(DatabasePlugin(db, Asset)), hardware_models=SimpleNamespace())
 
 
-def add_asset(db, serial, vendor="cisco", model="C9300", os="cisco_iosxe", ned_id=None) -> int:
+def add_asset(db, serial, vendor="cisco", model="C9300", os="cisco_iosxe", ned_id=None, os_version=None) -> int:
     with Session(db.connection.engine) as session:
-        asset = Asset(vendor=vendor, serial_number=serial, hardware_model=model, os=os, ned_id=ned_id)
+        asset = Asset(
+            vendor=vendor, serial_number=serial, hardware_model=model, os=os, ned_id=ned_id, os_version=os_version
+        )
         session.add(asset)
         session.commit()
         return asset.id
@@ -55,7 +57,7 @@ def assets(db):
     return SimpleNamespace(
         cisco=add_asset(db, CISCO_SERIAL, "cisco", "C9300-48P", "cisco_iosxe", "CiscoIOSCLIDriver"),
         juniper=add_asset(db, JUNIPER_SERIAL, "juniper", "EX4300", "juniper_junos", "JuniperJunosCLIDriver"),
-        arista=add_asset(db, ARISTA_SERIAL, "arista", "DCS-7050", "arista_eos"),
+        arista=add_asset(db, ARISTA_SERIAL, "arista", "DCS-7050", "arista_eos", os_version="4.31.2F"),
     )
 
 
@@ -75,6 +77,8 @@ def serials(service, **kwargs):
         pytest.param("c9300", [CISCO_SERIAL], id="hardware model"),
         pytest.param("arista", [ARISTA_SERIAL], id="vendor (arista has no ned id, so only vendor matches)"),
         pytest.param("junosclidriver", [JUNIPER_SERIAL], id="ned id (no other field contains it)"),
+        pytest.param("eos", [ARISTA_SERIAL], id="operating system (no other field contains it)"),
+        pytest.param("4.31.2", [ARISTA_SERIAL], id="operating system version"),
     ],
 )
 def test_q_matches_each_searched_field(service, assets, q, expected):

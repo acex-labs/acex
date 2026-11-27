@@ -1,6 +1,7 @@
 import inspect
 
 from acex.models.contacts import Contact, ContactBase
+from acex.search.match import quick_match
 from acex_devkit.models.contact import ContactResponse
 from acex_devkit.models.pagination import PaginatedResponse
 
@@ -36,6 +37,7 @@ class ContactService:
         role: str = None,
         limit: int = 100,
         offset: int = 0,
+        q: str | None = None,  # text found in the name, display name, first or family name, email or phone
     ) -> PaginatedResponse[ContactResponse]:
 
         query_filters = {
@@ -51,7 +53,26 @@ class ContactService:
             if v is not None
         }
 
-        result = await self._call_method(self.adapter.query, filters=query_filters, limit=limit, offset=offset)
+        extra_filters = []
+        text = (q or "").strip()
+        if text:
+            extra_filters.append(
+                quick_match(
+                    text,
+                    (
+                        Contact.name,
+                        Contact.display_name,
+                        Contact.first_name,
+                        Contact.family_name,
+                        Contact.email,
+                        Contact.phone,
+                    ),
+                )
+            )
+
+        result = await self._call_method(
+            self.adapter.query, filters=query_filters, extra_filters=extra_filters or None, limit=limit, offset=offset
+        )
         return PaginatedResponse(items=result["items"], total=result["total"], limit=limit, offset=offset)
 
     async def update(self, id: str, contact: Contact):
