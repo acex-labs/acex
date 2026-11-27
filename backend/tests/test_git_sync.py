@@ -382,6 +382,24 @@ def _internal_ca_host(tmp_path):
         )
         if san:
             builder = builder.add_extension(x509.SubjectAlternativeName(san), critical=False)
+        # As a real CA issues them. git takes a certificate without these; Python checks by RFC 5280 and does not.
+        if ca:
+            usage = x509.KeyUsage(
+                digital_signature=True,
+                key_cert_sign=True,
+                crl_sign=True,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                encipher_only=False,
+                decipher_only=False,
+            )
+            builder = builder.add_extension(usage, critical=True)
+            builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+        else:
+            authority = x509.AuthorityKeyIdentifier.from_issuer_public_key(signer.public_key())
+            builder = builder.add_extension(authority, critical=False)
         return builder.sign(signer, hashes.SHA256())
 
     ca_key, host_key = ec.generate_private_key(ec.SECP256R1()), ec.generate_private_key(ec.SECP256R1())
