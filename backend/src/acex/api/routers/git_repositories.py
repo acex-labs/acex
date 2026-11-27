@@ -4,8 +4,15 @@ import logging
 
 from acex.api import auth as _auth
 from acex.constants import BASE_URL
-from acex.git_sync import GitRepositoryConflict, GitRepositoryNotFound, webhook
-from acex_devkit.models.git_repository import GitRepositoryCreate, GitRepositoryResponse, GitRepositoryUpdate
+from acex.git_sync import GitHostError, GitRepositoryConflict, GitRepositoryNotFound, webhook
+from acex_devkit.models.git_repository import (
+    GitRepositoryCreate,
+    GitRepositoryResponse,
+    GitRepositoryTree,
+    GitRepositoryUpdate,
+    MergeRequestCreate,
+    MergeRequestResponse,
+)
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
@@ -22,10 +29,19 @@ def _http(exc: Exception) -> HTTPException:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     if isinstance(exc, GitRepositoryConflict):
         return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    if isinstance(exc, GitHostError):
+        return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
     return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
 
 
+def _author(user: dict) -> tuple[str, str] | None:
+    """The name and email address of the user, when the token carries an address."""
+    email = user.get("email")
+    return (user.get("name") or _who(user), email) if email else None
+
+
 _EXPECTED = (GitRepositoryNotFound, ValueError)
+_EXPECTED_OF_A_GIT_HOST = (*_EXPECTED, GitHostError)
 
 
 def create_router(automation_engine):
@@ -76,6 +92,34 @@ def create_router(automation_engine):
         try:
             return manager.sync(repo_id, force=True)
         except _EXPECTED as exc:
+            raise _http(exc) from exc
+
+    @router.get("/{repo_id}/tree", response_model=GitRepositoryTree)
+    def list_tree(repo_id: int, _: dict = Depends(_auth.get_current_user)):  # noqa: B008
+        """The directories and files on the branch the repository follows, read from its git host now, to choose
+        where a merge request puts its file. Needs the repository's `merge_request_credential_id`."""
+        try:
+            return manager.tree(repo_id)
+        except _EXPECTED_OF_A_GIT_HOST as exc:
+            raise _http(exc) from exc
+
+    @router.post("/{repo_id}/merge_requests", response_model=MergeRequestResponse, status_code=status.HTTP_201_CREATED)
+    def create_merge_request(
+        repo_id: int,
+        payload: MergeRequestCreate,
+        user: dict = Depends(_auth.get_current_user),  # noqa: B008
+    ):
+        """Send a Python file to the repository as a merge request into the branch it follows.
+
+        The file is committed to a new branch, written in the caller's name where the token carries an email address,
+        and the merge request is opened by the user of the repository's `merge_request_credential_id` and names the
+        caller. Nothing reaches the followed branch until someone merges it on the git host. GitLab only.
+
+        409: the repository has no merge request token, or the path already holds a file and `replace` is not set.
+        502: the git host refused or could not be reached; `detail` says what it answered."""
+        try:
+            return manager.merge_request(repo_id, payload, sent_by=_who(user), author=_author(user))
+        except _EXPECTED_OF_A_GIT_HOST as exc:
             raise _http(exc) from exc
 
     def sync_after_push(repo_id: int) -> None:

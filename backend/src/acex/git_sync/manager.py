@@ -10,18 +10,23 @@ ConfigMaps already loaded stay in use and `last_error` says which file failed, s
 leaves devices compiled from half of the ConfigMaps.
 """
 
+import ast
 import asyncio
 import contextlib
 import fcntl
 import logging
+import re
+import secrets
 import shutil
 import tempfile
 import threading
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
+import httpx
 from acex.compilers.config_compiler import ConfigCompiler, ConfigMapLoadError
 from acex.git_sync.git import Git, GitAuth, GitError, HttpsTokenAuth
+from acex.git_sync.gitlab import GitHostError, GitLab
 from acex.models.git_repository import GitRepositoryRow
 from acex.settings import GitSyncSettings
 from acex_devkit.models.git_repository import (
@@ -29,7 +34,10 @@ from acex_devkit.models.git_repository import (
     GitAuthMethod,
     GitRepositoryCreate,
     GitRepositoryResponse,
+    GitRepositoryTree,
     GitRepositoryUpdate,
+    MergeRequestCreate,
+    MergeRequestResponse,
 )
 from cryptography import x509
 from fastapi import HTTPException
@@ -49,6 +57,19 @@ class GitRepositoryConflict(ValueError):
     pass
 
 
+def _python(content: str) -> None:
+    try:
+        ast.parse(content)
+    except SyntaxError as exc:
+        raise ValueError(f"The file is not Python that can be read: line {exc.lineno}: {exc.msg}") from exc
+
+
+def _new_branch(path: str) -> str:
+    """A branch for one merge request, named after the file, that no earlier one has."""
+    stem = re.sub(r"[^a-z0-9]+", "-", PurePosixPath(path).stem.lower()).strip("-")[:40]
+    return f"acex/{stem or 'config-map'}-{secrets.token_hex(3)}"
+
+
 class GitSyncManager:
     def __init__(
         self,
@@ -57,13 +78,16 @@ class GitSyncManager:
         credential_manager,
         settings: GitSyncSettings,
         git: Git | None = None,
+        http_transport: httpx.BaseTransport | None = None,
     ):
+        """`http_transport` carries the calls to a git host's API; the tests give one that answers by itself."""
         self.db = db_manager
         self.compiler = compiler
         self.credentials = credential_manager
         self.settings = settings
         self.checkout_root = Path(settings.checkout_dir or Path(tempfile.gettempdir()) / "acex-git-sync")
         self._git = git
+        self._http_transport = http_transport
         # One sync at a time in this process: the poll and a request must not check out the same directory.
         self._lock = threading.RLock()
         # Repository id -> (its source fields, the commit fetched for them) in this process. A commit whose
@@ -91,7 +115,8 @@ class GitSyncManager:
     def create(self, payload: GitRepositoryCreate, *, created_by: str) -> GitRepositoryResponse:
         """Save the repository and, when it is enabled, sync it at once so the answer says how that went."""
         self._check_credential(payload.auth_method, payload.credential_id)
-        self._check_webhook_credential(payload.webhook_credential_id)
+        self._check_token_credential(payload.webhook_credential_id, "webhook secret")
+        self._check_token_credential(payload.merge_request_credential_id, "merge request token")
         self._check_ca_certificate(payload.ca_certificate)
         with self._session() as session:
             self._check_name_free(session, payload.name)
@@ -117,6 +142,7 @@ class GitSyncManager:
                     "ca_certificate",
                     "site",
                     "webhook_credential_id",
+                    "merge_request_credential_id",
                 ):
                     setattr(row, field, value)
             if "name" in changes:
@@ -124,7 +150,8 @@ class GitSyncManager:
             if GIT_AUTH_CREDENTIAL_TYPES[GitAuthMethod(row.auth_method)] is None:
                 row.credential_id = None
             self._check_credential(GitAuthMethod(row.auth_method), row.credential_id)
-            self._check_webhook_credential(row.webhook_credential_id)
+            self._check_token_credential(row.webhook_credential_id, "webhook secret")
+            self._check_token_credential(row.merge_request_credential_id, "merge request token")
             self._check_ca_certificate(row.ca_certificate)
             row.updated_by = updated_by
             row.updated_at = datetime.now(UTC)
@@ -158,6 +185,69 @@ class GitSyncManager:
             with self._checkout_lock(repo_id):
                 shutil.rmtree(self._checkout_dir(repo_id), ignore_errors=True)
                 (self.checkout_root / f"{repo_id}.ca.pem").unlink(missing_ok=True)
+
+    def tree(self, repo_id: int) -> GitRepositoryTree:
+        """The directories and files on the branch the repository follows, as its git host lists them now."""
+        _, branch, host = self._git_host(repo_id)
+        with host:
+            directories, files, truncated = host.tree(branch)
+        return GitRepositoryTree(branch=branch, directories=directories, files=files, truncated=truncated)
+
+    def merge_request(
+        self, repo_id: int, payload: MergeRequestCreate, *, sent_by: str, author: tuple[str, str] | None = None
+    ) -> MergeRequestResponse:
+        """Commit the file to a new branch of the repository and open a merge request into the branch it follows.
+
+        `sent_by` is named in the merge request, which the token's own user opens; `author` is the name and email
+        address the commit is written in.
+        """
+        _python(payload.content)
+        name, branch, host = self._git_host(repo_id)
+        with host:
+            exists = host.file_exists(payload.path, branch)
+            if exists and not payload.replace:
+                raise GitRepositoryConflict(f"{payload.path} is already on {branch}: send replace to change it")
+            source = _new_branch(payload.path)
+            host.commit_file(
+                branch=source,
+                start_branch=branch,
+                path=payload.path,
+                content=payload.content,
+                message=payload.title,
+                replace=exists,
+                author=author,
+            )
+            description = "\n\n".join(
+                filter(None, [(payload.description or "").strip(), f"Sent from ACEX by {sent_by}."])
+            )
+            try:
+                opened = host.open_merge_request(
+                    source=source, target=branch, title=payload.title, description=description
+                )
+            except GitHostError:
+                # No merge request asks for the branch, so nobody would find it.
+                host.delete_branch(source)
+                raise
+        logger.info(f"Git repository {name}: merge request {opened.number} sent by {sent_by} for {payload.path}")
+        return MergeRequestResponse(
+            url=opened.url, number=opened.number, source_branch=source, target_branch=branch, path=payload.path
+        )
+
+    def _git_host(self, repo_id: int) -> tuple[str, str, GitLab]:
+        """The repository's name, the branch it follows and its git host, signed in with the merge request token."""
+        with self._session() as session:
+            row = self._row(session, repo_id)
+            name, url, branch, credential_id = row.name, row.url, row.branch, row.merge_request_credential_id
+            ca_file = self._ca_file(row)
+        if credential_id is None:
+            raise GitRepositoryConflict(f"Git repository {name} has no merge request token")
+        try:
+            token = self.credentials.get_secret(credential_id).fields.get("token")
+        except HTTPException as exc:
+            raise GitRepositoryConflict(f"Credential {credential_id}: {exc.detail}") from exc
+        if not token:
+            raise GitRepositoryConflict(f"Credential {credential_id} has no token")
+        return name, branch, GitLab(url, token, ca_file=ca_file, transport=self._http_transport)
 
     # ── Syncing ──────────────────────────────────────────────────
 
@@ -328,7 +418,7 @@ class GitSyncManager:
                 f"credential {credential_id} is {credential.credential_type}"
             )
 
-    def _check_webhook_credential(self, credential_id: int | None) -> None:
+    def _check_token_credential(self, credential_id: int | None, what: str) -> None:
         if credential_id is None:
             return
         try:
@@ -337,7 +427,7 @@ class GitSyncManager:
             raise ValueError(f"Credential {credential_id}: {exc.detail}") from exc
         if credential.credential_type != "token":
             raise ValueError(
-                f"the webhook secret is the token of a token credential; "
+                f"the {what} is the token of a token credential; "
                 f"credential {credential_id} is {credential.credential_type}"
             )
 

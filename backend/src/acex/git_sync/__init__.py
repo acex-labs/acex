@@ -2,12 +2,14 @@
 
 from acex.git_sync import webhook
 from acex.git_sync.git import Git, GitAuth, GitError, HttpsTokenAuth
+from acex.git_sync.gitlab import GitHostError
 from acex.git_sync.manager import GitRepositoryConflict, GitRepositoryNotFound, GitSyncManager
 
 __all__ = [
     "Git",
     "GitAuth",
     "GitError",
+    "GitHostError",
     "GitRepositoryConflict",
     "GitRepositoryNotFound",
     "GitSyncManager",

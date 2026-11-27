@@ -26,6 +26,9 @@ class GitRepositoryRow(SQLModel, table=True):
     #: A `token` credential whose token is the secret of the repository's webhook. Not a foreign key, like the
     #: credential above. Empty: the repository has no webhook.
     webhook_credential_id: int | None = None
+    #: A `token` credential that merge requests are sent with, through the git host's API. Not a foreign key
+    #: either. Empty: none can be sent to the repository.
+    merge_request_credential_id: int | None = None
 
     commit: str | None = None
     last_checked_at: datetime | None = None
