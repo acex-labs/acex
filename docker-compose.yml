@@ -96,10 +96,15 @@ services:
       ACEX_OIDC_ISSUER_URL: http://keycloak:8180/realms/acex
       ACEX_OIDC_AUDIENCE: acex
       ACEX_OIDC_VERIFY_SSL: "false"
-      # Who may read a device login in the clear: off, log or enforce. The dev realm ships the roles
-      # (acex-admin for the user admin, acex-service for the agents), but a Keycloak volume created before them
-      # does not have them: import the realm again, or add the roles by hand, before turning this on.
+      # Whether reading a device login in the clear needs a permission: off, log or enforce. The backend names no
+      # roles. The dev realm has the permissions as client roles of acex, and two roles made of them in Keycloak:
+      # acex-admin for the user admin and acex-service for the client acex-agents. A Keycloak volume created
+      # before that does not have them: import the realm again, or make the roles by hand, before turning this on
+      # (see docs/guides/api-faq.md).
       ACEX_AUTHZ_MODE: ${ACEX_AUTHZ_MODE:-off}
+      # The same for running commands on devices, reading what they answered and letting a worker connect.
+      # The two roles of the dev realm hold these permissions as well.
+      ACEX_AUTHZ_OPERATIONS_MODE: ${ACEX_AUTHZ_OPERATIONS_MODE:-off}
       # The frontend is served from another origin and calls this API from the
       # browser, so it has to be named here. Nothing else is trusted.
       ACEX_CORS_ALLOWED_ORIGINS: ${ACEX_CORS_ALLOWED_ORIGINS:-http://localhost:3000}

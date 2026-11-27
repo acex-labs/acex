@@ -8,13 +8,93 @@
     "realm": [
       {
         "name": "acex-admin",
-        "description": "Administrator of ACEX: may read the stored login of a device in the clear"
+        "description": "An example of a role made of permissions, for people: every permission but the two of a worker",
+        "composite": true,
+        "composites": {
+          "client": {
+            "acex": [
+              "credentials.reveal",
+              "operations.execute",
+              "operations.apply",
+              "operations.inspect",
+              "operations.runs.read",
+              "operations.jobs",
+              "workflows.edit",
+              "workflows.run",
+              "workflows.runs.read",
+              "workflows.runs.browse"
+            ]
+          }
+        }
       },
       {
         "name": "acex-service",
-        "description": "Agents and workers: fetch the stored logins of the devices they work on"
+        "description": "An example of a role made of permissions, for the agents and workers",
+        "composite": true,
+        "composites": {
+          "client": {
+            "acex": [
+              "credentials.reveal",
+              "workflows.runs.read",
+              "workers.connect",
+              "workers.report"
+            ]
+          }
+        }
       }
-    ]
+    ],
+    "client": {
+      "acex": [
+        {
+          "name": "credentials.reveal",
+          "description": "Allows to read the stored login of a device in the clear."
+        },
+        {
+          "name": "operations.execute",
+          "description": "Allows to run raw commands on devices."
+        },
+        {
+          "name": "operations.apply",
+          "description": "Allows to send a patch of configuration to devices."
+        },
+        {
+          "name": "operations.inspect",
+          "description": "Allows to plan a patch and run the actions, which read from devices and change nothing."
+        },
+        {
+          "name": "operations.runs.read",
+          "description": "Allows to list and read runs and their reports, which hold what the devices answered."
+        },
+        {
+          "name": "operations.jobs",
+          "description": "Allows to list, read, queue again, cancel, delete and purge jobs."
+        },
+        {
+          "name": "workflows.edit",
+          "description": "Allows to create, change and delete workflow definitions, which are stored commands."
+        },
+        {
+          "name": "workflows.run",
+          "description": "Allows to start, continue, stop and delete workflow runs."
+        },
+        {
+          "name": "workflows.runs.read",
+          "description": "Allows to read a workflow run and the artifacts its steps leave."
+        },
+        {
+          "name": "workflows.runs.browse",
+          "description": "Allows to list workflow runs and read what the nodes answered in a step."
+        },
+        {
+          "name": "workers.connect",
+          "description": "Allows to receive the login to the message broker."
+        },
+        {
+          "name": "workers.report",
+          "description": "Allows to report the state and the result of a job."
+        }
+      ]
+    }
   },
   "clients": [
     {

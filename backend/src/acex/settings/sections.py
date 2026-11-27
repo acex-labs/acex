@@ -1,5 +1,6 @@
 """Core sections: database, serving, auth, CORS, credential storage and messaging."""
 
+import os
 from typing import Annotated, Any, Literal
 from urllib.parse import quote, urlsplit
 
@@ -46,26 +47,37 @@ class OidcSettings(Section, name="oidc"):
     verify_ssl: bool = True
 
 
+#: The settings that named the two roles the backend had of its own, from 7.5 until it named none.
+_ROLE_NAME_SETTINGS = ("ACEX_AUTHZ_ADMIN_ROLE", "ACEX_AUTHZ_SERVICE_ROLE")
+
+
 class AuthorizationSettings(Section, name="authz"):
     """Who may do what, from the roles in the access token.
 
-    A valid token is all that most endpoints ask for. The ones that hand out or act on device logins check a role as
-    well, so that the first tenant to be locked down is not everyone with a token. Roll it out in steps: `log` lets
-    every request through and logs the ones that `enforce` would have refused, so the roles can be given to the
-    agents, workers and people that need them before anything is refused.
+    A valid token is all that most endpoints ask for. The ones that hand out or act on device logins check a permission
+    as well (see acex.permissions for the list), so that the first tenant to be locked down is not everyone with a
+    token. The framework says which permission a route needs and names no roles: the roles that hold the permissions
+    are yours to make, in the identity provider or in `bundles` below. Roll it out in steps: `log` lets every request
+    through and logs the ones that `enforce` would have refused, so the roles can be given to the agents, workers and
+    people that need them before anything is refused.
     """
 
-    #: off: no role is checked. log: a request that would be refused is logged and let through. enforce: it is
-    #: refused with 403.
+    #: off: no permission is checked. log: a request that would be refused is logged and let through. enforce: it is
+    #: refused with 403. For reading a device login in the clear.
     mode: Literal["off", "log", "enforce"] = "off"
+    #: The same three modes for everything that runs on or reads from devices: operations, workflows and workers. Its
+    #: own setting, so that each group of routes can be switched on when its callers have their roles.
+    operations_mode: Literal["off", "log", "enforce"] = "off"
     #: Where in the access token roles are listed, as dotted paths. `{audience}` is replaced by ACEX_OIDC_AUDIENCE.
     #: The default reads Keycloak's realm roles and the client roles of the audience's client. Comma-separated in the
     #: environment.
     roles_claims: Annotated[list[str], NoDecode] = ["realm_access.roles", "resource_access.{audience}.roles"]
-    #: May do everything the roles below may, and read the secrets of device logins from the web interface.
-    admin_role: str = "acex-admin"
-    #: For the agents and workers that fetch device logins to do their work.
-    service_role: str = "acex-service"
+    #: Roles made here instead of in the identity provider, each with the permissions it holds:
+    #: `ACEX_AUTHZ_BUNDLES__OPERATOR=operations.inspect, operations.runs.read`. A permission, or a prefix pattern as
+    #: `operations.*`. A name that is no permission stops the API at startup. Nothing needs to be listed here: a role in
+    #: the token that is itself a permission name (a client role of `acex` in Keycloak, which a composite role made of
+    #: them puts in the token) holds it without any setting.
+    bundles: dict[str, list[str]] = {}
 
     @field_validator("roles_claims", mode="before")
     @classmethod
@@ -73,6 +85,32 @@ class AuthorizationSettings(Section, name="authz"):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @field_validator("bundles", mode="before")
+    @classmethod
+    def _split_bundles(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                name: [item.strip() for item in entries.split(",") if item.strip()]
+                if isinstance(entries, str)
+                else entries
+                for name, entries in value.items()
+            }
+        return value
+
+    @model_validator(mode="after")
+    def _names_no_roles_of_its_own(self) -> "AuthorizationSettings":
+        """The backend had two roles of its own, whose names these variables set. Nobody is let in under such a name
+        now, so with a check on the API stops here and says what to do, instead of starting and refusing the callers
+        that had the role."""
+        left = [name for name in _ROLE_NAME_SETTINGS if os.environ.get(name)]
+        if left and {self.mode, self.operations_mode} != {"off"}:
+            raise ValueError(
+                f"{' and '.join(left)} {'is' if len(left) == 1 else 'are'} no longer read: the backend names no roles. "
+                "Make the role in the identity provider, as a role made of permissions, or list what it holds in "
+                "ACEX_AUTHZ_BUNDLES (docs/guides/api-faq.md), and remove the variable."
+            )
+        return self
 
 
 # An explicitly empty ACEX_CORS_ALLOWED_ORIGINS means "no origins", so here

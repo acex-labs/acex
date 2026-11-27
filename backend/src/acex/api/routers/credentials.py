@@ -12,17 +12,14 @@ def create_router(automation_engine):
     # Credential CRUD
     router.add_api_route("/credentials", cm.create, methods=["POST"], tags=tags)
     router.add_api_route("/credentials", cm.query, methods=["GET"], tags=tags)
-    # The one route that returns a login in the clear: it needs a role when ACEX_AUTHZ_MODE says so.
+    # The one route that returns a login in the clear: it needs a permission when ACEX_AUTHZ_MODE says so.
     router.add_api_route(
         "/credentials/{id}/secret",
         cm.get_secret,
         methods=["GET"],
         tags=tags,
-        dependencies=[Depends(_auth.require_role("admin", "service"))],
-        description=(
-            "The stored login in the clear, from the database or from Vault. With ACEX_AUTHZ_MODE=enforce the token "
-            "must list the admin or the service role."
-        ),
+        dependencies=[Depends(_auth.require_permission("credentials.reveal"))],
+        description="The stored login in the clear, from the database or from Vault.",
     )
     router.add_api_route("/credentials/{id}", cm.get, methods=["GET"], tags=tags)
     router.add_api_route("/credentials/{id}", cm.update, methods=["PATCH"], tags=tags)

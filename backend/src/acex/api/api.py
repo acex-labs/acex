@@ -31,7 +31,8 @@ class Api:
         _auth.configure_authorization(
             settings.authz.mode,
             settings.authz.roles_claims,
-            {"admin": settings.authz.admin_role, "service": settings.authz.service_role},
+            settings.authz.operations_mode,
+            settings.authz.bundles,
         )
 
         @asynccontextmanager
@@ -41,9 +42,14 @@ class Api:
                     print("AUTH: dev mode — no OIDC issuer configured, every endpoint is open")
                 else:
                     print("AUTH: no OIDC issuer configured — requests will be refused with 503")
-            if _auth.OIDC_ISSUER_URL and settings.authz.mode != "enforce":
-                what = "only logged" if settings.authz.mode == "log" else "not checked"
-                print(f"AUTH: roles are {what} (ACEX_AUTHZ_MODE)")
+            if _auth.OIDC_ISSUER_URL:
+                for mode, setting, rules in (
+                    (settings.authz.mode, "ACEX_AUTHZ_MODE", "reading a device login"),
+                    (settings.authz.operations_mode, "ACEX_AUTHZ_OPERATIONS_MODE", "operations, workflows and jobs"),
+                ):
+                    if mode != "enforce":
+                        what = "only logged" if mode == "log" else "not checked"
+                        print(f"AUTH: permissions for {rules} are {what} ({setting})")
             if _auth.OIDC_ISSUER_URL:
                 try:
                     keys = _auth._get_jwks().get("keys", [])
@@ -137,6 +143,7 @@ class Api:
                 raise e
 
         for router in routers:
+            _auth.describe_permission_rules(router)
             Api.include_router(router)
 
         return Api

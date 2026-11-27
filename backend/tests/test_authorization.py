@@ -1,7 +1,10 @@
-"""A device login in the clear is for the agents and workers that need it and for admins, not for every valid token.
+"""A device login in the clear is for the agents and workers that need it and for the people who may see it, not for
+every valid token: reading one needs the permission `credentials.reveal`.
 
 The check is rolled out in three modes: off (nothing is checked), log (what would be refused is logged) and enforce
-(refused with 403). The roles are read from the token as the settings say.
+(refused with 403). The permissions are read from the roles of the token, in the places the settings name. The backend
+knows no role by its name: a role holds the permission because the identity provider made it of permissions, or because
+the settings list what it holds.
 """
 
 import logging
@@ -15,7 +18,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 ISSUER = "https://keycloak.example/realms/acex"
-ROLE_NAMES = {"admin": "acex-admin", "service": "acex-service"}
 KEYCLOAK_CLAIMS = ("realm_access.roles", "resource_access.{audience}.roles")
 SECRET = "/api/v1/inventory/credentials/7/secret"
 
@@ -40,12 +42,18 @@ class FakeEngine:
 def _reset_auth():
     yield
     auth.configure(None)
-    auth.configure_authorization("off", KEYCLOAK_CLAIMS, ROLE_NAMES)
+    auth.configure_authorization("off", KEYCLOAK_CLAIMS)
 
 
-def _client(mode: str, claims: dict, issuer: str | None = ISSUER, roles_claims=KEYCLOAK_CLAIMS) -> TestClient:
+def _client(
+    mode: str,
+    claims: dict,
+    issuer: str | None = ISSUER,
+    roles_claims=KEYCLOAK_CLAIMS,
+    bundles: dict | None = None,
+) -> TestClient:
     auth.configure(issuer, "acex")
-    auth.configure_authorization(mode, roles_claims, ROLE_NAMES)
+    auth.configure_authorization(mode, roles_claims, bundles=bundles)
     app = FastAPI()
     app.include_router(credentials.create_router(FakeEngine()))
     app.dependency_overrides[auth.get_current_user] = lambda: claims
@@ -53,39 +61,52 @@ def _client(mode: str, claims: dict, issuer: str | None = ISSUER, roles_claims=K
 
 
 NO_ROLES = {"sub": "alice", "aud": "acex"}
-ADMIN = {"sub": "alice", "realm_access": {"roles": ["acex-admin"]}}
-SERVICE = {"sub": "svc", "azp": "collection-agent", "realm_access": {"roles": ["offline_access", "acex-service"]}}
-CLIENT_ROLE = {"sub": "svc", "resource_access": {"acex": {"roles": ["acex-service"]}}}
-OTHER_ROLE = {"sub": "bob", "realm_access": {"roles": ["acex-viewer"]}}
-OTHER_CLIENTS_ROLE = {"sub": "bob", "resource_access": {"other-client": {"roles": ["acex-admin"]}}}
+#: What Keycloak gives someone with a realm role made of permissions: the role by its name among the realm roles, and
+#: the permissions it is made of among the roles of the client `acex`.
+PERSON = {
+    "sub": "alice",
+    "realm_access": {"roles": ["acex-admin"]},
+    "resource_access": {"acex": {"roles": ["credentials.reveal", "operations.runs.read"]}},
+}
+AGENT = {
+    "sub": "svc",
+    "azp": "collection-agent",
+    "realm_access": {"roles": ["offline_access", "acex-service"]},
+    "resource_access": {"acex": {"roles": ["credentials.reveal"]}},
+}
+#: The permission given as a role of the realm itself.
+REALM_ROLE = {"sub": "carol", "realm_access": {"roles": ["credentials.reveal"]}}
+OTHER_PERMISSION = {"sub": "bob", "resource_access": {"acex": {"roles": ["operations.execute"]}}}
+OTHER_CLIENTS_ROLE = {"sub": "bob", "resource_access": {"other-client": {"roles": ["credentials.reveal"]}}}
+#: The two roles the backend once had, on a token of a realm where they are made of nothing.
+NAMES_ONLY = {"sub": "dave", "azp": "collection-agent", "realm_access": {"roles": ["acex-admin", "acex-service"]}}
 
 
 class TestRolesOfAToken:
     @pytest.fixture(autouse=True)
     def _keycloak(self):
         auth.configure(ISSUER, "acex")
-        auth.configure_authorization("enforce", KEYCLOAK_CLAIMS, ROLE_NAMES)
+        auth.configure_authorization("enforce", KEYCLOAK_CLAIMS)
 
     def should_read_the_realm_roles(self):
-        assert auth.roles_of(ADMIN) == {"acex-admin"}
+        assert auth.roles_of(REALM_ROLE) == {"credentials.reveal"}
 
     def should_read_the_client_roles_of_the_audience(self):
-        assert auth.roles_of(CLIENT_ROLE) == {"acex-service"}
+        assert auth.roles_of(OTHER_PERMISSION) == {"operations.execute"}
 
     def should_not_read_the_roles_of_another_client(self):
         assert auth.roles_of(OTHER_CLIENTS_ROLE) == set()
 
     def should_read_both_places_at_once(self):
-        claims = {"realm_access": {"roles": ["a"]}, "resource_access": {"acex": {"roles": ["b"]}}}
-        assert auth.roles_of(claims) == {"a", "b"}
+        assert auth.roles_of(PERSON) == {"acex-admin", "credentials.reveal", "operations.runs.read"}
 
     def should_read_a_path_of_the_settings(self):
-        auth.configure_authorization("enforce", ("roles",), ROLE_NAMES)
-        assert auth.roles_of({"roles": ["acex-admin", "x"]}) == {"acex-admin", "x"}
+        auth.configure_authorization("enforce", ("roles",))
+        assert auth.roles_of({"roles": ["credentials.reveal", "x"]}) == {"credentials.reveal", "x"}
 
     def should_read_a_claim_of_names_in_one_string(self):
-        auth.configure_authorization("enforce", ("groups",), ROLE_NAMES)
-        assert auth.roles_of({"groups": "acex-admin acex-service"}) == {"acex-admin", "acex-service"}
+        auth.configure_authorization("enforce", ("scope",))
+        assert auth.roles_of({"scope": "openid credentials.reveal"}) == {"openid", "credentials.reveal"}
 
     @pytest.mark.parametrize(
         "claims",
@@ -102,38 +123,51 @@ class TestRolesOfAToken:
 
 
 class TestOff:
-    @pytest.mark.parametrize("claims", [NO_ROLES, ADMIN, OTHER_ROLE])
+    @pytest.mark.parametrize("claims", [NO_ROLES, PERSON, NAMES_ONLY])
     def should_let_every_token_through_as_before(self, claims):
         assert _client("off", claims).get(SECRET).status_code == 200
 
 
 class TestEnforce:
-    @pytest.mark.parametrize("claims", [ADMIN, SERVICE, CLIENT_ROLE])
-    def should_give_the_secret_to_the_admin_and_the_service_roles(self, claims):
+    @pytest.mark.parametrize("claims", [PERSON, AGENT, REALM_ROLE])
+    def should_give_the_secret_to_a_token_that_holds_the_permission(self, claims):
         response = _client("enforce", claims).get(SECRET)
         assert response.status_code == 200
         assert response.json()["fields"] == {"username": "u", "password": "p"}
 
-    @pytest.mark.parametrize("claims", [NO_ROLES, OTHER_ROLE, OTHER_CLIENTS_ROLE])
-    def should_refuse_a_valid_token_without_the_role(self, claims):
+    @pytest.mark.parametrize("claims", [NO_ROLES, OTHER_PERMISSION, OTHER_CLIENTS_ROLE, NAMES_ONLY])
+    def should_refuse_a_valid_token_without_the_permission(self, claims):
         response = _client("enforce", claims).get(SECRET)
         assert response.status_code == 403
-        assert "acex-admin" in response.json()["detail"] and "acex-service" in response.json()["detail"]
+        assert response.json()["detail"] == "Requires the permission credentials.reveal"
         assert "password" not in response.text
 
     def should_leave_the_other_credential_routes_as_they_are(self):
         assert _client("enforce", NO_ROLES).get("/api/v1/inventory/credentials").status_code == 200
 
-    def should_use_the_role_names_of_the_settings(self):
-        auth.configure(ISSUER, "acex")
-        auth.configure_authorization("enforce", ("roles",), {"admin": "netops", "service": "robots"})
-        app = FastAPI()
-        app.include_router(credentials.create_router(FakeEngine()))
-        claims = {"sub": "x", "roles": ["robots"]}
-        app.dependency_overrides[auth.get_current_user] = lambda: claims
-        assert TestClient(app).get(SECRET).status_code == 200
-        claims["roles"] = ["acex-admin"]
-        assert TestClient(app).get(SECRET).status_code == 403
+    def should_read_the_permission_from_the_scope_of_a_token_when_the_settings_say_so(self):
+        scoped, other = {"sub": "x", "scope": "openid credentials.reveal"}, {"sub": "x", "scope": "openid profile"}
+        assert _client("enforce", scoped, roles_claims=("scope",)).get(SECRET).status_code == 200
+        assert _client("enforce", other, roles_claims=("scope",)).get(SECRET).status_code == 403
+        # Not read unless asked for: the default places are the roles.
+        assert _client("enforce", scoped).get(SECRET).status_code == 403
+
+    def should_give_it_to_a_role_the_settings_say_holds_it(self):
+        bundles = {"robots": ["credentials.reveal"], "planner": ["operations.inspect"]}
+        for role, expected in (("robots", 200), ("planner", 403), ("netops", 403)):
+            claims = {"sub": "x", "realm_access": {"roles": [role]}}
+            assert _client("enforce", claims, bundles=bundles).get(SECRET).status_code == expected, role
+        refused = _client("enforce", NO_ROLES, bundles=bundles).get(SECRET)
+        assert refused.json()["detail"] == "Requires the permission credentials.reveal (held by the roles robots)"
+
+    def should_keep_the_two_old_roles_reading_logins_when_the_settings_list_what_they_hold(self):
+        # What an installation that had the check on sets before it upgrades, unless it makes the roles of permissions
+        # in its identity provider.
+        bundles = {"acex-admin": ["credentials.reveal"], "acex-service": ["credentials.reveal"]}
+        assert _client("enforce", NAMES_ONLY, bundles=bundles).get(SECRET).status_code == 200
+        for role in ("acex-admin", "acex-service"):
+            claims = {"sub": "x", "resource_access": {"acex": {"roles": [role]}}}
+            assert _client("enforce", claims, bundles=bundles).get(SECRET).status_code == 200, role
 
     def should_not_check_roles_when_there_is_no_issuer(self):
         # Dev mode: nobody has a token, so nobody has roles.
@@ -141,12 +175,36 @@ class TestEnforce:
 
     def should_log_the_refusal(self, caplog):
         with caplog.at_level(logging.WARNING, logger="acex.auth"):
-            _client("enforce", SERVICE | {"realm_access": {"roles": []}}).get(SECRET)
+            _client("enforce", AGENT | {"resource_access": {}}).get(SECRET)
         assert "denied" in caplog.text and "collection-agent" in caplog.text
+        assert "the permission credentials.reveal; its roles are acex-service, offline_access" in caplog.text
+
+    def should_log_that_a_refused_token_lists_no_roles(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="acex.auth"):
+            _client("enforce", NO_ROLES).get(SECRET)
+        assert "'alice' does not hold the permission credentials.reveal; it lists no roles" in caplog.text
+
+    def should_clean_and_cut_each_role_it_logs(self, caplog):
+        # The names come from the token. A pattern and a group of a directory are written as they are.
+        roles = ["operations.*", "/netops/admins", 'bad\nrole "x"', "r" * 200]
+        with caplog.at_level(logging.WARNING, logger="acex.auth"):
+            _client("enforce", {"sub": "x", "realm_access": {"roles": roles}}).get(SECRET)
+        [line] = [record.getMessage() for record in caplog.records]
+        assert line.endswith("its roles are /netops/admins, bad?role??x?, operations.*, " + "r" * 64)
+
+    def should_log_the_first_roles_of_a_token_that_lists_many(self, caplog):
+        roles = [f"group-{n:02}" for n in range(30)]
+        with caplog.at_level(logging.WARNING, logger="acex.auth"):
+            _client("enforce", {"sub": "x", "realm_access": {"roles": roles}}).get(SECRET)
+        [line] = [record.getMessage() for record in caplog.records]
+        assert line.endswith("its roles are " + ", ".join(roles[:20]) + " and 10 more")
+        with caplog.at_level(logging.WARNING, logger="acex.auth"):
+            _client("enforce", {"sub": "x", "realm_access": {"roles": roles[:20]}}).get(SECRET)
+        assert caplog.records[-1].getMessage().endswith("its roles are " + ", ".join(roles[:20]))
 
 
 class TestLog:
-    def should_let_a_token_without_the_role_through(self):
+    def should_let_a_token_without_the_permission_through(self):
         assert _client("log", NO_ROLES).get(SECRET).status_code == 200
 
     def should_say_what_enforce_would_have_refused(self, caplog):
@@ -155,6 +213,15 @@ class TestLog:
         assert "Would be refused" in caplog.text and "alice" in caplog.text
         assert "/credentials/{id}/secret" in caplog.text
 
+    def should_say_which_roles_a_token_that_would_be_refused_has(self, caplog):
+        # What whoever upgrades with the check on reads: the role is there, and is made of nothing.
+        with caplog.at_level(logging.WARNING, logger="acex.auth"):
+            assert _client("log", NAMES_ONLY).get(SECRET).status_code == 200
+        assert (
+            "'collection-agent' does not hold the permission credentials.reveal; its roles are acex-admin, "
+            "acex-service. Set ACEX_AUTHZ_MODE=enforce once every caller has a role that holds it."
+        ) in caplog.text
+
     def should_say_it_once_for_a_caller_that_asks_again_and_again(self, caplog):
         client = _client("log", NO_ROLES)
         with caplog.at_level(logging.WARNING, logger="acex.auth"):
@@ -162,9 +229,9 @@ class TestLog:
                 client.get(SECRET)
         assert caplog.text.count("Would be refused") == 1
 
-    def should_say_nothing_about_a_token_with_the_role(self, caplog):
+    def should_say_nothing_about_a_token_that_holds_the_permission(self, caplog):
         with caplog.at_level(logging.WARNING, logger="acex.auth"):
-            _client("log", ADMIN).get(SECRET)
+            _client("log", PERSON).get(SECRET)
         assert caplog.text == ""
 
 
@@ -175,13 +242,8 @@ class TestSettings:
     def should_read_the_environment(self, monkeypatch):
         monkeypatch.setenv("ACEX_AUTHZ_MODE", "enforce")
         monkeypatch.setenv("ACEX_AUTHZ_ROLES_CLAIMS", "groups, realm_access.roles")
-        monkeypatch.setenv("ACEX_AUTHZ_ADMIN_ROLE", "netops")
         settings = Settings().authz
-        assert (settings.mode, settings.roles_claims, settings.admin_role) == (
-            "enforce",
-            ["groups", "realm_access.roles"],
-            "netops",
-        )
+        assert (settings.mode, settings.roles_claims) == ("enforce", ["groups", "realm_access.roles"])
 
     def should_refuse_a_mode_it_does_not_know(self):
         with pytest.raises(ValueError):
@@ -225,7 +287,7 @@ class TestThroughTheApp:
         yield client, token
         auth.set_dev_mode(False)
 
-    def should_give_the_secret_only_to_a_token_with_a_role(self, tokens):
+    def should_give_the_secret_only_to_a_token_that_holds_the_permission(self, tokens):
         client, token = tokens
         plain = {"Authorization": f"Bearer {token()}"}
         created = client.post(
@@ -240,12 +302,15 @@ class TestThroughTheApp:
         assert refused.status_code == 403
         assert "hunter2" not in refused.text
 
-        admin = client.get(url, headers={"Authorization": f"Bearer {token(realm_access={'roles': ['acex-admin']})}"})
-        assert admin.status_code == 200 and admin.json()["fields"]["password"] == "hunter2"
+        # A role by its name alone, as a realm that has not made it of permissions gives it.
+        named = client.get(url, headers={"Authorization": f"Bearer {token(realm_access={'roles': ['acex-admin']})}"})
+        assert named.status_code == 403
+        assert "hunter2" not in named.text
 
-        service = client.get(
-            url, headers={"Authorization": f"Bearer {token(resource_access={'acex': {'roles': ['acex-service']}})}"}
-        )
-        assert service.status_code == 200
+        person = client.get(url, headers={"Authorization": f"Bearer {token(**PERSON)}"})
+        assert person.status_code == 200 and person.json()["fields"]["password"] == "hunter2"
+
+        agent = client.get(url, headers={"Authorization": f"Bearer {token(**AGENT)}"})
+        assert agent.status_code == 200
 
         assert client.get(url).status_code == 401
