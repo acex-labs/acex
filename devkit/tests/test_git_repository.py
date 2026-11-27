@@ -10,6 +10,7 @@ from acex_devkit.models.git_repository import (
     GitRepositoryCreate,
     GitRepositoryResponse,
     GitRepositoryUpdate,
+    MergeRequestCreate,
 )
 from pydantic import ValidationError
 
@@ -148,3 +149,52 @@ def test_a_repository_is_shown_from_what_is_stored_with_the_config_maps_of_the_p
     shown.config_maps = ["a.py:alpha"]
     assert shown.model_dump(mode="json")["config_maps"] == ["a.py:alpha"]
     assert shown.model_dump(mode="json")["auth_method"] == "https_token"
+
+
+def test_a_repository_can_name_the_credential_that_merge_requests_are_sent_with():
+    assert GitRepositoryCreate(name="m", url=URL).merge_request_credential_id is None
+    assert GitRepositoryCreate(name="m", url=URL, merge_request_credential_id=9).merge_request_credential_id == 9
+
+    cleared = GitRepositoryUpdate(merge_request_credential_id=None)
+    assert cleared.model_dump(mode="json", include=cleared.model_fields_set) == {"merge_request_credential_id": None}
+
+
+@pytest.mark.parametrize(
+    ("given", "kept"),
+    [
+        ("ntp.py", "ntp.py"),
+        (" got/ntp.py\n", "got/ntp.py"),
+        ("./got//access/vlan 10.py", "got/access/vlan 10.py"),
+    ],
+)
+def test_a_merge_request_names_a_python_file_in_the_repository(given, kept):
+    assert MergeRequestCreate(path=given, content="x = 1\n", title="Add x").path == kept
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "",
+        "/etc/ntp.py",
+        "../ntp.py",
+        "a/../../ntp.py",
+        ".git/hooks/pre.py",
+        "got\\ntp.py",
+        "got/ntp\n.py",
+        "got/notes.txt",
+        "got/",
+        "got/.py",
+    ],
+)
+def test_a_merge_request_cannot_put_a_file_outside_the_repository_or_one_that_is_not_python(path):
+    with pytest.raises(ValidationError, match="path must"):
+        MergeRequestCreate(path=path, content="x = 1\n", title="Add x")
+
+
+def test_a_merge_request_has_a_file_and_a_one_line_title_and_does_not_replace_by_default():
+    request = MergeRequestCreate(path="a.py", content="x = 1\n", title="  Add x  ")
+    assert (request.title, request.description, request.replace) == ("Add x", None, False)
+
+    for bad in ({"content": ""}, {"title": ""}, {"title": "   "}, {"title": "Add x\nand y"}, {"title": "x" * 256}):
+        with pytest.raises(ValidationError):
+            MergeRequestCreate(**{"path": "a.py", "content": "x = 1\n", "title": "Add x", **bad})

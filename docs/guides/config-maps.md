@@ -145,6 +145,7 @@ from a directory, and loads them again when the branch moves.
 | `ca_certificate` | PEM certificates to trust for the host, for one whose certificate an internal CA signed. Include intermediates the host doesn't send. Left out, the system's trusted CAs are used. |
 | `site` | Set, the repository belongs to this site: its ConfigMaps apply to the logical nodes of that site only. Left out, they apply to any site their filters say. See below. |
 | `webhook_credential_id` | A `token` credential whose token is the secret of the repository's webhook, so that a push syncs it at once. See below. Empty: no webhook. |
+| `merge_request_credential_id` | A `token` credential that merge requests are sent with, so that a ConfigMap made in ACEX can be proposed to the repository. See below. Empty: none can be sent. GitLab only. |
 | `enabled` | A disabled repository is not synced and its ConfigMaps are not used. |
 
 ### One repository for each site
@@ -198,6 +199,58 @@ The call needs no login, only the secret: GitLab sends it as `X-Gitlab-Token` an
 
 The API process that answers loads the new commit at once. With several API processes, the others pick it up at their next
 check. Syncing is the same as `POST /api/v1/git_repositories/{id}/sync`, so a failed sync shows in `last_error` as usual.
+
+### Sending a ConfigMap as a merge request
+
+A ConfigMap made in ACEX, for example by the Config Translator, can be sent to a repository as a merge request instead of being
+copied there by hand. ACEX commits the file to a new branch and opens a merge request into the branch the repository follows.
+Nothing changes on that branch, or on any device, until someone merges it on the git host. GitLab only.
+
+1. In GitLab, make a token that may write to the project through the API: a project access token with the role **Developer** and
+   the scope **api**. The token the repository is read with is not enough: `read_repository` and `write_repository` are for git
+   itself, not for the API.
+2. Store it as a `token` credential and give the repository the id of that credential, as `merge_request_credential_id`, when
+   you add it or in a `PATCH` (in the web interface: **Merge request token**). `null` takes it away again.
+3. Keep the followed branch protected in GitLab, so that only people merge into it. ACEX never merges.
+
+In the web interface, **Create merge request** is next to the code that the Config Translator, the Builder and Reconcile
+generate: choose the repository, the folder and a file name. Through the API:
+
+```bash
+curl $ACEX/api/v1/git_repositories/3/tree
+curl -X POST $ACEX/api/v1/git_repositories/3/merge_requests -d '{
+  "path": "got/ntp.py",
+  "content": "from acex.config_map import ConfigMap\n...",
+  "title": "Add NTP for got",
+  "description": "Translated from the core switch."
+}'
+```
+
+`tree` lists the directories and files of the followed branch, as GitLab has them now. The answer to the second call has the
+address of the merge request (`url`), its number and the new branch, named `acex/<file name>-<six characters>`.
+
+- The file goes where `path` says, anywhere in the repository, and a directory that does not exist yet is made. ACEX reads
+  ConfigMaps only under the repository's own `path`: a file outside that directory can be merged but is not used, unless
+  another repository entry reads the directory it is in. With one repository entry for each site, the directory decides which
+  site the ConfigMap reaches.
+- The path names a `.py` file and the content is Python that parses. A path that already holds a file is refused unless
+  `replace` is true; the merge request then changes that file.
+- The merge request is opened by the token's own user (GitLab makes a bot user for a project access token) and its text names
+  the ACEX user who sent it. The commit is written in that user's name when their login carries an email address.
+- Every signed-in user of ACEX can send one, like the rest of the git repository API.
+- The project is the path of the repository's `url` on its host. A GitLab served under a sub-path of its host is not supported.
+- The token is sent to the host in the repository's `url` and to no other. Whoever can change a repository can change that
+  address, so keep that as tight as access to the token itself.
+- A host signed by an internal CA is trusted through the repository's `ca_certificate`, as for syncing. These calls check a
+  certificate more strictly than git does (by RFC 5280, for example an authority key identifier), so a certificate that git
+  accepts can be refused here; the answer says what is missing.
+
+| Answer | Meaning |
+|---|---|
+| `201` | The merge request is open. |
+| `409` | The repository has no merge request token (or its credential is gone), or the path already holds a file and `replace` is not set. |
+| `422` | The path is not a `.py` file inside the repository, the title is empty, or the content is not Python. |
+| `502` | GitLab refused or could not be reached. `detail` says what it answered: a wrong or expired token, a token without the scope or the role, a project or a branch it does not have. |
 
 ### When ConfigMaps are loaded again
 
