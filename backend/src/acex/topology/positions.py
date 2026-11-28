@@ -30,25 +30,31 @@ class TopologyPositions:
             session.close()
 
     def save(self, positions: list[TopologyPosition], *, updated_by: str) -> list[TopologyPositionResponse]:
+        """Keeps the positions sent, a whole view at a time: the rows there are are read in one go."""
+        wanted = {(p.container, p.item): p for p in positions}
+        if not wanted:
+            return []
         session = next(self.db.get_session())
         try:
             now = datetime.now(UTC)
-            rows = []
-            for position in {(p.container, p.item): p for p in positions}.values():
-                row = session.exec(
+            existing = {
+                (row.container, row.item): row
+                for row in session.exec(
                     select(TopologyPositionRow).where(
-                        TopologyPositionRow.container == position.container,
-                        TopologyPositionRow.item == position.item,
+                        TopologyPositionRow.container.in_({container for container, _ in wanted})
                     )
-                ).first() or TopologyPositionRow(container=position.container, item=position.item, x=0, y=0)
+                )
+            }
+            for key, position in wanted.items():
+                row = existing.get(key) or TopologyPositionRow(container=position.container, item=position.item)
                 row.x, row.y = position.x, position.y
                 row.updated_by, row.updated_at = updated_by, now
                 session.add(row)
-                rows.append(row)
             session.commit()
-            for row in rows:
-                session.refresh(row)
-            return [TopologyPositionResponse.model_validate(row, from_attributes=True) for row in rows]
+            return [
+                TopologyPositionResponse(**position.model_dump(), updated_by=updated_by, updated_at=now)
+                for position in wanted.values()
+            ]
         finally:
             session.close()
 
